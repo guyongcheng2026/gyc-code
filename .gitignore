@@ -1,0 +1,14 @@
+# Obsidian generated
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache/
+.obsidian/plugins/*/data.json
+
+# OS files
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Temp / installer
+*.exe
+*.log
