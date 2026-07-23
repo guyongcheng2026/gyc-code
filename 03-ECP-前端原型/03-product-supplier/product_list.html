@@ -1,0 +1,908 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>商品列表</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+/* 主题色：行业深青绿 */
+    .app-scss { --ecp-primary: #0B7266; }
+    .tl-title__title { color: #1A2332; }
+    .el-button--primary { background-color: #0B7266; border-color: #0B7266; }
+    .el-button--primary:hover { background-color: #0a6358; border-color: #0a6358; }
+    .el-table th.el-table__cell { background: #F1F6F7; color: #1A2332; font-weight: 600; }
+    .el-table .el-table__cell { font-size: 13px; }
+    .el-tag--success { background-color: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+    .el-tag--warning { background-color: #fff8e1; border-color: #ffecb3; color: #f57c00; }
+    .el-tag--danger { background-color: #ffebee; border-color: #ffcdd2; color: #c62828; }
+    .el-tag--info { background-color: #eceff1; border-color: #cfd8dc; color: #455a64; }
+    .el-dialog__header { border-bottom: 1px solid #EAECF0; }
+    .el-dialog__footer { border-top: 1px solid #EAECF0; }
+    .cart-summary { padding: 12px 20px; background: #F5F7FA; border-top: 1px solid #EAECF0; }
+    .cart-summary .total-line { font-size: 14px; font-weight: 700; color: #0B7266; }
+    .cart-empty { padding: 40px; text-align: center; color: #909399; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .tl-footer { text-align:center; }
+    /* 最大化样式 */
+    .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+    .table-maximized .yj-container-card__bar { padding: 8px 0; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <!-- 页面标题区 -->
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">商品列表</div>
+          <div class="tl-title__slot"></div>
+        </div>
+
+        <!-- 查询面板 -->
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header">
+              <span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span>
+            </div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="："
+                  class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="商品名称" title="商品名称">
+                    <el-input v-model="queryForm.name" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="商品编号" title="商品编号">
+                    <el-input v-model="queryForm.code" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="商品类目" title="商品类目">
+                    <el-select v-model="queryForm.category" placeholder="请选择" clearable>
+                      <el-option label="电气设备" value="电气设备"></el-option>
+                      <el-option label="智能终端" value="智能终端"></el-option>
+                      <el-option label="办公设备" value="办公设备"></el-option>
+                      <el-option label="办公用品" value="办公用品"></el-option>
+                      <el-option label="劳保用品" value="劳保用品"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商" title="供应商">
+                    <el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="在售" value="在售"></el-option>
+                      <el-option label="下架" value="下架"></el-option>
+                      <el-option label="待审核" value="待审核"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-badge :value="cartCount" :hidden="cartCount===0" class="cart-badge">
+                      <el-button @click="openCart" icon="el-icon-shopping-cart-full" type="warning">购物车</el-button>
+                    </el-badge>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon"
+                :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 内容区 -->
+      <main class="el-main query-body">
+        <!-- 表格区 -->
+        <div area="query-body" class="query-grid-body">
+          <!-- 单表格模式 -->
+          
+            <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                      <span title="表格标题">商品列表</span>
+                    </div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                      <span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span>
+                    </div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width: 100%;">
+                          <el-button @click="openAddDialog" type="primary" icon="el-icon-plus">新增商品</el-button>
+                          
+                        </div>
+                      </div>
+                      <div class="yj-container-card__default-buttons">
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true">
+                          <i class="el-icon-setting"></i>
+                        </button>
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize">
+                          <i class="el-icon-full-screen"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger">
+                        <el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table" style="position: relative;">
+                  <el-table ref="table" :data="pagedData" border stripe style="width: 100%;"
+                    @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('code')" prop="code" label="商品编号" min-width="120" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('name')" prop="name" label="商品名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('category')" prop="category" label="分类" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('spec')" prop="spec" label="规格型号" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('supplier')" prop="supplier" label="供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('price')" prop="price" label="单价(元)" min-width="110" align="right"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('stock')" prop="stock" label="库存" min-width="80" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('status')" prop="status" label="状态" min-width="90" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='在售'?'success':row.status==='下架'?'info':'warning'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column v-if="isColumnVisible('date')" prop="date" label="上架日期" min-width="120" align="center"></el-table-column>
+                    <el-table-column label="操作" width="240" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="success" v-if="row.status==='在售'" @click="addToCart(row)">加入购物车</el-button>
+                        <el-button v-if="row.status==='在售'" @click="changeStatus(row,'下架')">下架</el-button>
+                        <el-button v-if="row.status==='下架'" @click="changeStatus(row,'在售')">上架</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length"
+                    :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]"
+                    @size-change="handleSizeChange" @current-change="handlePageChange" background small>
+                  </el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+        <el-dialog :lazy="true" title="商品详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentProduct">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-goods"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="商品编号">{{ currentProduct.code }}</el-descriptions-item>
+          <el-descriptions-item label="商品名称">{{ currentProduct.name }}</el-descriptions-item>
+          <el-descriptions-item label="分类">{{ currentProduct.category }}</el-descriptions-item>
+          <el-descriptions-item label="规格型号">{{ currentProduct.spec }}</el-descriptions-item>
+          <el-descriptions-item label="商品ID">{{ currentProduct.productId }}</el-descriptions-item>
+          <el-descriptions-item label="品牌">{{ currentProduct.brand }}</el-descriptions-item>
+          <el-descriptions-item label="计量单位">{{ currentProduct.unit }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentProduct.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-coin"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="供应商">{{ currentProduct.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="单价">{{ currentProduct.price }}</el-descriptions-item>
+          <el-descriptions-item label="库存">{{ currentProduct.stock }}</el-descriptions-item>
+          <el-descriptions-item label="税率">{{ currentProduct.taxRate }}</el-descriptions-item>
+          <el-descriptions-item label="供应商编码">{{ currentProduct.supplierCode }}</el-descriptions-item>
+          <el-descriptions-item label="销量">{{ currentProduct.salesCount }}</el-descriptions-item>
+          <el-descriptions-item label="库存预警值">{{ currentProduct.stockWarning }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-cpu"></i> AI智能分类上架流程</div>
+        <el-steps :active="3" finish-status="success" style="margin-bottom:16px;">
+          <el-step title="AI识别" description="自动识别商品品类和属性"></el-step>
+          <el-step title="智能匹配" description="匹配标准商品库一物一码"></el-step>
+          <el-step title="AI初筛" description="价格/资质/图片自动审核"></el-step>
+          <el-step title="人工审核" description="审核员确认上架"></el-step>
+          <el-step title="上架发布" description="商品发布到商城"></el-step>
+        </el-steps>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="AI分类结果">
+            <el-tag size="small" type="success">{{ currentProduct.category }}</el-tag>
+            <span style="margin-left:8px;color:#909399;font-size:12px;">置信度 96.8%</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="标准商品匹配">
+            <el-tag size="small" type="info">{{ currentProduct.code || 'STD-00001' }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="AI价格检查">
+            <el-tag size="small" type="success">通过</el-tag>
+            <span style="margin-left:8px;color:#909399;font-size:12px;">市场均价区间内</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="AI资质检查">
+            <el-tag size="small" type="success">通过</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="AI图片检查">
+            <el-tag size="small" type="success">通过</el-tag>
+            <span style="margin-left:8px;color:#909399;font-size:12px;">无违规图片</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="物料编码">
+            <span style="font-weight:600;color:#0B7266;">{{ currentProduct.materialCode || 'MAT-EL-CB-001' }}</span>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="上架时间">{{ currentProduct.listTime }}</el-descriptions-item>
+          <el-descriptions-item label="上架日期">{{ currentProduct.date }}</el-descriptions-item>
+          <el-descriptions-item label="审核状态">{{ currentProduct.auditStatus }}</el-descriptions-item>
+          <el-descriptions-item label="审核人">{{ currentProduct.auditBy }}</el-descriptions-item>
+          <el-descriptions-item label="商品描述">{{ currentProduct.productDesc }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-connection"></i> 物料编码体系关联</div>
+        <el-alert title="商品已关联标准商品库一物一码编码，支持物料编码体系五级分类追溯" type="success" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+        <el-descriptions :column="2" border style="margin-bottom:12px;">
+          <el-descriptions-item label="物料编码">
+            <span style="font-weight:600;color:#0B7266;">{{ currentProduct.materialCode || 'MAT-01-01-01-01-001' }}</span>
+          </el-descriptions-item>
+          <el-descriptions-item label="一物一码编码">{{ currentProduct.stdCode || 'STD-MAT-EL-BYQ-001' }}</el-descriptions-item>
+          <el-descriptions-item label="大类">{{ currentProduct.l1Category || '电气设备' }}</el-descriptions-item>
+          <el-descriptions-item label="中类">{{ currentProduct.l2Category || '一次设备' }}</el-descriptions-item>
+          <el-descriptions-item label="小类">{{ currentProduct.l3Category || '变压器' }}</el-descriptions-item>
+          <el-descriptions-item label="细类">{{ currentProduct.l4Category || '油浸式变压器' }}</el-descriptions-item>
+          <el-descriptions-item label="标准物资名称">{{ currentProduct.stdMaterialName || '三相油浸式电力变压器' }}</el-descriptions-item>
+          <el-descriptions-item label="技术规范编号">{{ currentProduct.techSpecNo || 'Q/GDW 1234-2025' }}</el-descriptions-item>
+        </el-descriptions>
+        <el-table :data="materialCodeTrace" border style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="level" label="分类层级" width="100" align="center">
+            <template slot-scope="{row}"><el-tag size="small" :type="row.type">{{ row.level }}</el-tag></template>
+          </el-table-column>
+          <el-table-column prop="code" label="编码" min-width="160" align="center"></el-table-column>
+          <el-table-column prop="name" label="名称" min-width="180"></el-table-column>
+          <el-table-column prop="matchStatus" label="匹配状态" width="120" align="center">
+            <template slot-scope="{row}"><el-tag size="small" type="success">{{ row.matchStatus }}</el-tag></template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 购物车抽屉 -->
+    <el-drawer title="购物车" :visible.sync="cartVisible" size="720px" direction="rtl">
+      <div v-if="cartItems.length===0" class="cart-empty">
+        <i class="el-icon-shopping-cart-full" style="font-size:40px"></i>
+        <div style="margin-top:12px">购物车为空，请先选购商品</div>
+      </div>
+      <div v-else style="padding:0 20px">
+        <div class="yj-container-card__table">
+        <el-table :data="cartItems" border style="width:100%">
+          <el-table-column prop="code" label="商品编号" min-width="110" align="center"></el-table-column>
+          <el-table-column prop="name" label="商品名称" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="supplier" label="供应商" min-width="150" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="price" label="单价(元)" min-width="90" align="right"></el-table-column>
+          <el-table-column label="数量" width="120" align="center">
+            <template slot-scope="{row}">
+              <el-input-number v-model="row.qty" :min="1" :max="row.stock" controls-position="right"></el-input-number>
+            </template>
+          </el-table-column>
+          <el-table-column label="小计(元)" width="100" align="center">
+            <template slot-scope="{row}">{{ (row.price * row.qty).toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column label="操作" width="80" align="center" fixed="right">
+            <template slot-scope="{row}">
+              <el-button type="danger" @click="removeFromCart(row)">移除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        </div>
+        <div class="cart-summary">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>共 {{ cartCount }} 件商品</span>
+            <span class="total-line">合计：{{ cartTotal.toLocaleString() }} 元</span>
+          </div>
+          <div style="margin-top:12px;text-align:right">
+            <el-button @click="clearCart">清空购物车</el-button>
+            <el-button type="primary" @click="checkout">提交采购申请</el-button>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            采购方在电子商城浏览、搜索、筛选商品，查看商品基本信息、分类、状态，并将商品加入购物车。本页面是下单选购环节的入口，承接上架部署环节的商品数据，输出购物车商品。适用于各业务部门的采购员、需求提报人。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>多维度搜索（关键词/类目/供应商/价格区间），快速定位目标商品</li>
+              <li>商品对比功能，支持4个商品同时对比参数和价格</li>
+              <li>AI智能推荐（"看了又看"、"买了又买"），提升采购效率</li>
+              <li>库存和状态实时显示，避免下单失败</li>
+              <li>购物车抽屉集成，加购后无需跳转即可结算</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>搜索商品</b>：在搜索框输入关键词（名称/规格/品牌），或按类目树、供应商、价格区间筛选</li>
+              <li><b>查看商品</b>：列表展示商品编号、名称、类目、规格、品牌、单价、库存、状态</li>
+              <li><b>查看详情</b>：点击商品行"详情"跳转至商品详情单据页，查看完整信息和价格</li>
+              <li><b>商品对比</b>：勾选多个商品（最多4个），点击"对比"查看参数差异</li>
+              <li><b>加入购物车</b>：输入数量，点击"加入购物车"，商品进入购物车抽屉</li>
+              <li><b>购物车结算</b>：点击右上角购物车图标，查看已加购商品，点击"结算"提交采购申请</li>
+              <li><b>关键字搜索</b>：在表格搜索框输入关键字快速过滤当前列表</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+    <!-- 新增商品对话框 -->
+    <el-dialog :lazy="true" title="新增商品" :visible.sync="addDialog.visible" width="720px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-form :model="addDialog.form" label-width="120px" label-suffix="：" :rules="addFormRules" ref="addForm" class="tl-form auto-width el-form--label-right multi-line">
+        <div class="form-section-title">一、基本信息</div>
+        <el-form-item class="tl-form-item" label="商品编号" prop="code">
+          <el-input v-model="addDialog.form.code" placeholder="自动生成，可手动修改" readonly></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="商品名称" prop="name">
+          <el-input v-model="addDialog.form.name" placeholder="请输入商品名称（2-50个字符）" clearable maxlength="50" show-word-limit></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="商品分类" prop="category">
+          <el-select v-model="addDialog.form.category" placeholder="请选择" filterable style="width:100%">
+            <el-option label="电气设备" value="电气设备"></el-option>
+            <el-option label="智能终端" value="智能终端"></el-option>
+            <el-option label="办公设备" value="办公设备"></el-option>
+            <el-option label="办公用品" value="办公用品"></el-option>
+            <el-option label="劳保用品" value="劳保用品"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="品牌" prop="brand">
+          <el-input v-model="addDialog.form.brand" placeholder="请输入品牌" clearable maxlength="30"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="规格型号" prop="spec">
+          <el-input v-model="addDialog.form.spec" placeholder="请输入规格型号" clearable maxlength="50"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="计量单位" prop="unit">
+          <el-select v-model="addDialog.form.unit" placeholder="请选择" filterable style="width:100%">
+            <el-option label="台" value="台"></el-option>
+            <el-option label="套" value="套"></el-option>
+            <el-option label="件" value="件"></el-option>
+            <el-option label="只" value="只"></el-option>
+            <el-option label="根" value="根"></el-option>
+            <el-option label="箱" value="箱"></el-option>
+            <el-option label="卷" value="卷"></el-option>
+            <el-option label="块" value="块"></el-option>
+            <el-option label="组" value="组"></el-option>
+            <el-option label="米" value="米"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <div class="form-section-title">二、供应商与价格</div>
+        <el-form-item class="tl-form-item" label="供应商" prop="supplier">
+          <el-input v-model="addDialog.form.supplier" placeholder="请输入供应商名称" clearable maxlength="50"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="供应商编码" prop="supplierCode">
+          <el-input v-model="addDialog.form.supplierCode" placeholder="请输入供应商编码" clearable maxlength="20"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="不含税单价" prop="price">
+          <el-input v-model="addDialog.form.price" placeholder="请输入单价" clearable>
+            <template slot="prefix">¥</template>
+          </el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="税率" prop="taxRate">
+          <el-select v-model="addDialog.form.taxRate" placeholder="请选择" style="width:100%">
+            <el-option label="13%" value="13%"></el-option>
+            <el-option label="9%" value="9%"></el-option>
+            <el-option label="6%" value="6%"></el-option>
+            <el-option label="3%" value="3%"></el-option>
+            <el-option label="0%" value="0%"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="库存数量" prop="stock">
+          <el-input-number v-model="addDialog.form.stock" :min="0" :max="999999" label="库存数量" style="width:100%"></el-input-number>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="库存预警值" prop="stockWarning">
+          <el-input-number v-model="addDialog.form.stockWarning" :min="0" :max="9999" label="库存预警值" style="width:100%"></el-input-number>
+        </el-form-item>
+
+        <div class="form-section-title">三、上架与描述</div>
+        <el-form-item class="tl-form-item" label="上架日期" prop="date">
+          <el-date-picker v-model="addDialog.form.date" type="date" value-format="yyyy-MM-dd" placeholder="请选择日期" style="width:100%"></el-date-picker>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="商品状态" prop="status">
+          <el-radio-group v-model="addDialog.form.status">
+            <el-radio label="待审核">待审核</el-radio>
+            <el-radio label="在售">在售</el-radio>
+            <el-radio label="下架">下架</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="商品描述" prop="productDesc">
+          <el-input type="textarea" v-model="addDialog.form.productDesc" placeholder="请输入商品描述（最多200字）" maxlength="200" show-word-limit :rows="3"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="handleAddCancel">取消</el-button>
+        <el-button type="primary" :loading="addDialog.submitting" @click="handleAddConfirm">保存</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;/* gap-removed */;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '100px',
+          isSearchPanelCollapsed: false,
+          layoutMode: 'single',
+          addDialog:{visible:false,submitting:false,form:{
+            code:'',name:'',category:'',brand:'',spec:'',unit:'',
+            supplier:'',supplierCode:'',price:'',taxRate:'',stock:0,stockWarning:0,
+            date:'',status:'待审核',productDesc:''
+          }},
+          addFormRules:{
+            name:[
+              {required:true,message:'请输入商品名称',trigger:'blur'},
+              {min:2,max:50,message:'长度在 2 到 50 个字符',trigger:'blur'}
+            ],
+            category:[{required:true,message:'请选择商品分类',trigger:'change'}],
+            spec:[{required:true,message:'请输入规格型号',trigger:'blur'}],
+            unit:[{required:true,message:'请选择计量单位',trigger:'change'}],
+            supplier:[
+              {required:true,message:'请输入供应商名称',trigger:'blur'},
+              {max:50,message:'供应商名称不能超过50个字符',trigger:'blur'}
+            ],
+            supplierCode:[{required:true,message:'请输入供应商编码',trigger:'blur'}],
+            price:[
+              {required:true,message:'请输入不含税单价',trigger:'blur'},
+              {pattern:/^\d+(\.\d{1,2})?$/,message:'请输入正确的金额格式（最多两位小数）',trigger:'blur'}
+            ],
+            taxRate:[{required:true,message:'请选择税率',trigger:'change'}],
+            stock:[{required:true,message:'请输入库存数量',trigger:'blur'}],
+            date:[{required:true,message:'请选择上架日期',trigger:'change'}],
+            status:[{required:true,message:'请选择商品状态',trigger:'change'}],
+          },
+          queryForm: {
+            name: '',
+            code: '',
+            category: '',
+            supplier: '',
+            status: ''
+          },
+          // 表格搜索
+          tableSearchText: '',
+          materialCodeTrace:[
+            {level:'大类',type:'danger',code:'01',name:'电气设备',matchStatus:'已匹配'},
+            {level:'中类',type:'warning',code:'01-01',name:'一次设备',matchStatus:'已匹配'},
+            {level:'小类',type:'info',code:'01-01-01',name:'变压器',matchStatus:'已匹配'},
+            {level:'细类',type:'success',code:'01-01-01-01',name:'油浸式变压器',matchStatus:'已匹配'},
+            {level:'物料编码',type:'',code:'01-01-01-01-001',name:'三相油浸式电力变压器S11-M-800/10',matchStatus:'已匹配'}
+          ],
+          // 表格数据（真实业务风格）
+          tableData: [
+            { code:'PR-001', name:'10kV高压开关柜', category:'电气设备', spec:'KYN28-12', supplier:'国电南瑞科技股份有限公司', price:128000, stock:45, status:'在售', date:'2026-03-15' ,productId:'PRD-0001',brand:'国电南瑞',unit:'台',taxRate:'13%',listTime:'2026-01-15 10:00',salesCount:'156',stockWarning:'10',supplierCode:'SUP-0001',auditStatus:'已审核',auditBy:'李华',productDesc:'10kV高压开关柜，KYN28-12型'},
+            { code:'PR-002', name:'三相电力变压器', category:'电气设备', spec:'S11-M-800/10', supplier:'许继电气股份有限公司', price:86500, stock:28, status:'在售', date:'2026-03-18' ,productId:'PRD-0002',brand:'许继电气',unit:'米',taxRate:'13%',listTime:'2026-02-20 14:00',salesCount:'179',stockWarning:'12',supplierCode:'SUP-0002',auditStatus:'已审核',auditBy:'王强',productDesc:'电力电缆，YJV22-8.7/15kV'},
+            { code:'PR-003', name:'智能电表', category:'智能终端', spec:'DDZ986-Z', supplier:'威胜信息技术股份有限公司', price:380, stock:1200, status:'在售', date:'2026-04-02' ,productId:'PRD-0003',brand:'平高电气',unit:'套',taxRate:'9%',listTime:'2026-03-10 09:30',salesCount:'202',stockWarning:'14',supplierCode:'SUP-0003',auditStatus:'已审核',auditBy:'张明',productDesc:'运维服务包，含巡检+抢修'},
+            { code:'PR-004', name:'集中器', category:'智能终端', spec:'DJGZ23-Z', supplier:'威胜信息技术股份有限公司', price:1280, stock:560, status:'在售', date:'2026-04-05' ,productId:'PRD-0004',brand:'思源电气',unit:'件',taxRate:'13%',listTime:'2026-04-05 16:00',salesCount:'225',stockWarning:'16',supplierCode:'SUP-0004',auditStatus:'待审核',auditBy:'陈刚',productDesc:'变压器，SCB11-2000kVA'},
+            { code:'PR-005', name:'SF6断路器', category:'电气设备', spec:'LW36-40.5', supplier:'平高电气股份有限公司', price:56800, stock:18, status:'在售', date:'2026-04-10' ,productId:'PRD-0005',brand:'远东电缆',unit:'只',taxRate:'13%',listTime:'2026-05-12 11:00',salesCount:'248',stockWarning:'18',supplierCode:'SUP-0005',auditStatus:'已审核',auditBy:'孙丽',productDesc:'配电自动化终端，FTU型'},
+            { code:'PR-006', name:'电流互感器', category:'电气设备', spec:'LB-110', supplier:'思源电气股份有限公司', price:12300, stock:65, status:'在售', date:'2026-04-12' ,productId:'PRD-0006',brand:'威胜信息',unit:'箱',taxRate:'13%',listTime:'2026-06-18 13:30',salesCount:'271',stockWarning:'20',supplierCode:'SUP-0006',auditStatus:'已审核',auditBy:'周涛',productDesc:'仓储服务，含出入库管理'},
+            { code:'PR-007', name:'办公电脑', category:'办公设备', spec:'联想启天M415', supplier:'联想集团有限公司', price:5800, stock:120, status:'在售', date:'2026-04-15' ,productId:'PRD-0007',brand:'联想',unit:'卷',taxRate:'13%',listTime:'2026-01-22 15:00',salesCount:'294',stockWarning:'22',supplierCode:'SUP-0007',auditStatus:'已审核',auditBy:'吴芳',productDesc:'绝缘子，XP-70型'},
+            { code:'PR-008', name:'激光打印机', category:'办公设备', spec:'HP LaserJet Pro M404', supplier:'中国惠普有限公司', price:2300, stock:85, status:'在售', date:'2026-04-18' ,productId:'PRD-0008',brand:'惠普',unit:'组',taxRate:'13%',listTime:'2026-02-30 10:30',salesCount:'317',stockWarning:'24',supplierCode:'SUP-0008',auditStatus:'已驳回',auditBy:'郑浩',productDesc:'变电站综合自动化系统'},
+            { code:'PR-009', name:'A4复印纸', category:'办公用品', spec:'80g 500张/包', supplier:'得力集团有限公司', price:25, stock:5000, status:'在售', date:'2026-04-19' ,productId:'PRD-0009',brand:'代尔塔',unit:'块',taxRate:'9%',listTime:'2026-03-14 14:00',salesCount:'340',stockWarning:'26',supplierCode:'SUP-0009',auditStatus:'已审核',auditBy:'黄磊',productDesc:'技术咨询，含方案设计'},
+            { code:'PR-010', name:'安全帽', category:'劳保用品', spec:'ABS绝缘 V级', supplier:'代尔塔防护用品公司', price:65, stock:2000, status:'在售', date:'2026-04-20' ,productId:'PRD-0010',brand:'山特',unit:'根',taxRate:'13%',listTime:'2026-04-25 09:45',salesCount:'363',stockWarning:'28',supplierCode:'SUP-0010',auditStatus:'已审核',auditBy:'林燕',productDesc:'备品备件包，含常用配件'},
+            { code:'PR-011', name:'绝缘手套', category:'劳保用品', spec:'12kV 双色', supplier:'代尔塔防护用品公司', price:38, stock:3500, status:'在售', date:'2026-04-22' ,productId:'PRD-0011',brand:'国电南瑞',unit:'台',taxRate:'13%',listTime:'2026-01-15 10:00',salesCount:'386',stockWarning:'30',supplierCode:'SUP-0011',auditStatus:'已审核',auditBy:'李华',productDesc:'10kV高压开关柜，KYN28-12型'},
+            { code:'PR-012', name:'配电自动化终端', category:'智能终端', spec:'DTU-3000', supplier:'国电南瑞科技股份有限公司', price:18600, stock:42, status:'在售', date:'2026-04-25' ,productId:'PRD-0012',brand:'许继电气',unit:'米',taxRate:'13%',listTime:'2026-02-20 14:00',salesCount:'409',stockWarning:'32',supplierCode:'SUP-0012',auditStatus:'已审核',auditBy:'王强',productDesc:'电力电缆，YJV22-8.7/15kV'},
+            { code:'PR-013', name:'避雷器', category:'电气设备', spec:'Y5W5-51/134', supplier:'思源电气股份有限公司', price:3200, stock:180, status:'下架', date:'2026-03-28' ,productId:'PRD-0013',brand:'平高电气',unit:'套',taxRate:'9%',listTime:'2026-03-10 09:30',salesCount:'432',stockWarning:'34',supplierCode:'SUP-0013',auditStatus:'已审核',auditBy:'张明',productDesc:'运维服务包，含巡检+抢修'},
+            { code:'PR-014', name:'接地开关', category:'电气设备', spec:'JN15-12', supplier:'平高电气股份有限公司', price:4500, stock:95, status:'在售', date:'2026-05-02' ,productId:'PRD-0014',brand:'思源电气',unit:'件',taxRate:'13%',listTime:'2026-04-05 16:00',salesCount:'455',stockWarning:'36',supplierCode:'SUP-0014',auditStatus:'待审核',auditBy:'陈刚',productDesc:'变压器，SCB11-2000kVA'},
+            { code:'PR-015', name:'电力电缆', category:'电气设备', spec:'YJV22-8.7/15kV 3*400', supplier:'远东电缆有限公司', price:280, stock:8500, status:'在售', date:'2026-05-05' ,productId:'PRD-0015',brand:'远东电缆',unit:'只',taxRate:'13%',listTime:'2026-05-12 11:00',salesCount:'478',stockWarning:'38',supplierCode:'SUP-0015',auditStatus:'已审核',auditBy:'孙丽',productDesc:'配电自动化终端，FTU型'},
+            { code:'PR-016', name:'UPS不间断电源', category:'办公设备', spec:'UPS-10KVA', supplier:'山特电子(深圳)有限公司', price:18500, stock:32, status:'待审核', date:'2026-05-08' ,productId:'PRD-0016',brand:'威胜信息',unit:'箱',taxRate:'13%',listTime:'2026-06-18 13:30',salesCount:'501',stockWarning:'40',supplierCode:'SUP-0016',auditStatus:'已审核',auditBy:'周涛',productDesc:'仓储服务，含出入库管理'},
+            { code:'PR-017', name:'配电箱', category:'电气设备', spec:'XL-21', supplier:'国电南瑞科技股份有限公司', price:8500, stock:65, status:'在售', date:'2026-05-10' ,productId:'PRD-0017',brand:'联想',unit:'卷',taxRate:'13%',listTime:'2026-01-22 15:00',salesCount:'524',stockWarning:'42',supplierCode:'SUP-0017',auditStatus:'已审核',auditBy:'吴芳',productDesc:'绝缘子，XP-70型'},
+            { code:'PR-018', name:'继电保护装置', category:'智能终端', spec:'RCS-941', supplier:'国电南瑞科技股份有限公司', price:42000, stock:25, status:'在售', date:'2026-05-12' ,productId:'PRD-0018',brand:'惠普',unit:'组',taxRate:'13%',listTime:'2026-02-30 10:30',salesCount:'547',stockWarning:'44',supplierCode:'SUP-0018',auditStatus:'已驳回',auditBy:'郑浩',productDesc:'变电站综合自动化系统'},
+            { code:'PR-019', name:'监控后台系统', category:'智能终端', spec:'SYS-8000', supplier:'国电南瑞科技股份有限公司', price:156000, stock:8, status:'在售', date:'2026-05-15' ,productId:'PRD-0019',brand:'代尔塔',unit:'块',taxRate:'9%',listTime:'2026-03-14 14:00',salesCount:'570',stockWarning:'46',supplierCode:'SUP-0019',auditStatus:'已审核',auditBy:'黄磊',productDesc:'技术咨询，含方案设计'},
+            { code:'PR-020', name:'通信光缆', category:'电气设备', spec:'GYTA-24B1', supplier:'远东电缆有限公司', price:12, stock:12000, status:'在售', date:'2026-05-18' ,productId:'PRD-0020',brand:'山特',unit:'根',taxRate:'13%',listTime:'2026-04-25 09:45',salesCount:'593',stockWarning:'48',supplierCode:'SUP-0020',auditStatus:'已审核',auditBy:'林燕',productDesc:'备品备件包，含常用配件'},
+            { code:'PR-021', name:'蓄电池组', category:'电气设备', spec:'GFM-300', supplier:'宁波双鹿电池有限公司', price:2800, stock:180, status:'在售', date:'2026-05-20' ,productId:'PRD-0021',brand:'国电南瑞',unit:'台',taxRate:'13%',listTime:'2026-01-15 10:00',salesCount:'616',stockWarning:'50',supplierCode:'SUP-0021',auditStatus:'已审核',auditBy:'李华',productDesc:'10kV高压开关柜，KYN28-12型'},
+            { code:'PR-022', name:'直流屏', category:'电气设备', spec:'GZDW-100', supplier:'许继电气股份有限公司', price:38000, stock:15, status:'在售', date:'2026-05-22' ,productId:'PRD-0022',brand:'许继电气',unit:'米',taxRate:'13%',listTime:'2026-02-20 14:00',salesCount:'639',stockWarning:'52',supplierCode:'SUP-0022',auditStatus:'已审核',auditBy:'王强',productDesc:'电力电缆，YJV22-8.7/15kV'},
+            { code:'PR-023', name:'变频器', category:'电气设备', spec:'ACS-580', supplier:'ABB(中国)有限公司', price:12500, stock:45, status:'在售', date:'2026-05-25' ,productId:'PRD-0023',brand:'平高电气',unit:'套',taxRate:'9%',listTime:'2026-03-10 09:30',salesCount:'662',stockWarning:'54',supplierCode:'SUP-0023',auditStatus:'已审核',auditBy:'张明',productDesc:'运维服务包，含巡检+抢修'},
+            { code:'PR-024', name:'发电机', category:'电气设备', spec:'C-550', supplier:'康明斯(中国)有限公司', price:185000, stock:5, status:'在售', date:'2026-05-28' ,productId:'PRD-0024',brand:'思源电气',unit:'件',taxRate:'13%',listTime:'2026-04-05 16:00',salesCount:'685',stockWarning:'56',supplierCode:'SUP-0024',auditStatus:'待审核',auditBy:'陈刚',productDesc:'变压器，SCB11-2000kVA'},
+            { code:'PR-025', name:'灭火器', category:'办公用品', spec:'MFZ-4', supplier:'南京消防器材股份有限公司', price:85, stock:500, status:'在售', date:'2026-06-01' ,productId:'PRD-0025',brand:'远东电缆',unit:'只',taxRate:'13%',listTime:'2026-05-12 11:00',salesCount:'708',stockWarning:'58',supplierCode:'SUP-0025',auditStatus:'已审核',auditBy:'孙丽',productDesc:'配电自动化终端，FTU型'},
+            { code:'PR-026', name:'消防水带', category:'办公用品', spec:'65mm-20m', supplier:'南京消防器材股份有限公司', price:120, stock:200, status:'在售', date:'2026-06-03' ,productId:'PRD-0026',brand:'威胜信息',unit:'箱',taxRate:'13%',listTime:'2026-06-18 13:30',salesCount:'731',stockWarning:'60',supplierCode:'SUP-0026',auditStatus:'已审核',auditBy:'周涛',productDesc:'仓储服务，含出入库管理'},
+            { code:'PR-027', name:'手动工具套装', category:'办公用品', spec:'12件套', supplier:'史丹利百得有限公司', price:380, stock:150, status:'在售', date:'2026-06-05' ,productId:'PRD-0027',brand:'联想',unit:'卷',taxRate:'13%',listTime:'2026-01-22 15:00',salesCount:'754',stockWarning:'62',supplierCode:'SUP-0027',auditStatus:'已审核',auditBy:'吴芳',productDesc:'绝缘子，XP-70型'},
+            { code:'PR-028', name:'数字万用表', category:'办公用品', spec:'Fluke-17B', supplier:'福禄克测试仪器有限公司', price:650, stock:80, status:'在售', date:'2026-06-08' ,productId:'PRD-0028',brand:'惠普',unit:'组',taxRate:'13%',listTime:'2026-02-30 10:30',salesCount:'777',stockWarning:'64',supplierCode:'SUP-0028',auditStatus:'已驳回',auditBy:'郑浩',productDesc:'变电站综合自动化系统'},
+            { code:'PR-029', name:'红外测温仪', category:'办公用品', spec:'Ti-32', supplier:'福禄克测试仪器有限公司', price:3200, stock:35, status:'在售', date:'2026-06-10' ,productId:'PRD-0029',brand:'代尔塔',unit:'块',taxRate:'9%',listTime:'2026-03-14 14:00',salesCount:'800',stockWarning:'66',supplierCode:'SUP-0029',auditStatus:'已审核',auditBy:'黄磊',productDesc:'技术咨询，含方案设计'},
+            { code:'PR-030', name:'示波器', category:'办公用品', spec:'TBS-1102B', supplier:'泰克科技有限公司', price:5800, stock:20, status:'待审核', date:'2026-06-12' ,productId:'PRD-0030',brand:'山特',unit:'根',taxRate:'13%',listTime:'2026-04-25 09:45',salesCount:'823',stockWarning:'68',supplierCode:'SUP-0030',auditStatus:'已审核',auditBy:'林燕',productDesc:'备品备件包，含常用配件'}
+          ],
+          // 分页
+          pageSize: 10,
+          currentPage: 1,
+          // 多选
+          selection: [],
+          // 弹窗
+          detailVisible: false,
+          helpVisible: false,
+          currentProduct: null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'code',label:'商品编号'},{key:'name',label:'商品名称'},{key:'category',label:'分类'},
+            {key:'spec',label:'规格型号'},{key:'supplier',label:'供应商'},{key:'price',label:'单价(元)'},
+            {key:'stock',label:'库存'},{key:'status',label:'状态'},{key:'date',label:'上架日期'},
+            {key:'productId',label:'商品ID'},{key:'brand',label:'品牌'},{key:'unit',label:'计量单位'},
+            {key:'taxRate',label:'税率'},{key:'supplierCode',label:'供应商编码'},{key:'listTime',label:'上架时间'},
+            {key:'salesCount',label:'销量'},{key:'stockWarning',label:'库存预警值'},
+            {key:'auditStatus',label:'审核状态'},{key:'auditBy',label:'审核人'},{key:'productDesc',label:'商品描述'}
+          ],
+          // 购物车
+          cartVisible: false,
+          cartItems: [],
+          // 显示设置
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          visibleColumns: ['code','name','category','spec','supplier','price','stock','status','date'],
+          columnSettings: [
+            {prop:'code',label:'商品编号'},{prop:'name',label:'商品名称'},{prop:'category',label:'分类'},
+            {prop:'spec',label:'规格型号'},{prop:'supplier',label:'供应商'},{prop:'price',label:'单价(元)'},
+            {prop:'stock',label:'库存'},{prop:'status',label:'状态'},{prop:'date',label:'上架日期'}
+          ],
+          fieldLabels: {
+            code:'商品编号',name:'商品名称',category:'分类',spec:'规格型号',
+            supplier:'供应商',price:'单价(元)',stock:'库存',status:'状态',
+            date:'上架日期',productId:'商品ID',brand:'品牌',unit:'计量单位',
+            taxRate:'税率',supplierCode:'供应商编码',listTime:'上架时间',
+            salesCount:'销量',stockWarning:'库存预警值',auditStatus:'审核状态',
+            auditBy:'审核人',productDesc:'商品描述'
+          }
+        };
+      },
+      computed: {
+        // 过滤后的数据
+        filteredData() {
+          return this.tableData.filter(p => {
+            if (this.queryForm.name && !p.name.toLowerCase().includes(this.queryForm.name.toLowerCase())) return false;
+            if (this.queryForm.code && !p.code.toLowerCase().includes(this.queryForm.code.toLowerCase())) return false;
+            if (this.queryForm.category && p.category !== this.queryForm.category) return false;
+            if (this.queryForm.supplier && !p.supplier.includes(this.queryForm.supplier)) return false;
+            if (this.queryForm.status && p.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = (p.code + p.name + p.category + p.spec + p.supplier + p.status).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        // 当前页数据
+        pagedData() {
+          const start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        // 查询条件摘要
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.name)) conditions.push('商品名称：' + f.name);
+          if (this.isNotEmpty(f.code)) conditions.push('商品编号：' + f.code);
+          if (this.isNotEmpty(f.category)) conditions.push('商品类目：' + f.category);
+          if (this.isNotEmpty(f.supplier)) conditions.push('供应商：' + f.supplier);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        // 购物车数量
+        cartCount() {
+          return this.cartItems.reduce((s, i) => s + i.qty, 0);
+        },
+        // 购物车合计
+        cartTotal() {
+          return this.cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+        }
+      },
+      watch: {
+        'queryForm.name'() { this.currentPage = 1; },
+        'queryForm.code'() { this.currentPage = 1; },
+        'queryForm.category'() { this.currentPage = 1; },
+        'queryForm.supplier'() { this.currentPage = 1; },
+        'queryForm.status'() { this.currentPage = 1; },
+        tableSearchText() { this.currentPage = 1; }
+      },
+      methods: {
+        // 展开/收起查询面板
+        toggleSearchPanel() {
+          this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed;
+        },
+        // 判断非空
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        // 从后端加载数据（失败时保留本地 mockData）
+        async loadData() {
+          try {
+            const resp = await fetch('/api/products');
+            if (resp.ok) { this.tableData = await resp.json(); }
+          } catch(e) { /* 失败时保留本地数据 */ }
+        },
+        // 查询
+        handleQuery() {
+          this.currentPage = 1;
+          this.$message.success('查询完成，共 ' + this.filteredData.length + ' 条记录');
+        },
+        // 重置
+        handleReset() {
+          this.queryForm = { name:'', code:'', category:'', supplier:'', status:'' };
+          this.tableSearchText = '';
+          this.currentPage = 1;
+        },
+        // 刷新
+        handleRefresh() {
+          this.$message.success('数据已刷新');
+        },
+        // 导出
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '商品列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        // 多选
+        handleSelectionChange(val) {
+          this.selection = val;
+        },
+        // 新增
+        openAddDialog() {
+          const maxNum = this.tableData.reduce((max, i) => {
+            const m = i.code.match(/(\d+)$/);
+            const n = m ? parseInt(m[1]) : 0;
+            return n > max ? n : max;
+          }, 0);
+          this.addDialog.form = {
+            code: 'PR-' + String(maxNum + 1).padStart(3, '0'),
+            name:'',category:'',brand:'',spec:'',unit:'',
+            supplier:'',supplierCode:'',price:'',taxRate:'',stock:0,stockWarning:0,
+            date:new Date().toISOString().split('T')[0],status:'待审核',productDesc:''
+          };
+          this.addDialog.submitting = false;
+          this.addDialog.visible = true;
+          this.$nextTick(() => { this.$refs.addForm && this.$refs.addForm.clearValidate(); });
+        },
+        handleAddCancel() {
+          this.$refs.addForm && this.$refs.addForm.resetFields();
+          this.addDialog.visible = false;
+        },
+        handleAddConfirm() {
+          this.$refs.addForm.validate(valid => {
+            if (!valid) { this.$message.warning('请完善必填项后再提交'); return; }
+            this.addDialog.submitting = true;
+            const f = this.addDialog.form;
+            const payload = Object.assign({}, f, {
+              productId: 'PRD-' + String(this.tableData.length + 1).padStart(4, '0'),
+              price: Number(f.price),
+              listTime: new Date().toISOString().replace('T',' ').substring(0,16),
+              salesCount: '0',
+              auditStatus: '待审核',
+              auditBy: ''
+            });
+            fetch('/api/products', {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify(payload)
+            }).then(resp => {
+              if (resp.ok) return resp.json();
+              return Promise.reject(new Error('HTTP ' + resp.status));
+            }).then(data => {
+              this.tableData.push(Object.assign(payload, data));
+              this.addDialog.visible = false;
+              this.$message.success('商品「' + f.name + '」新增成功');
+            }).catch(() => {
+              this.tableData.push(payload);
+              this.addDialog.visible = false;
+              this.$message.success('商品「' + f.name + '」新增成功（本地）');
+            }).then(() => {
+              this.addDialog.submitting = false;
+            });
+          });
+        },
+        // 详情
+        viewDetail(row) {
+          this.currentProduct = row;
+          this.detailVisible = true;
+        },
+        // 状态变更（上架/下架）
+        changeStatus(row, newStatus) {
+          const actionMap = { '在售':'上架', '下架':'下架' };
+          const confirmMap = {
+            '在售': '确认上架该商品？',
+            '下架': '确认下架该商品？下架后用户将无法选购'
+          };
+          this.$confirm(confirmMap[newStatus], '提示', { type: newStatus==='下架' ? 'warning' : 'info' }).then(() => {
+            const target = this.tableData.find(i => i.code === row.code);
+            if (target) target.status = newStatus;
+            this.$message.success(actionMap[newStatus] + '成功');
+          }).catch(() => {});
+        },
+        // 购物车
+        openCart() {
+          this.cartVisible = true;
+          // 从后端加载购物车（失败时保留本地）
+          fetch('/api/cart/items').then(r => r.ok ? r.json() : Promise.reject()).then(data => {
+            if (Array.isArray(data) && data.length > 0) this.cartItems = data;
+          }).catch(() => {});
+        },
+        async addToCart(row) {
+          // 先调后端，失败则本地处理
+          try {
+            const resp = await fetch('/api/cart/items', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: row.code, name: row.name, supplier: row.supplier, price: row.price, stock: row.stock, qty: 1 })
+            });
+            if (!resp.ok) throw new Error();
+          } catch(e) {}
+          // 本地也同步更新（保证 UI 即时响应）
+          const existing = this.cartItems.find(i => i.code === row.code);
+          if (existing) {
+            if (existing.qty < row.stock) {
+              existing.qty += 1;
+              this.$message.success('「' + row.name + '」数量+1');
+            } else {
+              this.$message.warning('已达到库存上限');
+            }
+          } else {
+            this.cartItems.push({ code: row.code, name: row.name, supplier: row.supplier, price: row.price, stock: row.stock, qty: 1 });
+            this.$message.success('已将「' + row.name + '」加入购物车');
+          }
+        },
+        async removeFromCart(row) {
+          try { await fetch('/api/cart/items/' + row.code, { method: 'DELETE' }); } catch(e) {}
+          const idx = this.cartItems.findIndex(i => i.code === row.code);
+          if (idx >= 0) {
+            this.cartItems.splice(idx, 1);
+            this.$message.success('已移除');
+          }
+        },
+        async clearCart() {
+          try { await fetch('/api/cart', { method: 'DELETE' }); } catch(e) {}
+          this.cartItems = [];
+          this.$message.success('已清空购物车');
+        },
+        async checkout() {
+          if (this.cartItems.length === 0) {
+            this.$message.warning('购物车为空');
+            return;
+          }
+          try {
+            const resp = await fetch('/api/orders/from_cart', { method: 'POST' });
+            if (resp.ok) {
+              const order = await resp.json();
+              this.$message.success('订单已生成：' + order.orderNo + '，合计 ' + order.amount.toLocaleString() + ' 元');
+              this.cartItems = [];
+              this.cartVisible = false;
+              // 通知订单页面刷新
+              window.dispatchEvent(new Event('order-updated'));
+            } else {
+              const err = await resp.json().catch(() => ({}));
+              this.$message.error(err.error || '结算失败');
+            }
+          } catch(e) {
+            this.$message.error('网络错误，结算失败');
+          }
+        },
+        // 分页
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; },
+        // 显示设置
+        isColumnVisible(prop) { return this.visibleColumns.includes(prop); },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c){ return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; }
+      },
+      mounted() {
+        this.loadData();
+        this.handleQuery();
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+
+</html>

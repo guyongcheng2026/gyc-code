@@ -1,0 +1,256 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>供应链金融服务</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">供应链金融服务</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-plus" @click="handleAdd">申请融资</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="融资单号"><el-input v-model="queryForm.financeNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="融资类型"><el-select v-model="queryForm.financeType" placeholder="请选择" clearable><el-option label="订单融资" value="订单融资"></el-option><el-option label="应收账款融资" value="应收账款融资"></el-option><el-option label="库存融资" value="库存融资"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="融资状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="审批中" value="审批中"></el-option><el-option label="已放款" value="已放款"></el-option><el-option label="还款中" value="还款中"></el-option><el-option label="已结清" value="已结清"></el-option><el-option label="已拒绝" value="已拒绝"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">融资总额</div><div class="stat-value">5,280万</div><div class="stat-sub">本季度累计</div></div>
+            <div class="stat-card"><div class="stat-label">在贷余额</div><div class="stat-value" style="color:#f57c00;">1,860万</div><div class="stat-sub">未结清余额</div></div>
+            <div class="stat-card"><div class="stat-label">融资笔数</div><div class="stat-value">38</div><div class="stat-sub">本季度</div></div>
+            <div class="stat-card"><div class="stat-label">平均利率</div><div class="stat-value" style="color:#2e7d32;">4.35%</div><div class="stat-sub">年化利率</div></div>
+            <div class="stat-card"><div class="stat-label">不良率</div><div class="stat-value" style="color:#2e7d32;">0.2%</div><div class="stat-sub">远低于行业水平</div></div>
+          </div>
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="融资记录列表">融资记录列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="financeNo" label="融资单号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="financeType" label="融资类型" width="120" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.financeType==='订单融资'?'success':row.financeType==='应收账款融资'?'info':'warning'" size="small">{{ row.financeType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="applyAmount" label="申请金额" width="120" align="right">
+                    <template slot-scope="{row}"><span style="font-weight:600;">{{ row.applyAmount.toLocaleString() }} 元</span></template>
+                  </el-table-column>
+                  <el-table-column prop="approveAmount" label="审批金额" width="120" align="right">
+                    <template slot-scope="{row}"><span style="color:#0B7266;font-weight:600;">{{ row.approveAmount.toLocaleString() }} 元</span></template>
+                  </el-table-column>
+                  <el-table-column prop="interestRate" label="年化利率" width="90" align="center">
+                    <template slot-scope="{row}"><span style="color:#2e7d32;">{{ row.interestRate }}%</span></template>
+                  </el-table-column>
+                  <el-table-column prop="loanDate" label="放款日期" width="110" align="center"></el-table-column>
+                  <el-table-column prop="repayDate" label="到期日期" width="110" align="center"></el-table-column>
+                  <el-table-column prop="status" label="融资状态" width="100" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.status==='已放款'?'success':row.status==='还款中'?'warning':row.status==='已结清'?'info':'danger'" size="small">{{ row.status }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">详情</el-button></template></el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="融资详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 融资基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="融资单号">{{ currentDetail.financeNo }}</el-descriptions-item>
+          <el-descriptions-item label="融资类型"><el-tag size="small">{{ currentDetail.financeType }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="融资状态"><el-tag :type="currentDetail.status==='已放款'?'success':currentDetail.status==='还款中'?'warning':'info'">{{ currentDetail.status }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="申请金额">{{ currentDetail.applyAmount.toLocaleString() }} 元</el-descriptions-item>
+          <el-descriptions-item label="审批金额">{{ currentDetail.approveAmount.toLocaleString() }} 元</el-descriptions-item>
+          <el-descriptions-item label="年化利率">{{ currentDetail.interestRate }}%</el-descriptions-item>
+          <el-descriptions-item label="融资期限">{{ currentDetail.term || 90 }} 天</el-descriptions-item>
+          <el-descriptions-item label="放款日期">{{ currentDetail.loanDate }}</el-descriptions-item>
+          <el-descriptions-item label="到期日期">{{ currentDetail.repayDate }}</el-descriptions-item>
+        </el-descriptions>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-wallet"></i> 还款计划</div>
+        <el-table :data="repayPlanData" border style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="period" label="期次" width="80" align="center"></el-table-column>
+          <el-table-column prop="principal" label="应还本金" width="120" align="right">
+            <template slot-scope="{row}">{{ row.principal.toLocaleString() }} 元</template>
+          </el-table-column>
+          <el-table-column prop="interest" label="应还利息" width="110" align="right">
+            <template slot-scope="{row}">{{ row.interest.toLocaleString() }} 元</template>
+          </el-table-column>
+          <el-table-column prop="total" label="合计" width="120" align="right">
+            <template slot-scope="{row}"><span style="font-weight:600;">{{ row.total.toLocaleString() }} 元</span></template>
+          </el-table-column>
+          <el-table-column prop="dueDate" label="还款日期" width="110" align="center"></el-table-column>
+          <el-table-column label="状态" width="90" align="center">
+            <template slot-scope="{row}"><el-tag :type="row.paid?'success':'warning'" size="small">{{ row.paid?'已还':'待还' }}</el-tag></template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">本页面为供应商提供供应链金融服务，包括订单融资、应收账款融资、库存融资三种模式。供应商以商城订单或应收账款为质押，在线申请融资，加速资金周转，缓解账期压力。资金方（银行/保理公司）在线审批放款，全流程线上化。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>供应商融资全线上化，最快T+1放款</li>
+              <li>以订单/应收账款质押，融资门槛低</li>
+              <li>利率优惠，最低至LPR+50BP</li>
+              <li>缓解账期压力，加速资金周转</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>申请融资</b>：点击"申请融资"，选择融资类型，填写融资金额</li>
+              <li><b>上传材料</b>：提交订单合同、发票等证明材料</li>
+              <li><b>资金方审批</b>：银行/保理公司在线审批，最快T+1</li>
+              <li><b>签订合同</b>：在线签订融资合同，电子签章</li>
+              <li><b>放款使用</b>：资金到账后，供应商可直接使用</li>
+              <li><b>到期还款</b>：按还款计划在线还款，结清后释放质押</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          currentDetail:null,
+          repayPlanData:[
+            {period:'第1期',principal:500000,interest:5938,total:505938,dueDate:'2026-07-15',paid:true},
+            {period:'第2期',principal:500000,interest:4563,total:504563,dueDate:'2026-08-15',paid:false},
+            {period:'第3期',principal:500000,interest:3219,total:503219,dueDate:'2026-09-15',paid:false}
+          ],
+          queryForm:{financeNo:'',supplier:'',financeType:'',status:''},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          tableData:[
+            {financeNo:'SF-2026-0001',supplier:'远东电缆股份有限公司',financeType:'订单融资',applyAmount:3000000,approveAmount:2800000,interestRate:4.35,loanDate:'2026-04-10',repayDate:'2026-07-10',status:'已结清',term:90},
+            {financeNo:'SF-2026-0002',supplier:'特变电工股份有限公司',financeType:'应收账款融资',applyAmount:5000000,approveAmount:4800000,interestRate:4.2,loanDate:'2026-05-15',repayDate:'2026-08-15',status:'还款中',term:90},
+            {financeNo:'SF-2026-0003',supplier:'国电南瑞科技股份有限公司',financeType:'库存融资',applyAmount:2000000,approveAmount:2000000,interestRate:4.5,loanDate:'2026-06-01',repayDate:'2026-09-01',status:'已放款',term:90},
+            {financeNo:'SF-2026-0004',supplier:'许继电气股份有限公司',financeType:'订单融资',applyAmount:1500000,approveAmount:1200000,interestRate:4.65,loanDate:'2026-06-20',repayDate:'2026-09-20',status:'还款中',term:90},
+            {financeNo:'SF-2026-0005',supplier:'平高电气股份有限公司',financeType:'应收账款融资',applyAmount:800000,approveAmount:800000,interestRate:4.3,loanDate:'2026-03-01',repayDate:'2026-06-01',status:'已结清',term:90},
+            {financeNo:'SF-2026-0006',supplier:'正泰电气股份有限公司',financeType:'订单融资',applyAmount:1200000,approveAmount:1100000,interestRate:4.4,loanDate:'2026-07-01',repayDate:'2026-10-01',status:'已放款',term:90},
+            {financeNo:'SF-2026-0007',supplier:'西门子电气有限公司',financeType:'库存融资',applyAmount:3000000,approveAmount:3000000,interestRate:4.15,loanDate:'2026-04-20',repayDate:'2026-07-20',status:'还款中',term:90},
+            {financeNo:'SF-2026-0008',supplier:'ABB电气股份有限公司',financeType:'应收账款融资',applyAmount:1800000,approveAmount:1600000,interestRate:4.55,loanDate:'2026-05-10',repayDate:'2026-08-10',status:'还款中',term:90}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){var q=this.queryForm,text=this.tableSearchText.toLowerCase();var f=this.tableData.filter(function(p){if(q.financeNo&&p.financeNo.indexOf(q.financeNo)===-1)return false;if(q.supplier&&p.supplier.indexOf(q.supplier)===-1)return false;if(q.financeType&&p.financeType!==q.financeType)return false;if(q.status&&p.status!==q.status)return false;if(text){var t=(p.financeNo+p.supplier+p.financeType+p.status).toLowerCase();if(t.indexOf(text)===-1)return false}return true});this.total=f.length;return f},
+        pagedData(){var s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+        queryConditionText(){var f=this.queryForm;var parts=[];if(f.financeNo)parts.push('单号：'+f.financeNo);if(f.supplier)parts.push('供应商：'+f.supplier);if(f.status)parts.push('状态：'+f.status);return parts.length>0?parts.join(' | '):'全部'}
+      },
+      watch:{'queryForm'( ){this.currentPage=1},tableSearchText(){this.currentPage=1}},
+      methods:{
+        handleQuery(){this.currentPage=1;this.$message.success('查询成功');},
+        handleReset(){this.queryForm={financeNo:'',supplier:'',financeType:'',status:''};this.currentPage=1;},
+        handleRefresh(){this.$message.success('刷新成功');},
+        handleAdd(){this.$message.info('申请融资（演示）');},
+        handlePageChange(p){this.currentPage=p;},
+        handleSizeChange(s){this.pageSize=s;this.currentPage=1;},
+        handleSelectionChange(v){this.selection=v;},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleExport(){this.$message.success('导出融资记录');}
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

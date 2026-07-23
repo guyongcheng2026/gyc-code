@@ -1,0 +1,257 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>发货单</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .bill-title-text span { margin-right:20px; color:#6B7280; }
+    .tl-section--title { font-weight:600; color:#1A2332; padding:8px 0; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  
+    html, body, #app { min-height: 100vh; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <div class="bill-page ywdj-page">
+      <div class="tl-title bill-title" area="title">
+        <div class="tl-title__title">发货单</div>
+        <div class="tl-title__slot">
+          <div class="bill-title-text">
+            <span>编号：{{ billNo }}</span>
+            <span>制单日期：{{ billDate }}</span>
+          </div>
+          <div class="yj-button-list">
+            <el-button @click="handleExport">导出</el-button>
+            <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            <el-button @click="handlePrint">打印</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="bill-body">
+        <div class="bill-main">
+          <div class="yj-panel bill-form" area="form" id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">基本信息</div>
+                    <i :class="sectionStates.main ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.main = !sectionStates.main" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.main">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="发货单号"><el-input v-model="billForm.shipmentNo" placeholder="请输入"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="订单编号"><el-input v-model="billForm.orderNo" placeholder="请输入"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="供应商"><el-input v-model="billForm.supplier" placeholder="请输入"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="承运商"><el-input v-model="billForm.carrier" placeholder="请输入"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="物流单号"><el-input v-model="billForm.trackingNo" placeholder="请输入"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="发货日期"><el-input v-model="billForm.shipDate" placeholder="请输入"></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">明细信息</div>
+                    <i :class="sectionStates.detail ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.detail = !sectionStates.detail" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.detail">
+                    <div class="yj-container-card__table">
+                      
+<el-table :data="detailItems" border stripe style="width:100%;">
+                        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                        <el-table-column prop="productCode" label="商品编号" min-width="120" align="center"></el-table-column>
+                        <el-table-column prop="productName" label="商品名称" min-width="180" align="center"></el-table-column>
+                        <el-table-column prop="spec" label="规格型号" min-width="150" align="center"></el-table-column>
+                        <el-table-column prop="unit" label="单位" min-width="80" align="center"></el-table-column>
+                        <el-table-column prop="qty" label="订单数量" min-width="80" align="center"></el-table-column>
+                        <el-table-column prop="unitPrice" label="发货数量" min-width="110" align="center"></el-table-column>
+                        <el-table-column label="金额小计" width="120" align="right">
+                          <template slot-scope="{row}">{{ (row.qty * row.unitPrice).toLocaleString() }}</template>
+                        </el-table-column>
+                      </el-table>
+                      <div style="margin-top:12px;text-align:right;font-size:14px;">
+                        <span class="summary-qty">合计数量：{{ totalQty }}</span>
+                        <span style="font-weight:700;color:#0B7266;">合计金额：{{ totalAmount.toLocaleString() }} 元</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">审批信息</div>
+                    <i :class="sectionStates.approval ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.approval = !sectionStates.approval" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.approval">
+                    <div style="padding:12px;">
+                      <el-steps :active="approvalActive" finish-status="success" align-center>
+                        <el-step title="申请人提交" description="张明 2026-05-15"></el-step>
+                        <el-step title="部门经理审批" description="李经理 2026-05-16"></el-step>
+                        <el-step title="采购经理审批" description="王经理 2026-05-17"></el-step>
+                        <el-step title="分管副总审批" description="待审批"></el-step>
+                      </el-steps>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面操作区 -->
+      <div class="tl-toolbar bill-footer">
+        <div class="yj-button-list">
+          <el-button @click="handleCancel">取消</el-button>
+          <el-button type="primary" @click="$message.success('保存成功')">保存</el-button>
+        </div>
+      </div>
+    </div>
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            供应商创建发货单后，采购方在本页面查看发货单的详细信息，包括发货物资明细、承运商、物流单号、发货状态。本页面是发货管理的单据详情页，支持查看、物流跟踪操作。适用于采购方物流跟踪人员、供应商发货操作员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>发货信息一站式展示（物资明细/物流/状态），无需多页面跳转</li>
+              <li>物流轨迹实时查询，在途状态透明</li>
+              <li>发货数量与订单数量对比，异常一目了然</li>
+              <li>发货时间节点记录，支撑履约评价</li>
+              <li>发货数据同步ERP，业财数据一致</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看基本信息</b>：页面顶部展示发货单号、订单号、供应商、发货日期、状态</li>
+              <li><b>查看物资明细</b>：物资明细表格展示商品编码、名称、规格、发货数量、订单数量</li>
+              <li><b>查看物流信息</b>：物流区域展示承运商、物流单号、预计到货日期</li>
+              <li><b>物流跟踪</b>：点击"物流轨迹"查看实时物流信息</li>
+              <li><b>确认收货</b>：到货后点击"确认收货"，录入收货数量</li>
+              <li><b>打印单据</b>：点击"打印"打印发货单，用于线下签收</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'120px',
+          billNo: 'SHP-2026-0001',
+          billDate: '2026-04-15',
+          sectionStates: { main:true, detail:true, approval:true },
+          helpVisible: false,
+          approvalActive: 3,
+          billForm: {shipmentNo:'SHP-2026-0001',orderNo:'OD-2026-0001',supplier:'国电南瑞科技股份有限公司',carrier:'顺丰速运',trackingNo:'SF1234567890',shipDate:'2026-04-15'},
+          detailItems: [
+            {productCode:'PR-001',productName:'10kV高压开关柜',spec:'KYN28-12',unit:'台',qty:10,unitPrice:128000},
+            {productCode:'PR-002',productName:'三相电力变压器',spec:'S11-M-800/10',unit:'台',qty:5,unitPrice:86500},
+            {productCode:'PR-003',productName:'智能电表',spec:'DDZ986-Z',unit:'只',qty:200,unitPrice:380},
+            {productCode:'PR-004',productName:'集中器',spec:'DJGZ23-Z',unit:'台',qty:50,unitPrice:1280},
+            {productCode:'PR-005',productName:'SF6断路器',spec:'LW36-40.5',unit:'台',qty:3,unitPrice:56800},
+            {productCode:'PR-006',productName:'电流互感器',spec:'LB-110',unit:'台',qty:10,unitPrice:12300},
+            {productCode:'PR-007',productName:'办公电脑',spec:'联想启天M415',unit:'台',qty:15,unitPrice:5800},
+            {productCode:'PR-008',productName:'激光打印机',spec:'HP LaserJet Pro M404',unit:'台',qty:5,unitPrice:2300},
+            {productCode:'PR-009',productName:'A4复印纸',spec:'80g 500张/包',unit:'包',qty:100,unitPrice:25},
+            {productCode:'PR-010',productName:'安全帽',spec:'ABS绝缘 V级',unit:'顶',qty:200,unitPrice:65},
+            {productCode:'PR-011',productName:'绝缘手套',spec:'12kV 双色',unit:'双',qty:500,unitPrice:38},
+            {productCode:'PR-012',productName:'配电自动化终端',spec:'DTU-3000',unit:'台',qty:8,unitPrice:18600},
+            {productCode:'PR-013',productName:'避雷器',spec:'Y5W5-51/134',unit:'只',qty:30,unitPrice:3200},
+            {productCode:'PR-014',productName:'接地开关',spec:'JN15-12',unit:'台',qty:5,unitPrice:4500},
+            {productCode:'PR-015',productName:'电力电缆',spec:'YJV22-8.7/15kV 3*400',unit:'米',qty:500,unitPrice:280},
+            {productCode:'PR-016',productName:'UPS不间断电源',spec:'UPS-10KVA',unit:'台',qty:2,unitPrice:18500},
+            {productCode:'PR-017',productName:'配电箱',spec:'XL-21',unit:'台',qty:8,unitPrice:8500},
+            {productCode:'PR-018',productName:'继电保护装置',spec:'RCS-941',unit:'套',qty:3,unitPrice:42000},
+            {productCode:'PR-019',productName:'监控后台系统',spec:'SYS-8000',unit:'套',qty:1,unitPrice:156000},
+            {productCode:'PR-020',productName:'通信光缆',spec:'GYTA-24B1',unit:'米',qty:2000,unitPrice:12},
+            {productCode:'PR-021',productName:'蓄电池组',spec:'GFM-300',unit:'组',qty:5,unitPrice:2800},
+            {productCode:'PR-022',productName:'直流屏',spec:'GZDW-100',unit:'面',qty:2,unitPrice:38000},
+            {productCode:'PR-023',productName:'变频器',spec:'ACS-580',unit:'台',qty:3,unitPrice:12500},
+            {productCode:'PR-024',productName:'发电机',spec:'C-550',unit:'台',qty:1,unitPrice:185000},
+            {productCode:'PR-025',productName:'灭火器',spec:'MFZ-4',unit:'只',qty:20,unitPrice:85},
+            {productCode:'PR-026',productName:'消防水带',spec:'65mm-20m',unit:'条',qty:10,unitPrice:120},
+            {productCode:'PR-027',productName:'手动工具套装',spec:'12件套',unit:'套',qty:5,unitPrice:380},
+            {productCode:'PR-028',productName:'数字万用表',spec:'Fluke-17B',unit:'块',qty:8,unitPrice:650},
+            {productCode:'PR-029',productName:'红外测温仪',spec:'Ti-32',unit:'台',qty:2,unitPrice:3200},
+            {productCode:'PR-030',productName:'示波器',spec:'TBS-1102B',unit:'台',qty:1,unitPrice:5800}
+        ]
+        };
+      },
+      computed: {
+        totalQty() { return this.detailItems.reduce((s,i) => s + i.qty, 0); },
+        totalAmount() { return this.detailItems.reduce((s,i) => s + i.qty * i.unitPrice, 0); }
+      },
+      methods: {
+        handleExport() {
+          const rows = this.detailItems.map(item => Object.keys(item).map(k => {
+            const v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+            return '"' + v.replace(/"/g, '""') + '"';
+          }).join(','));
+          const headers = Object.keys(this.detailItems[0] || {});
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '发货单') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.detailItems.length + ' 条明细');
+        },
+        handlePrint() { window.print(); },
+        handleCancel() { window.history.back(); }
+      },
+      mounted() {}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

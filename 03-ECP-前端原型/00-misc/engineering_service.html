@@ -1,0 +1,245 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>工程服务线上履约</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">工程服务线上履约</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-plus" @click="handleAdd">新建工程履约</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="履约单号"><el-input v-model="queryForm.bizNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="工程名称"><el-input v-model="queryForm.projectName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="履约状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="需求确认" value="需求确认"></el-option><el-option label="服务中" value="服务中"></el-option><el-option label="待验收" value="待验收"></el-option><el-option label="已完成" value="已完成"></el-option><el-option label="已终止" value="已终止"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">履约总数</div><div class="stat-value">156</div><div class="stat-sub">本季度</div></div>
+            <div class="stat-card"><div class="stat-label">服务中</div><div class="stat-value" style="color:#f57c00;">28</div><div class="stat-sub">正在实施</div></div>
+            <div class="stat-card"><div class="stat-label">待验收</div><div class="stat-value" style="color:#0B7266;">15</div><div class="stat-sub">等待验收确认</div></div>
+            <div class="stat-card"><div class="stat-label">按时完成率</div><div class="stat-value" style="color:#2e7d32;">96.5%</div><div class="stat-sub">本季度</div></div>
+            <div class="stat-card"><div class="stat-label">平均服务周期</div><div class="stat-value">22</div><div class="stat-sub">天/项目</div></div>
+          </div>
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="工程服务履约列表">工程服务履约列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="bizNo" label="履约单号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="projectName" label="工程名称" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="supplier" label="服务供应商" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="serviceType" label="服务类型" width="120" align="center">
+                    <template slot-scope="{row}"><el-tag size="small" :type="row.serviceType==='安装调试'?'success':row.serviceType==='运维服务'?'info':'warning'">{{ row.serviceType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="startDate" label="开始日期" width="110" align="center"></el-table-column>
+                  <el-table-column prop="endDate" label="计划完成" width="110" align="center"></el-table-column>
+                  <el-table-column prop="progress" label="完成进度" width="160" align="center">
+                    <template slot-scope="{row}"><el-progress :percentage="row.progress" :color="row.progress >= 100 ? '#2e7d32' : row.progress >= 50 ? '#0B7266' : '#E6A23C'" :show-text="true" :stroke-width="12"></el-progress></template>
+                  </el-table-column>
+                  <el-table-column prop="status" label="履约状态" width="100" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.status==='已完成'?'success':row.status==='服务中'?'warning':row.status==='待验收'?'info':'danger'" size="small">{{ row.status }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="200" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="handleDetail(row)">详情</el-button>
+                      <el-button v-if="row.status==='服务中'" type="text" @click="handleProgress(row)">进度上报</el-button>
+                      <el-button v-if="row.status==='待验收'" type="text" style="color:#2e7d32" @click="handleAccept(row)">验收</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="履约详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="履约单号">{{ currentDetail.bizNo }}</el-descriptions-item>
+          <el-descriptions-item label="服务类型"><el-tag size="small">{{ currentDetail.serviceType }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="工程名称">{{ currentDetail.projectName }}</el-descriptions-item>
+          <el-descriptions-item label="服务供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="开始日期">{{ currentDetail.startDate }}</el-descriptions-item>
+          <el-descriptions-item label="计划完成">{{ currentDetail.endDate }}</el-descriptions-item>
+          <el-descriptions-item label="履约状态"><el-tag :type="currentDetail.status==='已完成'?'success':'warning'">{{ currentDetail.status }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="完成进度">{{ currentDetail.progress }}%</el-descriptions-item>
+        </el-descriptions>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-management"></i> 履约里程碑</div>
+        <el-steps :active="3" finish-status="success" align-center style="margin-bottom:16px;">
+          <el-step title="需求确认" description="采购方确认服务需求"></el-step>
+          <el-step title="合同签署" description="服务合同电子签署"></el-step>
+          <el-step title="服务实施" description="供应商开展服务"></el-step>
+          <el-step title="验收交付" description="采购方验收确认"></el-step>
+        </el-steps>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-warning"></i> 风险预警</div>
+        <el-alert title="服务进度正常，无延期风险" type="success" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">工程类服务（如设备安装调试、技术运维等）在线上完成履约管理，包括需求确认、服务实施进度跟踪、里程碑管理、验收交付和风险预警。本页面支撑工程服务全生命周期线上化管控。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>工程服务全流程线上化，履约有据可查</li>
+              <li>进度可视化跟踪，及时发现延期风险</li>
+              <li>里程碑管控，确保关键节点按时交付</li>
+              <li>验收标准化，提升工程服务质量</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>新建工程履约</b>：点击"新建工程履约"，填写工程信息和服务要求</li>
+              <li><b>查看履约列表</b>：按单号/工程名称/供应商/状态筛选</li>
+              <li><b>进度上报</b>：服务中点击"进度上报"，更新服务完成百分比</li>
+              <li><b>验收确认</b>：待验收状态点击"验收"，确认服务完成</li>
+              <li><b>查看详情</b>：点击"详情"查看完整履约信息和里程碑</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          currentDetail:null,
+          queryForm:{bizNo:'',projectName:'',supplier:'',status:''},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          tableData:[
+            {bizNo:'ES-2026-0001',projectName:'220kV变电站电气安装工程',supplier:'中国电力建设集团',serviceType:'安装调试',startDate:'2026-04-01',endDate:'2026-07-15',progress:85,status:'服务中'},
+            {bizNo:'ES-2026-0002',projectName:'智能配电房运维服务',supplier:'国电南瑞科技股份有限公司',serviceType:'运维服务',startDate:'2026-03-15',endDate:'2026-06-30',progress:100,status:'待验收'},
+            {bizNo:'ES-2026-0003',projectName:'35kV线路巡检服务',supplier:'许继电气股份有限公司',serviceType:'巡检服务',startDate:'2026-05-01',endDate:'2026-08-31',progress:45,status:'服务中'},
+            {bizNo:'ES-2026-0004',projectName:'办公大楼弱电改造工程',supplier:'中通服建设有限公司',serviceType:'安装调试',startDate:'2026-02-10',endDate:'2026-05-20',progress:100,status:'已完成'},
+            {bizNo:'ES-2026-0005',projectName:'风电场备件维护服务',supplier:'特变电工股份有限公司',serviceType:'运维服务',startDate:'2026-06-01',endDate:'2026-09-30',progress:30,status:'服务中'},
+            {bizNo:'ES-2026-0006',projectName:'光伏电站监控系统升级',supplier:'华为技术有限公司',serviceType:'技术改造',startDate:'2026-04-15',endDate:'2026-07-10',progress:92,status:'服务中'},
+            {bizNo:'ES-2026-0007',projectName:'数据中心机房搬迁服务',supplier:'中国电信系统集成公司',serviceType:'安装调试',startDate:'2026-01-20',endDate:'2026-04-30',progress:100,status:'已完成'},
+            {bizNo:'ES-2026-0008',projectName:'输电线路无人机巡检',supplier:'北京拓维智科技有限公司',serviceType:'巡检服务',startDate:'2026-05-20',endDate:'2026-10-20',progress:20,status:'服务中'},
+            {bizNo:'ES-2026-0009',projectName:'电动汽车充电桩安装',supplier:'国网电动汽车服务公司',serviceType:'安装调试',startDate:'2026-06-15',endDate:'2026-07-05',progress:100,status:'待验收'},
+            {bizNo:'ES-2026-0010',projectName:'调度自动化系统运维',supplier:'积成电子股份有限公司',serviceType:'运维服务',startDate:'2026-03-01',endDate:'2026-12-31',progress:50,status:'服务中'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){var q=this.queryForm,text=this.tableSearchText.toLowerCase();var f=this.tableData.filter(function(p){if(q.bizNo&&p.bizNo.indexOf(q.bizNo)===-1)return false;if(q.projectName&&p.projectName.indexOf(q.projectName)===-1)return false;if(q.supplier&&p.supplier.indexOf(q.supplier)===-1)return false;if(q.status&&p.status!==q.status)return false;if(text){var t=(p.bizNo+p.projectName+p.supplier+p.serviceType+p.status).toLowerCase();if(t.indexOf(text)===-1)return false}return true});this.total=f.length;return f},
+        pagedData(){var s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+        queryConditionText(){var f=this.queryForm;var parts=[];if(f.bizNo)parts.push('单号：'+f.bizNo);if(f.projectName)parts.push('工程：'+f.projectName);if(f.status)parts.push('状态：'+f.status);return parts.length>0?parts.join(' | '):'全部'}
+      },
+      watch:{'queryForm'( ){this.currentPage=1},tableSearchText(){this.currentPage=1}},
+      methods:{
+        handleQuery(){this.currentPage=1;this.$message.success('查询成功');},
+        handleReset(){this.queryForm={bizNo:'',projectName:'',supplier:'',status:''};this.currentPage=1;},
+        handleRefresh(){this.$message.success('刷新成功');},
+        handleAdd(){this.$message.info('新建工程履约（演示）');},
+        handlePageChange(p){this.currentPage=p;},
+        handleSizeChange(s){this.pageSize=s;this.currentPage=1;},
+        handleSelectionChange(v){this.selection=v;},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        handleProgress(row){this.$prompt('请输入当前进度百分比(0-100)：','进度上报',{inputValue:String(row.progress),confirmButtonText:'确认',cancelButtonText:'取消'}).then(function(refs){var v=parseInt(refs.value);if(v>=0&&v<=100){row.progress=v;this.$message.success('进度已更新为 '+v+'%');}else{this.$message.warning('请输入0-100之间的数字');}}.bind(this)).catch(function(){});},
+        handleAccept(row){this.$confirm('确认验收通过？','验收确认',{confirmButtonText:'确认验收',cancelButtonText:'取消',type:'success'}).then(function(){row.status='已完成';row.progress=100;this.$message.success('验收完成，工程履约已关闭');}.bind(this)).catch(function(){});},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleExport(){this.$message.success('导出工程服务履约记录');}
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

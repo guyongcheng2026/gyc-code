@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>供应商信用评分</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .form-section-title { font-size:15px; font-weight:600; color:#0B7266; margin:18px 0 12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .form-section-title i { margin-right:6px; }
+    .form-section-title:first-child { margin-top:0; }
+    .el-dialog__body .el-form.auto-width { display:block; flex-direction:unset; margin-right:0; }
+    .el-dialog__body .el-form.auto-width > .el-form-item { flex:unset; min-width:unset; margin-right:0; max-width:100%; }
+    .el-dialog__body .el-form.auto-width > .el-row { width:100%; }
+    .el-dialog__wrapper .el-dialog .el-dialog__body { overflow-y:auto; max-height:60vh; }
+    .detail-dialog .el-dialog__body { padding:0; max-height:72vh; overflow-y:auto; }
+    .detail-section { margin-bottom:20px; padding:0 20px 16px; }
+    .detail-section:last-child { margin-bottom:0; }
+    .detail-section__title { font-size:15px; font-weight:600; color:#0B7266; margin:0 0 10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .detail-section__title i { margin-right:6px; }
+    .score-bar-container { display:flex; align-items:center; margin-bottom:14px; }
+    .score-bar-label { width:120px; text-align:right; padding-right:12px; font-size:14px; color:#333; }
+    .score-bar-track { flex:1; height:24px; background:#F1F6F7; border-radius:12px; overflow:hidden; position:relative; }
+    .score-bar-fill { height:100%; border-radius:12px; transition:width 0.6s ease; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; color:#fff; font-weight:600; }
+    .score-bar-value { width:50px; text-align:center; font-size:16px; font-weight:700; color:#0B7266; }
+    .dimension-grid { display:grid; grid-template-columns:repeat(5,1fr); /* gap-removed */; margin-bottom:16px; }
+    .dimension-card { text-align:center; border:1px solid #EAECF0; border-radius:6px; padding:14px 8px; }
+    .dimension-card__score { font-size:28px; font-weight:700; color:#0B7266; }
+    .dimension-card__label { font-size:12px; color:#909399; margin-top:4px; }
+    .dimension-card__weight { font-size:11px; color:#C0C4CC; margin-top:2px; }
+    .tl-footer { text-align:center; }
+    html, body, #app { min-height:100vh; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">供应商信用评分</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button @click="handleExport">导出</el-button>
+              <el-button @click="handleBatchScore" type="primary" icon="el-icon-refresh">批量评分</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="供应商名称" title="供应商名称">
+                    <el-input v-model="queryForm.name" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="信用等级" title="信用等级">
+                    <el-select v-model="queryForm.grade" placeholder="请选择" clearable>
+                      <el-option label="优秀（≥90）" value="优秀"></el-option>
+                      <el-option label="良好（80-89）" value="良好"></el-option>
+                      <el-option label="合格（60-79）" value="合格"></el-option>
+                      <el-option label="不合格（<60）" value="不合格"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="评价周期" title="评价周期">
+                    <el-select v-model="queryForm.period" placeholder="请选择" clearable>
+                      <el-option label="2026年Q2" value="2026Q2"></el-option>
+                      <el-option label="2026年Q1" value="2026Q1"></el-option>
+                      <el-option label="2025年Q4" value="2025Q4"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商分类" title="供应商分类">
+                    <el-select v-model="queryForm.category" placeholder="请选择" clearable>
+                      <el-option label="制造商" value="制造商"></el-option>
+                      <el-option label="代理商" value="代理商"></el-option>
+                      <el-option label="经销商" value="经销商"></el-option>
+                      <el-option label="服务商" value="服务商"></el-option>
+                    </el-select>
+                  </el-form-item>
+                </el-form>
+              </div>
+              <div class="tl-search-panel__footer">
+                <div class="tl-search-panel__footer-left">
+                  <el-button type="primary" @click="handleSearch" icon="el-icon-search">查询</el-button>
+                  <el-button @click="handleReset">重置</el-button>
+                </div>
+                <div class="tl-search-panel__footer-right">
+                  <el-button type="text" @click="isSearchPanelCollapsed = true">收起</el-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div class="yj-container-card" area="grid" id="queryGrid">
+          <div class="yj-container-card__bar">
+            <div class="yj-container-card__toolbar">
+              <div class="tl-table-tools">
+                <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                  <span title="供应商信用评分列表">供应商信用评分列表</span>
+                </div>
+                <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                  <span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条</span>
+                </div>
+                <div class="tl-table-tools__button tl-table-tools__button-area">
+                  <div area="table-tools" class="query-toolbar">
+                    <div class="yj-button-list" style="width:100%;">
+                      <el-button @click="handleExport">导出</el-button>
+                      <el-button @click="handleBatchScore" type="primary">批量评分</el-button>
+                    </div>
+                  </div>
+                </div>
+                <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                  <div class="tl-search is-trigger">
+                    <el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-container-card__body">
+            <el-table :data="pagedData" border stripe style="width:100%" @row-click="handleDetail">
+              <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+              <el-table-column prop="supplierCode" label="供应商编码" width="140"></el-table-column>
+              <el-table-column prop="supplierName" label="供应商名称" min-width="180" show-overflow-tooltip></el-table-column>
+              <el-table-column prop="category" label="分类" width="80" align="center">
+                <template slot-scope="scope">
+                  <el-tag size="small" type="info">{{ scope.row.category }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="productScore" label="商品维度" width="90" align="center">
+                <template slot-scope="scope">
+                  <span :style="{color: scope.row.productScore >= 80 ? '#2e7d32' : scope.row.productScore >= 60 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.productScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="fulfillScore" label="履约维度" width="90" align="center">
+                <template slot-scope="scope">
+                  <span :style="{color: scope.row.fulfillScore >= 80 ? '#2e7d32' : scope.row.fulfillScore >= 60 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.fulfillScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="qualityScore" label="质量维度" width="90" align="center">
+                <template slot-scope="scope">
+                  <span :style="{color: scope.row.qualityScore >= 80 ? '#2e7d32' : scope.row.qualityScore >= 60 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.qualityScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="integrityScore" label="诚信维度" width="90" align="center">
+                <template slot-scope="scope">
+                  <span :style="{color: scope.row.integrityScore >= 80 ? '#2e7d32' : scope.row.integrityScore >= 60 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.integrityScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="serviceScore" label="服务维度" width="90" align="center">
+                <template slot-scope="scope">
+                  <span :style="{color: scope.row.serviceScore >= 80 ? '#2e7d32' : scope.row.serviceScore >= 60 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.serviceScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="totalScore" label="综合得分" width="100" align="center">
+                <template slot-scope="scope">
+                  <span style="font-size:16px; font-weight:700; color:#0B7266;">{{ scope.row.totalScore }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="grade" label="信用等级" width="90" align="center">
+                <template slot-scope="scope">
+                  <el-tag :type="gradeTagType(scope.row.grade)" size="small" effect="dark">{{ scope.row.grade }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="evalDate" label="评价日期" width="110" align="center"></el-table-column>
+              <el-table-column label="操作" width="120" align="center" fixed="right">
+                <template slot-scope="scope">
+                  <el-button type="text" @click.stop="handleDetail(scope.row)">详情</el-button>
+                  <el-button type="text" @click.stop="handleReScore(scope.row)">重新评分</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="yj-pagination" style="margin-top:16px; text-align:right;">
+              <el-pagination @size-change="handleSizeChange" @current-change="handleCurrentChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length"></el-pagination>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+    <!-- 详情弹窗 -->
+    <el-dialog title="供应商信用评分详情" :visible.sync="detailVisible" width="800px" class="detail-dialog" :close-on-click-modal="false">
+      <div v-if="currentRow">
+        <div class="detail-section">
+          <div class="detail-section__title"><i class="el-icon-office-building"></i>供应商基本信息</div>
+          <el-descriptions :column="3" border>
+            <el-descriptions-item label="供应商编码">{{ currentRow.supplierCode }}</el-descriptions-item>
+            <el-descriptions-item label="供应商名称">{{ currentRow.supplierName }}</el-descriptions-item>
+            <el-descriptions-item label="分类">{{ currentRow.category }}</el-descriptions-item>
+            <el-descriptions-item label="评价周期">{{ currentRow.period }}</el-descriptions-item>
+            <el-descriptions-item label="评价日期">{{ currentRow.evalDate }}</el-descriptions-item>
+            <el-descriptions-item label="信用等级">
+              <el-tag :type="gradeTagType(currentRow.grade)" size="small" effect="dark">{{ currentRow.grade }}</el-tag>
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section__title"><i class="el-icon-data-line"></i>五维信用评分</div>
+          <div class="dimension-grid">
+            <div class="dimension-card" v-for="dim in scoreDimensions" :key="dim.key">
+              <div class="dimension-card__score" :style="{color: dim.value >= 80 ? '#2e7d32' : dim.value >= 60 ? '#f57c00' : '#c62828'}">{{ dim.value }}</div>
+              <div class="dimension-card__label">{{ dim.label }}</div>
+              <div class="dimension-card__weight">权重 {{ dim.weight }}%</div>
+            </div>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section__title"><i class="el-icon-data-board"></i>评分明细</div>
+          <div class="score-bar-container" v-for="dim in scoreDimensions" :key="'bar-'+dim.key">
+            <div class="score-bar-label">{{ dim.label }}（{{ dim.weight }}%）</div>
+            <div class="score-bar-track">
+              <div class="score-bar-fill" :style="{width: dim.value + '%', background: dim.value >= 80 ? '#2e7d32' : dim.value >= 60 ? '#f57c00' : '#c62828'}">{{ dim.value }}</div>
+            </div>
+            <div class="score-bar-value">{{ dim.value }}</div>
+          </div>
+          <div style="margin-top:16px; padding:12px 16px; background:#F1F6F7; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:14px; color:#555;">综合信用得分</span>
+            <span style="font-size:28px; font-weight:700; color:#0B7266;">{{ currentRow.totalScore }}</span>
+          </div>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section__title"><i class="el-icon-document"></i>评分依据</div>
+          <el-table :data="scoreEvidence" border size="small" style="width:100%;">
+            <el-table-column prop="dimension" label="评价维度" width="100" align="center"></el-table-column>
+            <el-table-column prop="indicator" label="评价指标" min-width="160"></el-table-column>
+            <el-table-column prop="actual" label="实际值" width="120" align="center"></el-table-column>
+            <el-table-column prop="target" label="目标值" width="100" align="center"></el-table-column>
+            <el-table-column prop="rate" label="达成率" width="90" align="center">
+              <template slot-scope="scope">
+                <span :style="{color: scope.row.rate >= 100 ? '#2e7d32' : scope.row.rate >= 80 ? '#f57c00' : '#c62828', fontWeight:600}">{{ scope.row.rate }}%</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+        <div class="detail-section">
+          <div class="detail-section__title"><i class="el-icon-time"></i>历史评分趋势</div>
+          <el-table :data="historyTrend" border size="small" style="width:100%;">
+            <el-table-column prop="period" label="评价周期" width="120" align="center"></el-table-column>
+            <el-table-column prop="productScore" label="商品" width="70" align="center"></el-table-column>
+            <el-table-column prop="fulfillScore" label="履约" width="70" align="center"></el-table-column>
+            <el-table-column prop="qualityScore" label="质量" width="70" align="center"></el-table-column>
+            <el-table-column prop="integrityScore" label="诚信" width="70" align="center"></el-table-column>
+            <el-table-column prop="serviceScore" label="服务" width="70" align="center"></el-table-column>
+            <el-table-column prop="totalScore" label="综合" width="70" align="center">
+              <template slot-scope="scope">
+                <span style="font-weight:700; color:#0B7266;">{{ scope.row.totalScore }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="grade" label="等级" width="70" align="center"></el-table-column>
+            <el-table-column label="趋势" width="80" align="center">
+              <template slot-scope="scope">
+                <i :class="scope.row.trend === 'up' ? 'el-icon-top' : scope.row.trend === 'down' ? 'el-icon-bottom' : 'el-icon-minus'" :style="{color: scope.row.trend === 'up' ? '#2e7d32' : scope.row.trend === 'down' ? '#c62828' : '#909399'}"></i>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleReScore(currentRow)">重新评分</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog title="帮助说明" :visible.sync="helpVisible" width="600px" class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i>功能说明</div>
+          <div class="help-section__body">
+            <p>供应商信用评分系统基于<b>五维评价模型</b>对供应商进行综合信用评估，覆盖PPTX S23供应商四维考核+服务维度扩展。</p>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-set-up"></i>五维评价模型</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>商品维度（25%）</b>：品类覆盖率、上架审核通过率、标准商品覆盖率</li>
+              <li><b>履约维度（25%）</b>：协议要求维护订单比例、物流信息丰富度、准时交货率</li>
+              <li><b>质量维度（20%）</b>：商品好评率、质量抽检合格率、退换货率</li>
+              <li><b>诚信维度（15%）</b>：假冒伪劣检测、私下换货检测、合规经营</li>
+              <li><b>服务维度（15%）</b>：响应时效、售后满意度、问题解决率</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i>等级划分标准</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>优秀</b>：综合得分 ≥ 90分</li>
+              <li><b>良好</b>：综合得分 80-89分</li>
+              <li><b>合格</b>：综合得分 60-79分</li>
+              <li><b>不合格</b>：综合得分 < 60分</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="helpVisible = false">知道了</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '90px',
+          isSearchPanelCollapsed: false,
+          helpVisible: false,
+          detailVisible: false,
+          currentRow: null,
+          currentPage: 1,
+          pageSize: 10,
+          tableSearchText: '',
+          queryForm: { name: '', grade: '', period: '2026Q2', category: '' },
+          tableData: [
+            { supplierCode: 'SUP-2026-0001', supplierName: '远东电缆股份有限公司', category: '制造商', productScore: 92, fulfillScore: 88, qualityScore: 95, integrityScore: 98, serviceScore: 90, totalScore: 92, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0002', supplierName: '正泰电器股份有限公司', category: '制造商', productScore: 85, fulfillScore: 82, qualityScore: 88, integrityScore: 90, serviceScore: 85, totalScore: 85, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0003', supplierName: '德力西电气有限公司', category: '制造商', productScore: 78, fulfillScore: 75, qualityScore: 80, integrityScore: 82, serviceScore: 76, totalScore: 78, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0004', supplierName: '上海电缆研究所有限公司', category: '服务商', productScore: 65, fulfillScore: 70, qualityScore: 68, integrityScore: 75, serviceScore: 72, totalScore: 69, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0005', supplierName: '宝胜科技创新股份有限公司', category: '制造商', productScore: 90, fulfillScore: 85, qualityScore: 92, integrityScore: 88, serviceScore: 87, totalScore: 88, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0006', supplierName: '亨通光电科技有限公司', category: '制造商', productScore: 55, fulfillScore: 50, qualityScore: 60, integrityScore: 45, serviceScore: 52, totalScore: 52, grade: '不合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0007', supplierName: '中天科技装备电缆有限公司', category: '制造商', productScore: 88, fulfillScore: 90, qualityScore: 85, integrityScore: 92, serviceScore: 89, totalScore: 89, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0008', supplierName: '华鹏电缆有限公司', category: '经销商', productScore: 82, fulfillScore: 78, qualityScore: 85, integrityScore: 80, serviceScore: 83, totalScore: 81, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0009', supplierName: '国电南瑞科技股份有限公司', category: '制造商', productScore: 95, fulfillScore: 93, qualityScore: 96, integrityScore: 97, serviceScore: 94, totalScore: 95, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0010', supplierName: '许继电气股份有限公司', category: '制造商', productScore: 88, fulfillScore: 86, qualityScore: 90, integrityScore: 92, serviceScore: 87, totalScore: 88, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0011', supplierName: '平高电气股份有限公司', category: '制造商', productScore: 76, fulfillScore: 72, qualityScore: 79, integrityScore: 80, serviceScore: 74, totalScore: 76, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0012', supplierName: '思源电气股份有限公司', category: '制造商', productScore: 91, fulfillScore: 89, qualityScore: 93, integrityScore: 95, serviceScore: 90, totalScore: 92, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0013', supplierName: '威胜信息技术股份有限公司', category: '制造商', productScore: 80, fulfillScore: 77, qualityScore: 83, integrityScore: 85, serviceScore: 79, totalScore: 81, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0014', supplierName: '北京四方继保自动化股份有限公司', category: '制造商', productScore: 87, fulfillScore: 84, qualityScore: 89, integrityScore: 91, serviceScore: 86, totalScore: 87, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0015', supplierName: '国电南京自动化股份有限公司', category: '制造商', productScore: 72, fulfillScore: 68, qualityScore: 75, integrityScore: 78, serviceScore: 70, totalScore: 73, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0016', supplierName: '东方电子股份有限公司', category: '制造商', productScore: 83, fulfillScore: 80, qualityScore: 86, integrityScore: 88, serviceScore: 82, totalScore: 84, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0017', supplierName: '积成电子股份有限公司', category: '制造商', productScore: 79, fulfillScore: 76, qualityScore: 82, integrityScore: 84, serviceScore: 78, totalScore: 80, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0018', supplierName: '中电普瑞科技有限公司', category: '制造商', productScore: 89, fulfillScore: 87, qualityScore: 91, integrityScore: 93, serviceScore: 88, totalScore: 89, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0019', supplierName: '深圳市科陆电子科技股份有限公司', category: '制造商', productScore: 58, fulfillScore: 55, qualityScore: 62, integrityScore: 60, serviceScore: 56, totalScore: 58, grade: '不合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0020', supplierName: '特变电工股份有限公司', category: '制造商', productScore: 93, fulfillScore: 91, qualityScore: 94, integrityScore: 96, serviceScore: 92, totalScore: 93, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0021', supplierName: '中国西电集团有限公司', category: '制造商', productScore: 90, fulfillScore: 88, qualityScore: 92, integrityScore: 94, serviceScore: 89, totalScore: 90, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0022', supplierName: '江苏华鹏变压器有限公司', category: '制造商', productScore: 81, fulfillScore: 78, qualityScore: 84, integrityScore: 86, serviceScore: 80, totalScore: 82, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0023', supplierName: '联想集团有限公司', category: '经销商', productScore: 86, fulfillScore: 83, qualityScore: 88, integrityScore: 90, serviceScore: 85, totalScore: 86, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0024', supplierName: '施耐德电气(中国)有限公司', category: '制造商', productScore: 94, fulfillScore: 92, qualityScore: 96, integrityScore: 97, serviceScore: 93, totalScore: 94, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0025', supplierName: 'ABB(中国)有限公司', category: '制造商', productScore: 93, fulfillScore: 90, qualityScore: 95, integrityScore: 96, serviceScore: 91, totalScore: 93, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0026', supplierName: '西门子(中国)有限公司', category: '制造商', productScore: 92, fulfillScore: 89, qualityScore: 94, integrityScore: 95, serviceScore: 90, totalScore: 92, grade: '优秀', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0027', supplierName: '通用电气(中国)有限公司', category: '制造商', productScore: 68, fulfillScore: 65, qualityScore: 72, integrityScore: 70, serviceScore: 66, totalScore: 68, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0028', supplierName: '霍尼韦尔(中国)有限公司', category: '经销商', productScore: 84, fulfillScore: 81, qualityScore: 87, integrityScore: 89, serviceScore: 83, totalScore: 85, grade: '良好', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0029', supplierName: '宁波奥克斯电气股份有限公司', category: '经销商', productScore: 56, fulfillScore: 52, qualityScore: 58, integrityScore: 55, serviceScore: 53, totalScore: 55, grade: '不合格', evalDate: '2026-06-30', period: '2026年Q2' },
+            { supplierCode: 'SUP-2026-0030', supplierName: '河南平高电气有限公司', category: '制造商', productScore: 77, fulfillScore: 74, qualityScore: 80, integrityScore: 81, serviceScore: 75, totalScore: 77, grade: '合格', evalDate: '2026-06-30', period: '2026年Q2' }
+          ],
+          scoreEvidence: [
+            { dimension: '商品维度', indicator: '品类覆盖率', actual: '85%', target: '≥80%', rate: 106 },
+            { dimension: '商品维度', indicator: '上架审核通过率', actual: '96%', target: '≥90%', rate: 107 },
+            { dimension: '商品维度', indicator: '标准商品覆盖率', actual: '78%', target: '≥75%', rate: 104 },
+            { dimension: '履约维度', indicator: '协议订单维护率', actual: '92%', target: '≥90%', rate: 102 },
+            { dimension: '履约维度', indicator: '物流信息丰富度', actual: '4.2分', target: '≥4.0分', rate: 105 },
+            { dimension: '履约维度', indicator: '准时交货率', actual: '88%', target: '≥85%', rate: 104 },
+            { dimension: '质量维度', indicator: '商品好评率', actual: '95%', target: '≥90%', rate: 106 },
+            { dimension: '质量维度', indicator: '质量抽检合格率', actual: '98%', target: '≥95%', rate: 103 },
+            { dimension: '诚信维度', indicator: '假冒伪劣检测', actual: '0次', target: '0次', rate: 100 },
+            { dimension: '服务维度', indicator: '平均响应时效', actual: '2.5小时', target: '≤4小时', rate: 160 }
+          ],
+          historyTrend: [
+            { period: '2025年Q4', productScore: 85, fulfillScore: 80, qualityScore: 88, integrityScore: 90, serviceScore: 82, totalScore: 84, grade: '良好', trend: 'up' },
+            { period: '2026年Q1', productScore: 88, fulfillScore: 85, qualityScore: 90, integrityScore: 92, serviceScore: 86, totalScore: 88, grade: '良好', trend: 'up' },
+            { period: '2026年Q2', productScore: 92, fulfillScore: 88, qualityScore: 95, integrityScore: 98, serviceScore: 90, totalScore: 92, grade: '优秀', trend: 'up' }
+          ]
+        };
+      },
+      computed: {
+        queryConditionText() {
+          const parts = [];
+          if (this.queryForm.name) parts.push('供应商：' + this.queryForm.name);
+          if (this.queryForm.grade) parts.push('等级：' + this.queryForm.grade);
+          if (this.queryForm.period) parts.push('周期：' + this.queryForm.period);
+          if (this.queryForm.category) parts.push('分类：' + this.queryForm.category);
+          return parts.length > 0 ? '查询条件：' + parts.join('，') : '无查询条件';
+        },
+        filteredData() {
+          return this.tableData.filter(row => {
+            if (this.queryForm.name && !row.supplierName.includes(this.queryForm.name)) return false;
+            if (this.queryForm.grade && row.grade !== this.queryForm.grade) return false;
+            if (this.queryForm.category && row.category !== this.queryForm.category) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = (row.supplierCode + row.supplierName + row.category).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const s = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(s, s + this.pageSize);
+        },
+        scoreDimensions() {
+          if (!this.currentRow) return [];
+          return [
+            { key: 'product', label: '商品维度', weight: 25, value: this.currentRow.productScore },
+            { key: 'fulfill', label: '履约维度', weight: 25, value: this.currentRow.fulfillScore },
+            { key: 'quality', label: '质量维度', weight: 20, value: this.currentRow.qualityScore },
+            { key: 'integrity', label: '诚信维度', weight: 15, value: this.currentRow.integrityScore },
+            { key: 'service', label: '服务维度', weight: 15, value: this.currentRow.serviceScore }
+          ];
+        }
+      },
+      methods: {
+        gradeTagType(grade) {
+          if (grade === '优秀') return 'success';
+          if (grade === '良好') return '';
+          if (grade === '合格') return 'warning';
+          return 'danger';
+        },
+        handleSearch() { this.isSearchPanelCollapsed = true; },
+        handleReset() { this.queryForm = { name: '', grade: '', period: '2026Q2', category: '' }; },
+        handleExport() { this.$message.success('导出成功'); },
+        handleBatchScore() { this.$message.success('批量评分任务已启动'); },
+        handleDetail(row) { this.currentRow = row; this.detailVisible = true; },
+        handleReScore(row) { this.$message.success(row.supplierName + ' 重新评分任务已启动'); },
+        handleSizeChange(val) { this.pageSize = val; },
+        handleCurrentChange(val) { this.currentPage = val; }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,206 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>帮扶振兴</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">帮扶振兴</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-plus" @click="handleAdd">新增帮扶项目</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出报告</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="项目名称"><el-input v-model="queryForm.projectName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="帮扶类型"><el-select v-model="queryForm.helpType" placeholder="请选择" clearable><el-option label="消费帮扶" value="消费帮扶"></el-option><el-option label="产业帮扶" value="产业帮扶"></el-option><el-option label="就业帮扶" value="就业帮扶"></el-option><el-option label="教育帮扶" value="教育帮扶"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="进行中" value="进行中"></el-option><el-option label="已完成" value="已完成"></el-option><el-option label="筹备中" value="筹备中"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">帮扶项目数</div><div class="stat-value">28</div><div class="stat-sub">累计</div></div>
+            <div class="stat-card"><div class="stat-label">帮扶地区</div><div class="stat-value">15</div><div class="stat-sub">覆盖省份</div></div>
+            <div class="stat-card"><div class="stat-label">采购额(万)</div><div class="stat-value">3,560</div><div class="stat-sub">消费帮扶</div></div>
+            <div class="stat-card"><div class="stat-label">受益人数</div><div class="stat-value">8,200</div><div class="stat-sub">直接受益</div></div>
+            <div class="stat-card"><div class="stat-label">带动产业</div><div class="stat-value">42</div><div class="stat-sub">个特色产业</div></div>
+          </div>
+          <div class="tl-table-wrap">
+            <div class="yj-container-card__table"><el-table :data="tableData" border style="width:100%" @row-click="handleRowClick">
+              <el-table-column prop="projectNo" label="项目编号" width="130"></el-table-column>
+              <el-table-column prop="projectName" label="项目名称" min-width="200"></el-table-column>
+              <el-table-column prop="helpType" label="帮扶类型" width="100" align="center">
+                <template slot-scope="scope"><el-tag :type="helpTag(scope.row.helpType)" size="small">{{ scope.row.helpType }}</el-tag></template>
+              </el-table-column>
+              <el-table-column prop="region" label="帮扶地区" width="140"></el-table-column>
+              <el-table-column prop="purchaseAmount" label="采购额(万)" width="120" align="right">
+                <template slot-scope="scope"><span style="color:#2e7d32;font-weight:600;">{{ scope.row.purchaseAmount }}</span></template>
+              </el-table-column>
+              <el-table-column prop="beneficiaryCount" label="受益人数" width="100" align="center"></el-table-column>
+              <el-table-column prop="products" label="主要产品" min-width="160"></el-table-column>
+              <el-table-column prop="status" label="状态" width="90" align="center">
+                <template slot-scope="scope"><el-tag :type="scope.row.status==='进行中'?'success':scope.row.status==='筹备中'?'warning':'info'" size="small">{{ scope.row.status }}</el-tag></template>
+              </el-table-column>
+              <el-table-column label="操作" width="100" align="center" fixed="right">
+                <template slot-scope="scope"><el-button type="text" @click.stop="handleDetail(scope.row)">详情</el-button></template>
+              </el-table-column>
+            </el-table></div>
+            <div style="margin-top:16px;text-align:right;">
+              <el-pagination background layout="total,sizes,prev,pager,next,jumper" :total="28" :page-sizes="[10,20,50]" :page-size="10" :current-page="currentPage"></el-pagination>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+    <el-dialog title="帮扶项目详情" :visible.sync="detailVisible" width="780px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-descriptions :column="2" border size="medium">
+        <el-descriptions-item label="项目编号">{{ detailData.projectNo }}</el-descriptions-item>
+        <el-descriptions-item label="项目名称">{{ detailData.projectName }}</el-descriptions-item>
+        <el-descriptions-item label="帮扶类型">{{ detailData.helpType }}</el-descriptions-item>
+        <el-descriptions-item label="帮扶地区">{{ detailData.region }}</el-descriptions-item>
+        <el-descriptions-item label="采购额">{{ detailData.purchaseAmount }} 万元</el-descriptions-item>
+        <el-descriptions-item label="受益人数">{{ detailData.beneficiaryCount }} 人</el-descriptions-item>
+        <el-descriptions-item label="主要产品">{{ detailData.products }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ detailData.status }}</el-descriptions-item>
+        <el-descriptions-item label="负责单位">{{ detailData.responsibleUnit }}</el-descriptions-item>
+        <el-descriptions-item label="起始日期">{{ detailData.startDate }}</el-descriptions-item>
+      </el-descriptions>
+      <el-divider content-position="left">帮扶产品清单</el-divider>
+      <div class="yj-container-card__table"><el-table :data="helpProductList" border size="small" style="margin-top:8px;">
+        <el-table-column prop="productCode" label="商品编码" width="130"></el-table-column>
+        <el-table-column prop="productName" label="产品名称" min-width="160"></el-table-column>
+        <el-table-column prop="origin" label="产地" width="100"></el-table-column>
+        <el-table-column prop="price" label="单价(元)" width="100" align="right"></el-table-column>
+        <el-table-column prop="soldQty" label="已售(份)" width="90" align="center"></el-table-column>
+        <el-table-column prop="farmerCount" label="带动农户" width="90" align="center"></el-table-column>
+        <el-table-column prop="supplier" label="供应商(合作社)" min-width="160"></el-table-column>
+      </el-table></div>
+      <el-divider content-position="left">帮扶成效</el-divider>
+      <el-descriptions :column="2" border size="medium">
+        <el-descriptions-item label="带动农户">{{ detailData.farmerCount }} 户</el-descriptions-item>
+        <el-descriptions-item label="户均增收">{{ detailData.incomeIncrease }} 元/年</el-descriptions-item>
+        <el-descriptions-item label="产业带动">{{ detailData.industryDriven }}</el-descriptions-item>
+        <el-descriptions-item label="就业岗位">{{ detailData.jobCreated }} 个</el-descriptions-item>
+      </el-descriptions>
+      <div slot="footer"><el-button @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog title="帮助" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-magic-stick"></i>帮扶振兴</div><div class="help-section__body"><p>帮扶振兴场景通过电子商城平台采购脱贫地区农副产品和特色产品，以消费帮扶带动产业发展和群众增收，助力乡村振兴战略落地。</p></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-collection"></i>帮扶类型</div><div class="help-section__body"><ul><li><b>消费帮扶</b>：采购脱贫地区农副产品</li><li><b>产业帮扶</b>：支持特色产业培育和发展</li><li><b>就业帮扶</b>：优先采购带动就业的产品</li><li><b>教育帮扶</b>：采购教育物资支持地区教育</li></ul></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-s-marketing"></i>成效指标</div><div class="help-section__body"><ul><li><b>采购额</b>：通过平台采购的帮扶产品金额</li><li><b>受益人数</b>：直接受益的脱贫人口</li><li><b>带动农户</b>：参与生产的农户数量</li><li><b>户均增收</b>：帮扶带来的年均增收</li></ul></div></div>
+      </div>
+      <div slot="footer"><el-button @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'90px',
+          isSearchPanelCollapsed:false,
+          currentPage:1,
+          queryForm:{projectName:'',helpType:'',status:''},
+          detailVisible:false,
+          helpVisible:false,
+          detailData:{},
+          helpProductList:[
+              {productCode:'BF-001',productName:'井冈山红米',origin:'江西吉安',price:35,soldQty:12000,farmerCount:320,supplier:'井冈山红米合作社'},
+              {productCode:'BF-002',productName:'大凉山苦荞茶',origin:'四川凉山',price:48,soldQty:8500,farmerCount:180,supplier:'凉山苦荞产业合作社'},
+              {productCode:'BF-003',productName:'六盘山小杂粮',origin:'宁夏固原',price:42,soldQty:6800,farmerCount:250,supplier:'固原杂粮合作社'},
+              {productCode:'BF-004',productName:'秦巴山区土蜂蜜',origin:'陕西安康',price:128,soldQty:3200,farmerCount:95,supplier:'安康蜂业合作社'},
+              {productCode:'BF-005',productName:'乌蒙山生态茶叶',origin:'贵州毕节',price:88,soldQty:5600,farmerCount:210,supplier:'毕节茶业合作社'}
+          ],
+          tableData:[
+              {projectNo:'BF-2026-001',projectName:'井冈山红色农产品消费帮扶',helpType:'消费帮扶',region:'江西吉安',purchaseAmount:580,beneficiaryCount:1200,products:'红米、竹笋、茶油',status:'进行中',responsibleUnit:'物资部',startDate:'2026-01-01',farmerCount:320,incomeIncrease:8500,industryDriven:'红米种植加工',jobCreated:45},
+              {projectNo:'BF-2026-002',projectName:'大凉山苦荞产业帮扶',helpType:'产业帮扶',region:'四川凉山',purchaseAmount:420,beneficiaryCount:850,products:'苦荞茶、苦荞面',status:'进行中',responsibleUnit:'物资部',startDate:'2026-02-01',farmerCount:180,incomeIncrease:6200,industryDriven:'苦荞种植加工',jobCreated:32},
+              {projectNo:'BF-2026-003',projectName:'六盘山杂粮消费帮扶',helpType:'消费帮扶',region:'宁夏固原',purchaseAmount:320,beneficiaryCount:680,products:'小米、荞麦、藜麦',status:'进行中',responsibleUnit:'工会',startDate:'2026-01-15',farmerCount:250,incomeIncrease:4800,industryDriven:'杂粮种植',jobCreated:28},
+              {projectNo:'BF-2026-004',projectName:'秦巴山区土特产帮扶',helpType:'消费帮扶',region:'陕西安康',purchaseAmount:280,beneficiaryCount:520,products:'蜂蜜、木耳、香菇',status:'进行中',responsibleUnit:'物资部',startDate:'2026-03-01',farmerCount:95,incomeIncrease:12000,industryDriven:'蜂业+食用菌',jobCreated:18},
+              {projectNo:'BF-2026-005',projectName:'乌蒙山生态茶帮扶',helpType:'产业帮扶',region:'贵州毕节',purchaseAmount:350,beneficiaryCount:780,products:'绿茶、红茶、白茶',status:'进行中',responsibleUnit:'物资部',startDate:'2026-02-15',farmerCount:210,incomeIncrease:7200,industryDriven:'茶叶种植加工',jobCreated:38},
+              {projectNo:'BF-2026-006',projectName:'吕梁山核桃产业帮扶',helpType:'产业帮扶',region:'山西吕梁',purchaseAmount:260,beneficiaryCount:450,products:'核桃、核桃油、核桃乳',status:'已完成',responsibleUnit:'工会',startDate:'2025-09-01',farmerCount:160,incomeIncrease:9500,industryDriven:'核桃种植加工',jobCreated:25},
+              {projectNo:'BF-2026-007',projectName:'大别山板栗消费帮扶',helpType:'消费帮扶',region:'安徽六安',purchaseAmount:180,beneficiaryCount:380,products:'板栗、板栗仁',status:'已完成',responsibleUnit:'物资部',startDate:'2025-10-01',farmerCount:120,incomeIncrease:5500,industryDriven:'板栗种植',jobCreated:15},
+              {projectNo:'BF-2026-008',projectName:'滇西咖啡产业帮扶',helpType:'产业帮扶',region:'云南保山',purchaseAmount:420,beneficiaryCount:620,products:'咖啡豆、挂耳咖啡',status:'进行中',responsibleUnit:'物资部',startDate:'2026-01-01',farmerCount:190,incomeIncrease:8800,industryDriven:'咖啡种植加工',jobCreated:42},
+              {projectNo:'BF-2026-009',projectName:'湘西猕猴桃帮扶',helpType:'消费帮扶',region:'湖南湘西',purchaseAmount:230,beneficiaryCount:420,products:'猕猴桃、果干',status:'进行中',responsibleUnit:'工会',startDate:'2026-03-01',farmerCount:140,incomeIncrease:6800,industryDriven:'猕猴桃种植',jobCreated:22},
+              {projectNo:'BF-2026-010',projectName:'南疆红枣产业帮扶',helpType:'产业帮扶',region:'新疆和田',purchaseAmount:520,beneficiaryCount:980,products:'红枣、枣片、枣糕',status:'筹备中',responsibleUnit:'物资部',startDate:'2026-09-01',farmerCount:280,incomeIncrease:7500,industryDriven:'红枣种植加工',jobCreated:35}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){return '名称：'+(this.queryForm.projectName||'全部')+' | 类型：'+(this.queryForm.helpType||'全部')+' | 状态：'+(this.queryForm.status||'全部');}
+      },
+      methods:{
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        helpTag(type){const m={'消费帮扶':'success','产业帮扶':'warning','就业帮扶':'danger','教育帮扶':'info'};return m[type]||'info';},
+        handleQuery(){this.$message.success('查询完成');},
+        handleReset(){this.queryForm={projectName:'',helpType:'',status:''};},
+        handleRowClick(row){this.handleDetail(row);},
+        handleDetail(row){this.detailData=Object.assign({},row);this.detailVisible=true;},
+        handleAdd(){this.$message.info('新增帮扶项目功能开发中');},
+        handleExport(){this.$message.success('报告导出中...');}
+      }
+    });
+  </script>
+</body>
+</html>

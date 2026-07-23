@@ -1,0 +1,802 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AI采购流程监测</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .ai-banner { background: linear-gradient(135deg, #0B7266 0%, #0a6358 100%); color: #fff; padding: 20px 24px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; } .ai-banner > * + * { margin-left:16px; }
+    .ai-banner .ai-icon { font-size: 36px; }
+    .ai-banner .ai-title { font-size: 18px; font-weight: 700; }
+    .ai-banner .ai-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .decision-card { background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; margin-bottom:12px; }
+    .decision-card__title { font-size:15px; font-weight:600; color:#1A2332; margin-bottom:10px; }
+    .score-bar { display:inline-block; height:8px; border-radius:4px; background:#E0F0EE; vertical-align:middle; }
+    .score-bar__fill { display:block; height:100%; border-radius:4px; background:#0B7266; }
+    .confidence-meter { display:flex; align-items:center; } .confidence-meter > * + * { margin-left:10px; }
+    .ai-suggestion { background:linear-gradient(135deg,#E0F0EE 0%,#F1F6F7 100%); border-left:4px solid #0B7266; padding:16px 20px; border-radius:4px; margin-top:12px; }
+    .ai-suggestion__title { font-size:15px; font-weight:700; color:#0B7266; margin-bottom:8px; }
+    .ai-suggestion__text { font-size:14px; color:#333; line-height:1.8; }
+    .delay-num { font-weight:600; }
+    .delay-num.danger { color:#c62828; }
+    .delay-num.warning { color:#f57c00; }
+    .delay-num.normal { color:#2e7d32; }
+    .threshold-meter { display:inline-block; height:6px; width:80px; border-radius:3px; background:#E0F0EE; vertical-align:middle; }
+    .threshold-meter__fill { display:block; height:100%; border-radius:3px; }
+    .tl-footer { text-align:center; }
+    /* 监测弹窗 */
+    .monitor-dialog .el-dialog__body { padding:16px 24px; max-height:70vh; overflow-y:auto; }
+    .monitor-loading { text-align:center; padding:48px 0; }
+    .monitor-loading .el-icon-loading { font-size:36px; color:#0B7266; }
+    .monitor-loading p { margin-top:12px; color:#6B7280; font-size:14px; }
+    .monitor-loading .loading-steps { margin-top:16px; text-align:left; max-width:360px; margin-left:auto; margin-right:auto; }
+    .monitor-loading .loading-step { display:flex; align-items:center; padding:6px 0; font-size:13px; color:#909399; }
+    .monitor-loading .loading-step .el-icon { margin-right:8px; }
+    .monitor-loading .loading-step.done { color:#2e7d32; }
+    .monitor-loading .loading-step.active { color:#0B7266; font-weight:600; }
+    /* 节点时间线 */
+    .node-timeline { display:flex; align-items:flex-start; margin-bottom:8px; }
+    .node-timeline__line { width:2px; background:#E0F0EE; min-height:60px; margin:0 10px; flex-shrink:0; }
+    .node-timeline__dot { width:12px; height:12px; border-radius:50%; flex-shrink:0; margin-top:4px; }
+    .node-timeline__dot.done { background:#2e7d32; }
+    .node-timeline__dot.current { background:#0B7266; box-shadow:0 0 0 4px rgba(11,114,102,0.2); }
+    .node-timeline__dot.pending { background:#C0C4CC; }
+    .node-timeline__content { flex:1; padding-bottom:12px; }
+    .node-timeline__header { display:flex; align-items:center; justify-content:space-between; }
+    .node-timeline__name { font-size:13px; font-weight:600; color:#1A2332; }
+    .node-timeline__date { font-size:12px; color:#6B7280; }
+    .node-timeline__detail { font-size:12px; color:#555; margin-top:4px; line-height:1.6; }
+    /* 摘要卡片 */
+    .monitor-summary { display:flex; /* gap-removed */; margin-bottom:16px; flex-wrap:wrap; }
+    .monitor-summary__item { flex:1; min-width:110px; background:#F1F6F7; border-radius:4px; padding:10px 14px; text-align:center; }
+    .monitor-summary__label { font-size:12px; color:#6B7280; margin-bottom:4px; }
+    .monitor-summary__value { font-size:22px; font-weight:700; color:#1A2332; }
+    .monitor-summary__value.danger { color:#c62828; }
+    .monitor-summary__value.warning { color:#f57c00; }
+    .monitor-summary__value.success { color:#2e7d32; }
+    /* 瓶颈分布 */
+    .bottleneck-list { margin-bottom:16px; }
+    .bottleneck-list__title { font-size:14px; font-weight:600; color:#1A2332; margin-bottom:8px; }
+    .bottleneck-item { display:flex; align-items:center; padding:6px 12px; border-radius:4px; margin-bottom:4px; font-size:13px; }
+    .bottleneck-item--high { background:#ffebee; }
+    .bottleneck-item--mid { background:#fff8e1; }
+    .bottleneck-item--low { background:#e8f5e9; }
+    .bottleneck-item .bk-name { flex:1; font-weight:500; }
+    .bottleneck-item .bk-count { font-weight:700; margin-left:8px; }
+    .selection-hint { font-size:12px; color:#909399; margin-left:8px; }
+    .selection-hint b { color:#0B7266; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">AI采购流程监测</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="订单编号" title="订单编号">
+                    <el-input v-model="queryForm.orderNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="节点状态" title="节点状态">
+                    <el-select v-model="queryForm.nodeStatus" placeholder="请选择" clearable>
+                      <el-option label="申请" value="申请"></el-option>
+                      <el-option label="审批" value="审批"></el-option>
+                      <el-option label="合同" value="合同"></el-option>
+                      <el-option label="发货" value="发货"></el-option>
+                      <el-option label="验收" value="验收"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="滞后天数" title="滞后天数">
+                    <el-select v-model="queryForm.delayDays" placeholder="请选择" clearable>
+                      <el-option label="≤3天" value="le3"></el-option>
+                      <el-option label="4-7天" value="4to7"></el-option>
+                      <el-option label="≥8天" value="ge8"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleMonitor" icon="el-icon-s-check">监测</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="采购流程节点监测">采购流程节点监测</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ monitorData.length }} 个订单</span><span class="selection-hint" v-if="selection.length > 0">已选 <b>{{ selection.length }}</b> 个</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleGenerateHealth" icon="el-icon-magic-stick">生成健康度</el-button>
+                        <el-button @click="handleExport" icon="el-icon-download">导出监测报告</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="orderNo" label="订单编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="200" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="purchaser" label="采购方" min-width="160" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="subject" label="采购事项" min-width="160" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="amount" label="订单金额(元)" min-width="120" align="right">
+                    <template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template>
+                  </el-table-column>
+                  <el-table-column prop="currentNode" label="当前节点" width="90" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag type="info" size="small">{{ row.currentNode }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="planDate" label="计划完成" width="110" align="center"></el-table-column>
+                  <el-table-column prop="forecastDate" label="预计完成" width="110" align="center">
+                    <template slot-scope="{row}">
+                      <span :style="{color: row.delayDays>0?'#c62828':'#1A2332'}">{{ row.forecastDate }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="delayDays" label="滞后天数" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <span :class="['delay-num', row.delayDays===0?'normal':(row.delayDays<=3?'warning':'danger')]">{{ row.delayDays===0?'准时':row.delayDays+'天' }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="bottleneck" label="瓶颈归因" min-width="150" show-overflow-tooltip>
+                    <template slot-scope="{row}">
+                      <span style="font-size:12px;color:#6B7280;">{{ row.bottleneck }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="threshold" label="自适应阈值" width="150" align="center">
+                    <template slot-scope="{row}">
+                      <span style="display:inline-block;width:30px;text-align:right;">{{ row.threshold }}天</span>
+                      <span class="threshold-meter" style="margin-left:6px;"><span class="threshold-meter__fill" :style="{width: row.thresholdPercent + '%', background: row.thresholdPercent>=80?'#c62828':(row.thresholdPercent>=50?'#f57c00':'#2e7d32')}"></span></span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="status" label="状态" width="90" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="getStatusType(row.status)" size="small">{{ row.status }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="140" fixed="right" align="center">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                      <el-button type="text" @click="viewNodeTrace(row)" v-if="row.nodeTrace && row.nodeTrace.length > 0">节点追踪</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="text-align:right;">
+                  <el-pagination background layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length" :current-page.sync="currentPage" :page-size="pageSize" :page-sizes="[10,20,30]" @size-change="handleSizeChange" @current-change="handleCurrentChange"></el-pagination>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-suggestion" v-if="healthResult">
+            <div class="ai-suggestion__title"><i class="el-icon-monitor"></i> 流程健康度</div>
+            <div class="ai-suggestion__text">
+              <p><b>整体健康度：</b>{{ healthResult.score }} / 100（{{ healthResult.level }}）</p>
+              <p><b>按时交付率：</b>{{ healthResult.onTimeRate }}%</p>
+              <p><b>主要瓶颈：</b>{{ healthResult.mainBottleneck }}</p>
+              <p><b>自适应建议：</b>{{ healthResult.advice }}</p>
+              <div class="confidence-meter" style="margin-top:8px;">
+                <span style="font-size:13px;color:#6B7280;">监测置信度：</span>
+                <el-progress :percentage="healthResult.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+                <el-tag :type="healthResult.confidence >= 85 ? 'success' : 'warning'" size="small">{{ healthResult.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="采购流程监测详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <template v-if="currentDetail">
+        <el-descriptions title="基本信息" :column="2" border size="medium">
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="采购方">{{ currentDetail.purchaser }}</el-descriptions-item>
+          <el-descriptions-item label="采购事项">{{ currentDetail.subject || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="订单金额">{{ currentDetail.amount ? currentDetail.amount.toLocaleString() + ' 元' : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="采购方式">{{ currentDetail.method || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="下单日期">{{ currentDetail.orderDate || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="当前节点">{{ currentDetail.currentNode }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="时间预测" :column="2" border size="medium">
+          <el-descriptions-item label="计划日期">{{ currentDetail.planDate }}</el-descriptions-item>
+          <el-descriptions-item label="预测日期">{{ currentDetail.forecastDate }}</el-descriptions-item>
+          <el-descriptions-item label="延迟天数"><el-tag :type="currentDetail.delayDays===0?'success':(currentDetail.delayDays<=3?'warning':'danger')" size="small">{{ currentDetail.delayDays }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="瓶颈">{{ currentDetail.bottleneck }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="状态评估" :column="1" border size="medium">
+          <el-descriptions-item label="状态"><el-tag :type="currentDetail.status==='已通过'||currentDetail.status==='正常'||currentDetail.status==='已处置'?'success':'warning'" size="small">{{ currentDetail.status }}</el-tag></el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- AI监测弹窗（全流程节点追踪） -->
+    <el-dialog :lazy="true" :title="monitorDialogTitle" :visible.sync="monitorDialog.visible" width="920px" custom-class="monitor-dialog" :close-on-click-modal="false">
+      <div class="monitor-loading" v-if="monitorDialog.loading">
+        <i class="el-icon-loading"></i>
+        <p>AI 正在追踪 {{ monitorDialog.orderNames }} 共 {{ monitorDialog.orderCount }} 个订单的全流程节点，请稍候…</p>
+        <div class="loading-steps">
+          <div class="loading-step" :class="{done:monitorDialog.step>=1, active:monitorDialog.step===1}"><i :class="monitorDialog.step>=1?'el-icon-success':'el-icon-loading'"></i>加载订单与合同关联数据</div>
+          <div class="loading-step" :class="{done:monitorDialog.step>=2, active:monitorDialog.step===2}"><i :class="monitorDialog.step>=2?'el-icon-success':'el-icon-loading'"></i>解析五节点时间线（申请→审批→合同→发货→验收）</div>
+          <div class="loading-step" :class="{done:monitorDialog.step>=3, active:monitorDialog.step===3}"><i :class="monitorDialog.step>=3?'el-icon-success':'el-icon-loading'"></i>计算各节点滞后天数与自适应阈值</div>
+          <div class="loading-step" :class="{done:monitorDialog.step>=4, active:monitorDialog.step===4}"><i :class="monitorDialog.step>=4?'el-icon-success':'el-icon-loading'"></i>AI瓶颈归因分析</div>
+          <div class="loading-step" :class="{done:monitorDialog.step>=5, active:monitorDialog.step===5}"><i :class="monitorDialog.step>=5?'el-icon-success':'el-icon-loading'"></i>生成干预建议与监测结论</div>
+        </div>
+      </div>
+      <div v-if="!monitorDialog.loading && monitorDialog.results && monitorDialog.results.length > 0">
+        <div class="monitor-summary">
+          <div class="monitor-summary__item"><div class="monitor-summary__label">监测订单</div><div class="monitor-summary__value">{{ monitorDialog.results.length }} 个</div></div>
+          <div class="monitor-summary__item"><div class="monitor-summary__label">准时数</div><div class="monitor-summary__value success">{{ monitorDialog.summary.onTime }}</div></div>
+          <div class="monitor-summary__item"><div class="monitor-summary__label">滞后数</div><div class="monitor-summary__value warning">{{ monitorDialog.summary.delayed }}</div></div>
+          <div class="monitor-summary__item"><div class="monitor-summary__label">严重滞后</div><div class="monitor-summary__value danger">{{ monitorDialog.summary.severe }}</div></div>
+          <div class="monitor-summary__item"><div class="monitor-summary__label">平均滞后</div><div class="monitor-summary__value">{{ monitorDialog.summary.avgDelay }}天</div></div>
+        </div>
+        <div class="bottleneck-list" v-if="monitorDialog.summary.bottlenecks.length > 0">
+          <div class="bottleneck-list__title">瓶颈归因分布</div>
+          <div v-for="bk in monitorDialog.summary.bottlenecks" :key="bk.name" class="bottleneck-item" :class="bk.count >= 3 ? 'bottleneck-item--high' : (bk.count >= 2 ? 'bottleneck-item--mid' : 'bottleneck-item--low')">
+            <span class="bk-name">{{ bk.name }}</span>
+            <span class="bk-count">{{ bk.count }} 次</span>
+          </div>
+        </div>
+        <div v-for="result in monitorDialog.results" :key="result.orderNo" style="margin-bottom:20px;border:1px solid #EBEEF5;border-radius:4px;padding:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <div>
+              <span style="font-weight:600;color:#1A2332;">{{ result.orderNo }} {{ result.subject }}</span>
+              <span style="color:#6B7280;margin-left:8px;">{{ result.supplier }}</span>
+            </div>
+            <div>
+              <el-tag :type="result.delayDays===0?'success':(result.delayDays<=3?'warning':'danger')" size="small">{{ result.delayDays===0?'准时':('滞后'+result.delayDays+'天') }}</el-tag>
+              <el-tag :type="getStatusType(result.status)" size="small" style="margin-left:6px;">{{ result.status }}</el-tag>
+            </div>
+          </div>
+          <div v-for="(node, idx) in result.nodeTrace" :key="node.name" class="node-timeline">
+            <div :class="['node-timeline__dot', node.state]"></div>
+            <div class="node-timeline__line" v-if="idx < result.nodeTrace.length - 1"></div>
+            <div class="node-timeline__content">
+              <div class="node-timeline__header">
+                <span class="node-timeline__name">{{ node.name }}</span>
+                <span class="node-timeline__date">计划 {{ node.planDate }} → 实际 {{ node.actualDate || '待完成' }}</span>
+              </div>
+              <div class="node-timeline__detail">
+                <span v-if="node.delayDays > 0" style="color:#c62828;">滞后 {{ node.delayDays }} 天</span>
+                <span v-else-if="node.state === 'done'" style="color:#2e7d32;">准时完成</span>
+                <span v-else-if="node.state === 'current'" style="color:#0B7266;">当前节点</span>
+                <span v-else style="color:#909399;">未开始</span>
+                <span v-if="node.bottleneck && node.bottleneck !== '无'" style="margin-left:8px;color:#f57c00;">瓶颈：{{ node.bottleneck }}</span>
+                <span v-if="node.suggestion" style="margin-left:8px;color:#0B7266;">建议：{{ node.suggestion }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer" v-if="!monitorDialog.loading">
+        <el-button @click="monitorDialog.visible = false">关闭</el-button>
+        <el-button type="primary" @click="handleExportFromMonitor">导出监测报告</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i>业务场景</div>
+          <div class="help-section__body"><p>基于<b>系统论反馈/动态性/自组织</b>思想，实时监测采购全流程节点。反馈：滞后告警形成闭环；动态性：阈值随历史数据自适应调整；自组织：瓶颈归因自动定位责任环节。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i>页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>业务环节</b>：申请 → 审批 → 合同 → 发货 → 验收</li>
+              <li><b>滞后天数</b>：预计完成 - 计划完成</li>
+              <li><b>瓶颈归因</b>：AI 自动定位滞后责任环节</li>
+              <li><b>自适应阈值</b>：根据历史均值动态调整告警线</li>
+              <li><b>流程健康度</b>：按时交付率+瓶颈分布综合评分</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>全流程节点监测</b>：申请→审批→合同→发货→验收五节点实时追踪，滞后自动告警</li>
+              <li><b>自适应阈值</b>：根据品类历史均值动态调整告警线（审批3天/合同5天/发货7天/验收5天），而非固定5天</li>
+              <li><b>订单拆分与合并</b>：监测到拆分订单时关联追踪，合并订单时统一预警，防止规避审批</li>
+              <li><b>异常处理与干预</b>：严重滞后自动触发干预流程——升级审批、调整供应商、修改交期</li>
+              <li><b>物流异常预警</b>：对接物流轨迹，运输异常（中转延迟/破损/丢失）实时推送预警</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询监测数据</b>：在查询面板选择业务环节、滞后状态、供应商，设置日期范围，点击"查询"筛选</li>
+              <li><b>查看流程概览</b>：顶部统计卡片展示总订单数、按时交付率、滞后订单数、平均滞后天数、流程健康度</li>
+              <li><b>查看节点详情</b>：点击流程图中各节点（申请/审批/合同/发货/验收），查看该环节的滞后订单列表</li>
+              <li><b>查看瓶颈归因</b>：点击"详情"查看AI自动定位的滞后责任环节和瓶颈分析</li>
+              <li><b>处理异常订单</b>：对严重滞后的订单点击"干预"，触发升级审批/调整供应商/修改交期等干预流程</li>
+              <li><b>查看物流预警</b>：物流异常区域展示运输中转延迟、破损、丢失等实时预警信息</li>
+              <li><b>导出监测报告</b>：点击"导出"将当前监测数据导出为报告文件</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="helpVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          queryForm:{orderNo:'',nodeStatus:'',delayDays:''},
+          tableSearchText:'',
+          currentPage:1,
+          detailVisible:false,
+          currentDetail:null,
+          pageSize: 10,
+          selection:[],
+          healthResult:null,
+          monitorDialogTitle:'AI采购流程监测',
+          monitorDialog:{
+            visible:false,
+            loading:false,
+            step:0,
+            orderCount:0,
+            orderNames:'',
+            results:[],
+            summary:{onTime:0,delayed:0,severe:0,avgDelay:0,bottlenecks:[]}
+          },
+          monitorData:[
+            {orderNo:'OD-2026-0001',supplier:'国电南瑞科技股份有限公司',purchaser:'某省电力公司',subject:'继电保护装置采购',amount:4580000,method:'公开招标',orderDate:'2026-05-10',currentNode:'验收',planDate:'2026-06-20',forecastDate:'2026-06-20',delayDays:0,bottleneck:'无',threshold:5,thresholdPercent:30,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0002',supplier:'许继电气股份有限公司',purchaser:'某省电力公司',subject:'继电保护装置采购',amount:3250000,method:'公开招标',orderDate:'2026-05-12',currentNode:'发货',planDate:'2026-06-25',forecastDate:'2026-06-27',delayDays:2,bottleneck:'供应商排产延迟',threshold:7,thresholdPercent:29,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0003',supplier:'平高电气股份有限公司',purchaser:'某省电力公司',subject:'GIS组合电器采购',amount:9890000,method:'公开招标',orderDate:'2026-05-08',currentNode:'合同',planDate:'2026-06-18',forecastDate:'2026-06-22',delayDays:4,bottleneck:'合同条款修订往返',threshold:5,thresholdPercent:80,status:'滞后',nodeTrace:[]},
+            {orderNo:'OD-2026-0004',supplier:'思源电气股份有限公司',purchaser:'某省电力公司',subject:'开关柜采购',amount:3280000,method:'邀请招标',orderDate:'2026-05-15',currentNode:'审批',planDate:'2026-06-15',forecastDate:'2026-06-15',delayDays:0,bottleneck:'无',threshold:3,thresholdPercent:33,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0005',supplier:'特变电工衡阳变压器有限公司',purchaser:'某省电力公司',subject:'110kV变压器采购',amount:8650000,method:'公开招标',orderDate:'2026-04-20',currentNode:'验收',planDate:'2026-06-10',forecastDate:'2026-06-19',delayDays:9,bottleneck:'到货检验不合格返工',threshold:5,thresholdPercent:100,status:'严重滞后',nodeTrace:[]},
+            {orderNo:'OD-2026-0006',supplier:'远东电缆有限公司',purchaser:'某省电力公司',subject:'电力电缆采购',amount:3250000,method:'框架协议',orderDate:'2026-05-18',currentNode:'发货',planDate:'2026-06-28',forecastDate:'2026-06-28',delayDays:0,bottleneck:'无',threshold:7,thresholdPercent:18,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0007',supplier:'宝胜科技创新股份有限公司',purchaser:'某省电力公司',subject:'35kV电缆采购',amount:5680000,method:'公开招标',orderDate:'2026-05-10',currentNode:'合同',planDate:'2026-06-22',forecastDate:'2026-06-25',delayDays:3,bottleneck:'法务审核排队',threshold:5,thresholdPercent:60,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0008',supplier:'南京南瑞继保工程技术有限公司',purchaser:'某省电力公司',subject:'变电站自动化系统采购',amount:8950000,method:'公开招标',orderDate:'2026-05-20',currentNode:'审批',planDate:'2026-06-30',forecastDate:'2026-07-03',delayDays:3,bottleneck:'审批人出差',threshold:3,thresholdPercent:100,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0009',supplier:'北京四方继保自动化股份有限公司',purchaser:'某省电力公司',subject:'继电保护装置采购',amount:2150000,method:'竞争性谈判',orderDate:'2026-06-25',currentNode:'申请',planDate:'2026-07-05',forecastDate:'2026-07-05',delayDays:0,bottleneck:'无',threshold:3,thresholdPercent:15,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0010',supplier:'威胜集团有限公司',purchaser:'某省电力公司',subject:'单相智能电表采购',amount:4250000,method:'公开招标',orderDate:'2026-05-05',currentNode:'验收',planDate:'2026-06-12',forecastDate:'2026-06-12',delayDays:0,bottleneck:'无',threshold:5,thresholdPercent:28,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0011',supplier:'宁波三星医疗电气股份有限公司',purchaser:'某省电力公司',subject:'三相智能电表采购',amount:6780000,method:'公开招标',orderDate:'2026-05-08',currentNode:'发货',planDate:'2026-06-26',forecastDate:'2026-06-29',delayDays:3,bottleneck:'物流中转延迟',threshold:7,thresholdPercent:43,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0012',supplier:'ABB(中国)有限公司',purchaser:'某省电力公司',subject:'中压开关设备采购',amount:5680000,method:'公开招标',orderDate:'2026-05-01',currentNode:'合同',planDate:'2026-06-20',forecastDate:'2026-06-28',delayDays:8,bottleneck:'进口报关延迟',threshold:5,thresholdPercent:100,status:'严重滞后',nodeTrace:[]},
+            {orderNo:'OD-2026-0013',supplier:'施耐德电气(中国)有限公司',purchaser:'某省电力公司',subject:'低压配电柜采购',amount:4250000,method:'邀请招标',orderDate:'2026-05-22',currentNode:'审批',planDate:'2026-06-25',forecastDate:'2026-06-26',delayDays:1,bottleneck:'审批材料补正',threshold:3,thresholdPercent:33,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0014',supplier:'江苏上上电缆集团有限公司',purchaser:'某省电力公司',subject:'1kV低压电缆采购',amount:1890000,method:'框架协议',orderDate:'2026-05-25',currentNode:'验收',planDate:'2026-06-15',forecastDate:'2026-06-18',delayDays:3,bottleneck:'抽样复检',threshold:5,thresholdPercent:60,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0015',supplier:'青岛汉缆股份有限公司',purchaser:'某省电力公司',subject:'电缆采购（紧急）',amount:2150000,method:'单一来源',orderDate:'2026-06-01',currentNode:'发货',planDate:'2026-06-30',forecastDate:'2026-07-02',delayDays:2,bottleneck:'车辆调度延迟',threshold:7,thresholdPercent:29,status:'预警',nodeTrace:[]},
+            {orderNo:'OD-2026-0016',supplier:'杭州海兴电力科技股份有限公司',purchaser:'某省电力公司',subject:'关口智能电表采购',amount:3890000,method:'公开招标',orderDate:'2026-06-28',currentNode:'申请',planDate:'2026-07-08',forecastDate:'2026-07-08',delayDays:0,bottleneck:'无',threshold:3,thresholdPercent:18,status:'正常',nodeTrace:[]},
+            {orderNo:'OD-2026-0017',supplier:'山东泰开电气有限公司',purchaser:'某省电力公司',subject:'220kV主变压器采购',amount:12380000,method:'公开招标',orderDate:'2026-05-02',currentNode:'合同',planDate:'2026-06-28',forecastDate:'2026-07-05',delayDays:7,bottleneck:'技术规格确认往返',threshold:5,thresholdPercent:90,status:'滞后',nodeTrace:[]},
+            {orderNo:'OD-2026-0018',supplier:'深圳市科陆电子科技股份有限公司',purchaser:'某省电力公司',subject:'智能电表采购（追加）',amount:1980000,method:'框架协议',orderDate:'2026-06-25',currentNode:'审批',planDate:'2026-07-03',forecastDate:'2026-07-03',delayDays:0,bottleneck:'无',threshold:3,thresholdPercent:22,status:'正常',nodeTrace:[]}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){
+          const c=[];
+          if(this.queryForm.orderNo) c.push('订单编号：'+this.queryForm.orderNo);
+          if(this.queryForm.nodeStatus) c.push('节点状态：'+this.queryForm.nodeStatus);
+          if(this.queryForm.delayDays) c.push('滞后天数：'+this.queryForm.delayDays);
+          return c.length ? '查询条件('+c.length+')：'+c.join('，') : '';
+        },
+        filteredData(){
+          let d=this.monitorData;
+          if(this.queryForm.orderNo) d=d.filter(r=>r.orderNo.indexOf(this.queryForm.orderNo)!==-1);
+          if(this.queryForm.nodeStatus) d=d.filter(r=>r.currentNode===this.queryForm.nodeStatus);
+          if(this.queryForm.delayDays){
+            if(this.queryForm.delayDays==='le3') d=d.filter(r=>r.delayDays>=0 && r.delayDays<=3);
+            else if(this.queryForm.delayDays==='4to7') d=d.filter(r=>r.delayDays>=4 && r.delayDays<=7);
+            else if(this.queryForm.delayDays==='ge8') d=d.filter(r=>r.delayDays>=8);
+          }
+          if(this.tableSearchText) d=d.filter(r=>(r.supplier+r.purchaser).indexOf(this.tableSearchText)!==-1);
+          return d;
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        }
+      },
+      watch:{
+        filteredData(){ this.currentPage=1; }
+      },
+      methods:{
+        toggleSearchPanel(){ this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery(){ this.currentPage=1; },
+        handleReset(){ this.queryForm={orderNo:'',nodeStatus:'',delayDays:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleSelectionChange(s){ this.selection=s; },
+        handleSizeChange(v){ this.pageSize=v; },
+        handleCurrentChange(v){ this.currentPage=v; },
+
+        /* ========== AI 采购流程监测 ========== */
+        handleMonitor(){
+          var targets = this.selection.length > 0
+            ? this.selection
+            : this.filteredData;
+          if(targets.length === 0){
+            this.$message.warning('暂无可监测的订单数据');
+            return;
+          }
+          this.monitorDialog.orderCount = targets.length;
+          this.monitorDialog.orderNames = targets.length <= 3
+            ? targets.map(function(r){ return r.orderNo; }).join('、')
+            : targets.slice(0,3).map(function(r){ return r.orderNo; }).join('、') + ' 等' + targets.length + ' 个订单';
+          this.monitorDialog.visible = true;
+          this.monitorDialog.loading = true;
+          this.monitorDialog.step = 0;
+          this.monitorDialog.results = [];
+          this.monitorDialog.summary = {onTime:0,delayed:0,severe:0,avgDelay:0,bottlenecks:[]};
+
+          var self = this;
+          var steps = [
+            '正在获取订单基础信息……',
+            '正在拉取各节点计划与实际时间……',
+            '正在计算滞后天数与自适应阈值……',
+            '正在进行瓶颈归因分析……',
+            '正在生成监测摘要与干预建议……'
+          ];
+          var stepIdx = 0;
+          function nextStep(){
+            if(stepIdx >= steps.length){
+              self.finishMonitor(targets);
+              return;
+            }
+            self.monitorDialog.step = stepIdx + 1;
+            self.$nextTick(function(){
+              var loadingEl = document.querySelector('.monitor-loading .loading-steps');
+              if(loadingEl){
+                loadingEl.innerHTML = steps.slice(0, stepIdx + 1).map(function(s, i){
+                  var cls = i < stepIdx ? 'done' : 'active';
+                  var icon = i < stepIdx ? 'el-icon-circle-check' : 'el-icon-loading';
+                  return '<div class="loading-step ' + cls + '"><i class="el-icon ' + icon + '"></i>' + s + '</div>';
+                }).join('');
+              }
+            });
+            stepIdx++;
+            setTimeout(nextStep, 500);
+          }
+          nextStep();
+        },
+
+        generateNodeTrace(row){
+          var nodeNames = ['申请','审批','合同','发货','验收'];
+          var currentIdx = nodeNames.indexOf(row.currentNode);
+          var planOffsets = [0, 3, 5, 7, 5];
+          var thresholdMap = {申请:3, 审批:3, 合同:5, 发货:7, 验收:5};
+          var baseDate = new Date(row.orderDate);
+          var planDateStr = function(offset){
+            var d = new Date(baseDate.getTime() + offset * 86400000);
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+          };
+          var nodes = [];
+          for(var i = 0; i < nodeNames.length; i++){
+            var state = i < currentIdx ? 'done' : (i === currentIdx ? 'current' : 'pending');
+            var planDate = planDateStr(planOffsets.slice(0, i+1).reduce(function(a,b){ return a+b; }, 0));
+            var actualDate = '';
+            var delayDays = 0;
+            var bottleneck = '无';
+            var suggestion = '';
+            if(state === 'done'){
+              actualDate = planDate;
+              delayDays = 0;
+            } else if(state === 'current'){
+              actualDate = row.forecastDate || '';
+              delayDays = row.delayDays || 0;
+              bottleneck = row.bottleneck || '无';
+              if(delayDays === 0){
+                suggestion = '当前节点按计划推进，继续保持';
+              } else if(delayDays <= 3){
+                suggestion = '轻度滞后，建议催办相关责任人';
+              } else if(delayDays <= 7){
+                suggestion = '中度滞后，建议升级协调，必要时调整后续节点计划';
+              } else {
+                suggestion = '严重滞后，建议启动干预流程：升级审批、调整供应商或修改交期';
+              }
+            } else {
+              suggestion = '待前序节点完成后启动';
+            }
+            nodes.push({
+              name: nodeNames[i],
+              state: state,
+              planDate: planDate,
+              actualDate: actualDate,
+              delayDays: delayDays,
+              threshold: thresholdMap[nodeNames[i]],
+              bottleneck: bottleneck,
+              suggestion: suggestion
+            });
+          }
+          return nodes;
+        },
+
+        finishMonitor(targets){
+          var self = this;
+          var results = [];
+          var onTime = 0, delayed = 0, severe = 0, totalDelay = 0;
+          var bottleneckCount = {};
+          targets.forEach(function(row){
+            var trace = self.generateNodeTrace(row);
+            row.nodeTrace = trace;
+            var maxDelay = row.delayDays || 0;
+            if(maxDelay === 0) onTime++;
+            else if(maxDelay >= 8) severe++;
+            else delayed++;
+            totalDelay += maxDelay;
+            if(row.bottleneck && row.bottleneck !== '无'){
+              bottleneckCount[row.bottleneck] = (bottleneckCount[row.bottleneck] || 0) + 1;
+            }
+            results.push({
+              orderNo: row.orderNo,
+              supplier: row.supplier,
+              subject: row.subject,
+              currentNode: row.currentNode,
+              delayDays: maxDelay,
+              status: row.status,
+              nodeTrace: trace
+            });
+          });
+          var bottlenecks = Object.keys(bottleneckCount).map(function(k){
+            return {name: k, count: bottleneckCount[k], level: bottleneckCount[k] >= 3 ? 'high' : (bottleneckCount[k] >= 2 ? 'mid' : 'low')};
+          }).sort(function(a,b){ return b.count - a.count; });
+          this.monitorDialog.results = results;
+          this.monitorDialog.summary = {
+            onTime: onTime,
+            delayed: delayed,
+            severe: severe,
+            avgDelay: results.length > 0 ? Math.round(totalDelay / results.length * 10) / 10 : 0,
+            bottlenecks: bottlenecks
+          };
+          this.monitorDialog.loading = false;
+        },
+
+        viewNodeTrace(row){
+          if(!row.nodeTrace || row.nodeTrace.length === 0){
+            row.nodeTrace = this.generateNodeTrace(row);
+          }
+          this.currentDetail = row;
+          this.detailVisible = true;
+        },
+
+        /* ========== 生成健康度（增强版） ========== */
+        handleGenerateHealth(){
+          if(this.filteredData.length === 0){
+            this.$message.warning('暂无数据');
+            return;
+          }
+          var data = this.filteredData;
+          var onTime = data.filter(function(r){ return r.delayDays === 0; }).length;
+          var onTimeRate = Math.round(onTime / data.length * 100);
+          var delayedCount = data.length - onTime;
+          var severeCount = data.filter(function(r){ return r.delayDays >= 8; }).length;
+          var totalDelay = data.reduce(function(s,r){ return s + (r.delayDays || 0); }, 0);
+          var avgDelay = Math.round(totalDelay / data.length * 10) / 10;
+          var bottleneckCount = {};
+          data.filter(function(r){ return r.bottleneck && r.bottleneck !== '无'; }).forEach(function(r){
+            bottleneckCount[r.bottleneck] = (bottleneckCount[r.bottleneck] || 0) + 1;
+          });
+          var bottlenecks = Object.keys(bottleneckCount).map(function(k){
+            return {name: k, count: bottleneckCount[k]};
+          }).sort(function(a,b){ return b.count - a.count; });
+          var mainBottleneck = bottlenecks.length > 0 ? bottlenecks[0].name + '（' + bottlenecks[0].count + ' 次）' : '无明显瓶颈';
+          var score = Math.round(onTimeRate * 0.5 + Math.max(0, 100 - avgDelay * 8) * 0.3 + (severeCount === 0 ? 20 : Math.max(0, 20 - severeCount * 5)) * 0.2);
+          var nodeBottleneckMap = {};
+          data.forEach(function(r){
+            if(r.bottleneck && r.bottleneck !== '无'){
+              nodeBottleneckMap[r.currentNode] = (nodeBottleneckMap[r.currentNode] || 0) + 1;
+            }
+          });
+          var nodeAnalysis = Object.keys(nodeBottleneckMap).map(function(k){
+            return k + '（' + nodeBottleneckMap[k] + ' 次）';
+          }).join('、');
+          var advice = '';
+          if(score >= 85){
+            advice = '流程整体健康。建议保持现有节奏，对偶发瓶颈（' + mainBottleneck + '）做预防性监控。';
+          } else if(score >= 70){
+            advice = '流程亚健康。主要瓶颈集中在' + (nodeAnalysis || '各节点') + '，建议：①合同环节增加法务并行审核减少往返；②对供应商排产延迟类瓶颈前置产能确认；③当前自适应阈值应根据品类历史调整为3-7天浮动阈值。';
+          } else {
+            advice = '流程不健康，存在' + severeCount + '个严重滞后订单。建议立即干预：①对严重滞后订单启动升级审批流程；②' + mainBottleneck + '为首要瓶颈，需专项治理；③评估供应商履约能力，必要时启动备选供应商；④对后续在途订单调整计划交期，避免连锁延迟。';
+          }
+          this.healthResult = {
+            score: score,
+            level: score >= 85 ? '健康' : (score >= 70 ? '亚健康' : '不健康'),
+            onTimeRate: onTimeRate,
+            delayedCount: delayedCount,
+            severeCount: severeCount,
+            avgDelay: avgDelay,
+            mainBottleneck: mainBottleneck,
+            nodeAnalysis: nodeAnalysis || '各节点运行正常',
+            bottleneckDistribution: bottlenecks,
+            advice: advice,
+            confidence: Math.min(96, Math.round(80 + onTimeRate / 10))
+          };
+          this.$message.success('流程健康度已生成，综合评分 ' + score + ' 分');
+        },
+
+        /* ========== 导出监测报告 ========== */
+        handleExport(){
+          var targets = this.selection.length > 0
+            ? this.selection
+            : this.filteredData;
+          if(targets.length === 0){
+            this.$message.warning('暂无可导出的数据');
+            return;
+          }
+          this.exportMonitorReport(targets);
+        },
+
+        handleExportFromMonitor(){
+          var targets = this.monitorDialog.results.map(function(r){
+            return r;
+          });
+          if(targets.length === 0){
+            this.$message.warning('暂无监测结果可导出');
+            return;
+          }
+          this.exportMonitorReport(targets, true);
+        },
+
+        exportMonitorReport(targets, fromMonitor){
+          var BOM = '\uFEFF';
+          var lines = [];
+          lines.push('AI采购流程监测报告');
+          lines.push('生成时间：' + new Date().toLocaleString('zh-CN'));
+          lines.push('订单总数：' + targets.length);
+          lines.push('');
+          lines.push('一、订单监测摘要');
+          lines.push('订单编号,采购事项,供应商,当前节点,计划完成日期,预计完成日期,滞后天数,瓶颈归因,状态');
+          var self = this;
+          targets.forEach(function(row){
+            var trace = fromMonitor ? row.nodeTrace : (row.nodeTrace && row.nodeTrace.length > 0 ? row.nodeTrace : self.generateNodeTrace(row));
+            lines.push([
+              '"' + (row.orderNo || '') + '"',
+              '"' + (row.subject || '') + '"',
+              '"' + (row.supplier || '') + '"',
+              '"' + (row.currentNode || '') + '"',
+              '"' + (row.planDate || '') + '"',
+              '"' + (row.forecastDate || '') + '"',
+              row.delayDays != null ? row.delayDays : 0,
+              '"' + (row.bottleneck || '无') + '"',
+              '"' + (row.status || '') + '"'
+            ].join(','));
+          });
+          lines.push('');
+          lines.push('二、节点追踪明细');
+          lines.push('订单编号,节点名称,节点状态,计划日期,实际日期,滞后天数,自适应阈值(天),瓶颈归因,干预建议');
+          targets.forEach(function(row){
+            var trace = fromMonitor ? row.nodeTrace : (row.nodeTrace && row.nodeTrace.length > 0 ? row.nodeTrace : self.generateNodeTrace(row));
+            if(trace && trace.length > 0){
+              trace.forEach(function(node){
+                lines.push([
+                  '"' + (row.orderNo || '') + '"',
+                  '"' + (node.name || '') + '"',
+                  '"' + (node.state === 'done' ? '已完成' : (node.state === 'current' ? '当前节点' : '未开始')) + '"',
+                  '"' + (node.planDate || '') + '"',
+                  '"' + (node.actualDate || '') + '"',
+                  node.delayDays || 0,
+                  node.threshold || 5,
+                  '"' + (node.bottleneck || '无') + '"',
+                  '"' + (node.suggestion || '') + '"'
+                ].join(','));
+              });
+            }
+          });
+          lines.push('');
+          lines.push('三、瓶颈归因分布');
+          var bkCount = {};
+          targets.forEach(function(row){
+            if(row.bottleneck && row.bottleneck !== '无'){
+              bkCount[row.bottleneck] = (bkCount[row.bottleneck] || 0) + 1;
+            }
+          });
+          lines.push('瓶颈类型,出现次数,占比');
+          var totalBk = Object.keys(bkCount).reduce(function(s,k){ return s + bkCount[k]; }, 0);
+          if(totalBk === 0){
+            lines.push('"无明显瓶颈",0,0%');
+          } else {
+            Object.keys(bkCount).sort(function(a,b){ return bkCount[b] - bkCount[a]; }).forEach(function(k){
+              var pct = Math.round(bkCount[k] / totalBk * 100);
+              lines.push('"' + k + '",' + bkCount[k] + ',' + pct + '%');
+            });
+          }
+          lines.push('');
+          lines.push('四、自适应阈值说明');
+          lines.push('节点,标准阈值(天),说明');
+          lines.push('申请,3,采购申请提交至审批流转的标准时长');
+          lines.push('审批,3,审批环节（含会签）的标准时长，可根据历史均值动态调整');
+          lines.push('合同,5,合同签订（含法务审核）的标准时长，复杂合同可放宽至7天');
+          lines.push('发货,7,供应商排产至发货的标准时长，大宗设备可放宽至10天');
+          lines.push('验收,5,到货验收（含抽样复检）的标准时长，进口设备可放宽至7天');
+          var csv = BOM + lines.join('\n');
+          var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'AI采购流程监测报告_' + new Date().toISOString().slice(0,10) + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          this.$message.success('监测报告已导出（CSV格式），共 ' + targets.length + ' 个订单');
+        },
+
+        viewDetail(row){
+          if(!row.nodeTrace || row.nodeTrace.length === 0){
+            row.nodeTrace = this.generateNodeTrace(row);
+          }
+          this.currentDetail = row;
+          this.detailVisible = true;
+        },
+        getStatusType(s){ return s==='正常'?'success':(s==='预警'?'warning':(s==='滞后'?'danger':'danger')); }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

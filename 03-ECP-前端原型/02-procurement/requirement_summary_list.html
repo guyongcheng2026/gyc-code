@@ -1,0 +1,442 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>需求汇总管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    /* 最大化样式 */
+    .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+    .table-maximized .yj-container-card__bar { padding: 8px 0; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">需求汇总管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="汇总编号"><el-input v-model="queryForm.summaryNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="汇总名称"><el-input v-model="queryForm.summaryName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="采购部门"><el-input v-model="queryForm.dept" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="业务类型"><el-select v-model="queryForm.businessType" placeholder="请选择" clearable><el-option label="生产" value="生产"></el-option><el-option label="办公" value="办公"></el-option><el-option label="工程" value="工程"></el-option><el-option label="检修" value="检修"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="待审核" value="待审核"></el-option><el-option label="已审核" value="已审核"></el-option><el-option label="已合并" value="已合并"></el-option><el-option label="已驳回" value="已驳回"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button type="primary" @click="handleBatchMerge" icon="el-icon-connection" :disabled="selection.length===0">批量合并生成计划</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="需求汇总列表">需求汇总列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"></div></div>
+                    <div class="yj-container-card__default-buttons">
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true"><i class="el-icon-setting"></i></button>
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize"><i class="el-icon-full-screen"></i></button>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange" @sort-change="handleSortChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('summaryNo')" prop="summaryNo" label="汇总编号" min-width="150" align="center" sortable="custom"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('summaryName')" prop="summaryName" label="汇总名称" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('dept')" prop="dept" label="采购部门" min-width="150" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('businessType')" prop="businessType" label="业务类型" min-width="100" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('reqCount')" prop="reqCount" label="关联需求数" min-width="100" align="center" sortable="custom"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('totalAmount')" prop="totalAmount" label="汇总金额(元)" min-width="130" align="right" sortable="custom">
+                    <template slot-scope="{row}">{{ row.totalAmount.toLocaleString() }}</template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('mergedPlanNo')" prop="mergedPlanNo" label="生成计划编号" min-width="150" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('status')" prop="status" label="状态" min-width="100" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="statusTag(row.status)">{{ row.status }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('createdBy')" prop="createdBy" label="汇总人" min-width="90" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('createdTime')" prop="createdTime" label="汇总时间" min-width="160" align="center" sortable="custom"></el-table-column>
+                  <el-table-column label="操作" width="220" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                      <el-button type="text" v-if="row.status==='待审核'" @click="approveItem(row)" style="color:#0B7266">审核</el-button>
+                      <el-button type="text" v-if="row.status==='待审核'" @click="rejectItem(row)" style="color:#f57c00">驳回</el-button>
+                      <el-button type="text" v-if="row.status==='已审核'" @click="mergeToPlan(row)" style="color:#2e7d32">合并生成计划</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="filteredData.length" layout="total,sizes,prev,pager,next,jumper" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="需求汇总详情" :visible.sync="detailVisible" width="800px" custom-class="detail-dialog">
+      <el-tabs v-model="detailTab" v-if="currentDetail">
+        <el-tab-pane label="汇总信息" name="summary">
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="汇总编号">{{ currentDetail.summaryNo }}</el-descriptions-item>
+            <el-descriptions-item label="汇总名称">{{ currentDetail.summaryName }}</el-descriptions-item>
+            <el-descriptions-item label="采购部门">{{ currentDetail.dept }}</el-descriptions-item>
+            <el-descriptions-item label="业务类型">{{ currentDetail.businessType }}</el-descriptions-item>
+            <el-descriptions-item label="关联需求数">{{ currentDetail.reqCount }} 条</el-descriptions-item>
+            <el-descriptions-item label="汇总金额(元)">{{ currentDetail.totalAmount.toLocaleString() }}</el-descriptions-item>
+            <el-descriptions-item label="生成计划编号">{{ currentDetail.mergedPlanNo || '尚未生成' }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="statusTag(currentDetail.status)">{{ currentDetail.status }}</el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="汇总人">{{ currentDetail.createdBy }}</el-descriptions-item>
+            <el-descriptions-item label="汇总时间">{{ currentDetail.createdTime }}</el-descriptions-item>
+            <el-descriptions-item label="关联需求编号" :span="2">{{ currentDetail.relatedReqNos }}</el-descriptions-item>
+          </el-descriptions>
+        </el-tab-pane>
+        <el-tab-pane label="审批记录" name="approval">
+          <div style="padding:12px;">
+            <el-steps :active="approvalActive" finish-status="success" align-center>
+              <el-step title="汇总提交" :description="currentDetail.summaryName"></el-step>
+              <el-step title="审核处理" :description="currentDetail.status==='待审核'?'等待审核':currentDetail.status==='已驳回'?'已驳回':'已通过'"></el-step>
+              <el-step title="采购计划" :description="currentDetail.status==='已合并'?'已生成计划':'待生成'"></el-step>
+            </el-steps>
+            <div style="margin-top:24px;">
+              <div style="font-size:14px;font-weight:600;color:#1A2332;margin-bottom:12px;">审批历史</div>
+              <el-table :data="approvalTimeline" border stripe size="small" style="width:100%;">
+                <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                <el-table-column prop="operator" label="操作人" width="120" align="center"></el-table-column>
+                <el-table-column prop="action" label="操作内容" min-width="140" align="center"></el-table-column>
+                <el-table-column prop="time" label="操作时间" width="180" align="center"></el-table-column>
+                <el-table-column prop="comment" label="备注" min-width="200"></el-table-column>
+              </el-table>
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">采购部门收到各业务部门提报的采购需求后，需在本页面进行审核、同类需求合并，将多个同品类需求整合为一个采购计划。本页面承接需求提报环节，输出采购计划，是寻源采购环节的枢纽。适用于采购部门的需求审核员、采购计划编制人员。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>集中审核业务部门需求，统一把关需求合理性和预算合规性</li>
+              <li>同类需求智能合并（按物资品类+交付日期），减少重复采购，提升规模效应</li>
+              <li>合并后自动生成采购计划草案，缩短计划编制周期</li>
+              <li>需求追溯链完整保留（原始需求→合并记录→采购计划），支持审计回溯</li>
+              <li>驳回需求自动退回提报人修改，形成闭环管理</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询汇总</b>：在查询面板输入汇总编号/名称，选择业务类型、状态，点击"查询"筛选；点击"重置"清空条件</li>
+              <li><b>审核需求</b>：选中待审核汇总，点击"审核"通过或"驳回"拒绝，驳回需填写原因</li>
+              <li><b>查看详情</b>：点击"详情"以Tab页查看汇总信息和审批记录</li>
+              <li><b>合并生成计划</b>：对已审核的汇总点击"合并生成计划"，系统自动汇总金额并生成采购计划编号</li>
+              <li><b>批量合并</b>：勾选多条已审核汇总，点击"批量合并生成计划"，一键生成多个采购计划</li>
+              <li><b>导出数据</b>：点击"导出"在配置弹窗中选择字段和格式，导出汇总清单</li>
+              <li><b>刷新数据</b>：点击"刷新"重新加载汇总数据</li>
+              <li><b>关键字搜索</b>：在表格搜索框输入关键字快速定位</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;/* gap-removed */;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+
+    <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'110px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          tableSearchText:'',
+          detailVisible:false,
+          detailTab:'summary',
+          currentDetail:null,
+          displaySettingVisible:false,
+          isTableMaximized:false,
+          visibleColumns:['summaryNo','summaryName','dept','businessType','reqCount','totalAmount','mergedPlanNo','status','createdBy','createdTime'],
+          columnSettings:[
+            {prop:'summaryNo',label:'汇总编号'},{prop:'summaryName',label:'汇总名称'},{prop:'dept',label:'采购部门'},
+            {prop:'businessType',label:'业务类型'},{prop:'reqCount',label:'关联需求数'},{prop:'totalAmount',label:'汇总金额(元)'},
+            {prop:'mergedPlanNo',label:'生成计划编号'},{prop:'status',label:'状态'},{prop:'createdBy',label:'汇总人'},
+            {prop:'createdTime',label:'汇总时间'}
+          ],
+          queryForm:{summaryNo:'',summaryName:'',dept:'',businessType:'',status:''},
+          currentPage:1,
+          pageSize: 10,
+          sortField:'',
+          sortOrder:'',
+          selection:[],
+          tableData:[
+            {summaryNo:'SUM-2026-0001',summaryName:'2026年二季度电气设备需求汇总',dept:'江苏省电力公司物资部',businessType:'生产',reqCount:5,totalAmount:1280000,mergedPlanNo:'PLAN-2026-001',status:'已合并',createdBy:'张明',createdTime:'2026-04-05 09:30:00',relatedReqNos:'REQ-2026-0001, REQ-2026-0003, REQ-2026-0007, REQ-2026-0011, REQ-2026-0015'},
+            {summaryNo:'SUM-2026-0002',summaryName:'2026年二季度变压器类需求汇总',dept:'浙江省电力公司物资部',businessType:'生产',reqCount:3,totalAmount:692000,mergedPlanNo:'PLAN-2026-002',status:'已合并',createdBy:'李华',createdTime:'2026-04-08 10:15:00',relatedReqNos:'REQ-2026-0002, REQ-2026-0006, REQ-2026-0014'},
+            {summaryNo:'SUM-2026-0003',summaryName:'2026年二季度智能电表需求汇总',dept:'湖南省电力公司物资部',businessType:'生产',reqCount:4,totalAmount:456000,mergedPlanNo:'PLAN-2026-003',status:'已合并',createdBy:'王芳',createdTime:'2026-04-10 14:20:00',relatedReqNos:'REQ-2026-0004, REQ-2026-0008, REQ-2026-0012, REQ-2026-0016'},
+            {summaryNo:'SUM-2026-0004',summaryName:'2026年二季度办公设备需求汇总',dept:'信息通信分公司综合部',businessType:'办公',reqCount:6,totalAmount:174000,mergedPlanNo:'PLAN-2026-004',status:'已合并',createdBy:'刘洋',createdTime:'2026-04-12 11:00:00',relatedReqNos:'REQ-2026-0005, REQ-2026-0009, REQ-2026-0013, REQ-2026-0017, REQ-2026-0019, REQ-2026-0023'},
+            {summaryNo:'SUM-2026-0005',summaryName:'2026年二季度断路器类需求汇总',dept:'河南省电力公司物资部',businessType:'生产',reqCount:3,totalAmount:284000,mergedPlanNo:'PLAN-2026-005',status:'已合并',createdBy:'陈伟',createdTime:'2026-04-15 09:45:00',relatedReqNos:'REQ-2026-0010, REQ-2026-0018, REQ-2026-0025'},
+            {summaryNo:'SUM-2026-0006',summaryName:'2026年二季度互感器类需求汇总',dept:'安徽省电力公司物资部',businessType:'生产',reqCount:2,totalAmount:79950,mergedPlanNo:'PLAN-2026-006',status:'已合并',createdBy:'赵磊',createdTime:'2026-04-18 13:30:00',relatedReqNos:'REQ-2026-0020, REQ-2026-0026'},
+            {summaryNo:'SUM-2026-0007',summaryName:'2026年二季度劳保用品需求汇总',dept:'综合服务公司安监部',businessType:'办公',reqCount:4,totalAmount:86000,mergedPlanNo:'PLAN-2026-007',status:'已合并',createdBy:'孙杰',createdTime:'2026-04-20 15:10:00',relatedReqNos:'REQ-2026-0021, REQ-2026-0027, REQ-2026-0029, REQ-2026-0030'},
+            {summaryNo:'SUM-2026-0008',summaryName:'2026年二季度电力电缆需求汇总',dept:'湖北省电力公司物资部',businessType:'工程',reqCount:3,totalAmount:2380000,mergedPlanNo:'PLAN-2026-008',status:'已合并',createdBy:'周强',createdTime:'2026-04-22 10:00:00',relatedReqNos:'REQ-2026-0022, REQ-2026-0028, REQ-2026-0032'},
+            {summaryNo:'SUM-2026-0009',summaryName:'2026年三季度办公打印设备汇总',dept:'信息通信分公司综合部',businessType:'办公',reqCount:3,totalAmount:46000,mergedPlanNo:'',status:'已审核',createdBy:'刘洋',createdTime:'2026-05-02 11:20:00',relatedReqNos:'REQ-2026-0033, REQ-2026-0035, REQ-2026-0037'},
+            {summaryNo:'SUM-2026-0010',summaryName:'2026年三季度UPS电源设备汇总',dept:'信息通信分公司综合部',businessType:'办公',reqCount:2,totalAmount:92500,mergedPlanNo:'',status:'已审核',createdBy:'刘洋',createdTime:'2026-05-05 14:00:00',relatedReqNos:'REQ-2026-0034, REQ-2026-0036'},
+            {summaryNo:'SUM-2026-0011',summaryName:'2026年三季度配电自动化终端汇总',dept:'山东省电力公司物资部',businessType:'生产',reqCount:2,totalAmount:372000,mergedPlanNo:'',status:'已审核',createdBy:'张明',createdTime:'2026-05-08 09:15:00',relatedReqNos:'REQ-2026-0038, REQ-2026-0040'},
+            {summaryNo:'SUM-2026-0012',summaryName:'2026年三季度集中器采购汇总',dept:'江苏省电力公司物资部',businessType:'生产',reqCount:2,totalAmount:358400,mergedPlanNo:'',status:'已审核',createdBy:'李华',createdTime:'2026-05-10 10:30:00',relatedReqNos:'REQ-2026-0039, REQ-2026-0041'},
+            {summaryNo:'SUM-2026-0013',summaryName:'2026年三季度开关柜采购汇总',dept:'山东省电力公司物资部',businessType:'工程',reqCount:1,totalAmount:4500000,mergedPlanNo:'',status:'待审核',createdBy:'张明',createdTime:'2026-06-03 08:45:00',relatedReqNos:'REQ-2026-0042'},
+            {summaryNo:'SUM-2026-0014',summaryName:'2026年三季度电表批量采购汇总',dept:'江苏省电力公司物资部',businessType:'生产',reqCount:3,totalAmount:948700,mergedPlanNo:'',status:'待审核',createdBy:'王芳',createdTime:'2026-06-05 11:00:00',relatedReqNos:'REQ-2026-0043, REQ-2026-0044, REQ-2026-0045'},
+            {summaryNo:'SUM-2026-0015',summaryName:'2026年三季度电脑更新汇总',dept:'江苏省电力公司综合部',businessType:'办公',reqCount:2,totalAmount:174000,mergedPlanNo:'',status:'待审核',createdBy:'刘洋',createdTime:'2026-06-08 14:20:00',relatedReqNos:'REQ-2026-0046, REQ-2026-0047'},
+            {summaryNo:'SUM-2026-0016',summaryName:'2026年三季度变压器追加采购汇总',dept:'浙江省电力公司物资部',businessType:'生产',reqCount:1,totalAmount:346000,mergedPlanNo:'',status:'待审核',createdBy:'李华',createdTime:'2026-06-10 09:30:00',relatedReqNos:'REQ-2026-0048'},
+            {summaryNo:'SUM-2026-0017',summaryName:'2026年三季度断路器补充采购汇总',dept:'河南省电力公司物资部',businessType:'检修',reqCount:1,totalAmount:142000,mergedPlanNo:'',status:'待审核',createdBy:'陈伟',createdTime:'2026-06-12 10:15:00',relatedReqNos:'REQ-2026-0049'},
+            {summaryNo:'SUM-2026-0018',summaryName:'2026年三季度互感器采购汇总',dept:'安徽省电力公司物资部',businessType:'生产',reqCount:2,totalAmount:246000,mergedPlanNo:'',status:'待审核',createdBy:'赵磊',createdTime:'2026-06-15 13:45:00',relatedReqNos:'REQ-2026-0050, REQ-2026-0051'},
+            {summaryNo:'SUM-2026-0019',summaryName:'2026年三季度劳保用品年度汇总',dept:'综合服务公司安监部',businessType:'办公',reqCount:4,totalAmount:195000,mergedPlanNo:'',status:'待审核',createdBy:'孙杰',createdTime:'2026-06-18 15:00:00',relatedReqNos:'REQ-2026-0052, REQ-2026-0053, REQ-2026-0054, REQ-2026-0055'},
+            {summaryNo:'SUM-2026-0020',summaryName:'2026年三季度电缆追加采购汇总',dept:'湖北省电力公司物资部',businessType:'工程',reqCount:1,totalAmount:3360000,mergedPlanNo:'',status:'待审核',createdBy:'周强',createdTime:'2026-06-20 09:00:00',relatedReqNos:'REQ-2026-0056'},
+            {summaryNo:'SUM-2026-0021',summaryName:'2026年三季度打印机批量汇总',dept:'信息通信分公司综合部',businessType:'办公',reqCount:2,totalAmount:69000,mergedPlanNo:'',status:'待审核',createdBy:'刘洋',createdTime:'2026-06-22 11:30:00',relatedReqNos:'REQ-2026-0057, REQ-2026-0058'},
+            {summaryNo:'SUM-2026-0022',summaryName:'2026年三季度UPS电源采购汇总',dept:'信息通信分公司综合部',businessType:'办公',reqCount:1,totalAmount:185000,mergedPlanNo:'',status:'待审核',createdBy:'刘洋',createdTime:'2026-06-25 14:10:00',relatedReqNos:'REQ-2026-0059'},
+            {summaryNo:'SUM-2026-0023',summaryName:'2026年四季度开关柜采购汇总',dept:'山东省电力公司物资部',businessType:'工程',reqCount:2,totalAmount:4500000,mergedPlanNo:'',status:'待审核',createdBy:'张明',createdTime:'2026-06-28 08:30:00',relatedReqNos:'REQ-2026-0060, REQ-2026-0061'},
+            {summaryNo:'SUM-2026-0024',summaryName:'2026年四季度电表采购汇总',dept:'江苏省电力公司物资部',businessType:'生产',reqCount:3,totalAmount:948700,mergedPlanNo:'',status:'待审核',createdBy:'王芳',createdTime:'2026-06-29 10:00:00',relatedReqNos:'REQ-2026-0062, REQ-2026-0063, REQ-2026-0064'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){
+          let d=this.tableData;
+          if(this.isNotEmpty(this.queryForm.summaryNo)) d=d.filter(i=>i.summaryNo.indexOf(this.queryForm.summaryNo)>-1);
+          if(this.isNotEmpty(this.queryForm.summaryName)) d=d.filter(i=>i.summaryName.indexOf(this.queryForm.summaryName)>-1);
+          if(this.isNotEmpty(this.queryForm.dept)) d=d.filter(i=>i.dept.indexOf(this.queryForm.dept)>-1);
+          if(this.isNotEmpty(this.queryForm.businessType)) d=d.filter(i=>i.businessType===this.queryForm.businessType);
+          if(this.isNotEmpty(this.queryForm.status)) d=d.filter(i=>i.status===this.queryForm.status);
+          if(this.isNotEmpty(this.tableSearchText)){
+            const t=this.tableSearchText.toLowerCase();
+            d=d.filter(i=>i.summaryNo.toLowerCase().indexOf(t)>-1||i.summaryName.toLowerCase().indexOf(t)>-1||i.dept.toLowerCase().indexOf(t)>-1||i.createdBy.toLowerCase().indexOf(t)>-1);
+          }
+          if(this.sortField && this.sortOrder){
+            d=[...d].sort((a,b)=>{
+              let va=a[this.sortField],vb=b[this.sortField];
+              if(typeof va==='string') va=va.toLowerCase();
+              if(typeof vb==='string') vb=vb.toLowerCase();
+              if(va<vb) return this.sortOrder==='ascending'?-1:1;
+              if(va>vb) return this.sortOrder==='ascending'?1:-1;
+              return 0;
+            });
+          }
+          return d;
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        },
+        queryConditionText(){
+          let p=[];
+          if(this.isNotEmpty(this.queryForm.summaryNo)) p.push('汇总编号：'+this.queryForm.summaryNo);
+          if(this.isNotEmpty(this.queryForm.summaryName)) p.push('汇总名称：'+this.queryForm.summaryName);
+          if(this.isNotEmpty(this.queryForm.dept)) p.push('采购部门：'+this.queryForm.dept);
+          if(this.isNotEmpty(this.queryForm.businessType)) p.push('业务类型：'+this.queryForm.businessType);
+          if(this.isNotEmpty(this.queryForm.status)) p.push('状态：'+this.queryForm.status);
+          return p.length? p.join('，'):'暂无查询条件';
+        },
+        approvalActive(){
+          if(!this.currentDetail) return 0;
+          const s=this.currentDetail.status;
+          if(s==='已合并') return 2;
+          if(s==='已审核'||s==='已驳回') return 1;
+          return 0;
+        },
+        approvalTimeline(){
+          if(!this.currentDetail) return [];
+          const d=this.currentDetail;
+          const baseTime=d.createdTime||'2026-04-05 09:30:00';
+          const items=[{operator:d.createdBy,action:'提交需求汇总',time:baseTime,comment:'汇总关联需求'+d.reqCount+'条'}];
+          if(d.status!=='待审核'){
+            const reviewDate=this.addDays(baseTime.split(' ')[0],1)+' 14:20:00';
+            if(d.status==='已驳回'){
+              items.push({operator:'采购经理',action:'驳回汇总',time:reviewDate,comment:'需求汇总不符合采购策略'});
+            }else{
+              items.push({operator:'采购经理',action:'审核通过',time:reviewDate,comment:'汇总审核通过'});
+              if(d.status==='已合并'){
+                items.push({operator:'系统',action:'生成采购计划',time:this.addDays(baseTime.split(' ')[0],3)+' 09:15:00',comment:'已生成计划编号：'+d.mergedPlanNo});
+              }
+            }
+          }else{
+            items.push({operator:'采购经理',action:'待审核',time:this.addDays(baseTime.split(' ')[0],1)+' 09:00:00',comment:'等待采购经理审核'});
+          }
+          return items;
+        }
+      },
+      watch:{
+        'queryForm.summaryNo'(){this.currentPage=1;},
+        'queryForm.summaryName'(){this.currentPage=1;},
+        'queryForm.dept'(){this.currentPage=1;},
+        'queryForm.businessType'(){this.currentPage=1;},
+        'queryForm.status'(){this.currentPage=1;},
+        tableSearchText(){this.currentPage=1;}
+      },
+      methods:{
+        addDays(dateStr,days){const d=new Date(dateStr);d.setDate(d.getDate()+days);return d.toISOString().split('T')[0];},
+        countByStatus(status){return this.tableData.filter(i=>i.status===status).length;},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        isNotEmpty(value){
+          if(value===null||value===undefined) return false;
+          if(typeof value==='string') return value.trim()!=='';
+          if(Array.isArray(value)) return value.length>0;
+          return true;
+        },
+        handleQuery(){this.currentPage=1;this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录');},
+        handleReset(){this.queryForm={summaryNo:'',summaryName:'',dept:'',businessType:'',status:''};this.tableSearchText='';this.currentPage=1;},
+        handleRefresh(){this.loadData();},
+        handleSortChange(col){this.sortField=col?col.prop:'';this.sortOrder=col?col.order:'';},
+        statusTag(status){
+          if(status==='已合并') return 'success';
+          if(status==='已审核') return '';
+          if(status==='待审核') return 'warning';
+          if(status==='已驳回') return 'danger';
+          return 'info';
+        },
+        viewDetail(row){this.currentDetail=row;this.detailTab='summary';this.detailVisible=true;},
+        approveItem(row){
+          this.$confirm('确认审核通过汇总「'+row.summaryName+'」吗？','审核确认',{type:'warning',confirmButtonText:'通过',cancelButtonText:'取消'}).then(()=>{
+            row.status='已审核';
+            this.$message.success('汇总「'+row.summaryName+'」已审核通过');
+          }).catch(()=>{});
+        },
+        rejectItem(row){
+          this.$prompt('请输入驳回原因','驳回确认',{type:'warning',confirmButtonText:'确认驳回',cancelButtonText:'取消'}).then(({value})=>{
+            row.status='已驳回';
+            this.$message.warning('已驳回汇总「'+row.summaryName+'」'+(value?'，原因：'+value:''));
+          }).catch(()=>{});
+        },
+        mergeToPlan(row){
+          this.$confirm('确认将汇总「'+row.summaryName+'」合并生成采购计划吗？','合并确认',{type:'warning',confirmButtonText:'生成计划',cancelButtonText:'取消'}).then(()=>{
+            const planNo='PLAN-2026-'+String(parseInt(row.summaryNo.split('-')[2])+8).padStart(3,'0');
+            row.mergedPlanNo=planNo;
+            row.status='已合并';
+            this.$message.success('已生成采购计划「'+planNo+'」');
+          }).catch(()=>{});
+        },
+        handleSelectionChange(val){this.selection=val;},
+        handleBatchMerge(){
+          if(this.selection.length===0){this.$message.warning('请先选择已审核的汇总记录');return;}
+          const approved=this.selection.filter(i=>i.status==='已审核');
+          if(approved.length===0){this.$message.warning('所选记录中没有已审核状态的汇总');return;}
+          this.$confirm('确认将 '+approved.length+' 个已审核汇总合并生成采购计划？','批量合并',{type:'warning'}).then(()=>{
+            approved.forEach(i=>{
+              i.mergedPlanNo='PLAN-2026-BATCH-'+i.summaryNo.split('-')[2];
+              i.status='已合并';
+            });
+            this.$message.success('已批量合并 '+approved.length+' 个汇总，生成对应采购计划');
+          }).catch(()=>{});
+        },
+        handlePageChange(v){this.currentPage=v;},
+        handleSizeChange(v){this.pageSize=v;this.currentPage=1;},
+        isColumnVisible(prop){return this.visibleColumns.indexOf(prop)>-1;},
+        resetColumnSetting(){this.visibleColumns=this.columnSettings.map(function(c){return c.prop;});},
+        toggleMaximize(){this.isTableMaximized=!this.isTableMaximized;},
+        handleExport(){
+          if(this.filteredData.length===0){this.$message.warning('没有可导出的数据');return;}
+          const headers=['汇总编号','汇总名称','采购部门','业务类型','关联需求数','汇总金额','生成计划编号','状态','汇总人','汇总时间','关联需求编号'];
+          const keys=['summaryNo','summaryName','dept','businessType','reqCount','totalAmount','mergedPlanNo','status','createdBy','createdTime','relatedReqNos'];
+          const rows=this.filteredData.map(item=>keys.map(k=>{const v=item[k]===null||item[k]===undefined?'':String(item[k]);return '"'+v.replace(/"/g,'""')+'"';}).join(','));
+          const csv='\uFEFF'+headers.join(',')+'\n'+rows.join('\n');
+          const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+          const link=document.createElement('a');
+          link.href=URL.createObjectURL(blob);
+          link.download='需求汇总列表_'+new Date().toISOString().split('T')[0]+'.csv';
+          document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 '+this.filteredData.length+' 条记录');
+        },
+        async loadData(){
+          try{const resp=await fetch('/api/requirement-summaries');if(resp.ok){this.tableData=await resp.json();}}catch(e){/* 保留本地数据 */}
+        }
+      },
+      mounted(){this.handleQuery();}
+    });
+  </script>
+</body>
+</html>

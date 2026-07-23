@@ -1,0 +1,398 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>财务结算汇总</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .stat-cards { display:flex; margin-bottom:16px; } .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .stat-toggle { text-align:center; margin-bottom:12px; }
+    .stat-toggle .el-button { font-size:13px; color:#0B7266; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">财务结算汇总</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="供应商" title="供应商">
+                    <el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="结算状态" title="结算状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待结算" value="待结算"></el-option>
+                      <el-option label="结算中" value="结算中"></el-option>
+                      <el-option label="已结算" value="已结算"></el-option>
+                      <el-option label="已逾期" value="已逾期"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="月份" title="月份">
+                    <el-date-picker v-model="queryForm.month" type="month" placeholder="选择月份" value-format="yyyy-MM"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">供应商结算汇总</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;"></div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+                <div class="stat-cards" v-show="!statCollapsed">
+                  <div class="stat-card"><div class="stat-label">本期结算总额</div><div class="stat-value">{{ totalAmount }}<span class="stat-unit">万元</span></div></div>
+                  <div class="stat-card"><div class="stat-label">待结算金额</div><div class="stat-value" style="color:#f57c00;">{{ pendingAmount }}<span class="stat-unit">万元</span></div></div>
+                  <div class="stat-card"><div class="stat-label">已结算金额</div><div class="stat-value" style="color:#2e7d32;">{{ settledAmount }}<span class="stat-unit">万元</span></div></div>
+                  <div class="stat-card"><div class="stat-label">逾期金额</div><div class="stat-value" style="color:#c62828;">{{ overdueAmount }}<span class="stat-unit">万元</span></div></div>
+                </div>
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="supplierCode" label="供应商编码" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="supplierName" label="供应商名称" min-width="180" align="center"></el-table-column>
+                  <el-table-column prop="orderCount" label="订单数" min-width="80" align="center"></el-table-column>
+                  <el-table-column prop="totalAmount" label="结算金额(元)" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="paidAmount" label="已付金额(元)" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="unpaidAmount" label="未付金额(元)" min-width="140" align="center">
+                    <template slot-scope="{row}">
+                      <span :style="{color: row.unpaidAmount > 0 ? '#f57c00' : '#909399'}">{{ row.unpaidAmount }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="settleDate" label="结算日期" min-width="120" align="center"></el-table-column>
+                  <el-table-column prop="status" label="结算状态" min-width="100" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="row.status==='已结算'?'success':row.status==='已逾期'?'danger':row.status==='结算中'?'warning':'info'">{{ row.status }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="财务结算详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-money"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="结算编号">{{ currentDetail.settleNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商编码">{{ currentDetail.supplierCode }}</el-descriptions-item>
+          <el-descriptions-item label="供应商名称">{{ currentDetail.supplierName }}</el-descriptions-item>
+          <el-descriptions-item label="结算ID">{{ currentDetail.settleId }}</el-descriptions-item>
+          <el-descriptions-item label="结算类型">{{ currentDetail.settleType }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-coin"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="订单数">{{ currentDetail.orderCount }}</el-descriptions-item>
+          <el-descriptions-item label="结算金额">{{ currentDetail.totalAmount }}</el-descriptions-item>
+          <el-descriptions-item label="已付金额">{{ currentDetail.paidAmount }}</el-descriptions-item>
+          <el-descriptions-item label="待付金额">{{ currentDetail.unpaidAmount }}</el-descriptions-item>
+          <el-descriptions-item label="币种">{{ currentDetail.currency }}</el-descriptions-item>
+          <el-descriptions-item label="汇率">{{ currentDetail.exchangeRate }}</el-descriptions-item>
+          <el-descriptions-item label="发票核销率">{{ currentDetail.invoiceRate }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="结算周期">{{ currentDetail.settleDate }}</el-descriptions-item>
+          <el-descriptions-item label="资金来源">{{ currentDetail.fundSource }}</el-descriptions-item>
+          <el-descriptions-item label="审批人">{{ currentDetail.approver }}</el-descriptions-item>
+          <el-descriptions-item label="审批时间">{{ currentDetail.approveTime }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">汇总各供应商的结算数据，包括订单数、结算金额、已付/未付金额、结算状态等，为财务人员提供全局视角的结算管理。适用于财务部门的结算专员按月度核对供应商结算明细、跟踪逾期未付金额、生成结算汇总报表，并与对账单和支付记录进行交叉验证。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>汇总统计卡片，快速掌握整体结算状况</li>
+              <li>按供应商维度查看结算明细</li>
+              <li>逾期金额红色预警，及时跟进</li>
+              <li>支持按月份、状态筛选</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询结算数据</b>：输入供应商名称，选择结算状态（全部/已结算/部分结算/未结算）和月份，点击"查询"筛选</li>
+              <li><b>查看统计卡片</b>：顶部4个统计卡片展示总订单数、总结算金额、已付金额、未付金额</li>
+              <li><b>查看结算明细</b>：列表展示各供应商的订单数、结算金额、已付金额、未付金额、结算状态，逾期金额红色预警</li>
+              <li><b>查看详情</b>：点击"详情"查看供应商结算明细，含订单列表和支付记录</li>
+              <li><b>筛选逾期</b>：选择"未结算"状态筛选出逾期未付的供应商，及时跟进付款</li>
+              <li><b>导出数据</b>：点击"导出"导出结算清单，支持按月份和状态筛选后导出</li>
+              <li><b>关键字搜索</b>：在搜索框输入关键字，快速过滤当前列表数据</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          statCollapsed:true,
+          queryForm: {supplier:'',status:'',month:''},
+          tableSearchText:'',
+          tableData: [
+            {supplierCode:'SUP-0001',supplierName:'远东电缆股份有限公司',orderCount:12,totalAmount:1850000,paidAmount:1500000,unpaidAmount:350000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0001',settleNo:'JS-0001',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-28 10:00'},
+            {supplierCode:'SUP-0002',supplierName:'正泰电器股份有限公司',orderCount:8,totalAmount:920000,paidAmount:920000,unpaidAmount:0,settleDate:'2026-06-25',status:'已结算',settleId:'ST-0002',settleNo:'JS-0002',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'95%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 11:00'},
+            {supplierCode:'SUP-0003',supplierName:'宝胜科技创新股份',orderCount:6,totalAmount:780000,paidAmount:500000,unpaidAmount:280000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0003',settleNo:'JS-0003',settleType:'预付',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:00'},
+            {supplierCode:'SUP-0004',supplierName:'德力西电气有限公司',orderCount:5,totalAmount:450000,paidAmount:0,unpaidAmount:450000,settleDate:'2026-07-15',status:'待结算',settleId:'ST-0004',settleNo:'JS-0004',settleType:'分期',currency:'USD',exchangeRate:'7.2500',invoiceRate:'80%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 09:30'},
+            {supplierCode:'SUP-0005',supplierName:'施耐德电气中国',orderCount:10,totalAmount:2300000,paidAmount:2300000,unpaidAmount:0,settleDate:'2026-06-20',status:'已结算',settleId:'ST-0005',settleNo:'JS-0005',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 16:00'},
+            {supplierCode:'SUP-0006',supplierName:'3M中国有限公司',orderCount:7,totalAmount:320000,paidAmount:200000,unpaidAmount:120000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0006',settleNo:'JS-0006',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'90%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 10:30'},
+            {supplierCode:'SUP-0007',supplierName:'霍尼韦尔中国',orderCount:4,totalAmount:560000,paidAmount:0,unpaidAmount:560000,settleDate:'2026-05-31',status:'已逾期',settleId:'ST-0007',settleNo:'JS-0007',settleType:'预付',currency:'EUR',exchangeRate:'7.8800',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 15:00'},
+            {supplierCode:'SUP-0008',supplierName:'得力集团有限公司',orderCount:15,totalAmount:280000,paidAmount:280000,unpaidAmount:0,settleDate:'2026-06-28',status:'已结算',settleId:'ST-0008',settleNo:'JS-0008',settleType:'分期',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'85%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 11:30'},
+            {supplierCode:'SUP-0009',supplierName:'晨光文具股份',orderCount:9,totalAmount:195000,paidAmount:100000,unpaidAmount:95000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0009',settleNo:'JS-0009',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:30'},
+            {supplierCode:'SUP-0010',supplierName:'特变电工股份',orderCount:3,totalAmount:2550000,paidAmount:1500000,unpaidAmount:1050000,settleDate:'2026-07-10',status:'待结算',settleId:'ST-0010',settleNo:'JS-0010',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 09:00'},
+            {supplierCode:'SUP-0011',supplierName:'福禄克测试仪器',orderCount:6,totalAmount:380000,paidAmount:380000,unpaidAmount:0,settleDate:'2026-06-22',status:'已结算',settleId:'ST-0011',settleNo:'JS-0011',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-28 10:00'},
+            {supplierCode:'SUP-0012',supplierName:'西门子中国有限公司',orderCount:4,totalAmount:4800000,paidAmount:3000000,unpaidAmount:1800000,settleDate:'2026-07-20',status:'待结算',settleId:'ST-0012',settleNo:'JS-0012',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'95%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 11:00'},
+            {supplierCode:'SUP-0013',supplierName:'ABB中国有限公司',orderCount:5,totalAmount:3450000,paidAmount:2000000,unpaidAmount:1450000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0013',settleNo:'JS-0013',settleType:'预付',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:00'},
+            {supplierCode:'SUP-0014',supplierName:'许继电气股份',orderCount:8,totalAmount:680000,paidAmount:0,unpaidAmount:680000,settleDate:'2026-05-31',status:'已逾期',settleId:'ST-0014',settleNo:'JS-0014',settleType:'分期',currency:'USD',exchangeRate:'7.2500',invoiceRate:'80%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 09:30'},
+            {supplierCode:'SUP-0015',supplierName:'常熟开关制造',orderCount:7,totalAmount:520000,paidAmount:400000,unpaidAmount:120000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0015',settleNo:'JS-0015',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 16:00'},
+            {supplierCode:'SUP-0016',supplierName:'天正集团股份',orderCount:6,totalAmount:380000,paidAmount:380000,unpaidAmount:0,settleDate:'2026-06-18',status:'已结算',settleId:'ST-0016',settleNo:'JS-0016',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'90%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 10:30'},
+            {supplierCode:'SUP-0017',supplierName:'上海电缆厂',orderCount:10,totalAmount:890000,paidAmount:500000,unpaidAmount:390000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0017',settleNo:'JS-0017',settleType:'预付',currency:'EUR',exchangeRate:'7.8800',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 15:00'},
+            {supplierCode:'SUP-0018',supplierName:'华仪电气股份',orderCount:5,totalAmount:280000,paidAmount:0,unpaidAmount:280000,settleDate:'2026-07-05',status:'待结算',settleId:'ST-0018',settleNo:'JS-0018',settleType:'分期',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'85%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 11:30'},
+            {supplierCode:'SUP-0019',supplierName:'代尔塔防护用品',orderCount:8,totalAmount:165000,paidAmount:100000,unpaidAmount:65000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0019',settleNo:'JS-0019',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:30'},
+            {supplierCode:'SUP-0020',supplierName:'华安劳保用品',orderCount:6,totalAmount:125000,paidAmount:125000,unpaidAmount:0,settleDate:'2026-06-15',status:'已结算',settleId:'ST-0020',settleNo:'JS-0020',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 09:00'},
+            {supplierCode:'SUP-0021',supplierName:'胜利仪器有限公司',orderCount:4,totalAmount:95000,paidAmount:0,unpaidAmount:95000,settleDate:'2026-05-31',status:'已逾期',settleId:'ST-0021',settleNo:'JS-0021',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-28 10:00'},
+            {supplierCode:'SUP-0022',supplierName:'优利德科技股份',orderCount:7,totalAmount:185000,paidAmount:100000,unpaidAmount:85000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0022',settleNo:'JS-0022',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'95%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 11:00'},
+            {supplierCode:'SUP-0023',supplierName:'达伯埃纸业',orderCount:12,totalAmount:210000,paidAmount:210000,unpaidAmount:0,settleDate:'2026-06-20',status:'已结算',settleId:'ST-0023',settleNo:'JS-0023',settleType:'预付',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:00'},
+            {supplierCode:'SUP-0024',supplierName:'双虎集团股份',orderCount:5,totalAmount:145000,paidAmount:80000,unpaidAmount:65000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0024',settleNo:'JS-0024',settleType:'分期',currency:'USD',exchangeRate:'7.2500',invoiceRate:'80%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 09:30'},
+            {supplierCode:'SUP-0025',supplierName:'江海制品有限公司',orderCount:6,totalAmount:120000,paidAmount:0,unpaidAmount:120000,settleDate:'2026-07-08',status:'待结算',settleId:'ST-0025',settleNo:'JS-0025',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 16:00'},
+            {supplierCode:'SUP-0026',supplierName:'诺雅克电气',orderCount:4,totalAmount:380000,paidAmount:200000,unpaidAmount:180000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0026',settleNo:'JS-0026',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'90%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 10:30'},
+            {supplierCode:'SUP-0027',supplierName:'普睿司曼电缆',orderCount:3,totalAmount:680000,paidAmount:0,unpaidAmount:680000,settleDate:'2026-05-31',status:'已逾期',settleId:'ST-0027',settleNo:'JS-0027',settleType:'预付',currency:'EUR',exchangeRate:'7.8800',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 15:00'},
+            {supplierCode:'SUP-0028',supplierName:'徕卡测量系统',orderCount:5,totalAmount:320000,paidAmount:320000,unpaidAmount:0,settleDate:'2026-06-25',status:'已结算',settleId:'ST-0028',settleNo:'JS-0028',settleType:'分期',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'85%',fundSource:'专项资金',approver:'财务经理',approveTime:'2026-06-28 11:30'},
+            {supplierCode:'SUP-0029',supplierName:'大宇物流股份',orderCount:9,totalAmount:88000,paidAmount:50000,unpaidAmount:38000,settleDate:'2026-06-30',status:'结算中',settleId:'ST-0029',settleNo:'JS-0029',settleType:'月结',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'运营资金',approver:'财务总监',approveTime:'2026-06-27 14:30'},
+            {supplierCode:'SUP-0030',supplierName:'东方电气集团',orderCount:2,totalAmount:5200000,paidAmount:3000000,unpaidAmount:2200000,settleDate:'2026-07-25',status:'待结算',settleId:'ST-0030',settleNo:'JS-0030',settleType:'票到付款',currency:'CNY',exchangeRate:'1.0000',invoiceRate:'100%',fundSource:'项目资金',approver:'财务经理',approveTime:'2026-06-28 09:00'}
+          ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          detailVisible:false,
+          helpVisible:false,
+          currentDetail:null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'supplierCode',label:'供应商编码'},{key:'supplierName',label:'供应商名称'},{key:'orderCount',label:'订单数'},
+            {key:'totalAmount',label:'结算金额(元)'},{key:'paidAmount',label:'已付金额(元)'},{key:'unpaidAmount',label:'未付金额(元)'},
+            {key:'settleDate',label:'结算日期'},{key:'status',label:'结算状态'},{key:'settleNo',label:'结算编号'},
+            {key:'settleId',label:'结算ID'},{key:'settleType',label:'结算类型'},{key:'currency',label:'币种'},
+            {key:'exchangeRate',label:'汇率'},{key:'invoiceRate',label:'发票核销率'},{key:'fundSource',label:'资金来源'},
+            {key:'approver',label:'审批人'},{key:'approveTime',label:'审批时间'}
+          ]
+        };
+      },
+      computed: {
+        filteredData: function() {
+          var self = this;
+          return this.tableData.filter(function(item) {
+            if (self.queryForm.supplier && !item.supplierName.includes(self.queryForm.supplier)) return false;
+            if (self.queryForm.status && item.status !== self.queryForm.status) return false;
+            if (self.queryForm.month && !item.settleDate.startsWith(self.queryForm.month)) return false;
+            if (self.tableSearchText) {
+              var kw = self.tableSearchText.toLowerCase();
+              var text = ((item.supplierCode || '') + ' ' + (item.supplierName || '') + ' ' + (item.settleNo || '') + ' ' + (item.status || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData: function() {
+          var start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText: function() {
+          var conditions = [];
+          var f = this.queryForm;
+          if (this.isNotEmpty(f.supplier)) conditions.push('供应商：' + f.supplier);
+          if (this.isNotEmpty(f.status)) conditions.push('结算状态：' + f.status);
+          if (this.isNotEmpty(f.month)) conditions.push('月份：' + f.month);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        totalAmount: function() { return (this.filteredData.reduce(function(s,i){return s+i.totalAmount;},0) / 10000).toFixed(1); },
+        pendingAmount: function() { return (this.filteredData.filter(function(i){return i.status==='待结算';}).reduce(function(s,i){return s+i.unpaidAmount;},0) / 10000).toFixed(1); },
+        settledAmount: function() { return (this.filteredData.filter(function(i){return i.status==='已结算';}).reduce(function(s,i){return s+i.paidAmount;},0) / 10000).toFixed(1); },
+        overdueAmount: function() { return (this.filteredData.filter(function(i){return i.status==='已逾期';}).reduce(function(s,i){return s+i.unpaidAmount;},0) / 10000).toFixed(1); }
+      },
+      methods: {
+        toggleSearchPanel: function() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery: function() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset: function() { this.queryForm = {supplier:'',status:'',month:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh: function() { this.$message.success('数据已刷新'); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labelMap = {}; (this.exportableFields || []).forEach(f => labelMap[f.key] = f.label);
+          const labels = this.fieldLabels || labelMap;
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '财务汇总') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        handleSelectionChange: function(val) { this.selection = val; },
+        viewDetail: function(row) { this.currentDetail = row; this.detailVisible = true; },
+        isNotEmpty: function(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        handleSizeChange: function(val) { this.pageSize = val; this.currentPage = 1; },
+        handlePageChange: function(val) { this.currentPage = val; }
+      },
+      mounted() {}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

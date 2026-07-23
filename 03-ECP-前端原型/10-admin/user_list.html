@@ -1,0 +1,469 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>用户管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">用户管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="用户名" title="用户名">
+                    <el-input v-model="queryForm.username" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="姓名" title="姓名">
+                    <el-input v-model="queryForm.realName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="账号类型" title="账号类型">
+                    <el-select v-model="queryForm.userType" placeholder="请选择" clearable>
+                      <el-option label="内部员工" value="内部员工"></el-option>
+                      <el-option label="供应商用户" value="供应商用户"></el-option>
+                      <el-option label="运营人员" value="运营人员"></el-option>
+                      <el-option label="审计人员" value="审计人员"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="启用" value="启用"></el-option>
+                      <el-option label="禁用" value="禁用"></el-option>
+                      <el-option label="锁定" value="锁定"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">用户列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          <el-button @click="openAddDialog" type="primary" icon="el-icon-plus">新增</el-button>
+                          
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  
+<el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="username" label="用户名" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="realName" label="姓名" min-width="100" align="center"></el-table-column>
+                    <el-table-column prop="userType" label="账号类型" min-width="110" align="center"></el-table-column>
+                    <el-table-column prop="orgName" label="所属组织" min-width="180" align="center"></el-table-column>
+                    <el-table-column prop="roleName" label="角色" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="phone" label="手机号" min-width="130" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='启用'?'success':row.status==='锁定'?'warning':'info'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="lastLogin" label="最后登录" min-width="160" align="center"></el-table-column>
+                    <el-table-column label="操作" width="200" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="warning" v-if="row.status==='启用'" @click="toggleStatus(row)">禁用</el-button>
+                        <el-button type="success" v-if="row.status==='禁用'" @click="toggleStatus(row)">启用</el-button>
+                        <el-button type="info" v-if="row.status==='锁定'" @click="unlockUser(row)">解锁</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="用户详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-user"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="用户名">{{ currentDetail.username }}</el-descriptions-item>
+          <el-descriptions-item label="姓名">{{ currentDetail.realName }}</el-descriptions-item>
+          <el-descriptions-item label="账号类型">{{ currentDetail.userType }}</el-descriptions-item>
+          <el-descriptions-item label="所属组织">{{ currentDetail.orgName }}</el-descriptions-item>
+          <el-descriptions-item label="角色">{{ currentDetail.roleName }}</el-descriptions-item>
+          <el-descriptions-item label="工号">{{ currentDetail.empNo }}</el-descriptions-item>
+          <el-descriptions-item label="职位">{{ currentDetail.position }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-phone"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="手机号">{{ currentDetail.phone }}</el-descriptions-item>
+          <el-descriptions-item label="办公电话">{{ currentDetail.officePhone }}</el-descriptions-item>
+          <el-descriptions-item label="入职日期">{{ currentDetail.entryDate }}</el-descriptions-item>
+          <el-descriptions-item label="数据权限">{{ currentDetail.dataScope }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="最后登录">{{ currentDetail.lastLogin }}</el-descriptions-item>
+          <el-descriptions-item label="上次登录时间">{{ currentDetail.lastLoginTime }}</el-descriptions-item>
+          <el-descriptions-item label="上次登录IP">{{ currentDetail.lastLoginIp }}</el-descriptions-item>
+          <el-descriptions-item label="备注">{{ currentDetail.remark }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            电子商城涉及6类账号（内部员工/供应商用户/运营人员/审计人员/系统账号/临时账号），本页面用于管理用户账号的创建、角色分配、权限配置、状态管控。本页面是用户与权限中心的核心页面。适用于五级管理员管理各级用户。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>6类账号统一管理，支撑多角色协同</li>
+              <li>五级组织架构（集团→省→市→县→班组），数据权限精准控制</li>
+              <li>三级权限模型（菜单/按钮/数据），权限管控精细</li>
+              <li>角色互斥管理（采购员≠审批人），规避利益冲突</li>
+              <li>登录审计和操作审计，安全合规</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询用户</b>：在查询面板输入工号/姓名，选择账号类型、角色、组织、状态，点击"查询"筛选</li>
+              <li><b>新增用户</b>：点击"新增"，填写工号、姓名、账号类型、所属组织，分配角色</li>
+              <li><b>查看详情</b>：点击"详情"查看用户完整信息、角色列表、权限列表、登录日志</li>
+              <li><b>分配角色</b>：点击"分配角色"，为用户分配一个或多个角色（校验互斥规则）</li>
+              <li><b>启用/停用</b>：点击"停用"暂停用户登录；点击"启用"恢复</li>
+              <li><b>重置密码</b>：点击"重置密码"，发送重置链接至用户邮箱</li>
+              <li><b>查看日志</b>：点击"登录日志"查看用户登录时间、IP、设备</li>
+              <li><b>导出数据</b>：点击"导出"导出用户清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+    <!-- 新增用户对话框 -->
+    <el-dialog :lazy="true" title="新增用户" :visible.sync="addDialog.visible" width="640px" custom-class="detail-dialog">
+      <el-form :model="addDialog.form" label-width="120px" label-suffix="：" :rules="addFormRules" ref="addForm">
+        <el-form-item label="用户姓名" prop="userName"><el-input v-model="addDialog.form.userName" placeholder="请输入用户姓名" clearable></el-input></el-form-item>
+        <el-form-item label="用户类型" prop="userType"><el-select v-model="addDialog.form.userType" placeholder="请选择" style="width:100%"><el-option label="内部员工" value="内部员工"></el-option><el-option label="外部客户" value="外部客户"></el-option><el-option label="供应商" value="供应商"></el-option></el-select></el-form-item>
+        <el-form-item label="所属部门" prop="dept"><el-input v-model="addDialog.form.dept" placeholder="请输入所属部门" clearable></el-input></el-form-item>
+        <el-form-item label="联系电话" prop="phone"><el-input v-model="addDialog.form.phone" placeholder="请输入联系电话" clearable></el-input></el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="addDialog.visible=false">取消</el-button>
+        <el-button type="primary" @click="handleAddConfirm">确认新增</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          addDialog:{visible:false,form:{}},addFormRules:{
+            userName:[{required:true,message:'请输入用户姓名',trigger:'blur'}],
+            userType:[{required:true,message:'请输入用户类型',trigger:'blur'}],
+            dept:[{required:true,message:'请输入所属部门',trigger:'blur'}],
+            phone:[{required:true,message:'请输入联系电话',trigger:'blur'}],
+          },
+          queryForm: {username:'',realName:'',userType:'',status:''},
+          tableSearchText:'',
+          tableData: [
+            {username:'zhangming',realName:'张明',userType:'内部员工',orgName:'某电力集团江苏-物资采购部',roleName:'采购员',phone:'138****5678',status:'启用',lastLogin:'2026-06-27 09:15',empNo:'YG-0001',position:'采购专员',officePhone:'010-51234567',entryDate:'2020-03-15',lastLoginTime:'2026-06-27 09:15',lastLoginIp:'10.1.2.50',dataScope:'本部门',remark:'无'},
+            {username:'lihua',realName:'李华',userType:'内部员工',orgName:'某电力集团湖南-运维检修部',roleName:'采购经理',phone:'139****1234',status:'启用',lastLogin:'2026-06-27 08:45',empNo:'YG-0002',position:'采购经理',officePhone:'010-52345678',entryDate:'2019-07-01',lastLoginTime:'2026-06-27 08:45',lastLoginIp:'10.1.3.80',dataScope:'本部门及下级',remark:'正常'},
+            {username:'wangqiang',realName:'王强',userType:'内部员工',orgName:'某电力集团信通分公司',roleName:'采购员',phone:'137****9876',status:'启用',lastLogin:'2026-06-26 17:30',empNo:'YG-0003',position:'物资管理员',officePhone:'010-53456789',entryDate:'2021-02-20',lastLoginTime:'2026-06-26 17:30',lastLoginIp:'10.1.4.90',dataScope:'全部',remark:'关键岗位用户'},
+            {username:'admin_nari',realName:'南瑞管理员',userType:'供应商用户',orgName:'国电南瑞科技股份有限公司',roleName:'供应商管理员',phone:'186****3456',status:'启用',lastLogin:'2026-06-27 10:00',empNo:'YG-0004',position:'系统管理员',officePhone:'010-54567890',entryDate:'2018-09-10',lastLoginTime:'2026-06-27 10:00',lastLoginIp:'10.2.1.30',dataScope:'本人',remark:'供应商管理员账号'},
+            {username:'sysadmin',realName:'系统管理员',userType:'运营人员',orgName:'远光软件',roleName:'超级管理员',phone:'135****0001',status:'启用',lastLogin:'2026-06-27 09:00',empNo:'YG-0005',position:'审计员',officePhone:'010-55678901',entryDate:'2022-06-01',lastLoginTime:'2026-06-27 09:00',lastLoginIp:'10.3.5.11',dataScope:'自定义',remark:'系统管理员'},
+            {username:'auditor01',realName:'审计员甲',userType:'审计人员',orgName:'审计部',roleName:'审计员',phone:'188****8888',status:'启用',lastLogin:'2026-06-26 16:00',empNo:'YG-0006',position:'供应商管理员',officePhone:'010-56789012',entryDate:'2020-11-25',lastLoginTime:'2026-06-26 16:00',lastLoginIp:'10.6.10.22',dataScope:'本部门',remark:'审计岗'},
+            {username:'zhaomin',realName:'赵敏',userType:'内部员工',orgName:'综合服务公司',roleName:'采购员',phone:'133****5566',status:'锁定',lastLogin:'2026-06-20 14:00',empNo:'YG-0007',position:'财务审核',officePhone:'010-57890123',entryDate:'2019-04-18',lastLoginTime:'2026-06-20 14:00',lastLoginIp:'10.9.15.33',dataScope:'本部门及下级',remark:'正常'},
+            {username:'xujidian',realName:'许继电工',userType:'供应商用户',orgName:'许继电气股份有限公司',roleName:'供应商',phone:'159****7777',status:'禁用',lastLogin:'2026-05-15 11:00',empNo:'YG-0008',position:'仓管员',officePhone:'010-58901234',entryDate:'2021-08-30',lastLoginTime:'2026-05-15 11:00',lastLoginIp:'10.12.20.44',dataScope:'全部',remark:'供应商账号'},
+            {username:'liuwei',realName:'刘伟',userType:'内部员工',orgName:'某电力集团安徽-物资采购部',roleName:'采购员',phone:'136****2233',status:'启用',lastLogin:'2026-06-27 08:20',empNo:'YG-0009',position:'合规员',officePhone:'010-59012345',entryDate:'2017-03-22',lastLoginTime:'2026-06-27 08:20',lastLoginIp:'10.15.25.55',dataScope:'本人',remark:'正常'},
+            {username:'chengang',realName:'陈刚',userType:'内部员工',orgName:'某电力集团河南-运维检修部',roleName:'采购经理',phone:'137****4455',status:'启用',lastLogin:'2026-06-26 15:45',empNo:'YG-0010',position:'数据管理员',officePhone:'010-50123456',entryDate:'2022-01-15',lastLoginTime:'2026-06-26 15:45',lastLoginIp:'10.18.30.66',dataScope:'本部门及下级',remark:'正常'},
+            {username:'sunli',realName:'孙丽',userType:'内部员工',orgName:'某电力集团信通分公司',roleName:'采购员',phone:'138****6677',status:'启用',lastLogin:'2026-06-27 09:30',empNo:'YG-0011',position:'采购专员',officePhone:'010-51234567',entryDate:'2020-03-15',lastLoginTime:'2026-06-27 09:15',lastLoginIp:'10.1.2.50',dataScope:'本部门',remark:'无'},
+            {username:'zhoutao',realName:'周涛',userType:'内部员工',orgName:'某电力集团湖北-物资采购部',roleName:'采购经理',phone:'139****8899',status:'启用',lastLogin:'2026-06-26 14:10',empNo:'YG-0012',position:'采购经理',officePhone:'010-52345678',entryDate:'2019-07-01',lastLoginTime:'2026-06-27 08:45',lastLoginIp:'10.1.3.80',dataScope:'本部门及下级',remark:'正常'},
+            {username:'wufang',realName:'吴芳',userType:'内部员工',orgName:'综合服务公司',roleName:'采购员',phone:'135****1122',status:'启用',lastLogin:'2026-06-27 10:15',empNo:'YG-0013',position:'物资管理员',officePhone:'010-53456789',entryDate:'2021-02-20',lastLoginTime:'2026-06-26 17:30',lastLoginIp:'10.1.4.90',dataScope:'全部',remark:'关键岗位用户'},
+            {username:'zhenghao',realName:'郑浩',userType:'内部员工',orgName:'某电力集团山东-运维检修部',roleName:'采购员',phone:'133****3344',status:'启用',lastLogin:'2026-06-26 16:30',empNo:'YG-0014',position:'系统管理员',officePhone:'010-54567890',entryDate:'2018-09-10',lastLoginTime:'2026-06-27 10:00',lastLoginIp:'10.2.1.30',dataScope:'本人',remark:'供应商管理员账号'},
+            {username:'hunglei',realName:'黄磊',userType:'内部员工',orgName:'某电力集团江苏-物资采购部',roleName:'采购员',phone:'136****5566',status:'启用',lastLogin:'2026-06-27 08:50',empNo:'YG-0015',position:'审计员',officePhone:'010-55678901',entryDate:'2022-06-01',lastLoginTime:'2026-06-27 09:00',lastLoginIp:'10.3.5.11',dataScope:'自定义',remark:'系统管理员'},
+            {username:'linyan',realName:'林燕',userType:'内部员工',orgName:'某电力集团信通分公司',roleName:'采购员',phone:'137****7788',status:'启用',lastLogin:'2026-06-26 17:15',empNo:'YG-0016',position:'供应商管理员',officePhone:'010-56789012',entryDate:'2020-11-25',lastLoginTime:'2026-06-26 16:00',lastLoginIp:'10.6.10.22',dataScope:'本部门',remark:'审计岗'},
+            {username:'admin_yuandong',realName:'远东管理员',userType:'供应商用户',orgName:'远东电缆有限公司',roleName:'供应商管理员',phone:'186****2200',status:'启用',lastLogin:'2026-06-27 09:45',empNo:'YG-0017',position:'财务审核',officePhone:'010-57890123',entryDate:'2019-04-18',lastLoginTime:'2026-06-20 14:00',lastLoginIp:'10.9.15.33',dataScope:'本部门及下级',remark:'正常'},
+            {username:'admin_pinggao',realName:'平高管理员',userType:'供应商用户',orgName:'平高电气股份有限公司',roleName:'供应商管理员',phone:'186****3300',status:'启用',lastLogin:'2026-06-26 15:20',empNo:'YG-0018',position:'仓管员',officePhone:'010-58901234',entryDate:'2021-08-30',lastLoginTime:'2026-05-15 11:00',lastLoginIp:'10.12.20.44',dataScope:'全部',remark:'供应商账号'},
+            {username:'admin_siyuan',realName:'思源管理员',userType:'供应商用户',orgName:'思源电气股份有限公司',roleName:'供应商管理员',phone:'186****4400',status:'启用',lastLogin:'2026-06-27 10:30',empNo:'YG-0019',position:'合规员',officePhone:'010-59012345',entryDate:'2017-03-22',lastLoginTime:'2026-06-27 08:20',lastLoginIp:'10.15.25.55',dataScope:'本人',remark:'正常'},
+            {username:'admin_weisheng',realName:'威胜管理员',userType:'供应商用户',orgName:'威胜信息技术股份有限公司',roleName:'供应商管理员',phone:'186****5500',status:'启用',lastLogin:'2026-06-26 14:50',empNo:'YG-0020',position:'数据管理员',officePhone:'010-50123456',entryDate:'2022-01-15',lastLoginTime:'2026-06-26 15:45',lastLoginIp:'10.18.30.66',dataScope:'本部门及下级',remark:'正常'},
+            {username:'admin_lianxiang',realName:'联想管理员',userType:'供应商用户',orgName:'联想集团有限公司',roleName:'供应商管理员',phone:'186****6600',status:'启用',lastLogin:'2026-06-27 08:35',empNo:'YG-0021',position:'采购专员',officePhone:'010-51234567',entryDate:'2020-03-15',lastLoginTime:'2026-06-27 09:15',lastLoginIp:'10.1.2.50',dataScope:'本部门',remark:'无'},
+            {username:'admin_hp',realName:'惠普管理员',userType:'供应商用户',orgName:'中国惠普有限公司',roleName:'供应商管理员',phone:'186****7700',status:'启用',lastLogin:'2026-06-26 16:45',empNo:'YG-0022',position:'采购经理',officePhone:'010-52345678',entryDate:'2019-07-01',lastLoginTime:'2026-06-27 08:45',lastLoginIp:'10.1.3.80',dataScope:'本部门及下级',remark:'正常'},
+            {username:'admin_deltai',realName:'代尔塔管理员',userType:'供应商用户',orgName:'代尔塔防护用品公司',roleName:'供应商管理员',phone:'186****8800',status:'启用',lastLogin:'2026-06-27 09:10',empNo:'YG-0023',position:'物资管理员',officePhone:'010-53456789',entryDate:'2021-02-20',lastLoginTime:'2026-06-26 17:30',lastLoginIp:'10.1.4.90',dataScope:'全部',remark:'关键岗位用户'},
+            {username:'admin_shante',realName:'山特管理员',userType:'供应商用户',orgName:'山特电子(深圳)有限公司',roleName:'供应商管理员',phone:'186****9900',status:'启用',lastLogin:'2026-06-26 13:40',empNo:'YG-0024',position:'系统管理员',officePhone:'010-54567890',entryDate:'2018-09-10',lastLoginTime:'2026-06-27 10:00',lastLoginIp:'10.2.1.30',dataScope:'本人',remark:'供应商管理员账号'},
+            {username:'caiwu01',realName:'财务甲',userType:'内部员工',orgName:'财务资产部',roleName:'财务审核',phone:'188****1100',status:'启用',lastLogin:'2026-06-27 08:00',empNo:'YG-0025',position:'审计员',officePhone:'010-55678901',entryDate:'2022-06-01',lastLoginTime:'2026-06-27 09:00',lastLoginIp:'10.3.5.11',dataScope:'自定义',remark:'系统管理员'},
+            {username:'caiwu02',realName:'财务乙',userType:'内部员工',orgName:'财务资产部',roleName:'财务审核',phone:'188****2200',status:'启用',lastLogin:'2026-06-26 17:00',empNo:'YG-0026',position:'供应商管理员',officePhone:'010-56789012',entryDate:'2020-11-25',lastLoginTime:'2026-06-26 16:00',lastLoginIp:'10.6.10.22',dataScope:'本部门',remark:'审计岗'},
+            {username:'cangku01',realName:'仓库管理员甲',userType:'内部员工',orgName:'物流配送中心',roleName:'仓管员',phone:'188****3300',status:'启用',lastLogin:'2026-06-27 07:45',empNo:'YG-0027',position:'财务审核',officePhone:'010-57890123',entryDate:'2019-04-18',lastLoginTime:'2026-06-20 14:00',lastLoginIp:'10.9.15.33',dataScope:'本部门及下级',remark:'正常'},
+            {username:'cangku02',realName:'仓库管理员乙',userType:'内部员工',orgName:'物流配送中心',roleName:'仓管员',phone:'188****4400',status:'锁定',lastLogin:'2026-06-18 10:30',empNo:'YG-0028',position:'仓管员',officePhone:'010-58901234',entryDate:'2021-08-30',lastLoginTime:'2026-05-15 11:00',lastLoginIp:'10.12.20.44',dataScope:'全部',remark:'供应商账号'},
+            {username:'heike01',realName:'合规员甲',userType:'审计人员',orgName:'合规管理部',roleName:'合规员',phone:'188****5500',status:'启用',lastLogin:'2026-06-26 15:00',empNo:'YG-0029',position:'合规员',officePhone:'010-59012345',entryDate:'2017-03-22',lastLoginTime:'2026-06-27 08:20',lastLoginIp:'10.15.25.55',dataScope:'本人',remark:'正常'},
+            {username:'dataadmin01',realName:'数据管理员甲',userType:'内部员工',orgName:'数据中心',roleName:'数据管理员',phone:'188****6600',status:'启用',lastLogin:'2026-06-28 09:00',empNo:'YG-0030',position:'数据管理员',officePhone:'010-50123456',entryDate:'2022-01-15',lastLoginTime:'2026-06-26 15:45',lastLoginIp:'10.18.30.66',dataScope:'本部门及下级',remark:'正常'}
+        ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          detailVisible:false,
+          helpVisible:false,
+          currentDetail:null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'username',label:'用户名'},{key:'realName',label:'姓名'},{key:'userType',label:'账号类型'},
+            {key:'orgName',label:'所属组织'},{key:'roleName',label:'角色'},{key:'empNo',label:'工号'},
+            {key:'position',label:'职位'},{key:'status',label:'状态'},{key:'phone',label:'手机号'},
+            {key:'officePhone',label:'办公电话'},{key:'entryDate',label:'入职日期'},
+            {key:'dataScope',label:'数据权限'},{key:'lastLogin',label:'最后登录'},
+            {key:'lastLoginTime',label:'上次登录时间'},{key:'lastLoginIp',label:'上次登录IP'},
+            {key:'remark',label:'备注'}
+          ],
+          fieldLabels:{
+            username:'用户名',
+            realName:'姓名',
+            userType:'账号类型',
+            orgName:'所属组织',
+            roleName:'角色',
+            phone:'手机号',
+            status:'状态',
+            lastLogin:'最后登录'
+          }
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(item => {
+            if (this.queryForm.username && !item.username.includes(this.queryForm.username)) return false;
+            if (this.queryForm.realName && !item.realName.includes(this.queryForm.realName)) return false;
+            if (this.queryForm.userType && item.userType !== this.queryForm.userType) return false;
+            if (this.queryForm.status && item.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = ((item.username || '') + ' ' + (item.realName || '') + ' ' + (item.empNo || '') + ' ' + (item.orgName || '') + ' ' + (item.status || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.username)) conditions.push('用户名：' + f.username);
+          if (this.isNotEmpty(f.realName)) conditions.push('姓名：' + f.realName);
+          if (this.isNotEmpty(f.userType)) conditions.push('账号类型：' + f.userType);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {username:'',realName:'',userType:'',status:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.loadData(); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labelMap = {}; (this.exportableFields || []).forEach(f => labelMap[f.key] = f.label);
+          const labels = this.fieldLabels || labelMap;
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '用户列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        // 从后端加载数据（失败时保留本地数据）
+        async loadData() {
+          try {
+            const resp = await fetch('/api/users');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        toggleStatus(row) {
+          const action = row.status === '启用' ? '禁用' : '启用';
+          this.$confirm('确认' + action + '用户「' + row.realName + '」吗？', '状态变更', { type: 'warning', confirmButtonText: action, cancelButtonText: '取消' }).then(() => {
+            row.status = action;
+            this.$message.success('用户「' + row.realName + '」已' + action);
+          }).catch(() => {});
+        },
+        unlockUser(row) {
+          this.$confirm('确认解锁用户「' + row.realName + '」吗？', '解锁确认', { type: 'warning', confirmButtonText: '解锁', cancelButtonText: '取消' }).then(() => {
+            row.status = '启用';
+            this.$message.success('用户「' + row.realName + '」已解锁');
+          }).catch(() => {});
+        },
+                openAddDialog() {
+          const maxNum = this.tableData.reduce((max, i) => {
+            const m = i.userCode.match(/(\d+)$/);
+            const n = m ? parseInt(m[1]) : 0;
+            return n > max ? n : max;
+          }, 0);
+          this.addDialog.form = {
+            userCode: 'USR-' + String(maxNum + 1).padStart(3, '0'),
+          };
+          this.addDialog.visible = true;
+          this.$nextTick(() => { this.$refs.addForm && this.$refs.addForm.clearValidate(); });
+        },
+        handleAddConfirm() {
+          this.$refs.addForm.validate(valid => {
+            if (!valid) return;
+            const f = this.addDialog.form;
+            this.tableData.push(Object.assign({}, f, { status: f.status || '草稿' }));
+            this.addDialog.visible = false;
+            this.$message.success('用户「' + f.userName + '」新增成功');
+          });
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

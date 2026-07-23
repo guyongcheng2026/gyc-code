@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>员工福利</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">员工福利</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-present" @click="handlePublish">发布福利</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出报告</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="福利名称"><el-input v-model="queryForm.benefitName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="福利类型"><el-select v-model="queryForm.benefitType" placeholder="请选择" clearable><el-option label="节日福利" value="节日福利"></el-option><el-option label="生日福利" value="生日福利"></el-option><el-option label="健康福利" value="健康福利"></el-option><el-option label="高温补贴" value="高温补贴"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="进行中" value="进行中"></el-option><el-option label="待发放" value="待发放"></el-option><el-option label="已结束" value="已结束"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">福利活动数</div><div class="stat-value">32</div><div class="stat-sub">本年度</div></div>
+            <div class="stat-card"><div class="stat-label">覆盖员工</div><div class="stat-value">12,560</div><div class="stat-sub">全员覆盖</div></div>
+            <div class="stat-card"><div class="stat-label">福利总额(万)</div><div class="stat-value">860</div><div class="stat-sub">本年度预算</div></div>
+            <div class="stat-card"><div class="stat-label">领取率</div><div class="stat-value">92.3%</div><div class="stat-sub">平均领取</div></div>
+            <div class="stat-card"><div class="stat-label">满意度</div><div class="stat-value">4.7/5</div><div class="stat-sub">员工评价</div></div>
+          </div>
+          <div class="tl-table-wrap">
+            <div class="yj-container-card__table"><el-table :data="tableData" border style="width:100%" @row-click="handleRowClick">
+              <el-table-column prop="benefitNo" label="福利编号" width="130"></el-table-column>
+              <el-table-column prop="benefitName" label="福利名称" min-width="180"></el-table-column>
+              <el-table-column prop="benefitType" label="类型" width="100" align="center">
+                <template slot-scope="scope"><el-tag :type="benefitTag(scope.row.benefitType)" size="small">{{ scope.row.benefitType }}</el-tag></template>
+              </el-table-column>
+              <el-table-column prop="budget" label="预算(元/人)" width="120" align="right"></el-table-column>
+              <el-table-column prop="eligibleCount" label="覆盖人数" width="100" align="center"></el-table-column>
+              <el-table-column prop="claimedCount" label="已领取" width="100" align="center"></el-table-column>
+              <el-table-column prop="claimRate" label="领取率" width="90" align="center">
+                <template slot-scope="scope"><span style="color:#2e7d32;font-weight:600;">{{ scope.row.claimRate }}</span></template>
+              </el-table-column>
+              <el-table-column prop="period" label="活动期间" min-width="200"></el-table-column>
+              <el-table-column prop="status" label="状态" width="90" align="center">
+                <template slot-scope="scope"><el-tag :type="scope.row.status==='进行中'?'success':scope.row.status==='待发放'?'warning':'info'" size="small">{{ scope.row.status }}</el-tag></template>
+              </el-table-column>
+              <el-table-column label="操作" width="100" align="center" fixed="right">
+                <template slot-scope="scope"><el-button type="text" @click.stop="handleDetail(scope.row)">详情</el-button></template>
+              </el-table-column>
+            </el-table></div>
+            <div style="margin-top:16px;text-align:right;">
+              <el-pagination background layout="total,sizes,prev,pager,next,jumper" :total="32" :page-sizes="[10,20,50]" :page-size="10" :current-page="currentPage"></el-pagination>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+    <el-dialog title="福利活动详情" :visible.sync="detailVisible" width="780px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-descriptions :column="2" border size="medium">
+        <el-descriptions-item label="福利编号">{{ detailData.benefitNo }}</el-descriptions-item>
+        <el-descriptions-item label="福利名称">{{ detailData.benefitName }}</el-descriptions-item>
+        <el-descriptions-item label="福利类型">{{ detailData.benefitType }}</el-descriptions-item>
+        <el-descriptions-item label="预算标准">{{ detailData.budget }} 元/人</el-descriptions-item>
+        <el-descriptions-item label="覆盖人数">{{ detailData.eligibleCount }}</el-descriptions-item>
+        <el-descriptions-item label="已领取">{{ detailData.claimedCount }}</el-descriptions-item>
+        <el-descriptions-item label="领取率">{{ detailData.claimRate }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ detailData.status }}</el-descriptions-item>
+        <el-descriptions-item label="活动期间">{{ detailData.period }}</el-descriptions-item>
+        <el-descriptions-item label="负责人">{{ detailData.manager }}</el-descriptions-item>
+      </el-descriptions>
+      <el-divider content-position="left">福利商品清单</el-divider>
+      <div class="yj-container-card__table"><el-table :data="productList" border size="small" style="margin-top:8px;">
+        <el-table-column prop="productCode" label="商品编码" width="130"></el-table-column>
+        <el-table-column prop="productName" label="商品名称" min-width="180"></el-table-column>
+        <el-table-column prop="category" label="品类" width="100"></el-table-column>
+        <el-table-column prop="price" label="单价(元)" width="100" align="right"></el-table-column>
+        <el-table-column prop="stock" label="库存" width="80" align="center"></el-table-column>
+        <el-table-column prop="claimed" label="已选(份)" width="90" align="center"></el-table-column>
+        <el-table-column prop="supplier" label="供应商" min-width="140"></el-table-column>
+      </el-table></div>
+      <el-divider content-position="left">领取统计</el-divider>
+      <el-descriptions :column="2" border size="medium">
+        <el-descriptions-item label="领取方式">员工自选+平台配送</el-descriptions-item>
+        <el-descriptions-item label="配送范围">全国</el-descriptions-item>
+        <el-descriptions-item label="人均金额">{{ detailData.budget }} 元</el-descriptions-item>
+        <el-descriptions-item label="满意度评分">{{ detailData.satisfaction }}</el-descriptions-item>
+      </el-descriptions>
+      <div slot="footer"><el-button @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog title="帮助" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-present"></i>员工福利</div><div class="help-section__body"><p>员工福利场景利用电子商城平台为员工提供节日慰问、生日关怀、健康管理等福利商品的在线选购和配送服务，实现福利发放的个性化、透明化和便捷化。</p></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-collection"></i>福利类型</div><div class="help-section__body"><ul><li><b>节日福利</b>：春节、端午、中秋等节日慰问品</li><li><b>生日福利</b>：员工生日关怀礼包</li><li><b>健康福利</b>：体检套餐、健康食品等</li><li><b>高温补贴</b>：夏季防暑降温用品</li></ul></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-s-order"></i>领取流程</div><div class="help-section__body"><ol><li>福利活动发布，员工收到通知</li><li>员工登录商城选购福利商品</li><li>系统自动核销福利额度</li><li>供应商直配到员工指定地址</li><li>员工签收并评价</li></ol></div></div>
+      </div>
+      <div slot="footer"><el-button @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'90px',
+          isSearchPanelCollapsed:false,
+          currentPage:1,
+          queryForm:{benefitName:'',benefitType:'',status:''},
+          detailVisible:false,
+          helpVisible:false,
+          detailData:{},
+          productList:[
+              {productCode:'FL-001',productName:'有机杂粮礼盒',category:'食品',price:168,stock:5000,claimed:3200,supplier:'中粮集团'},
+              {productCode:'FL-002',productName:'精品坚果礼盒',category:'食品',price:198,stock:3000,claimed:2800,supplier:'三只松鼠'},
+              {productCode:'FL-003',productName:'智能体脂秤',category:'健康',price:259,stock:2000,claimed:1500,supplier:'华为生态'},
+              {productCode:'FL-004',productName:'防晒冰丝套装',category:'劳保',price:128,stock:8000,claimed:6800,supplier:'3M工业'},
+              {productCode:'FL-005',productName:'端午粽子礼盒',category:'食品',price:158,stock:6000,claimed:5900,supplier:'五芳斋'}
+          ],
+          tableData:[
+              {benefitNo:'FL-2026-001',benefitName:'2026年春节慰问礼包',benefitType:'节日福利',budget:500,eligibleCount:12560,claimedCount:11982,claimRate:'95.4%',period:'2026-01-20 ~ 2026-02-10',status:'已结束',manager:'人力资源部',satisfaction:'4.8/5'},
+              {benefitNo:'FL-2026-002',benefitName:'员工生日关怀礼包',benefitType:'生日福利',budget:200,eligibleCount:12560,claimedCount:11200,claimRate:'89.2%',period:'2026-01-01 ~ 2026-12-31',status:'进行中',manager:'人力资源部',satisfaction:'4.6/5'},
+              {benefitNo:'FL-2026-003',benefitName:'端午节慰问品',benefitType:'节日福利',budget:300,eligibleCount:12560,claimedCount:12100,claimRate:'96.3%',period:'2026-05-25 ~ 2026-06-05',status:'已结束',manager:'工会',satisfaction:'4.9/5'},
+              {benefitNo:'FL-2026-004',benefitName:'夏季高温防暑包',benefitType:'高温补贴',budget:150,eligibleCount:8500,claimedCount:7850,claimRate:'92.4%',period:'2026-06-15 ~ 2026-09-15',status:'进行中',manager:'安全监察部',satisfaction:'4.5/5'},
+              {benefitNo:'FL-2026-005',benefitName:'员工健康体检套餐',benefitType:'健康福利',budget:800,eligibleCount:12560,claimedCount:10200,claimRate:'81.2%',period:'2026-03-01 ~ 2026-12-31',status:'进行中',manager:'人力资源部',satisfaction:'4.7/5'},
+              {benefitNo:'FL-2026-006',benefitName:'中秋节慰问礼盒',benefitType:'节日福利',budget:400,eligibleCount:12560,claimedCount:0,claimRate:'0%',period:'2026-09-10 ~ 2026-09-20',status:'待发放',manager:'工会',satisfaction:'-'},
+              {benefitNo:'FL-2026-007',benefitName:'女员工三八节礼包',benefitType:'节日福利',budget:200,eligibleCount:4200,claimedCount:3980,claimRate:'94.8%',period:'2026-03-01 ~ 2026-03-08',status:'已结束',manager:'工会',satisfaction:'4.9/5'},
+              {benefitNo:'FL-2026-008',benefitName:'新员工入职礼包',benefitType:'节日福利',budget:300,eligibleCount:320,claimedCount:305,claimRate:'95.3%',period:'2026-07-01 ~ 2026-07-31',status:'进行中',manager:'人力资源部',satisfaction:'4.7/5'},
+              {benefitNo:'FL-2026-009',benefitName:'安全生产月慰问',benefitType:'节日福利',budget:100,eligibleCount:12560,claimedCount:10800,claimRate:'86.0%',period:'2026-06-01 ~ 2026-06-30',status:'已结束',manager:'安全监察部',satisfaction:'4.4/5'},
+              {benefitNo:'FL-2026-010',benefitName:'员工运动装备补贴',benefitType:'健康福利',budget:300,eligibleCount:12560,claimedCount:8200,claimRate:'65.3%',period:'2026-04-01 ~ 2026-10-31',status:'进行中',manager:'工会',satisfaction:'4.6/5'}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){return '名称：'+(this.queryForm.benefitName||'全部')+' | 类型：'+(this.queryForm.benefitType||'全部')+' | 状态：'+(this.queryForm.status||'全部');}
+      },
+      methods:{
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        benefitTag(type){const m={'节日福利':'success','生日福利':'warning','健康福利':'danger','高温补贴':'info'};return m[type]||'info';},
+        handleQuery(){this.$message.success('查询完成');},
+        handleReset(){this.queryForm={benefitName:'',benefitType:'',status:''};},
+        handleRowClick(row){this.handleDetail(row);},
+        handleDetail(row){this.detailData=Object.assign({},row);this.detailVisible=true;},
+        handlePublish(){this.$message.info('发布福利功能开发中');},
+        handleExport(){this.$message.success('报告导出中...');}
+      }
+    });
+  </script>
+</body>
+</html>

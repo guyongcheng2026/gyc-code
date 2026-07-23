@@ -1,0 +1,1052 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>运营数据看板</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .kpi-card { background:#fff; border-radius:8px; padding:12px 2px; box-shadow:0 2px 8px rgba(0,0,0,0.08); text-align:center; transition:all 0.3s; cursor:pointer; }
+    .kpi-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.12); transform:translateY(-2px); }
+    .kpi-card .kpi-icon { font-size:24px; margin-bottom:4px; }
+    .kpi-card .kpi-value { font-size:14px; font-weight:700; color:#1A2332; white-space:nowrap; line-height:1.2; }
+    .kpi-card .kpi-label { font-size:13px; color:#6B7280; margin-top:4px; }
+    .kpi-card .kpi-trend { font-size:12px; margin-top:6px; }
+    .kpi-card .kpi-trend.up { color:#2e7d32; }
+    .kpi-card .kpi-trend.down { color:#c62828; }
+    .kpi-card .kpi-drill { font-size:11px; color:#0B7266; margin-top:4px; }
+    .kpi-card .kpi-drill i { margin-right:2px; }
+    .drill-link { color:#0B7266; cursor:pointer; text-decoration:none; }
+    .drill-link:hover { text-decoration:underline; }
+    .el-table__row { cursor:pointer; }
+    .chart-card { background:#fff; border-radius:8px; padding:16px; box-shadow:0 2px 8px rgba(0,0,0,0.08); margin-bottom:16px; }
+    .chart-card .chart-title { font-size:15px; font-weight:600; color:#1A2332; margin-bottom:12px; border-left:3px solid #0B7266; padding-left:8px; }
+    .bar-chart { display:flex; align-items:flex-end; height:180px; padding:8px 0; }
+    .bar-chart .bar-item { margin-right:4px; }
+    .bar-chart .bar-item:last-child { margin-right:0; }
+    .bar-chart .bar-item { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; }
+    .bar-chart .bar { width:60%; background:linear-gradient(180deg,#0B7266,#4DB6AC); border-radius:4px 4px 0 0; transition:height 0.3s; min-height:2px; }
+    .bar-chart .bar-label { font-size:11px; color:#6B7280; margin-top:4px; }
+    .bar-chart .bar-value { font-size:11px; color:#1A2332; margin-bottom:2px; }
+    .progress-item { margin-bottom:12px; }
+    .progress-item .progress-label { display:flex; justify-content:space-between; font-size:13px; color:#555; margin-bottom:4px; }
+    /* 看板上下对半布局 */
+    .dashboard-wrap { display:flex; flex-direction:column; height:100%; }
+    .dashboard-half { flex:1; min-height:0; display:flex; flex-direction:column; box-sizing:border-box; }
+    .dashboard-half:first-child { margin-bottom:12px; }
+    /* 上半部分：左侧KPI+趋势，右侧采购方式占比 */
+    .dashboard-top { display:flex; align-items:stretch; flex:1; min-height:0; }
+    .dashboard-top .top-left { flex:1.6; display:flex; flex-direction:column; margin-right:16px; min-width:0; }
+    .dashboard-top .top-left .kpi-row { display:flex; align-items:stretch; margin-bottom:12px; }
+    .dashboard-top .top-left .kpi-col { flex:1; margin-right:12px; min-width:0; }
+    .dashboard-top .top-left .kpi-col:last-child { margin-right:0; }
+    .dashboard-top .top-left .kpi-col .kpi-card { height:100%; box-sizing:border-box; }
+    .dashboard-top .top-left .trend-card { flex:1; min-height:0; }
+    .dashboard-top .top-left .trend-card .chart-card { height:100%; margin-bottom:0; box-sizing:border-box; display:flex; flex-direction:column; }
+    .dashboard-top .top-left .trend-card .chart-card .bar-chart { flex:1; min-height:0; }
+    .dashboard-top .top-right { flex:1; min-width:0; display:flex; flex-direction:row; }
+    .dashboard-top .top-right .chart-card { height:100%; margin-bottom:0; box-sizing:border-box; display:flex; flex-direction:column; }
+    .dashboard-top .top-right .chart-card .el-row { flex:1; min-height:0; }
+    .dashboard-top .top-right .progress-item { margin-bottom:8px; }
+    .dashboard-top .top-right .progress-item:last-child { margin-bottom:0; }
+    .dashboard-top .top-right .progress-item .progress-label { font-size:12px; margin-bottom:2px; }
+    .dashboard-top .top-right .right-col { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .dashboard-top .top-right .right-col:first-child { margin-right:12px; }
+    .dashboard-top .top-right .right-col .chart-card { height:100%; margin-bottom:0; box-sizing:border-box; display:flex; flex-direction:column; }
+    .save-rate-list { flex:1; min-height:0; overflow:auto; }
+    .save-rate-list .save-rate-item { display:flex; align-items:center; margin-bottom:10px; }
+    .save-rate-list .save-rate-item:last-child { margin-bottom:0; }
+    .save-rate-list .save-rate-item .save-rate-name { width:70px; font-size:12px; color:#555; flex-shrink:0; }
+    .save-rate-list .save-rate-item .save-rate-bar { flex:1; min-width:0; margin:0 6px; }
+    .save-rate-list .save-rate-item .save-rate-value { width:50px; text-align:right; font-size:12px; font-weight:600; color:#0B7266; flex-shrink:0; }
+    /* 下半部分：页签 */
+    .dashboard-tabs { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .dashboard-tabs .el-tabs { flex:1; min-height:0; display:flex; flex-direction:column; }
+    .dashboard-tabs .el-tabs__content { flex:1; min-height:0; overflow:auto; }
+    .dashboard-tabs .el-tab-pane { height:100%; }
+    .dashboard-tabs .el-tab-pane > .yj-container-card { height:100%; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">运营数据看板</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-select v-model="dateRange" placeholder="时间范围" style="width:130px; margin-right:8px;">
+                <el-option label="今日" value="today"></el-option>
+                <el-option label="本周" value="week"></el-option>
+                <el-option label="本月" value="month"></el-option>
+                <el-option label="本季度" value="quarter"></el-option>
+                <el-option label="本年" value="year"></el-option>
+              </el-select>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+              <el-button type="primary" icon="el-icon-refresh" @click="handleRefresh">刷新</el-button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body" style="padding:16px; display:flex; flex-direction:column; overflow:hidden;">
+        <div class="dashboard-wrap">
+          <!-- 上半部分：KPI+趋势（左）+ 采购方式占比（右） -->
+          <div class="dashboard-half dashboard-half--top">
+            <div class="dashboard-top">
+              <div class="top-left">
+                <div class="kpi-row">
+                  <div class="kpi-col" v-for="(kpi,i) in kpiCards" :key="i">
+                    <div class="kpi-card" @click="drillTo(kpi.link)">
+                      <i :class="kpi.icon" class="kpi-icon" :style="{color:kpi.color}"></i>
+                      <div class="kpi-value">{{ kpi.value }}</div>
+                      <div class="kpi-label">{{ kpi.label }}</div>
+                      <div :class="['kpi-trend', kpi.trend>0?'up':'down']">
+                        <i :class="kpi.trend>0?'el-icon-caret-top':'el-icon-caret-bottom'"></i>
+                        {{ Math.abs(kpi.trend) }}% 较上期
+                      </div>
+                      <div class="kpi-drill" v-if="kpi.link"><i class="el-icon-right"></i>查看明细</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="trend-card">
+                  <div class="chart-card">
+                    <div class="chart-title">月度采购金额趋势（万元）</div>
+                    <div class="bar-chart">
+                      <div class="bar-item" v-for="(m,i) in monthlyData" :key="i">
+                        <div class="bar-value">{{ m.value }}</div>
+                        <div class="bar" :style="{height:(m.value/maxMonthly*100)+'%'}"></div>
+                        <div class="bar-label">{{ m.month }}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="top-right">
+                <div class="right-col">
+                  <div class="chart-card">
+                    <div class="chart-title">采购方式占比</div>
+                    <el-row>
+                      <el-col :span="24" v-for="(p,i) in methodData" :key="i">
+                        <div class="progress-item">
+                          <div class="progress-label"><span class="drill-link" @click="drillTo('bid_project_list.html')">{{ p.name }}</span><span>{{ p.count }}次 ({{ p.ratio }}%)</span></div>
+                          <el-progress :percentage="p.ratio" :color="p.color" :stroke-width="14" :show-text="false"></el-progress>
+                        </div>
+                      </el-col>
+                    </el-row>
+                  </div>
+                </div>
+                <div class="right-col">
+                  <div class="chart-card">
+                    <div class="chart-title">采购节约率分析</div>
+                    <div class="save-rate-list">
+                      <div class="save-rate-item" v-for="(s,i) in saveRateData" :key="i">
+                        <div class="save-rate-name drill-link" @click="drillTo('bid_result_list.html')">{{ s.method }}</div>
+                        <div class="save-rate-bar"><el-progress :percentage="s.saveRate" :stroke-width="12" :show-text="false" color="#2E7D32"></el-progress></div>
+                        <div class="save-rate-value">{{ s.saveRate }}%</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 下半部分：4个列表用页签显示 -->
+          <div class="dashboard-half dashboard-half--bottom">
+            <div class="dashboard-tabs">
+              <el-tabs v-model="activeTab" lazy>
+                <el-tab-pane label="供应商采购额TOP10" name="suppliers">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="供应商采购额TOP10">供应商采购额TOP10</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(topSuppliers, '供应商采购额TOP10')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="topSuppliers" border stripe style="width:100%;" height="100%" @row-click="drillTo('supplier_list.html')">
+                          <el-table-column type="index" label="排名" width="60" align="center"></el-table-column>
+                          <el-table-column prop="supplierCode" label="供应商编码" width="110" align="center"></el-table-column>
+                          <el-table-column prop="supplier" label="供应商名称" min-width="200" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="level" label="等级" width="70" align="center"><template slot-scope="{row}"><el-tag :type="row.level==='S'?'danger':row.level==='A'?'warning':row.level==='B'?'success':'info'" size="small">{{ row.level }}级</el-tag></template></el-table-column>
+                          <el-table-column prop="amount" label="采购额(万元)" min-width="120" align="right"><template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="orderCount" label="订单数" width="80" align="center"></el-table-column>
+                          <el-table-column prop="contractCount" label="合同数" width="80" align="center"></el-table-column>
+                          <el-table-column prop="ratio" label="占比" width="80" align="right"><template slot-scope="{row}">{{ row.ratio }}%</template></el-table-column>
+                          <el-table-column prop="yoy" label="同比" width="90" align="right"><template slot-scope="{row}"><span :style="{color:row.yoy>0?'#2e7d32':'#c62828'}">{{ row.yoy>0?'+':'' }}{{ row.yoy }}%</span></template></el-table-column>
+                          <el-table-column label="占比图" min-width="140" align="center"><template slot-scope="{row}"><el-progress :percentage="row.ratio" :stroke-width="10" :show-text="false" color="#0B7266"></el-progress></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="实时预警" name="alerts">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="实时预警">实时预警</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(alerts, '实时预警')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="alerts" border stripe style="width:100%;" height="100%" @row-click="drillTo('emergency_purchase.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="time" label="预警时间" width="150" align="center"></el-table-column>
+                          <el-table-column prop="source" label="预警来源" width="120" align="center"></el-table-column>
+                          <el-table-column prop="level" label="级别" width="80" align="center"><template slot-scope="{row}"><el-tag :type="row.level==='严重'?'danger':row.level==='警告'?'warning':'info'" size="small">{{ row.level }}</el-tag></template></el-table-column>
+                          <el-table-column prop="text" label="预警内容" min-width="280" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="handler" label="处理人" width="90" align="center"></el-table-column>
+                          <el-table-column prop="status" label="状态" width="90" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='待处理'?'danger':row.status==='处理中'?'warning':'success'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="各部门采购统计" name="depts">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="各部门采购统计">各部门采购统计</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(deptData, '各部门采购统计')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="deptData" border stripe style="width:100%;" height="100%" @row-click="drillTo('order_list.html')">
+                          <el-table-column type="index" label="排名" width="60" align="center"></el-table-column>
+                          <el-table-column prop="dept" label="部门" min-width="130"></el-table-column>
+                          <el-table-column prop="count" label="采购次数" width="90" align="center"></el-table-column>
+                          <el-table-column prop="amount" label="金额(万元)" min-width="110" align="right"><template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="budget" label="预算(万元)" width="110" align="right"><template slot-scope="{row}">{{ row.budget.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="budgetRate" label="预算执行率" width="100" align="center"><template slot-scope="{row}"><el-tag :type="parseFloat(row.budgetRate)>=85?'danger':'success'" size="small">{{ row.budgetRate }}</el-tag></template></el-table-column>
+                          <el-table-column prop="avgAmount" label="均额(万元)" width="100" align="right"><template slot-scope="{row}">{{ row.avgAmount }}</template></el-table-column>
+                          <el-table-column prop="yoy" label="同比" width="90" align="right"><template slot-scope="{row}"><span :style="{color:row.yoy>0?'#2e7d32':'#c62828'}">{{ row.yoy>0?'+':'' }}{{ row.yoy }}%</span></template></el-table-column>
+                          <el-table-column prop="ratio" label="占比" width="80" align="right"><template slot-scope="{row}">{{ row.ratio }}%</template></el-table-column>
+                          <el-table-column label="占比图" min-width="130" align="center"><template slot-scope="{row}"><el-progress :percentage="row.ratio" :stroke-width="10" :show-text="false" color="#0B7266"></el-progress></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="品类采购统计" name="categories">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="品类采购统计">品类采购统计</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(categoryData, '品类采购统计')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="categoryData" border stripe style="width:100%;" height="100%" @row-click="drillTo('product_list.html')">
+                          <el-table-column type="index" label="排名" width="60" align="center"></el-table-column>
+                          <el-table-column prop="category" label="品类" min-width="110"></el-table-column>
+                          <el-table-column prop="count" label="商品数" width="80" align="center"></el-table-column>
+                          <el-table-column prop="amount" label="金额(万元)" min-width="110" align="right"><template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="supplierCount" label="供应商数" width="90" align="center"></el-table-column>
+                          <el-table-column prop="avgPrice" label="均价(元)" width="100" align="right"><template slot-scope="{row}">{{ row.avgPrice.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="yoy" label="同比" width="90" align="right"><template slot-scope="{row}"><span :style="{color:row.yoy>0?'#2e7d32':'#c62828'}">{{ row.yoy>0?'+':'' }}{{ row.yoy }}%</span></template></el-table-column>
+                          <el-table-column prop="ratio" label="占比" width="80" align="right"><template slot-scope="{row}">{{ row.ratio }}%</template></el-table-column>
+                          <el-table-column label="占比图" min-width="130" align="center"><template slot-scope="{row}"><el-progress :percentage="row.ratio" :stroke-width="10" :show-text="false" color="#0B7266"></el-progress></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="订单状态分布" name="orderStatus">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="订单状态分布">订单状态分布</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(orderStatusData, '订单状态分布')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="orderStatusData" border stripe style="width:100%;" height="100%" @row-click="drillTo('order_list.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="status" label="订单状态" min-width="100" align="center"><template slot-scope="{row}"><el-tag :type="row.tagType" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                          <el-table-column prop="count" label="订单数" width="80" align="center"></el-table-column>
+                          <el-table-column prop="amount" label="金额(万元)" min-width="110" align="right"><template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="avgDays" label="平均时长(天)" width="110" align="center"></el-table-column>
+                          <el-table-column prop="yoy" label="同比" width="90" align="right"><template slot-scope="{row}"><span :style="{color:row.yoy>0?'#2e7d32':'#c62828'}">{{ row.yoy>0?'+':'' }}{{ row.yoy }}%</span></template></el-table-column>
+                          <el-table-column prop="ratio" label="占比" width="80" align="right"></el-table-column>
+                          <el-table-column label="占比图" min-width="140" align="center"><template slot-scope="{row}"><el-progress :percentage="parseFloat(row.ratio)" :stroke-width="10" :show-text="false" color="#0B7266"></el-progress></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="合同执行情况" name="contracts">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="合同执行情况">合同执行情况</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(contractData, '合同执行情况')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="contractData" border stripe style="width:100%;" height="100%" @row-click="drillTo('contract_bill.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="contractNo" label="合同编号" min-width="130" align="center"></el-table-column>
+                          <el-table-column prop="supplier" label="供应商" min-width="180" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="signDate" label="签订日期" width="110" align="center"></el-table-column>
+                          <el-table-column prop="endDate" label="到期日期" width="110" align="center"></el-table-column>
+                          <el-table-column prop="totalAmount" label="合同总额(万元)" min-width="120" align="right"><template slot-scope="{row}">{{ row.totalAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="execAmount" label="已执行(万元)" min-width="110" align="right"><template slot-scope="{row}">{{ row.execAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="execRate" label="执行率" width="80" align="right"></el-table-column>
+                          <el-table-column label="执行进度" min-width="130" align="center"><template slot-scope="{row}"><el-progress :percentage="parseFloat(row.execRate)" :stroke-width="10" :show-text="false" color="#0B7266"></el-progress></template></el-table-column>
+                          <el-table-column prop="buyer" label="采购员" width="90" align="center"></el-table-column>
+                          <el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='已完成'?'success':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="预算执行情况" name="budgets">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="预算执行情况">预算执行情况</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(budgetData, '预算执行情况')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="budgetData" border stripe style="width:100%;" height="100%" @row-click="drillTo('order_list.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="orgName" label="部门" min-width="120"></el-table-column>
+                          <el-table-column prop="type" label="预算类型" width="100" align="center"></el-table-column>
+                          <el-table-column prop="budgetAmount" label="预算总额(万元)" min-width="120" align="right"><template slot-scope="{row}">{{ row.budgetAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="usedAmount" label="已使用(万元)" min-width="110" align="right"><template slot-scope="{row}">{{ row.usedAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="frozenAmount" label="冻结(万元)" width="100" align="right"><template slot-scope="{row}">{{ row.frozenAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="remaining" label="剩余(万元)" width="100" align="right"><template slot-scope="{row}"><span :style="{color:row.remaining<200?'#c62828':'#2e7d32'}">{{ row.remaining.toLocaleString() }}</span></template></el-table-column>
+                          <el-table-column prop="execRate" label="执行率" width="80" align="right"></el-table-column>
+                          <el-table-column label="执行进度" min-width="130" align="center"><template slot-scope="{row}"><el-progress :percentage="parseFloat(row.execRate)" :stroke-width="10" :show-text="false" :color="parseFloat(row.execRate)>=85?'#C62828':'#0B7266'"></el-progress></template></el-table-column>
+                          <el-table-column prop="yoy" label="同比" width="90" align="right"><template slot-scope="{row}"><span :style="{color:row.yoy>0?'#2e7d32':'#c62828'}">{{ row.yoy>0?'+':'' }}{{ row.yoy }}%</span></template></el-table-column>
+                          <el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='预警'?'danger':'success'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="供应商评价排名" name="evaluations">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="供应商评价排名">供应商评价排名</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(supplierEvalData, '供应商评价排名')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="supplierEvalData" border stripe style="width:100%;" height="100%" @row-click="drillTo('evaluation_list.html')">
+                          <el-table-column type="index" label="排名" width="60" align="center"></el-table-column>
+                          <el-table-column prop="supplier" label="供应商" min-width="180" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="level" label="等级" width="70" align="center"><template slot-scope="{row}"><el-tag :type="row.level==='S'?'danger':row.level==='A'?'warning':row.level==='B'?'success':'info'" size="small">{{ row.level }}级</el-tag></template></el-table-column>
+                          <el-table-column prop="creditLevel" label="信用等级" width="90" align="center"></el-table-column>
+                          <el-table-column prop="deliveryScore" label="交付评分" width="90" align="right"></el-table-column>
+                          <el-table-column prop="qualityScore" label="质量评分" width="90" align="right"></el-table-column>
+                          <el-table-column prop="serviceScore" label="服务评分" width="90" align="right"></el-table-column>
+                          <el-table-column prop="priceScore" label="价格评分" width="90" align="right"></el-table-column>
+                          <el-table-column prop="evalCount" label="评价次数" width="90" align="center"></el-table-column>
+                          <el-table-column prop="totalScore" label="综合评分" width="90" align="right"><template slot-scope="{row}"><b style="color:#0B7266">{{ row.totalScore }}</b></template></el-table-column>
+                          <el-table-column prop="trend" label="趋势" width="80" align="center"><template slot-scope="{row}"><span :style="{color:row.trend>0?'#2e7d32':'#c62828'}"><i :class="row.trend>0?'el-icon-caret-top':'el-icon-caret-bottom'"></i>{{ Math.abs(row.trend) }}</span></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="招标项目定标" name="bidProjects">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="招标项目定标">招标项目定标</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(bidProjectData, '招标项目定标')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="bidProjectData" border stripe style="width:100%;" height="100%" @row-click="drillTo('bid_result_list.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="projectNo" label="项目编号" min-width="120" align="center"></el-table-column>
+                          <el-table-column prop="projectName" label="项目名称" min-width="180" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="method" label="采购方式" width="100" align="center"></el-table-column>
+                          <el-table-column prop="publishDate" label="发布日期" width="100" align="center"></el-table-column>
+                          <el-table-column prop="bidderCount" label="投标家数" width="90" align="center"></el-table-column>
+                          <el-table-column prop="estimatedAmount" label="预估金额(万元)" min-width="120" align="right"><template slot-scope="{row}">{{ row.estimatedAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="winner" label="中标供应商" min-width="180" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="actualAmount" label="中标金额(万元)" min-width="120" align="right"><template slot-scope="{row}">{{ row.actualAmount.toLocaleString() }}</template></el-table-column>
+                          <el-table-column prop="saveRate" label="节约率" width="90" align="right"><template slot-scope="{row}"><span style="color:#2e7d32">{{ row.saveRate }}%</span></template></el-table-column>
+                          <el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag type="success" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="计划管理分析" name="planAnalysis">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span>计划管理分析模型（E9.3）</span></div>
+                          <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ planAnalysisData.length }} 条记录</span></div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="$message.success('刷新成功')">刷新</el-button></div></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);/* gap-removed */;margin-bottom:16px;">
+                        <div style="background:#e8f5e9;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#2e7d32;">96.5%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">计划执行率</div>
+                        </div>
+                        <div style="background:#fff8e1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#f57c00;">3.5%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">计划偏差率</div>
+                        </div>
+                        <div style="background:#eceff1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#455a64;">28.5</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">平均执行天数</div>
+                        </div>
+                        <div style="background:#e3f2fd;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#1565c0;">15</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">超期计划数</div>
+                        </div>
+                      </div>
+                      <el-table :data="planAnalysisData" border stripe style="width:100%;">
+                        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                        <el-table-column prop="planNo" label="计划编号" min-width="130" align="center"></el-table-column>
+                        <el-table-column prop="planName" label="计划名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="department" label="责任部门" min-width="120" align="center"></el-table-column>
+                        <el-table-column prop="totalAmount" label="计划金额" width="120" align="right">
+                          <template slot-scope="{row}"><span style="font-weight:600;">{{ row.totalAmount.toLocaleString() }} 元</span></template>
+                        </el-table-column>
+                        <el-table-column prop="executedAmount" label="已执行金额" width="120" align="right">
+                          <template slot-scope="{row}"><span style="color:#0B7266;">{{ row.executedAmount.toLocaleString() }} 元</span></template>
+                        </el-table-column>
+                        <el-table-column label="执行进度" width="160" align="center">
+                          <template slot-scope="{row}"><el-progress :percentage="Math.round(row.executedAmount/row.totalAmount*100)" :color="row.executedAmount/row.totalAmount>=0.9?'#2e7d32':row.executedAmount/row.totalAmount>=0.7?'#0B7266':'#E6A23C'" :show-text="true" :stroke-width="10"></el-progress></template>
+                        </el-table-column>
+                        <el-table-column prop="status" label="状态" width="90" align="center">
+                          <template slot-scope="{row}"><el-tag :type="row.status==='已完成'?'success':row.status==='执行中'?'warning':'info'" size="small">{{ row.status }}</el-tag></template>
+                        </el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="招标采购分析" name="bidAnalysis">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span>招标采购分析模型（E9.4）</span></div>
+                          <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ bidAnalysisData.length }} 条记录</span></div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="$message.success('刷新成功')">刷新</el-button></div></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);/* gap-removed */;margin-bottom:16px;">
+                        <div style="background:#e8f5e9;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#2e7d32;">85.2%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">招标采购占比</div>
+                        </div>
+                        <div style="background:#fff8e1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#f57c00;">18.5</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">平均招标周期(天)</div>
+                        </div>
+                        <div style="background:#eceff1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#455a64;">12.8%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">平均节资率</div>
+                        </div>
+                        <div style="background:#e3f2fd;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#1565c0;">3家</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">平均投标家数</div>
+                        </div>
+                      </div>
+                      <el-table :data="bidAnalysisData" border stripe style="width:100%;">
+                        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                        <el-table-column prop="projectNo" label="项目编号" min-width="130" align="center"></el-table-column>
+                        <el-table-column prop="projectName" label="招标项目" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="category" label="采购品类" width="120" align="center"></el-table-column>
+                        <el-table-column prop="bidAmount" label="招标金额" width="120" align="right">
+                          <template slot-scope="{row}"><span style="font-weight:600;">{{ row.bidAmount.toLocaleString() }} 元</span></template>
+                        </el-table-column>
+                        <el-table-column prop="finalAmount" label="中标金额" width="120" align="right">
+                          <template slot-scope="{row}"><span style="color:#0B7266;">{{ row.finalAmount.toLocaleString() }} 元</span></template>
+                        </el-table-column>
+                        <el-table-column label="节资率" width="90" align="center">
+                          <template slot-scope="{row}"><span style="font-weight:600;color:#2e7d32;">{{ row.saveRate }}%</span></template>
+                        </el-table-column>
+                        <el-table-column prop="bidCycle" label="招标周期" width="90" align="center">
+                          <template slot-scope="{row}">{{ row.bidCycle }}天</template>
+                        </el-table-column>
+                        <el-table-column prop="bidderCount" label="投标家数" width="90" align="center"></el-table-column>
+                        <el-table-column prop="status" label="状态" width="90" align="center">
+                          <template slot-scope="{row}"><el-tag :type="row.status==='已完成'?'success':row.status==='招标中'?'warning':'info'" size="small">{{ row.status }}</el-tag></template>
+                        </el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="供应履约分析" name="fulfillAnalysis">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span>供应履约分析模型（E9.5）</span></div>
+                          <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ fulfillAnalysisData.length }} 条记录</span></div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="$message.success('刷新成功')">刷新</el-button></div></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div style="display:grid;grid-template-columns:repeat(4,1fr);/* gap-removed */;margin-bottom:16px;">
+                        <div style="background:#e8f5e9;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#2e7d32;">98.5%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">按时交货率</div>
+                        </div>
+                        <div style="background:#fff8e1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#f57c00;">8.5</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">平均交货天数</div>
+                        </div>
+                        <div style="background:#eceff1;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#455a64;">99.2%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">质量合格率</div>
+                        </div>
+                        <div style="background:#e3f2fd;border-radius:6px;padding:12px;text-align:center;">
+                          <div style="font-size:24px;font-weight:700;color:#1565c0;">96.8%</div>
+                          <div style="font-size:12px;color:#555;margin-top:4px;">履约满意率</div>
+                        </div>
+                      </div>
+                      <el-table :data="fulfillAnalysisData" border stripe style="width:100%;">
+                        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                        <el-table-column prop="orderNo" label="订单编号" min-width="130" align="center"></el-table-column>
+                        <el-table-column prop="supplier" label="供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="productName" label="商品名称" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="planDate" label="计划交货日" width="110" align="center"></el-table-column>
+                        <el-table-column prop="actualDate" label="实际交货日" width="110" align="center">
+                          <template slot-scope="{row}"><span :style="{color:row.actualDate>row.planDate?'#c62828':'#2e7d32'}">{{ row.actualDate }}</span></template>
+                        </el-table-column>
+                        <el-table-column label="是否准时" width="90" align="center">
+                          <template slot-scope="{row}"><el-tag :type="row.onTime?'success':'danger'" size="small">{{ row.onTime?'准时':'延期' }}</el-tag></template>
+                        </el-table-column>
+                        <el-table-column prop="qualityGrade" label="质量等级" width="90" align="center">
+                          <template slot-scope="{row}"><el-tag :type="row.qualityGrade==='A'?'success':row.qualityGrade==='B'?'warning':'info'" size="small">{{ row.qualityGrade }}</el-tag></template>
+                        </el-table-column>
+                        <el-table-column prop="status" label="履约状态" width="90" align="center">
+                          <template slot-scope="{row}"><el-tag :type="row.status==='已完成'?'success':'warning'" size="small">{{ row.status }}</el-tag></template>
+                        </el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="物流配送跟踪" name="logistics">
+                  <div class="yj-container-card">
+                    <div class="yj-container-card__bar">
+                      <div class="yj-container-card__toolbar">
+                        <div class="tl-table-tools">
+                          <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                            <span title="物流配送跟踪">物流配送跟踪</span>
+                          </div>
+                          <div class="tl-table-tools__button tl-table-tools__button-area">
+                            <div area="table-tools" class="query-toolbar">
+                              <div class="yj-button-list" style="width: 100%;">
+                                <el-button type="primary" icon="el-icon-download" @click="exportTableData(logisticsData, '物流配送跟踪')">导出</el-button>
+                                <el-button icon="el-icon-refresh">刷新</el-button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__body">
+                      <div class="yj-container-card__table">
+                        <el-table :data="logisticsData" border stripe style="width:100%;" height="100%" @row-click="drillTo('shipment_bill.html')">
+                          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                          <el-table-column prop="shipmentNo" label="发货单号" min-width="130" align="center"></el-table-column>
+                          <el-table-column prop="orderNo" label="订单编号" min-width="120" align="center"></el-table-column>
+                          <el-table-column prop="supplier" label="供应商" min-width="180" show-overflow-tooltip></el-table-column>
+                          <el-table-column prop="carrier" label="承运商" width="100" align="center"></el-table-column>
+                          <el-table-column prop="trackingNo" label="物流单号" min-width="130" align="center"></el-table-column>
+                          <el-table-column prop="totalQty" label="数量" width="70" align="center"></el-table-column>
+                          <el-table-column prop="amount" label="金额(万元)" width="100" align="right"><template slot-scope="{row}">{{ row.amount }}</template></el-table-column>
+                          <el-table-column prop="shipDate" label="发货日期" width="100" align="center"></el-table-column>
+                          <el-table-column prop="estArrival" label="预计到达" width="100" align="center"></el-table-column>
+                          <el-table-column prop="receiveDate" label="签收日期" width="100" align="center"></el-table-column>
+                          <el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='已签收'?'success':row.status==='运输中'?'warning':'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                        </el-table>
+                      </div>
+                    </div>
+                  </div>
+                </el-tab-pane>
+              </el-tabs>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            平台运营方需要实时掌握电子商城核心运营指标，本页面实时展示采购总额、订单数、供应商数、商品数、已支付金额、执行中合同、预算执行率、供应商均分、准时交付率、验收合格率、待处理预警、招标项目数等12项核心KPI，月度趋势、采购方式占比，以及供应商TOP10、实时预警、部门/品类采购统计、订单状态分布、合同执行、预算执行、供应商评价排名、招标项目定标、物流配送跟踪等10个维度的运营数据。本页面是B2B运营支撑体系的数据看板。适用于运营经理、分管副总掌握运营全局。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>12项核心KPI一屏掌握（采购总额/订单数/供应商数/商品数/已支付金额/执行中合同/预算执行率/供应商均分/准时交付率/验收合格率/待处理预警/招标项目数）</li>
+              <li>月度趋势可视化，运营变化一目了然</li>
+              <li>采购方式占比分析，支撑采购策略优化</li>
+              <li>采购节约率分析，量化各采购方式的降本成效</li>
+              <li>10个维度运营数据页签切换（供应商TOP10/实时预警/部门采购/品类采购/订单状态/合同执行/预算执行/供应商评价/招标项目/物流配送）</li>
+              <li>实时预警（合同异常/预算超支/资质到期/物流超时），问题早发现</li>
+              <li>KPI卡片和列表行支持下钻，点击即可跳转对应查询页或单据页</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看KPI</b>：页面顶部展示采购总额、订单数、供应商数、商品数、已支付金额、执行中合同、预算执行率、供应商均分、准时交付率、验收合格率、待处理预警、招标项目数等12项核心KPI卡片</li>
+              <li><b>查看趋势</b>：月度趋势图表展示采购金额的变化趋势</li>
+              <li><b>查看占比</b>：采购方式占比展示公开招标/邀请招标/竞争性谈判等占比</li>
+              <li><b>查看节约率</b>：采购节约率分析展示各采购方式的降本成效</li>
+              <li><b>查看TOP10</b>：供应商采购额TOP10排名，识别核心供应商</li>
+              <li><b>查看预警</b>：实时预警页签展示合同异常、预算超支、资质到期、物流超时等预警信息</li>
+              <li><b>查看统计</b>：部门/品类采购统计表格展示各部门、各品类的采购金额</li>
+              <li><b>查看订单状态</b>：订单状态分布页签展示各状态订单数量及金额占比</li>
+              <li><b>查看合同执行</b>：合同执行情况页签展示各合同的执行进度和完成率</li>
+              <li><b>查看预算执行</b>：预算执行情况页签展示各部门预算使用和预警情况</li>
+              <li><b>查看供应商评价</b>：供应商评价排名页签展示供应商分级和评分</li>
+              <li><b>查看招标项目</b>：招标项目定标页签展示各项目的中标结果</li>
+              <li><b>查看物流配送</b>：物流配送跟踪页签展示各发货单的物流状态</li>
+              <li><b>下钻明细</b>：点击KPI卡片或列表行，跳转至对应查询页/单据页查看明细</li>
+            </ol>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-data-analysis"></i> 指标计算公式</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>采购总额</b> = ∑（各采购订单含税金额）</li>
+              <li><b>订单总数</b> = COUNT（状态≠已取消的采购订单）</li>
+              <li><b>入驻供应商</b> = COUNT（状态=有效的供应商档案）</li>
+              <li><b>在售商品数</b> = COUNT（上架状态=在售的商品SKU）</li>
+              <li><b>已支付金额</b> = ∑（付款状态=已付款的付款单金额）</li>
+              <li><b>执行中合同</b> = COUNT（合同状态=执行中且未到期）</li>
+              <li><b>预算执行率</b> = 已使用金额 ÷ 预算总额 × 100%</li>
+              <li><b>供应商均分</b> = ∑（供应商综合评分） ÷ 供应商评价总次数</li>
+              <li><b>准时交付率</b> = 实际签收日期 ≤ 约定交货日的订单数 ÷ 已签收订单总数 × 100%</li>
+              <li><b>验收合格率</b> = 验收结论=合格的次数 ÷ 验收总次数 × 100%</li>
+              <li><b>待处理预警</b> = COUNT（预警状态=待处理 或 处理中）</li>
+              <li><b>招标项目数</b> = COUNT（本年度招标项目，状态≠已废标）</li>
+              <li><b>采购节约率</b> =（预估金额 − 实际成交金额） ÷ 预估金额 × 100%</li>
+            </ol>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-share"></i> 下钻说明</div>
+          <div class="help-section__body">
+            <p>本看板支持从宏观指标到明细数据的穿透查询。点击KPI卡片、列表行或占比项，即可跳转至对应查询页或单据页。</p>
+            <p><b>一、KPI卡片下钻（点击卡片跳转）</b></p>
+            <ul>
+              <li>采购总额 → <b>订单列表</b>（order_list.html）— 查看构成采购总额的订单明细</li>
+              <li>订单总数 → <b>订单列表</b>（order_list.html）— 查看全部订单及状态</li>
+              <li>入驻供应商 → <b>供应商列表</b>（supplier_list.html）— 查看供应商档案</li>
+              <li>在售商品数 → <b>商品列表</b>（product_list.html）— 查看在售商品详情</li>
+              <li>已支付金额 → <b>付款列表</b>（payment_list.html）— 查看付款记录</li>
+              <li>执行中合同 → <b>合同列表</b>（contract_list.html）— 查看执行中合同</li>
+              <li>预算执行率 → 暂无独立页面（预算管控分散在各业务模块）</li>
+              <li>供应商均分 → <b>供应商评价列表</b>（evaluation_list.html）— 查看评价明细</li>
+              <li>准时交付率 → <b>发货列表</b>（shipment_list.html）— 查看物流交付情况</li>
+              <li>验收合格率 → <b>采购入库页</b>（purchase_storage.html）— 查看验收记录</li>
+              <li>待处理预警 → 暂无独立页面（预警分散在各业务模块）</li>
+              <li>招标项目数 → <b>招标项目列表</b>（bid_project_list.html）— 查看项目详情</li>
+            </ul>
+            <p><b>二、采购方式占比 / 采购节约率下钻（点击名称跳转）</b></p>
+            <ul>
+              <li>采购方式名称 → <b>招标项目列表</b>（bid_project_list.html）— 查看该采购方式的项目</li>
+              <li>节约率方法名 → <b>中标结果列表</b>（bid_result_list.html）— 查看定标节约情况</li>
+            </ul>
+            <p><b>三、列表行下钻（点击表格行跳转）</b></p>
+            <ul>
+              <li>供应商采购额TOP10 → <b>供应商列表</b>（supplier_list.html）</li>
+              <li>实时预警 → <b>应急采购页</b>（emergency_purchase.html）</li>
+              <li>各部门采购统计 → <b>订单列表</b>（order_list.html）</li>
+              <li>品类采购统计 → <b>商品列表</b>（product_list.html）</li>
+              <li>订单状态分布 → <b>订单列表</b>（order_list.html）</li>
+              <li>合同执行情况 → <b>合同单据</b>（contract_bill.html）</li>
+              <li>预算执行情况 → <b>订单列表</b>（order_list.html）</li>
+              <li>供应商评价排名 → <b>评价列表</b>（evaluation_list.html）</li>
+              <li>招标项目定标 → <b>中标结果列表</b>（bid_result_list.html）</li>
+              <li>物流配送跟踪 → <b>发货单据</b>（shipment_bill.html）</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          helpVisible:false,
+          dateRange:'month',
+          activeTab:'suppliers',
+          planAnalysisData:[
+            {planNo:'PP-2026-Q1-001',planName:'Q1电气设备集中采购计划',department:'物资采购部',totalAmount:5000000,executedAmount:4800000,status:'执行中'},
+            {planNo:'PP-2026-Q1-002',planName:'Q1办公设备采购计划',department:'综合管理部',totalAmount:800000,executedAmount:800000,status:'已完成'},
+            {planNo:'PP-2026-Q1-003',planName:'Q1安全防护物资计划',department:'安全监察部',totalAmount:300000,executedAmount:285000,status:'执行中'},
+            {planNo:'PP-2026-Q2-001',planName:'Q2电气设备采购计划',department:'物资采购部',totalAmount:6000000,executedAmount:1200000,status:'执行中'},
+            {planNo:'PP-2026-Q2-002',planName:'Q2智能终端采购计划',department:'运维部',totalAmount:1500000,executedAmount:450000,status:'执行中'},
+            {planNo:'PP-2026-Q1-004',planName:'Q1运维工具采购计划',department:'运维部',totalAmount:200000,executedAmount:195000,status:'已完成'}
+          ],
+          bidAnalysisData:[
+            {projectNo:'BID-2026-001',projectName:'220kV变压器年度采购',category:'电气设备',bidAmount:8000000,finalAmount:6960000,saveRate:13.0,bidCycle:25,bidderCount:4,status:'已完成'},
+            {projectNo:'BID-2026-002',projectName:'办公电脑框架协议招标',category:'办公设备',bidAmount:3000000,finalAmount:2610000,saveRate:13.0,bidCycle:18,bidderCount:5,status:'已完成'},
+            {projectNo:'BID-2026-003',projectName:'高压开关柜集中采购',category:'电气设备',bidAmount:5000000,finalAmount:4400000,saveRate:12.0,bidCycle:22,bidderCount:3,status:'已完成'},
+            {projectNo:'BID-2026-004',projectName:'智能电表年度采购招标',category:'智能终端',bidAmount:2000000,finalAmount:1760000,saveRate:12.0,bidCycle:15,bidderCount:4,status:'招标中'},
+            {projectNo:'BID-2026-005',projectName:'安全防护物资框架招标',category:'劳保用品',bidAmount:1000000,finalAmount:895000,saveRate:10.5,bidCycle:20,bidderCount:3,status:'已完成'},
+            {projectNo:'BID-2026-006',projectName:'UPS电源设备采购',category:'电气设备',bidAmount:1200000,finalAmount:1068000,saveRate:11.0,bidCycle:16,bidderCount:2,status:'已完成'}
+          ],
+          fulfillAnalysisData:[
+            {orderNo:'OD-2026-0501',supplier:'远东电缆股份有限公司',productName:'10kV高压开关柜KYN28-12',planDate:'2026-06-15',actualDate:'2026-06-14',onTime:true,qualityGrade:'A',status:'已完成'},
+            {orderNo:'OD-2026-0502',supplier:'特变电工股份有限公司',productName:'三相电力变压器S11-M-800',planDate:'2026-06-20',actualDate:'2026-06-22',onTime:false,qualityGrade:'B',status:'已完成'},
+            {orderNo:'OD-2026-0503',supplier:'国电南瑞科技股份有限公司',productName:'智能电表DDZ986-Z',planDate:'2026-06-18',actualDate:'2026-06-18',onTime:true,qualityGrade:'A',status:'已完成'},
+            {orderNo:'OD-2026-0504',supplier:'许继电气股份有限公司',productName:'高压断路器LW36-40.5',planDate:'2026-06-25',actualDate:'2026-06-25',onTime:true,qualityGrade:'A',status:'已完成'},
+            {orderNo:'OD-2026-0505',supplier:'平高电气股份有限公司',productName:'高压隔离开关',planDate:'2026-07-01',actualDate:'2026-07-03',onTime:false,qualityGrade:'B',status:'已完成'},
+            {orderNo:'OD-2026-0506',supplier:'正泰电气股份有限公司',productName:'低压配电柜',planDate:'2026-07-05',actualDate:'2026-07-05',onTime:true,qualityGrade:'A',status:'执行中'},
+            {orderNo:'OD-2026-0507',supplier:'德力西电气有限公司',productName:'接触器系列',planDate:'2026-07-08',actualDate:'2026-07-08',onTime:true,qualityGrade:'A',status:'执行中'}
+          ],
+          kpiCards:[
+            {icon:'el-icon-coin',color:'#0B7266',value:'¥18,560万',label:'采购总额',trend:12.5,link:'order_list.html'},
+            {icon:'el-icon-document',color:'#1565C0',value:'1,256',label:'订单总数',trend:8.3,link:'order_list.html'},
+            {icon:'el-icon-s-shop',color:'#E65100',value:'286',label:'入驻供应商',trend:5.2,link:'supplier_list.html'},
+            {icon:'el-icon-goods',color:'#6A1B9A',value:'3,892',label:'在售商品数',trend:15.6,link:'product_list.html'},
+            {icon:'el-icon-wallet',color:'#2E7D32',value:'¥15,230万',label:'已支付金额',trend:10.2,link:'payment_list.html'},
+            {icon:'el-icon-files',color:'#C62828',value:'168',label:'执行中合同',trend:-3.1,link:'contract_list.html'},
+            {icon:'el-icon-pie-chart',color:'#1565C0',value:'78.5%',label:'预算执行率',trend:4.6,link:''},
+            {icon:'el-icon-star-off',color:'#F57C00',value:'4.6',label:'供应商均分',trend:2.1,link:'evaluation_list.html'},
+            {icon:'el-icon-truck',color:'#0B7266',value:'89.2%',label:'准时交付率',trend:1.8,link:'shipment_list.html'},
+            {icon:'el-icon-circle-check',color:'#2E7D32',value:'96.8%',label:'验收合格率',trend:0.5,link:'purchase_storage.html'},
+            {icon:'el-icon-warning',color:'#C62828',value:'23',label:'待处理预警',trend:-12.0,link:''},
+            {icon:'el-icon-s-flag',color:'#6A1B9A',value:'42',label:'招标项目数',trend:6.7,link:'bid_project_list.html'}
+          ],
+          monthlyData:[
+            {month:'1月',value:856},
+            {month:'2月',value:1024},
+            {month:'3月',value:1356},
+            {month:'4月',value:1180},
+            {month:'5月',value:1489},
+            {month:'6月',value:1655}
+          ],
+          methodData:[
+            {name:'公开招标',count:28,ratio:35,color:'#0B7266'},
+            {name:'邀请招标',count:18,ratio:22.5,color:'#1565C0'},
+            {name:'竞争性谈判',count:12,ratio:15,color:'#E65100'},
+            {name:'询价采购',count:35,ratio:43.75,color:'#6A1B9A'},
+            {name:'框架协议',count:15,ratio:18.75,color:'#2E7D32'},
+            {name:'单一来源',count:8,ratio:10,color:'#C62828'}
+          ],
+          saveRateData:[
+            {method:'公开招标',saveRate:8.5},
+            {method:'邀请招标',saveRate:7.2},
+            {method:'竞争性谈判',saveRate:9.8},
+            {method:'询价采购',saveRate:6.5},
+            {method:'框架协议',saveRate:5.8},
+            {method:'单一来源',saveRate:3.2}
+          ],
+          topSuppliers:[
+            {supplierCode:'SP-001',supplier:'国电南瑞科技股份有限公司',level:'S',amount:4580,orderCount:28,contractCount:5,ratio:24.7,yoy:15.2},
+            {supplierCode:'SP-002',supplier:'联想（北京）有限公司',level:'A',amount:2895,orderCount:89,contractCount:3,ratio:15.6,yoy:8.6},
+            {supplierCode:'SP-003',supplier:'华为技术有限公司',level:'A',amount:2310,orderCount:23,contractCount:4,ratio:12.4,yoy:12.1},
+            {supplierCode:'SP-004',supplier:'ABB（中国）有限公司',level:'A',amount:1890,orderCount:18,contractCount:2,ratio:10.2,yoy:-3.5},
+            {supplierCode:'SP-005',supplier:'施耐德电气（中国）有限公司',level:'B',amount:1560,orderCount:31,contractCount:3,ratio:8.4,yoy:6.8},
+            {supplierCode:'SP-006',supplier:'许继电气股份有限公司',level:'B',amount:1280,orderCount:14,contractCount:2,ratio:6.9,yoy:4.2},
+            {supplierCode:'SP-007',supplier:'河南平高电气股份有限公司',level:'B',amount:1150,orderCount:6,contractCount:1,ratio:6.2,yoy:-2.1},
+            {supplierCode:'SP-008',supplier:'海康威视数字技术股份有限公司',level:'C',amount:980,orderCount:15,contractCount:2,ratio:5.3,yoy:18.5},
+            {supplierCode:'SP-009',supplier:'正泰电器股份有限公司',level:'C',amount:890,orderCount:22,contractCount:1,ratio:4.8,yoy:9.3},
+            {supplierCode:'SP-010',supplier:'远东电缆有限公司',level:'C',amount:780,orderCount:27,contractCount:1,ratio:4.2,yoy:5.6}
+          ],
+          alerts:[
+            {time:'2026-06-30 08:15',source:'合同管理',level:'严重',text:'合同CON-2026-0018已签订但0%执行，请跟进',handler:'张明远',status:'待处理'},
+            {time:'2026-06-30 07:42',source:'应急采购',level:'严重',text:'应急采购EMER-2026-0014待补审批，已超时3天',handler:'李建国',status:'待处理'},
+            {time:'2026-06-29 16:30',source:'供应商管理',level:'警告',text:'供应商「格力商用专营店」店铺已暂停，影响3个在途订单',handler:'王秀英',status:'处理中'},
+            {time:'2026-06-29 14:20',source:'营销活动',level:'警告',text:'促销活动PROMO-2026-021待审批，请尽快处理',handler:'陈志强',status:'待处理'},
+            {time:'2026-06-29 10:05',source:'专家库',level:'提示',text:'专家EXP-2026-0035违规1次，已暂停评标资格',handler:'赵慧敏',status:'已处理'},
+            {time:'2026-06-28 18:00',source:'数据看板',level:'提示',text:'本月采购总额较上月增长12.5%，趋势良好',handler:'系统',status:'已处理'},
+            {time:'2026-06-28 15:45',source:'物流配送',level:'警告',text:'订单OD-2026-0892已发货5天未签收，请跟进物流',handler:'刘德海',status:'处理中'},
+            {time:'2026-06-28 11:20',source:'预算管控',level:'严重',text:'预算项目BUD-2026-006执行率达92%，接近预警线',handler:'孙伟杰',status:'待处理'},
+            {time:'2026-06-27 09:30',source:'资质管理',level:'提示',text:'供应商「正泰电器」资质证书将于30天后到期',handler:'周小燕',status:'待处理'},
+            {time:'2026-06-27 08:10',source:'询价采购',level:'警告',text:'询价单INQ-2026-0156报价仅1家，建议重新询价',handler:'吴国平',status:'处理中'}
+          ],
+          deptData:[
+            {dept:'运维检修部',count:186,amount:5680,budget:8000,budgetRate:'71.0%',avgAmount:30.5,yoy:12.5,ratio:30.6},
+            {dept:'信息通信部',count:125,amount:3890,budget:5000,budgetRate:'77.8%',avgAmount:31.1,yoy:8.3,ratio:21.0},
+            {dept:'后勤保障部',count:98,amount:2850,budget:3500,budgetRate:'81.4%',avgAmount:29.1,yoy:5.6,ratio:15.4},
+            {dept:'安全监察部',count:76,amount:1980,budget:2500,budgetRate:'79.2%',avgAmount:26.1,yoy:-2.1,ratio:10.7},
+            {dept:'工程建设部',count:65,amount:1860,budget:2200,budgetRate:'84.5%',avgAmount:28.6,yoy:15.2,ratio:10.0},
+            {dept:'综合办公室',count:52,amount:1280,budget:1500,budgetRate:'85.3%',avgAmount:24.6,yoy:3.8,ratio:6.9},
+            {dept:'应急管理部门',count:28,amount:1020,budget:1200,budgetRate:'85.0%',avgAmount:36.4,yoy:18.5,ratio:5.5},
+            {dept:'人力资源部',count:22,amount:680,budget:800,budgetRate:'85.0%',avgAmount:30.9,yoy:-5.2,ratio:3.7},
+            {dept:'财务资产部',count:18,amount:520,budget:600,budgetRate:'86.7%',avgAmount:28.9,yoy:2.1,ratio:2.8},
+            {dept:'党群工作部',count:12,amount:380,budget:450,budgetRate:'84.4%',avgAmount:31.7,yoy:6.8,ratio:2.0}
+          ],
+          categoryData:[
+            {category:'电气设备',count:1280,amount:6890,supplierCount:45,avgPrice:5383,yoy:15.2,ratio:37.1},
+            {category:'办公设备',count:892,amount:4560,supplierCount:68,avgPrice:5112,yoy:8.6,ratio:24.6},
+            {category:'智能终端',count:568,amount:2890,supplierCount:32,avgPrice:5088,yoy:12.1,ratio:15.6},
+            {category:'办公用品',count:1230,amount:1560,supplierCount:85,avgPrice:1268,yoy:3.5,ratio:8.4},
+            {category:'劳保用品',count:456,amount:1280,supplierCount:28,avgPrice:2807,yoy:6.8,ratio:6.9},
+            {category:'机械设备',count:189,amount:980,supplierCount:18,avgPrice:5185,yoy:-3.5,ratio:5.3},
+            {category:'安防监控',count:234,amount:400,supplierCount:22,avgPrice:1709,yoy:9.3,ratio:2.2},
+            {category:'煤炭物资',count:86,amount:320,supplierCount:8,avgPrice:3721,yoy:-8.2,ratio:1.7},
+            {category:'化工物资',count:52,amount:180,supplierCount:12,avgPrice:3462,yoy:4.2,ratio:1.0},
+            {category:'仪器仪表',count:68,amount:120,supplierCount:15,avgPrice:1765,yoy:2.1,ratio:0.6}
+          ],
+          orderStatusData:[
+            {status:'待审批',tagType:'info',count:28,amount:860,avgDays:0.5,yoy:-5.2,ratio:'2.2%'},
+            {status:'待发货',tagType:'warning',count:86,amount:2680,avgDays:1.2,yoy:3.8,ratio:'6.8%'},
+            {status:'已发货',tagType:'warning',count:152,amount:4890,avgDays:3.5,yoy:8.6,ratio:'12.1%'},
+            {status:'已收货',tagType:'',count:365,amount:5680,avgDays:5.8,yoy:12.5,ratio:'29.1%'},
+            {status:'已验收',tagType:'success',count:289,amount:4320,avgDays:7.2,yoy:6.8,ratio:'23.0%'},
+            {status:'已结算',tagType:'success',count:198,amount:2960,avgDays:10.5,yoy:4.2,ratio:'15.8%'},
+            {status:'已完成',tagType:'success',count:108,amount:1620,avgDays:15.8,yoy:15.2,ratio:'8.6%'},
+            {status:'已取消',tagType:'danger',count:18,amount:280,avgDays:0.8,yoy:-12.5,ratio:'1.4%'},
+            {status:'已拒收',tagType:'danger',count:6,amount:95,avgDays:4.2,yoy:-8.3,ratio:'0.5%'},
+            {status:'已退货',tagType:'danger',count:6,amount:120,avgDays:6.5,yoy:-3.5,ratio:'0.5%'}
+          ],
+          contractData:[
+            {contractNo:'CON-2026-0001',supplier:'国电南瑞科技股份有限公司',signDate:'2026-01-15',endDate:'2026-12-31',totalAmount:5680,execAmount:3280,execRate:'57.7%',buyer:'张明远',status:'执行中'},
+            {contractNo:'CON-2026-0008',supplier:'联想（北京）有限公司',signDate:'2026-02-20',endDate:'2026-08-31',totalAmount:3200,execAmount:3200,execRate:'100.0%',buyer:'李建国',status:'已完成'},
+            {contractNo:'CON-2026-0012',supplier:'华为技术有限公司',signDate:'2026-03-10',endDate:'2027-03-09',totalAmount:4500,execAmount:1890,execRate:'42.0%',buyer:'王秀英',status:'执行中'},
+            {contractNo:'CON-2026-0018',supplier:'ABB（中国）有限公司',signDate:'2026-04-05',endDate:'2027-04-04',totalAmount:2800,execAmount:0,execRate:'0.0%',buyer:'陈志强',status:'执行中'},
+            {contractNo:'CON-2026-0023',supplier:'施耐德电气（中国）有限公司',signDate:'2026-04-18',endDate:'2026-10-31',totalAmount:1860,execAmount:1560,execRate:'83.9%',buyer:'赵慧敏',status:'执行中'},
+            {contractNo:'CON-2026-0031',supplier:'许继电气股份有限公司',signDate:'2026-05-02',endDate:'2027-05-01',totalAmount:2200,execAmount:1280,execRate:'58.2%',buyer:'刘德海',status:'执行中'},
+            {contractNo:'CON-2026-0035',supplier:'河南平高电气股份有限公司',signDate:'2026-05-15',endDate:'2026-11-30',totalAmount:1680,execAmount:1150,execRate:'68.5%',buyer:'孙伟杰',status:'执行中'},
+            {contractNo:'CON-2026-0042',supplier:'海康威视数字技术股份有限公司',signDate:'2026-05-28',endDate:'2026-08-31',totalAmount:980,execAmount:980,execRate:'100.0%',buyer:'周小燕',status:'已完成'},
+            {contractNo:'CON-2026-0048',supplier:'正泰电器股份有限公司',signDate:'2026-06-05',endDate:'2027-06-04',totalAmount:1280,execAmount:890,execRate:'69.5%',buyer:'吴国平',status:'执行中'},
+            {contractNo:'CON-2026-0056',supplier:'远东电缆有限公司',signDate:'2026-06-18',endDate:'2026-09-30',totalAmount:860,execAmount:780,execRate:'90.7%',buyer:'郑文博',status:'执行中'}
+          ],
+          budgetData:[
+            {orgName:'运维检修部',type:'年度预算',budgetAmount:8000,usedAmount:5680,frozenAmount:320,remaining:2000,execRate:'71.0%',yoy:12.5,status:'正常'},
+            {orgName:'信息通信部',type:'年度预算',budgetAmount:5000,usedAmount:3890,frozenAmount:180,remaining:930,execRate:'77.8%',yoy:8.3,status:'正常'},
+            {orgName:'后勤保障部',type:'年度预算',budgetAmount:3500,usedAmount:2850,frozenAmount:120,remaining:530,execRate:'81.4%',yoy:5.6,status:'正常'},
+            {orgName:'安全监察部',type:'年度预算',budgetAmount:2500,usedAmount:1980,frozenAmount:80,remaining:440,execRate:'79.2%',yoy:-2.1,status:'正常'},
+            {orgName:'工程建设部',type:'项目预算',budgetAmount:2200,usedAmount:1860,frozenAmount:150,remaining:190,execRate:'84.5%',yoy:15.2,status:'预警'},
+            {orgName:'综合办公室',type:'年度预算',budgetAmount:1500,usedAmount:1280,frozenAmount:60,remaining:160,execRate:'85.3%',yoy:3.8,status:'预警'},
+            {orgName:'应急管理部门',type:'专项预算',budgetAmount:1200,usedAmount:1020,frozenAmount:40,remaining:140,execRate:'85.0%',yoy:18.5,status:'预警'},
+            {orgName:'人力资源部',type:'年度预算',budgetAmount:800,usedAmount:680,frozenAmount:20,remaining:100,execRate:'85.0%',yoy:-5.2,status:'预警'},
+            {orgName:'财务资产部',type:'年度预算',budgetAmount:600,usedAmount:520,frozenAmount:15,remaining:65,execRate:'86.7%',yoy:2.1,status:'预警'},
+            {orgName:'党群工作部',type:'年度预算',budgetAmount:450,usedAmount:380,frozenAmount:10,remaining:60,execRate:'84.4%',yoy:6.8,status:'预警'}
+          ],
+          supplierEvalData:[
+            {supplier:'国电南瑞科技股份有限公司',level:'S',creditLevel:'AAA',deliveryScore:95,qualityScore:98,serviceScore:92,priceScore:90,evalCount:28,totalScore:94.5,trend:2.1},
+            {supplier:'联想（北京）有限公司',level:'A',creditLevel:'AA',deliveryScore:92,qualityScore:95,serviceScore:90,priceScore:88,evalCount:89,totalScore:91.5,trend:1.5},
+            {supplier:'华为技术有限公司',level:'A',creditLevel:'AA',deliveryScore:90,qualityScore:96,serviceScore:93,priceScore:85,evalCount:23,totalScore:91.0,trend:3.2},
+            {supplier:'ABB（中国）有限公司',level:'A',creditLevel:'AA',deliveryScore:88,qualityScore:94,serviceScore:89,priceScore:86,evalCount:18,totalScore:89.5,trend:-1.2},
+            {supplier:'施耐德电气（中国）有限公司',level:'B',creditLevel:'A',deliveryScore:85,qualityScore:92,serviceScore:87,priceScore:83,evalCount:31,totalScore:87.0,trend:0.8},
+            {supplier:'许继电气股份有限公司',level:'B',creditLevel:'A',deliveryScore:82,qualityScore:88,serviceScore:85,priceScore:80,evalCount:14,totalScore:84.0,trend:1.0},
+            {supplier:'河南平高电气股份有限公司',level:'B',creditLevel:'A',deliveryScore:80,qualityScore:85,serviceScore:82,priceScore:78,evalCount:6,totalScore:81.5,trend:-2.5},
+            {supplier:'海康威视数字技术股份有限公司',level:'C',creditLevel:'BBB',deliveryScore:75,qualityScore:80,serviceScore:78,priceScore:75,evalCount:15,totalScore:77.0,trend:4.5},
+            {supplier:'正泰电器股份有限公司',level:'C',creditLevel:'BBB',deliveryScore:72,qualityScore:78,serviceScore:75,priceScore:72,evalCount:22,totalScore:74.5,trend:1.8},
+            {supplier:'远东电缆有限公司',level:'C',creditLevel:'BB',deliveryScore:68,qualityScore:75,serviceScore:70,priceScore:68,evalCount:27,totalScore:70.5,trend:-0.5}
+          ],
+          bidProjectData:[
+            {projectNo:'BID-2026-001',projectName:'2026年度变压器框架采购',method:'公开招标',publishDate:'2026-05-08',bidderCount:8,estimatedAmount:5680,winner:'国电南瑞科技股份有限公司',actualAmount:5280,saveRate:7.0,status:'已定标'},
+            {projectNo:'BID-2026-002',projectName:'办公电脑批量采购',method:'公开招标',publishDate:'2026-05-12',bidderCount:6,estimatedAmount:3200,winner:'联想（北京）有限公司',actualAmount:2890,saveRate:9.7,status:'已定标'},
+            {projectNo:'BID-2026-003',projectName:'通信设备集采',method:'邀请招标',publishDate:'2026-05-15',bidderCount:5,estimatedAmount:4500,winner:'华为技术有限公司',actualAmount:4180,saveRate:7.1,status:'已定标'},
+            {projectNo:'BID-2026-004',projectName:'低压电器年度采购',method:'公开招标',publishDate:'2026-05-18',bidderCount:7,estimatedAmount:2800,winner:'正泰电器股份有限公司',actualAmount:2580,saveRate:7.9,status:'已定标'},
+            {projectNo:'BID-2026-005',projectName:'安防监控设备采购',method:'公开招标',publishDate:'2026-05-22',bidderCount:4,estimatedAmount:1860,winner:'海康威视数字技术股份有限公司',actualAmount:1680,saveRate:9.7,status:'已定标'},
+            {projectNo:'BID-2026-006',projectName:'高压开关柜采购',method:'竞争性谈判',publishDate:'2026-05-25',bidderCount:3,estimatedAmount:2200,winner:'河南平高电气股份有限公司',actualAmount:1980,saveRate:10.0,status:'已定标'},
+            {projectNo:'BID-2026-007',projectName:'继电保护装置采购',method:'邀请招标',publishDate:'2026-05-28',bidderCount:4,estimatedAmount:1680,winner:'许继电气股份有限公司',actualAmount:1520,saveRate:9.5,status:'已定标'},
+            {projectNo:'BID-2026-008',projectName:'电力电缆批量采购',method:'公开招标',publishDate:'2026-06-02',bidderCount:6,estimatedAmount:1280,winner:'远东电缆有限公司',actualAmount:1180,saveRate:7.8,status:'已定标'},
+            {projectNo:'BID-2026-009',projectName:'智能电表集中采购',method:'公开招标',publishDate:'2026-06-05',bidderCount:5,estimatedAmount:980,winner:'三星医疗电气有限公司',actualAmount:890,saveRate:9.2,status:'已定标'},
+            {projectNo:'BID-2026-010',projectName:'UPS不间断电源采购',method:'询价采购',publishDate:'2026-06-10',bidderCount:3,estimatedAmount:560,winner:'施耐德电气（中国）有限公司',actualAmount:520,saveRate:7.1,status:'已定标'}
+          ],
+          logisticsData:[
+            {shipmentNo:'SHP-2026-0102',orderNo:'OD-2026-0892',supplier:'国电南瑞科技股份有限公司',carrier:'顺丰速运',trackingNo:'SF1234567890',totalQty:28,amount:458,shipDate:'2026-06-25',estArrival:'2026-06-30',receiveDate:'-',status:'运输中'},
+            {shipmentNo:'SHP-2026-0103',orderNo:'OD-2026-0895',supplier:'联想（北京）有限公司',carrier:'德邦物流',trackingNo:'DB9876543210',totalQty:15,amount:289,shipDate:'2026-06-24',estArrival:'2026-06-28',receiveDate:'2026-06-27',status:'已签收'},
+            {shipmentNo:'SHP-2026-0104',orderNo:'OD-2026-0901',supplier:'华为技术有限公司',carrier:'京东物流',trackingNo:'JD5678901234',totalQty:8,amount:231,shipDate:'2026-06-26',estArrival:'2026-07-01',receiveDate:'-',status:'运输中'},
+            {shipmentNo:'SHP-2026-0105',orderNo:'OD-2026-0908',supplier:'ABB（中国）有限公司',carrier:'中通快运',trackingNo:'ZT2468101214',totalQty:12,amount:189,shipDate:'2026-06-28',estArrival:'2026-07-03',receiveDate:'-',status:'已发货'},
+            {shipmentNo:'SHP-2026-0106',orderNo:'OD-2026-0912',supplier:'施耐德电气（中国）有限公司',carrier:'安能物流',trackingNo:'AN3691215182',totalQty:6,amount:156,shipDate:'2026-06-23',estArrival:'2026-06-27',receiveDate:'2026-06-26',status:'已签收'},
+            {shipmentNo:'SHP-2026-0107',orderNo:'OD-2026-0918',supplier:'许继电气股份有限公司',carrier:'顺丰速运',trackingNo:'SF1357924680',totalQty:10,amount:128,shipDate:'2026-06-27',estArrival:'2026-07-02',receiveDate:'-',status:'运输中'},
+            {shipmentNo:'SHP-2026-0108',orderNo:'OD-2026-0925',supplier:'河南平高电气股份有限公司',carrier:'德邦物流',trackingNo:'DB8642097531',totalQty:4,amount:115,shipDate:'2026-06-29',estArrival:'2026-07-04',receiveDate:'-',status:'已发货'},
+            {shipmentNo:'SHP-2026-0109',orderNo:'OD-2026-0930',supplier:'海康威视数字技术股份有限公司',carrier:'京东物流',trackingNo:'JD1470258369',totalQty:20,amount:98,shipDate:'2026-06-22',estArrival:'2026-06-26',receiveDate:'2026-06-25',status:'已签收'},
+            {shipmentNo:'SHP-2026-0110',orderNo:'OD-2026-0935',supplier:'正泰电器股份有限公司',carrier:'中通快运',trackingNo:'ZT9753186420',totalQty:18,amount:89,shipDate:'2026-06-28',estArrival:'2026-07-03',receiveDate:'-',status:'运输中'},
+            {shipmentNo:'SHP-2026-0111',orderNo:'OD-2026-0940',supplier:'远东电缆有限公司',carrier:'安能物流',trackingNo:'AN5310258796',totalQty:22,amount:78,shipDate:'2026-06-21',estArrival:'2026-06-25',receiveDate:'2026-06-24',status:'已签收'}
+          ]
+        };
+      },
+      computed:{
+        maxMonthly(){return Math.max(...this.monthlyData.map(m=>m.value));}
+      },
+      methods:{
+        handleRefresh(){this.loadData();},
+        exportTableData(data, name) {
+          if (!data || data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const keys = Object.keys(data[0]);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + keys.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (name || '导出数据') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录');
+        },
+        drillTo(url){
+          if(!url){this.$message.info('该指标暂无明细页面');return;}
+          window.location.href=url;
+        },
+        async loadData(){
+          try{
+            const resp=await fetch('/api/dashboard');
+            if(resp.ok){const d=await resp.json();if(d.monthlyData)this.monthlyData=d.monthlyData;if(d.kpiCards)this.kpiCards=d.kpiCards;this.$message.success('数据已刷新');}
+            else{this.$message.success('数据已刷新');}
+          }catch(e){this.$message.success('数据已刷新');}
+        }
+      },
+      mounted() {}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

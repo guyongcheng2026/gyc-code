@@ -6,7 +6,7 @@
   "newFileLocation": "current",
   "newLinkFormat": "shortest",
   "useMarkdownLinks": true,
-  "showUnsupportedFiles": false,
+  "showUnsupportedFiles": true,
   "attachmentFolderPath": "_assets",
   "spellcheck": true,
   "showFrontmatter": false,

@@ -1,0 +1,4143 @@
+:root {
+  --form-item-max-width: 100%;
+  --form-item-flex: auto;
+}
+
+/* DAP 主题（默认） */
+[data-theme="dap"],
+:root {
+  --border-radius-1: 0;
+  --border-radius-2: 2px;
+  --border-radius-3: 4px;
+  --border-radius-4: 8px;
+  --border-radius-5: 16px;
+  --border-radius-6: 20px;
+  --border-radius-circle: 50%;
+  --border-radius-full: 9999px;
+  --color-bg-container-1: #fff;
+  --color-bg-container-2: #fcfcfc;
+  --color-bg-container-3: #f2f3f8;
+  --color-bg-default: #eeeff3;
+  --color-bg-default-active: #dce1ea;
+  --color-bg-default-disabled: #ebecef;
+  --color-bg-default-hover: #e4f0fa;
+  --color-bg-default-special: linear-gradient(90deg, #fff, #f5f5f8);
+  --color-bg-default-special-active: linear-gradient(90deg, #e9eef5, #fff);
+  --color-bg-default-special-hover: linear-gradient(90deg, #fff, #e9eef5);
+  --color-bg-error: #e5524c;
+  --color-bg-error-light: #fff2f0;
+  --color-bg-error-special: linear-gradient(90deg, #ffafa6, #e5524c);
+  --color-bg-info: #7b8ea2;
+  --color-bg-info-light: #eeeff3;
+  --color-bg-info-special: linear-gradient(90deg, #b7bcc6, #7b8ea2);
+  --color-bg-primary: #1687e8;
+  --color-bg-primary-active: #0865c2;
+  --color-bg-primary-disabled: #91d7ff;
+  --color-bg-primary-hover: #3da5f5;
+  --color-bg-primary-minor: #e4f0fa;
+  --color-bg-primary-minor-active: #91d7ff;
+  --color-bg-primary-minor-hover: #bae8ff;
+  --color-bg-primary-special: linear-gradient(90deg, #2fa3f5, #1687e8);
+  --color-bg-primary-special-active: linear-gradient(90deg, #1687e8, #69c3ff);
+  --color-bg-primary-special-hover: linear-gradient(90deg, #69c3ff, #1687e8);
+  --color-bg-progress: #1875f0;
+  --color-bg-progress-light: #e6f5ff;
+  --color-bg-progress-special: linear-gradient(90deg, #6ab5ff, #1875f0);
+  --color-bg-success: #0fb886;
+  --color-bg-success-light: #e0f7ec;
+  --color-bg-success-special: linear-gradient(90deg, #55d1a3, #0fb886);
+  --color-bg-warning: #fd824c;
+  --color-bg-warning-light: #fff6f0;
+  --color-bg-warning-special: linear-gradient(90deg, #ffc19e, #fd824c);
+  --color-border-anti: #fff;
+  --color-border-default: #dce1ea;
+  --color-border-default-disabled: #ebecef;
+  --color-border-error: #e5524c;
+  --color-border-error-hover: #ffafa6;
+  --color-border-info: #7b8ea2;
+  --color-border-info-hover: #b7bcc6;
+  --color-border-primary: #1687e8;
+  --color-border-primary-disabled: #91d7ff;
+  --color-border-primary-hover: #69c3ff;
+  --color-border-progress: #1875f0;
+  --color-border-progress-hover: #6ab5ff;
+  --color-border-success: #0fb886;
+  --color-border-success-hover: #a9ebce;
+  --color-border-warning: #fd824c;
+  --color-border-warning-hover: #ffc19e;
+  --color-text-anti: #fff;
+  --color-text-default: #162b41;
+  --color-text-default-disabled: #a1b0bf;
+  --color-text-error: #e5524c;
+  --color-text-info: #7b8ea2;
+  --color-text-link: #1875f0;
+  --color-text-link-active: #0957c9;
+  --color-text-link-hover: #1875f0;
+  --color-text-link-visited: #1875f0;
+  --color-text-minor: #7b8ea2;
+  --color-text-primary: #1687e8;
+  --color-text-primary-active: #0865c2;
+  --color-text-primary-disabled: #91d7ff;
+  --color-text-primary-hover: #3da5f5;
+  --color-text-progress: #1875f0;
+  --color-text-success: #0fb886;
+  --color-text-warning: #fd824c;
+  --color-white: #fff;
+  --font-size-1: 10px;
+  --font-size-2: 12px;
+  --font-size-3: 14px;
+  --font-size-4: 16px;
+  --font-size-5: 18px;
+  --font-size-6: 20px;
+  --font-size-7: 22px;
+  --font-size-8: 24px;
+  --font-size-9: 28px;
+  --font-weight-bold: 600;
+  --font-weight-heavy: 800;
+  --font-weight-ligher: 200;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --line-height-1: 1;
+  --line-height-2: 1.5;
+  --line-height-3: 1.8;
+  --shadow-1: 0px 0px 2px 0px rgba(37, 43, 48, .16), 0px 2px 8px 0px rgba(37, 43, 48, .12), 0px 4px 16px 0px rgba(37, 43, 48, .08);
+  --shadow-2: 0px 4px 8px 0px rgba(37, 43, 48, .12), 0px 8px 16px 0px rgba(37, 43, 48, .08), 0px 24px 32px 0px rgba(37, 43, 48, .04);
+  --shadow-3: 0px 8px 16px 0px rgba(37, 43, 48, .08), 0px 16px 32px 0px rgba(37, 43, 48, .12), 0px 24px 48px 0px rgba(37, 43, 48, .16);
+  --shadow-inner-1: inset 0px 0px 2px 0px rgba(37, 43, 48, .16), inset 0px 2px 8px 0px rgba(37, 43, 48, .12), inset 0px 4px 16px 0px rgba(37, 43, 48, .08);
+  --shadow-inner-2: inset 0px 4px 8px 0px rgba(37, 43, 48, .12), inset 0px 8px 16px 0px rgba(37, 43, 48, .08), inset 0px 24px 32px 0px rgba(37, 43, 48, .04);
+  --shadow-inner-3: inset 0px 8px 16px 0px rgba(37, 43, 48, .08), inset 0px 16px 32px 0px rgba(37, 43, 48, .12), inset 0px 24px 48px 0px rgba(37, 43, 48, .16);
+  --shadow-special: 2px 2px 3px 0px rgba(186, 232, 255, .24);
+  --size-1: 8px;
+  --size-10: 48px;
+  --size-2: 12px;
+  --size-3: 16px;
+  --size-4: 20px;
+  --size-5: 24px;
+  --size-6: 28px;
+  --size-7: 32px;
+  --size-8: 36px;
+  --size-9: 40px;
+  --spacing-x-1: 4px;
+  --spacing-x-2: 8px;
+  --spacing-x-3: 12px;
+  --spacing-x-4: 16px;
+  --spacing-x-5: 24px;
+  --spacing-x-6: 32px;
+  --spacing-x-7: 40px;
+  --spacing-y-1: 4px;
+  --spacing-y-2: 8px;
+  --spacing-y-3: 12px;
+  --spacing-y-4: 16px;
+  --spacing-y-5: 24px;
+  --spacing-y-6: 32px;
+  --spacing-y-7: 40px;
+  --spacing-x-xs: 4px;
+  --spacing-x-sm: 8px;
+  --spacing-x-md: 12px;
+  --spacing-x-base: 16px;
+  --spacing-x-lg: 24px;
+  --spacing-x-xl: 32px;
+  --spacing-x-xxl: 40px;
+}
+
+/* GW 主题 */
+[data-theme="gw"] {
+  --color-bg-container-2: #fff;
+  --color-bg-container-3: #f5f8f8;
+  --color-bg-default: #e4edf0;
+  --color-bg-default-active: #dce1ea;
+  --color-bg-default-disabled: #ebecef;
+  --color-bg-default-hover: #ebf9fa;
+  --color-bg-default-special: linear-gradient(0deg, #f5f5f8, #fff);
+  --color-bg-default-special-active: linear-gradient(0deg, #fff, #e2e8f0);
+  --color-bg-default-special-hover: linear-gradient(0deg, #e9eef5, #fff);
+  --color-bg-error: #e5524c;
+  --color-bg-error-light: #fff3f0;
+  --color-bg-error-special: linear-gradient(0deg, #e5524c, #ffafa6);
+  --color-bg-info: #dce1ea;
+  --color-bg-info-light: #f1f6f7;
+  --color-bg-info-special: linear-gradient(0deg, #7b8ea2, #b7bcc6);
+  --color-bg-primary: #07978d;
+  --color-bg-primary-active: #00706b;
+  --color-bg-primary-disabled: #8bc9bd;
+  --color-bg-primary-hover: #22a396;
+  --color-bg-primary-minor: #ebf9fa;
+  --color-bg-primary-minor-active: #64bdae;
+  --color-bg-primary-minor-hover: #8bc9bd;
+  --color-bg-primary-special: linear-gradient(0deg, #027c76, #07978d);
+  --color-bg-primary-special-active: linear-gradient(0deg, #07978d, #027c76);
+  --color-bg-primary-special-hover: linear-gradient(0deg, #0c867a, #22a396);
+  --color-bg-progress: #1875f0;
+  --color-bg-progress-light: #e6f5ff;
+  --color-bg-progress-special: linear-gradient(0deg, #1875f0, #6ab5ff);
+  --color-bg-success: #0fb886;
+  --color-bg-success-light: #e0f7ec;
+  --color-bg-success-special: linear-gradient(0deg, #0fb886, #55d1a3);
+  --color-bg-warning: #fd824c;
+  --color-bg-warning-light: #fff6f0;
+  --color-bg-warning-special: linear-gradient(0deg, #fd824c, #ffc19e);
+  --color-border-anti: #fff;
+  --color-border-default: #dce1ea;
+  --color-border-default-disabled: #ebecef;
+  --color-border-error: #e5524c;
+  --color-border-error-hover: #ffafa6;
+  --color-border-info: #7b8ea2;
+  --color-border-info-hover: #b7bcc6;
+  --color-border-primary: #07978d;
+  --color-border-primary-disabled: #8bc9bd;
+  --color-border-primary-hover: #41b0a1;
+  --color-border-progress: #1875f0;
+  --color-border-progress-hover: #6ab5ff;
+  --color-border-success: #0fb886;
+  --color-border-success-hover: #a9ebce;
+  --color-border-warning: #fd824c;
+  --color-border-warning-hover: #ffc19e;
+  --color-text-anti: #fff;
+  --color-text-default: #262626;
+  --color-text-default-disabled: #a1b0bf;
+  --color-text-error: #e5524c;
+  --color-text-info: #dce1ea;
+  --color-text-link: #1875f0;
+  --color-text-link-active: #0957c9;
+  --color-text-link-hover: #1875f0;
+  --color-text-link-visited: #1875f0;
+  --color-text-minor: #7b8ea2;
+  --color-text-primary: #07978d;
+  --color-text-primary-active: #00706b;
+  --color-text-primary-disabled: #8bc9bd;
+  --color-text-primary-hover: #22a396;
+  --color-text-progress: #1875f0;
+  --color-text-success: #0fb886;
+  --color-text-warning: #fd824c;
+  --shadow-1: 0px 0px 2px 0px rgba(37, 43, 48, .16), 0px 2px 8px 0px rgba(37, 43, 48, .12), 0px 4px 16px 0px rgba(37, 43, 48, .08);
+  --shadow-2: 0px 4px 8px 0px rgba(37, 43, 48, .12), 0px 8px 16px 0px rgba(37, 43, 48, .08), 0px 24px 32px 0px rgba(37, 43, 48, .04);
+  --shadow-3: 0px 8px 16px 0px rgba(37, 43, 48, .08), 0px 16px 32px 0px rgba(37, 43, 48, .12), 0px 24px 48px 0px rgba(37, 43, 48, .16);
+  --shadow-inner-1: inset 0px 0px 2px 0px rgba(37, 43, 48, .16), inset 0px 2px 8px 0px rgba(37, 43, 48, .12), inset 0px 4px 16px 0px rgba(37, 43, 48, .08);
+  --shadow-inner-2: inset 0px 4px 8px 0px rgba(37, 43, 48, .12), inset 0px 8px 16px 0px rgba(37, 43, 48, .08), inset 0px 24px 32px 0px rgba(37, 43, 48, .04);
+  --shadow-inner-3: inset 0px 8px 16px 0px rgba(37, 43, 48, .08), inset 0px 16px 32px 0px rgba(37, 43, 48, .12), inset 0px 24px 48px 0px rgba(37, 43, 48, .16);
+  --shadow-special: 2px 2px 3px 0px rgba(186, 232, 255, .24);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  color: var(--color-text-default);
+  font-family: Microsoft YaHei, Arial, \ Helvetica Neue, Helvetica, SimSun, sans-serif;
+  font-size: var(--font-size-3);
+  box-sizing: border-box;
+}
+
+.query-page {
+  height: 100%;
+  min-height: 100%;
+  min-width: 1024px;
+  background-color: var(--color-bg-default);
+}
+
+.app-scss .query-page .query-header {
+  height: auto;
+  background-color: var(--color-bg-default);
+  padding: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.app-scss .query-page .query-body {
+  background: var(--color-bg-container-1);
+  display: flex;
+  margin: 0;
+  overflow: hidden;
+  padding: 0;
+  position: relative;
+}
+
+.query-page .query-tree-body {
+  display: flex;
+  flex-direction: column;
+  margin: 16px;
+  margin-right: 0;
+  width: 300px;
+  flex-shrink: 0;
+  margin-bottom: var(--spacing-x-3);
+  margin-top: var(--spacing-x-3);
+}
+
+.query-page .query-tree-close {
+  position: relative;
+  height: 100%;
+}
+
+.query-page .query-grid-body {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-scss .query-page .query-body .query-grid-body .yj-container-card {
+  display: flex;
+  flex-direction: column;
+  background-color: #fff;
+  box-sizing: border-box;
+  padding: var(--spacing-y-3) var(--spacing-x-4);
+}
+
+.app-scss .tl-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background-color: var(--color-bg-container-2);
+  height: 40px;
+  line-height: 40px;
+  box-shadow: 0 2px 4px rgba(37, 43, 48, .08);
+  color: var(--color-text-default);
+  z-index: 1;
+}
+
+.app-scss .tl-title .tl-title__title {
+  line-height: 40px;
+  margin-left: 16px;
+  margin-right: 16px;
+  color: var(--color-text-default);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
+}
+
+.tl-title .tl-title__slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  padding-right: 16px;
+}
+
+.app-scss .query-page .query-tree-close .query-tree-close--button,
+.app-scss .query-page .yfx-drawer .drawer__close {
+  position: absolute;
+  background: var(--color-bg-default-special);
+  border: 1px solid var(--color-border-default);
+  border-radius: 2px;
+  box-shadow: 2px 2px 3px 0 rgba(186, 232, 255, .24);
+  color: var(--color-text-default);
+  height: var(--size-6);
+  line-height: var(--size-6);
+  width: 14px;
+  top: 50%;
+  display: block;
+  content: "";
+  transform: translateY(-50%);
+  z-index: 9;
+  cursor: pointer;
+}
+
+.app-scss .tl-search-panel .tl-search-panel__inner .tl-search-panel__footer {
+  position: absolute;
+  right: 16px;
+  display: flex;
+  justify-content: flex-end;
+  transition: bottom 0.2s ease;
+  font-size: 0;
+  bottom: var(--spacing-y-3);
+}
+
+.app-scss .tl-search-panel .tl-search-panel__inner .tl-search-panel__footer .el-button {
+  height: var(--size-6);
+  min-width: auto;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+.tl-search-panel-solution {
+  margin-right: 4px;
+}
+
+.tl-search-panel .tl-search-panel-solution .tl-search-panel-solution__setting-btn {
+  margin-left: 4px;
+}
+
+.app-scss .query-header .tl-search-panel {
+  position: relative;
+  width: 100%;
+  height: auto;
+  margin-bottom: var(--spacing-y-3);
+  background-color: var(--color-bg-container-2);
+}
+
+.app-scss .tl-search-panel .tl-search-panel__inner {
+  width: 100%;
+  min-height: 45px;
+  position: relative;
+  padding: 0px 16px;
+  box-sizing: border-box;
+  top: 0px;
+  background-color: var(--color-bg-container-2);
+  box-shadow: none;
+}
+
+.app-scss .tl-search-panel .tl-search-panel__body {
+  padding-top: 5px;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.tl-search-panel__header {
+  line-height: 45px;
+  height: auto;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.app-scss .tl-search-panel .tl-search-panel__inner .tl-search-panel__header {
+  line-height: 52px;
+  padding-bottom: 7px;
+}
+
+.tl-search-panel .query-btns {
+  display: flex;
+}
+
+.app-scss .tl-form.auto-width .tl-form-button-item {
+  padding-right: 48px;
+}
+
+.app-scss .tl-search-panel .tl-search-panel__inner.tl-search-panel__inner--solution.tl-search-panel__inner--setting .tl-form.auto-width .tl-form-button-item {
+  padding-right: 48px;
+}
+
+.app-scss .el-button {
+  border-radius: var(--border-radius-2);
+  font-size: var(--font-size-3);
+  min-width: 60px;
+  padding: 6px 8px;
+}
+
+.app-scss .el-button.is-disabled,
+.app-scss .el-button.is-disabled:hover {
+  cursor: default;
+}
+
+.app-scss .el-button.is-circle {
+  border-radius: 50%;
+  min-width: auto;
+}
+
+.app-scss .el-button.is-round {
+  border-radius: 20px;
+  padding: 6px var(--spacing-x-2);
+}
+
+.app-scss .el-button.is-icon:not(.is-circle),
+.app-scss .el-button.tl-icon:not(.is-circle) {
+  min-width: 30px;
+  padding-left: 7px;
+  padding-right: 7px;
+}
+
+.app-scss .el-button:focus {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default);
+}
+
+.app-scss .el-button:hover {
+  background-color: var(--color-bg-default-special-hover);
+}
+
+.app-scss .el-button:active,
+.app-scss .el-button:hover {
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button:active {
+  background-color: var(--color-bg-default-special-active);
+}
+
+.app-scss .el-button.is-disabled,
+.app-scss .el-button.is-disabled:active,
+.app-scss .el-button.is-disabled:focus,
+.app-scss .el-button.is-disabled:hover {
+  background-color: var(--color-bg-container-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss .el-button+.el-button {
+  margin-left: var(--spacing-x-1);
+}
+
+.app-scss .el-button+.el-dropdown {
+  margin-left: var(--spacing-x-1);
+}
+
+.app-scss .el-button .iconfont {
+  font-size: 14px;
+}
+
+.app-scss .el-button--large {
+  font-size: var(--font-size-4);
+  margin-left: var(--spacing-x-2);
+  padding: 11px 23px;
+}
+
+.app-scss .el-button--large.el-button--primary {
+  padding: 12px 24px;
+}
+
+.app-scss .el-button--large:first-child {
+  margin-left: 0;
+}
+
+.app-scss .el-button--large.is-round {
+  padding: 11px 23px;
+}
+
+.app-scss .el-button--medium {
+  font-size: var(--font-size-3);
+  padding: 8px var(--spacing-x-2);
+}
+
+.app-scss .el-button--medium.el-button--primary {
+  padding: 9px;
+}
+
+.app-scss .el-button--medium.is-round {
+  padding: 8px var(--spacing-x-2);
+}
+
+.app-scss .el-button--mini,
+.app-scss .el-button--small {
+  font-size: var(--font-size-2);
+  padding: 3px var(--spacing-x-2);
+}
+
+.app-scss .el-button--mini.el-button--primary,
+.app-scss .el-button--small.el-button--primary {
+  padding: 4px 9px;
+}
+
+.app-scss .el-button--mini.is-round,
+.app-scss .el-button--small.is-round {
+  padding: 3px var(--spacing-x-2);
+}
+
+.app-scss .el-button--mini [class*=el-icon-]+span,
+.app-scss .el-button--mini i.iconfont+span,
+.app-scss .el-button--small [class*=el-icon-]+span,
+.app-scss .el-button--small i.iconfont+span {
+  margin-left: 3px;
+}
+
+.app-scss .el-button--default,
+.app-scss .el-button--default.is-plain,
+.app-scss .el-button--more,
+.app-scss .tl-title__slot .el-button--default {
+  background: var(--color-bg-default-special);
+  border: 1px solid var(--color-border-default);
+  box-shadow: var(--shadow-special);
+  color: var(--color-text-default);
+}
+
+.app-scss .el-button--default.is-plain:focus,
+.app-scss .el-button--default:focus,
+.app-scss .el-button--more:focus,
+.app-scss .tl-title__slot .el-button--default:focus {
+  background: var(--color-bg-default-special);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--default.is-plain:hover,
+.app-scss .el-button--default:hover,
+.app-scss .el-button--more:hover,
+.app-scss .tl-title__slot .el-button--default:hover {
+  background: var(--color-bg-default-special-hover);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--default.is-plain:hover i,
+.app-scss .el-button--default:hover i,
+.app-scss .el-button--more:hover i,
+.app-scss .tl-title__slot .el-button--default:hover i {
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--default.is-plain:active,
+.app-scss .el-button--default:active,
+.app-scss .el-button--more:active,
+.app-scss .tl-title__slot .el-button--default:active {
+  background: var(--color-bg-default-special-active);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--default.is-disabled,
+.app-scss .el-button--default.is-plain.is-disabled,
+.app-scss .el-button--more.is-disabled,
+.app-scss .tl-title__slot .el-button--default.is-disabled {
+  background: var(--color-bg-container-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss .el-button--default.is-disabled .el-icon-more,
+.app-scss .el-button--default.is-disabled i,
+.app-scss .el-button--default.is-plain.is-disabled .el-icon-more,
+.app-scss .el-button--default.is-plain.is-disabled i,
+.app-scss .el-button--more.is-disabled .el-icon-more,
+.app-scss .el-button--more.is-disabled i,
+.app-scss .tl-title__slot .el-button--default.is-disabled .el-icon-more,
+.app-scss .tl-title__slot .el-button--default.is-disabled i {
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss .el-button--default.is-disabled:active,
+.app-scss .el-button--default.is-disabled:focus,
+.app-scss .el-button--default.is-disabled:hover,
+.app-scss .el-button--default.is-plain.is-disabled:active,
+.app-scss .el-button--default.is-plain.is-disabled:focus,
+.app-scss .el-button--default.is-plain.is-disabled:hover,
+.app-scss .el-button--more.is-disabled:active,
+.app-scss .el-button--more.is-disabled:focus,
+.app-scss .el-button--more.is-disabled:hover,
+.app-scss .tl-title__slot .el-button--default.is-disabled:active,
+.app-scss .tl-title__slot .el-button--default.is-disabled:focus,
+.app-scss .tl-title__slot .el-button--default.is-disabled:hover {
+  background: var(--color-bg-container-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss .el-button--default.el-icon-more,
+.app-scss .el-button--default.is-plain.el-icon-more,
+.app-scss .el-button--more.el-icon-more,
+.app-scss .tl-title__slot .el-button--default.el-icon-more {
+  background: #fff;
+  border: none;
+  border-left: 1px solid transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-text-minor);
+  min-width: auto;
+}
+
+.app-scss .el-button--default.el-icon-more:hover,
+.app-scss .el-button--default.is-plain.el-icon-more:hover,
+.app-scss .el-button--more.el-icon-more:hover,
+.app-scss .tl-title__slot .el-button--default.el-icon-more:hover {
+  background: linear-gradient(180deg, #fff, #e9eef5 63.55%, #e9eef5);
+  border-left-color: var(--color-border-default);
+}
+
+.app-scss .el-button--default.el-icon-more:active,
+.app-scss .el-button--default.is-plain.el-icon-more:active,
+.app-scss .el-button--more.el-icon-more:active,
+.app-scss .tl-title__slot .el-button--default.el-icon-more:active {
+  background: linear-gradient(180deg, #e2e8f0, #e2e8f0 17.24%, #fff);
+  border-left-color: var(--color-border-default);
+}
+
+.app-scss .el-button--primary {
+  background: var(--color-bg-primary-special);
+  background-clip: padding-box;
+  border: none;
+  box-shadow: var(--shadow-special);
+  color: var(--color-text-anti);
+  padding: 7px 9px;
+}
+
+.app-scss .el-button--primary:focus {
+  background: var(--color-bg-primary-special);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-anti);
+}
+
+.app-scss .el-button--primary:hover {
+  background: var(--color-bg-primary-special-hover);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-anti);
+}
+
+.app-scss .el-button--primary:active {
+  background: var(--color-bg-primary-special-active);
+  border-color: var(--color-border-primary);
+}
+
+.app-scss .el-button--primary.is-disabled,
+.app-scss .el-button--primary.is-disabled:active,
+.app-scss .el-button--primary.is-disabled:focus,
+.app-scss .el-button--primary.is-disabled:hover {
+  background: var(--color-bg-primary-disabled);
+  border-color: transparent;
+  color: var(--color-text-anti);
+}
+
+.app-scss .el-button--primary.is-plain {
+  background: var(--color-bg-container-1);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-primary);
+  padding-bottom: 6px;
+  padding-top: 6px;
+}
+
+.app-scss .el-button--primary.is-plain:focus {
+  background: var(--color-bg-container-1);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--primary.is-plain:hover {
+  background: var(--color-bg-default-special-hover);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--primary.is-plain:active {
+  background: var(--color-bg-default-special-active);
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--primary.is-plain.is-disabled,
+.app-scss .el-button--primary.is-plain.is-disabled:active,
+.app-scss .el-button--primary.is-plain.is-disabled:focus,
+.app-scss .el-button--primary.is-plain.is-disabled:hover {
+  background: var(--color-bg-container-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss .el-button--text {
+  color: var(--color-text-primary);
+  min-width: auto;
+  padding: 6px 0;
+}
+
+.app-scss .el-button--text .el-icon--right {
+  margin-right: 0;
+}
+
+.app-scss .el-button--text.is-disabled,
+.app-scss .el-button--text.is-disabled:hover {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-text-primary-disabled);
+}
+
+.app-scss .el-button--text:focus:not(.is-disabled) {
+  color: var(--color-text-primary);
+}
+
+.app-scss .el-button--text:focus:not(.is-disabled),
+.app-scss .el-button--text:hover:not(.is-disabled) {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-text-primary-hover);
+}
+
+.app-scss .el-button--text:active:not(.is-disabled) {
+  background-color: transparent;
+  color: var(--color-text-primary-active);
+}
+
+.app-scss .el-button-group>.el-button+.el-button {
+  margin-left: 0;
+}
+
+.app-scss .el-button-group>.el-button+.el-button.el-dropdown__caret-button {
+  min-width: auto;
+}
+
+.app-scss .el-button-group .el-button--default.ecp-button-selected {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-anti);
+}
+
+.app-scss .el-input .el-input__icon,
+.app-scss .el-input .yj-icon {
+  color: var(--color-text-minor);
+  line-height: var(--size-6);
+}
+
+.app-scss .el-input__inner {
+  border-radius: 0;
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  height: var(--size-6);
+  line-height: var(--size-6);
+  padding: 0 var(--spacing-x-2);
+  text-overflow: ellipsis;
+}
+
+.app-scss .el-input .el-input__inner:hover {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary-hover);
+}
+
+.app-scss .el-input .el-input__inner:focus {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-input .el-input__inner[readonly]:focus,
+.app-scss .el-input .el-input__inner[readonly]:hover {
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-input:not(.el-input--suffix) .el-input__inner[readonly] {
+  background-color: var(--color-bg-default-disabled)
+}
+
+.app-scss .el-input.el-input--prefix .el-input__inner {
+  padding-left: 30px;
+}
+
+.app-scss .is-more.el-input-group--append {
+  position: relative;
+}
+
+.el-input.is-more .el-input__inner {
+  padding-right: 30px;
+}
+
+.app-scss .is-more.el-input-group--append .el-input-group__append {
+  position: absolute;
+  top: 1px;
+  right: 28px;
+  border: none;
+}
+
+.app-scss .el-input .el-input-group__append,
+.app-scss .el-input .el-input-group__prepend {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  color: var(--color-text-default);
+  padding: 0;
+}
+
+.app-scss .el-input .el-input-group__append .el-button,
+.app-scss .el-input .el-input-group__prepend .el-button {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--color-text-minor);
+  min-width: auto
+}
+
+.app-scss .el-input .el-input-group__append .el-button:hover,
+.app-scss .el-input .el-input-group__prepend .el-button:hover {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--color-text-default)
+}
+
+.app-scss .el-input .el-input-group__append .el-button,
+.app-scss .el-input .el-input-group__append .el-select,
+.app-scss .el-input .el-input-group__prepend .el-button,
+.app-scss .el-input .el-input-group__prepend .el-select {
+  margin: -1px -8px
+}
+
+.app-scss .el-input .el-input-group__append .el-input__inner:hover,
+.app-scss .el-input .el-input-group__append .el-select .is-focus .el-input__inner,
+.app-scss .el-input .el-input-group__prepend .el-input__inner:hover,
+.app-scss .el-input .el-input-group__prepend .el-select .is-focus .el-input__inner {
+  border-color: transparent
+}
+
+.app-scss .el-input.el-input-group .el-input-group__append .el-button,
+.app-scss .el-input.el-input-group .el-input-group__prepend .el-button {
+  margin: 0 -1px
+}
+
+.app-scss .el-input.el-input-group .el-input-group__append .el-button:hover,
+.app-scss .el-input.el-input-group .el-input-group__prepend .el-button:hover {
+  background: var(--color-bg-default-special-hover) !important
+}
+
+.app-scss .el-input.el-input-group .el-input-group__append .el-button:active,
+.app-scss .el-input.el-input-group .el-input-group__prepend .el-button:active {
+  background: var(--color-bg-default-special-active) !important
+}
+
+.app-scss .el-select {
+  width: 100%;
+}
+
+.tl-select,
+.tl-entity-select {
+  position: relative;
+  width: 100%;
+}
+
+.tl-select .el-button.tl-button {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+}
+
+.app-scss .el-select.is-more .el-button--default,
+.app-scss .tl-select.is-more .el-button--default {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-text-minor) !important;
+  height: 26px !important;
+  min-width: auto;
+  top: 1px;
+  z-index: 1
+}
+
+.app-scss .el-select.is-more .el-button--default:hover,
+.app-scss .tl-select.is-more .el-button--default:hover {
+  background: var(--color-bg-default-special-hover)
+}
+
+.app-scss .el-select.is-more .el-button--default:active,
+.app-scss .tl-select.is-more .el-button--default:active {
+  background: var(--color-bg-default-special-active)
+}
+
+.app-scss .el-select .tl-input.is-readonly .el-input__inner,
+.app-scss .tl-select .tl-input.is-readonly .el-input__inner {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-select .tl-input.is-readonly:hover .el-input__inner,
+.app-scss .tl-select .tl-input.is-readonly:hover .el-input__inner {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .el-select .tl-input.is-disabled .el-input__inner,
+.app-scss .tl-select .tl-input.is-disabled .el-input__inner {
+  background-color: var(--color-bg-default-disabled)
+}
+
+.app-scss .el-select:hover .el-input__inner,
+.app-scss .tl-select:hover .el-input__inner {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .tl-input.is-more .el-button--default {
+  background: #fff;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--color-text-minor) !important;
+  height: 26px !important;
+  min-width: auto;
+  top: 1px !important;
+  z-index: 1;
+}
+
+.app-scss .el-input-number {
+  line-height: inherit;
+}
+
+.app-scss .el-range-editor .el-range-separator {
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  line-height: 19px;
+  width: 14px;
+}
+
+.app-scss .el-date-editor .el-input__prefix {
+  right: 1px;
+  left: auto;
+}
+
+.app-scss .el-date-editor .el-input__inner {
+  padding-left: var(--spacing-x-2) !important;
+}
+
+.app-scss .el-date-editor.el-input {
+  width: 100%;
+}
+
+.app-scss .el-select {
+  width: 100%;
+}
+
+.app-scss .el-select:hover .el-input .el-input__inner {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .el-select:hover .el-input.is-disabled .el-input__inner {
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-select .el-input .el-input__inner {
+  padding-right: 30px
+}
+
+.app-scss .el-select .el-input.is-focus .el-input__inner {
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-select .el-input.is-disabled .el-input__inner:hover {
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-select .el-input i.el-select__caret {
+  color: var(--color-text-minor);
+  right: 21px
+}
+
+.app-scss .el-select .el-input i.el-select__caret.el-icon-circle-close {
+  font-size: 14px
+}
+
+.app-scss .el-select .el-select__tags {
+  flex-wrap: nowrap;
+  margin-left: var(--spacing-x-1);
+  margin-right: 0 !important;
+  pointer-events: none;
+  width: 100% !important
+}
+
+.app-scss .el-select .el-select__tags>span {
+  display: flex;
+  flex-wrap: nowrap;
+  max-width: 100%
+}
+
+.app-scss .el-select .el-select__tags .el-tag {
+  border-radius: 0;
+  font-size: 12px;
+  height: 20px;
+  line-height: 20px;
+  margin: 2px 0;
+  pointer-events: auto
+}
+
+.app-scss .el-select .el-select__tags .el-tag+.el-tag {
+  margin-left: 6px
+}
+
+.app-scss .el-select .el-select__tags .el-tag.el-tag--info {
+  background-color: var(--color-bg-default-disabled);
+  border-color: var(--color-bg-default-disabled);
+  color: var(--color-text-default);
+  line-height: 1;
+  opacity: 1
+}
+
+.app-scss .el-select .el-select__tags .el-tag.el-tag--info .el-select__tags-text {
+  line-height: normal
+}
+
+.app-scss .el-select .el-select__tags .el-tag .el-tag__close.el-icon-close {
+  background-color: transparent;
+  color: var(--color-text-minor);
+  font-size: var(--font-size-4);
+  right: -5px
+}
+
+.app-scss .el-select .el-select__tags .el-tag .el-tag__close.el-icon-close:hover {
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-select.is-use-tag .el-tag {
+  line-height: 24px;
+  margin: 0
+}
+
+.app-scss .el-select.is-avatar .el-select__tags {
+  margin-left: 30px
+}
+
+.app-scss .el-dropdown .dropdown-link {
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+
+.app-scss .el-form {
+  padding-top: var(--spacing-y-4)
+}
+
+.app-scss .el-form .el-form-item {
+  margin-bottom: var(--spacing-y-3);
+  margin-top: calc(var(--spacing-y-2)*-1)
+}
+
+.app-scss .el-form .el-form-item .el-form-item {
+  margin-bottom: 0
+}
+
+.app-scss .el-form .el-form-item .el-form-item__label {
+  color: var(--color-text-default);
+  line-height: var(--size-6);
+  padding-right: 0
+}
+
+.app-scss .el-form .el-form-item .el-form-item__content {
+  line-height: 26px
+}
+
+.app-scss .el-form .el-form-item .el-form-item__content .el-checkbox {
+  display: inline;
+  line-height: var(--size-6);
+  max-width: 100%
+}
+
+.app-scss .el-form .el-form-item .el-input__validateIcon {
+  font-size: 20px;
+  line-height: var(--line-height-2)
+}
+
+.app-scss .el-form .el-form-item.is-success .el-form-item__content .el-input__inner {
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-form .el-form-item.is-success .el-input__validateIcon {
+  color: var(--color-text-success)
+}
+
+.app-scss .el-form .el-form-item.is-success .el-button--default.el-icon-more {
+  background: transparent
+}
+
+.app-scss .el-form .el-form-item.is-error .el-form-item__content .el-input__inner,
+.app-scss .el-form .el-form-item.is-error .el-form-item__content .el-textarea__inner {
+  border-color: var(--color-border-error)
+}
+
+.app-scss .el-form .el-form-item.is-error .el-form-item__content .el-form-item__error {
+  background-color: var(--color-bg-error);
+  bottom: -12px;
+  color: var(--color-text-anti);
+  font-size: var(--font-size-2);
+  left: 8px;
+  line-height: 1;
+  max-width: 280px;
+  overflow: hidden;
+  padding: 4px;
+  position: absolute;
+  text-overflow: ellipsis;
+  top: unset;
+  white-space: nowrap;
+  z-index: 1
+}
+
+.app-scss .el-form .el-form-item.is-error .el-input__validateIcon {
+  color: var(--color-text-error)
+}
+
+.app-scss .el-form .el-form-item.is-error .el-button--default.el-icon-more {
+  background: transparent
+}
+
+.app-scss .el-form .el-form-item .tl-select.is-arrow .el-icon-circle-close,
+.app-scss .el-form .el-form-item .tl-select.is-more .el-icon-circle-close {
+  z-index: 1
+}
+
+.app-scss .el-form .el-form-item .tl-select.is-arrow .el-input__validateIcon,
+.app-scss .el-form .el-form-item .tl-select.is-more .el-input__validateIcon {
+  position: absolute;
+  right: 25px;
+  top: 0
+}
+
+.app-scss .el-form .el-form-item.is-required .el-form-item__label:before {
+  color: var(--color-text-error);
+  margin-right: 0
+}
+
+.app-scss .el-form.el-form--inline .el-form-item {
+  margin-right: var(--spacing-x-4)
+}
+
+.app-scss .el-form.el-form--label-top .el-form-item .el-form-item__label {
+  padding-bottom: 0
+}
+
+.app-scss .el-form.el-form--label-left,
+.app-scss .el-form.el-form--label-right {
+  padding-top: 0
+}
+
+.app-scss .el-form.el-form--label-left .el-form-item,
+.app-scss .el-form.el-form--label-right .el-form-item {
+  margin-top: 0
+}
+
+.el-form-item__content {
+  position: relative;
+  font-size: 14px;
+  line-height: 26px;
+}
+
+.el-form--inline .el-form-item__label {
+  float: left;
+}
+
+.el-form--inline .el-form-item__content {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.tl-form.auto-width.el-form--label-left label.el-form-item__label,
+.tl-form.auto-width.el-form--label-right label.el-form-item__label {
+  max-width: 98px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-form.auto-width {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-right: -16px;
+  padding-top: 0;
+}
+
+.tl-form.auto-width .el-form-item {
+  flex: 1;
+  min-width: 324px;
+  margin-right: 20px;
+  height: 28px;
+}
+
+.tl-form.auto-width .el-form-item:only-child,
+.tl-form.auto-width .el-form-item:first-child:nth-last-child(2),
+.tl-form.auto-width .el-form-item:first-child:nth-last-child(3),
+.tl-form.auto-width .el-form-item:nth-child(2):nth-last-child(2),
+.tl-form.auto-width .el-form-item:first-child:nth-last-child(4),
+.tl-form.auto-width .el-form-item:nth-child(2):nth-last-child(3),
+.tl-form.auto-width .el-form-item:nth-child(3):nth-last-child(2),
+.tl-form.auto-width .el-form-item:nth-child(2):last-child {
+  max-width: 488px;
+}
+
+.tl-form.el-form--inline .el-form-item:nth-child(n+6) {
+  max-width: var(--form-item-max-width) !important;
+  flex: 0 0 var(--form-item-flex) !important;
+}
+
+@media (max-width: 1736px) {
+  .tl-form.el-form--inline .el-form-item:nth-child(n+5) {
+    max-width: var(--form-item-max-width) !important;
+    flex: 0 0 var(--form-item-flex) !important;
+  }
+}
+
+.tl-form.auto-width .tl-form-button-item .el-form-item__content {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tl-form.auto-width .tl-form-button-item {
+  box-sizing: border-box;
+  flex-grow: 0;
+  align-self: stretch;
+  max-width: none;
+  min-width: 324px;
+  margin-left: auto;
+  margin-bottom: var(--spacing-y-3);
+  text-align: right;
+  font-size: 0;
+}
+
+.tl-tree {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.tl-tree .el-tree {
+  display: inline-block;
+  min-width: 100%;
+  padding: 0 !important;
+  color: var(--tree-text-color);
+  font-size: var(--tree-font-size);
+  flex: 1;
+}
+
+.tl-tree__container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: auto;
+}
+
+.tl-tree__search {
+  display: flex;
+  margin-bottom: -1px;
+}
+
+.app-scss .tl-tree .is-border {
+  border: 1px solid var(--color-border-default);
+  border-radius: 0;
+}
+
+.tl-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: var(--search-border-color) 1px solid;
+  border-radius: var(--search-border-radius);
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: border-color 0.2s cubic-bezier(0.645, 0.045, 0.355, 1);
+  background-color: var(--search-bg-color);
+  line-height: initial;
+}
+
+.app-scss .tl-search {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  height: var(--size-6);
+}
+
+.grid-page .yj-container-card,
+.query-page .yj-container-card,
+.operate-page .yj-container-card {
+  top: 0px;
+  left: 0px;
+  height: 100%;
+  width: 100%;
+}
+
+.grid-page.custom-page .yj-container-card,
+.query-page.custom-page .yj-container-card,
+.operate-page.custom-page .yj-container-card {
+  height: auto;
+}
+
+.yj-container-card__bar {
+  margin-bottom: 6px;
+}
+
+.app-scss .yj-container-card .yj-container-card__bar .yj-container-card__toolbar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: var(--color-text-default);
+}
+
+.app-scss .yj-container-card .yj-container-card__bar+.yj-container-card__body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.app-scss .yj-container-card .yj-container-card__body .yj-container-card__table {
+  background-color: #fff;
+  overflow: hidden;
+}
+
+.yj-container-card__table,
+.yj-container-card__card,
+.yj-container-card__list,
+.yj-container-card [class^=yj-container-card__extend-] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.yj-button-list,
+.yj-container-card__default-buttons {
+  display: inline-flex;
+}
+
+.app-scss .yj-container-card .yj-container-card__bar .yj-container-card__default-buttons {
+  margin-left: var(--spacing-x-1);
+}
+
+.app-scss .tl-table-tools {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  width: 100%;
+  justify-content: unset;
+  font-size: var(--font-size-3);
+  flex-grow: 1;
+}
+
+.tl-table-tools__content-switch.is-part,
+.tl-table-tools__content.is-part,
+.tl-table-tools__view-switch.is-part,
+.tl-table-tools__search.is-part,
+.tl-table-tools__button.is-part {
+  margin-left: auto;
+}
+
+.tl-table-tools__title,
+.tl-table-tools__content-switch,
+.tl-table-tools__content,
+.tl-table-tools__view-switch,
+.tl-table-tools__search,
+.tl-table-tools__button {
+  margin-right: 8px;
+}
+
+.app-scss .tl-table-tools .tl-table-tools__title-area {
+  border-right: 0;
+  float: left;
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  height: var(--size-6);
+  line-height: var(--size-6);
+  margin-right: var(--spacing-x-4);
+  order: 0;
+}
+
+.app-scss .tl-table-tools .tl-table-tools__contentswitch-area {
+  display: flex;
+  float: left;
+  order: 1;
+}
+
+.app-scss .tl-table-tools .tl-table-tools__contentexplain-area {
+  order: 2;
+}
+
+.app-scss .tl-table-tools .tl-table-tools__button-area {
+  align-items: center;
+  display: flex;
+  float: right;
+  justify-content: flex-end;
+  margin-left: auto;
+  margin-right: 0;
+  order: 3;
+}
+
+.app-scss .tl-table-tools .tl-table-tools__search-area {
+  float: right;
+  margin-left: var(--spacing-x-1);
+  margin-right: 0;
+  order: 4;
+}
+
+.yj-container-card__table .el-pagination {
+  padding: 4px 8px;
+  text-align: right;
+  border: 1px solid var(--color-border-default);
+  border-top: none;
+}
+
+.app-scss .tl-toolbar {
+  display: flex;
+  flex-direction: row-reverse;
+  background: var(--color-white);
+  border: none;
+  box-shadow: 4px -5px 10px rgba(170, 180, 201, .16);
+  flex: 0 0 64px;
+  height: 64px;
+  margin-top: var(--spacing-x-3);
+  padding: 0 var(--spacing-x-4);
+  align-items: center;
+}
+
+.app-scss .tl-toolbar .el-button {
+  font-size: var(--font-size-4);
+  margin: 0 0 0 8px;
+  padding: 11px 23px;
+}
+
+.app-scss .tl-toolbar .el-button.el-button--primary {
+  padding-bottom: 12px;
+  padding-top: 12px;
+}
+
+.app-scss .tl-toolbar .pay-info {
+  line-height: 1;
+  margin-right: var(--spacing-x-4);
+}
+
+.app-scss .text-warn {
+  color: var(--color-text-warning);
+}
+
+.app-scss .text-primary {
+  color: var(--color-text-primary) !important;
+}
+
+.app-scss .text-success {
+  color: var(--color-text-success) !important
+}
+
+.app-scss .text-error {
+  color: var(--color-text-error) !important
+}
+
+.app-scss .text-base-gray {
+  color: var(--color-text-minor) !important
+}
+
+.app-scss .text-bold {
+  font-weight: var(--font-weight-bold)
+}
+
+.tl-title .tl-title__slot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  padding-right: 16px;
+}
+
+.app-scss .tl-title .tl-title__slot {
+  justify-content: flex-end;
+}
+
+/* 单据 */
+.bill-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #fff;
+  box-sizing: border-box;
+  min-height: 100%;
+  min-width: 1280px;
+  padding: 0;
+  position: relative;
+  width: 100%;
+}
+
+.bill-page .tl-title.bill-title .tl-title__slot {
+  justify-content: flex-start;
+}
+
+.bill-page .bill-title.tl-title {
+  height: 44px;
+  line-height: 44px;
+  white-space: nowrap;
+}
+
+.bill-page .tl-title .yj-button-list {
+  align-items: center;
+  display: flex;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.bill-page .yj-panel {
+  margin-top: 12px;
+}
+
+.bill-page .bill-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  background: #fff;
+}
+
+.bill-page .bill-body .yj-panel {
+  position: relative;
+}
+
+.bill-page .bill-body .yj-panel:before {
+  background: #e8eaf0;
+  content: "";
+  display: inline-block;
+  height: 12px;
+  position: absolute;
+  top: -12px;
+  width: 100%;
+}
+
+.app-scss .tl-card {
+  border-radius: 0;
+  color: var(--color-text-default);
+  overflow: hidden;
+}
+
+.app-scss .tl-card .tl-card__body {
+  padding: var(--spacing-y-3) var(--spacing-x-4);
+}
+
+.tl-section {
+  min-width: 32px;
+}
+
+.tl-section,
+.tl-section .tl-section--title {
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+.tl-section .tl-section--title {
+  display: flex;
+  align-items: center;
+  font-size: var(--section-font-size);
+  font-weight: 500;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-bold);
+}
+
+.app-scss .tl-section .tl-section--title {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-y-3)
+}
+
+.app-scss .tl-section .tl-section--title:before {
+  background-color: var(--color-bg-primary)
+}
+
+.bill-page .tl-card .tl-section .tl-section--title {
+  margin-bottom: 0;
+}
+
+.yj-panel-slot {
+  width: 100%;
+}
+
+.tl-section .tl-section--title>i {
+  display: inline-block;
+  margin-left: auto;
+  border: 1px solid var(--section-border-color);
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.tl-section .tl-section--title:before {
+  content: "";
+  height: 16px;
+  width: 6px;
+  background: var(--section-title-color);
+  margin-right: var(--spacing-x-sm)
+}
+
+.app-scss .tl-section .tl-section--title>i {
+  background: var(--color-bg-default-special);
+  border: 1px solid var(--color-border-default);
+  box-shadow: var(--shadow-special);
+  color: var(--color-text-primary);
+}
+
+
+.app-scss .tl-section .tl-section--title+.tl-section__detail>.el-tabs {
+  margin-top: -6px
+}
+
+.app-scss .tl-section .tl-section__detail .yj-contarner .el-form {
+  margin-bottom: -16px;
+  padding-top: 0
+}
+
+.app-scss .tl-section .tl-section__detail .el-tab-pane .el-form {
+  padding-top: 16px
+}
+
+.app-scss .el-divider {
+  background-color: var(--color-border-default);
+  margin: var(--spacing-y-3) 0
+}
+
+.app-scss .el-divider--vertical {
+  margin: 0 var(--spacing-x-2)
+}
+
+.app-scss .el-radio {
+  color: var(--color-text-default)
+}
+
+.app-scss .el-radio .el-radio__input {
+  margin-right: 0
+}
+
+.app-scss .el-radio .el-radio__input .el-radio__inner {
+  border-color: var(--color-border-info-hover);
+  height: 16px;
+  width: 16px
+}
+
+.app-scss .el-radio .el-radio__label {
+  line-height: 1.2;
+  padding-left: var(--spacing-x-1)
+}
+
+.app-scss .el-radio:hover .el-radio__inner {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .el-radio.is-checked .el-radio__inner {
+  background: var(--color-bg-container-1);
+  border-color: var(--color-border-primary);
+  border-width: 5px
+}
+
+.app-scss .el-radio.is-checked .el-radio__label {
+  color: var(--color-text-default)
+}
+
+.app-scss .el-radio.is-disabled,
+.app-scss .el-radio.is-disabled .el-radio__input {
+  cursor: default
+}
+
+.app-scss .el-radio.is-disabled .el-radio__input .el-radio__inner {
+  background: var(--color-bg-container-3);
+  border-color: var(--color-border-info-hover);
+  cursor: default
+}
+
+.app-scss .el-radio.is-disabled .el-radio__input .el-radio__inner:after {
+  background-color: var(--color-bg-container-1);
+  cursor: default
+}
+
+.app-scss .el-radio.is-disabled .el-radio__label {
+  color: var(--color-text-default-disabled);
+  cursor: default
+}
+
+.app-scss .el-radio.is-disabled.is-checked .el-radio__input .el-radio__inner {
+  border-color: var(--color-border-primary-disabled)
+}
+
+.app-scss .el-checkbox {
+  color: var(--color-text-default)
+}
+
+.app-scss .el-checkbox .el-checkbox__input {
+  margin-right: 0
+}
+
+.app-scss .el-checkbox .el-checkbox__input .el-checkbox__inner {
+  border-color: var(--color-border-info-hover);
+  height: 16px;
+  width: 16px
+}
+
+.app-scss .el-checkbox .el-checkbox__input .el-checkbox__inner:after {
+  transition: none
+}
+
+.app-scss .el-checkbox .el-checkbox__input.is-focus .el-checkbox__inner {
+  border-color: var(--color-border-info-hover)
+}
+
+.app-scss .el-checkbox .el-checkbox__input.is-indeterminate .el-checkbox__inner {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-checkbox .el-checkbox__input.is-indeterminate .el-checkbox__inner:before {
+  background-color: var(--color-bg-primary);
+  height: 12px;
+  left: 1px;
+  right: 1px;
+  top: 1px;
+  transform: none
+}
+
+.app-scss .el-checkbox .el-checkbox__label {
+  line-height: 1.2;
+  padding-left: var(--spacing-x-1)
+}
+
+.app-scss .el-checkbox:hover .el-checkbox__input .el-checkbox__inner {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .el-checkbox.is-checked .el-checkbox__input .el-checkbox__inner {
+  background: var(--color-bg-primary);
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-checkbox.is-checked .el-checkbox__input .el-checkbox__inner:after {
+  border-color: var(--color-text-anti);
+  border-width: 2px;
+  left: 5px;
+  transition: none;
+  vertical-align: middle
+}
+
+.app-scss .el-checkbox.is-checked .el-checkbox__input.is-focus .el-checkbox__inner {
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-checkbox.is-checked .el-checkbox__label {
+  color: var(--color-text-default)
+}
+
+.app-scss .el-checkbox.is-disabled,
+.app-scss .el-checkbox.is-disabled .el-checkbox__input {
+  cursor: default
+}
+
+.app-scss .el-checkbox.is-disabled .el-checkbox__input .el-checkbox__inner {
+  background-color: var(--color-bg-default-disabled);
+  border-color: var(--color-border-info-hover);
+  cursor: default
+}
+
+.app-scss .el-checkbox.is-disabled .el-checkbox__label {
+  color: var(--color-text-default-disabled);
+  cursor: default
+}
+
+.app-scss .el-checkbox.is-disabled.is-checked .el-checkbox__input .el-checkbox__inner {
+  background-color: var(--color-bg-primary-disabled);
+  border-color: transparent;
+  cursor: default
+}
+
+.app-scss .el-checkbox.is-disabled.is-checked .el-checkbox__input .el-checkbox__inner:after {
+  border-color: var(--color-text-anti);
+  cursor: default
+}
+
+.bill-page .tl-section__detail {
+  margin-top: 12px;
+  padding-top: 0;
+}
+
+.app-scss .el-textarea .el-textarea__inner {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  line-height: var(--line-height-2);
+  padding: 2px var(--spacing-x-2);
+  resize: none;
+}
+
+.bill-page .yj-panel-slot .rule-tips {
+  color: #7b8ea2;
+  font-size: 14px;
+}
+
+.bill-page .black-color {
+  color: #0a1b2e;
+}
+
+.bill-page .red-color {
+  color: #d93939;
+}
+
+.bill-page .orange-color {
+  color: #fa6c05;
+}
+
+.bill-page .yj-panel-slot .rule-tips span {
+  font-weight: 700;
+  padding: 0 3px;
+}
+
+.bill-page .yj-panel-slot .title {
+  align-items: center;
+  display: flex;
+}
+
+.bill-page .yj-panel-slot .title-text {
+  margin-right: 18px;
+}
+
+.bill-page .his-item,
+.bill-page .his-title {
+  display: table;
+  font-size: 14px;
+  height: 40px;
+  line-height: 40px;
+  width: 100%
+}
+
+.bill-page .his-title span:first-child {
+  min-width: 92px;
+  text-indent: 5px
+}
+
+.bill-page .his-item:nth-child(2n) {
+  background: #f2f3f8
+}
+
+.bill-page .his-item span,
+.bill-page .his-title span {
+  display: table-cell;
+  overflow: hidden;
+  padding-right: 20px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.bill-page .his-item span:first-child {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 8px 0 4px;
+  overflow: initial;
+  padding: 0;
+  position: relative;
+  top: 6px;
+  border-radius: 50%;
+  background: #bbbbbb;
+  color: #fff;
+}
+
+.bill-page .his-item span.wait-icon {
+  background: #227ad7;
+}
+
+.bill-page .his-item span:first-child:before {
+  background: #dce1ea;
+  content: " ";
+  height: 16px;
+  left: 11px;
+  position: absolute;
+  top: 24px;
+  width: 1px
+}
+
+.bill-page .his-item:last-child span:first-child:before {
+  content: none
+}
+
+.bill-page .his-item span:nth-child(2) {
+  min-width: 60px
+}
+
+.bill-page .his-item span:nth-child(3),
+.bill-page .his-title span:nth-child(2) {
+  min-width: 180px
+}
+
+.bill-page .his-item span:nth-child(4),
+.bill-page .his-title span:nth-child(3) {
+  max-width: 200px;
+  min-width: 200px
+}
+
+.bill-page .his-title span:nth-child(4),
+.bill-page .his-title span:nth-child(5),
+.his-item span:nth-child(5),
+.his-item span:nth-child(6) {
+  max-width: 130px;
+  min-width: 130px
+}
+
+.bill-page .his-title span:nth-child(6),
+.his-item span:nth-child(7) {
+  max-width: 280px;
+  min-width: 280px
+}
+
+.bill-page .his-title span:nth-child(7),
+.his-item span:nth-child(8) {
+  min-width: 160px
+}
+
+.his-item span:nth-child(7) {
+  text-align: left
+}
+
+.bill-page .his-item .pass-icon {
+  background-size: 100% 100%;
+  display: inline-block;
+  height: 24px;
+  width: 24px
+}
+
+.bill-page .his-item .wait-icon {
+  background-size: 100% 100%;
+  display: inline-block;
+  height: 24px;
+  width: 24px
+}
+
+.bill-page .his-item .none-icon {
+  background-size: 100% 100%;
+  display: inline-block;
+  height: 24px;
+  width: 24px
+}
+
+.bill-page .bill-main {
+  flex: 1;
+  height: 100%;
+  overflow: auto;
+}
+
+
+.app-scss .tl-tabs.el-tabs .el-tabs__header .el-tabs__nav-wrap .el-tabs__nav-scroll .el-tabs__nav .el-tabs__item.is-bottom:not(.el-tabs__item--card):not(.el-tabs__item--border-card):not(.is-active):last-child:hover:after,
+.app-scss .tl-tabs.el-tabs .el-tabs__header .el-tabs__nav-wrap .el-tabs__nav-scroll .el-tabs__nav .el-tabs__item.is-top:not(.el-tabs__item--card):not(.el-tabs__item--border-card):not(.is-active):last-child:hover:after {
+  left: 12px;
+  right: 0
+}
+
+.app-scss .tl-tabs.el-tabs .el-tabs__header .el-tabs__nav-wrap .el-tabs__nav-scroll .el-tabs__nav .el-tabs__item.is-left:not(.el-tabs__item--card):not(.el-tabs__item--border-card) {
+  border-right-width: 2px
+}
+
+.app-scss .tl-tabs.el-tabs .el-tabs__header .el-tabs__nav-wrap .el-tabs__nav-scroll .el-tabs__nav .el-tabs__item.is-left:not(.el-tabs__item--card):not(.el-tabs__item--border-card):hover {
+  border-right: 2px solid var(--color-border-primary)
+}
+
+.app-scss .el-tabs .el-tabs__nav-wrap:after {
+  background-color: var(--color-border-default);
+  height: 1px
+}
+
+.app-scss .el-tabs .el-tabs__nav-wrap.is-left:after {
+  height: 100%;
+  width: 1px
+}
+
+.app-scss .el-tabs .el-tabs__active-bar {
+  background-color: var(--color-bg-primary)
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card) {
+  background-color: transparent;
+  color: var(--color-text-minor);
+  height: 40px;
+  line-height: 40px;
+  padding: 0 12px
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card).el-tabs__item--undefined {
+  box-sizing: content-box;
+  height: 20px;
+  padding-bottom: 8px
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card).is-active {
+  color: var(--color-text-default);
+  font-weight: 500
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card):not(.is-disabled):hover {
+  color: var(--color-text-primary)
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card):not(.is-disabled):hover :after {
+  background: var(--color-bg-primary) !important
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card).is-disabled {
+  color: var(--color-text-default-disabled)
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card).is-disabled:hover :after {
+  background: transparent !important
+}
+
+.app-scss .el-tabs .el-tabs__item:not(.el-tabs__item--border-card) .el-badge {
+  line-height: 16px;
+  margin-left: var(--spacing-x-2)
+}
+
+.app-scss .el-tabs.el-tabs--top .el-tabs__header {
+  margin-bottom: 0
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane {
+  margin-top: 0
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__active-bar,
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs .el-tabs__header.is-top .el-tabs__nav-wrap:after,
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs.is-sub .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__active-bar,
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs.is-sub .el-tabs__header.is-top .el-tabs__nav-wrap:after {
+  background-color: transparent
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__item.is-active,
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs.is-sub .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__item.is-active {
+  color: var(--color-bg-primary)
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__item+.el-tabs__item:before,
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .el-tabs.is-sub .el-tabs__header.is-top .el-tabs__nav-wrap .el-tabs__item+.el-tabs__item:before {
+  background-color: var(--color-border-default);
+  content: "";
+  height: var(--size-4);
+  left: 0;
+  position: absolute;
+  top: 0;
+  width: 1px
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .query-search-panel {
+  margin-bottom: 0
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .tl-search-panel {
+  margin-top: -5px
+}
+
+.app-scss .el-tabs.el-tabs--top:not(.el-tabs--border-card) .el-tabs__content .el-tab-pane .tl-search-panel .tl-search-panel__inner {
+  box-shadow: none
+}
+
+.app-scss .el-tabs.el-tabs--top .el-tabs__item.is-top:nth-child(2) {
+  padding-left: 0
+}
+
+.app-scss .el-tabs.el-tabs--card>.el-tabs__header {
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-tabs.el-tabs--card>.el-tabs__header .el-tabs__nav {
+  border-color: var(--color-border-default);
+  border-radius: var(--border-radius-2) var(--border-radius-2) 0 0
+}
+
+.app-scss .el-tabs.el-tabs--card>.el-tabs__header .el-tabs__nav .el-tabs__item {
+  background-color: var(--color-bg-container-3);
+  border-left-color: var(--color-border-default);
+  padding: 0 var(--spacing-x-3) !important
+}
+
+.app-scss .el-tabs.el-tabs--card>.el-tabs__header .el-tabs__nav .el-tabs__item.is-active {
+  background-color: var(--color-bg-container-1)
+}
+
+.app-scss .el-tabs.el-tabs--border-card {
+  border-color: var(--color-border-default);
+  box-shadow: unset;
+  -webkit-box-shadow: unset
+}
+
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__header {
+  background-color: var(--color-bg-container-3)
+}
+
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__item {
+  color: var(--color-text-default);
+  padding: 0 var(--spacing-x-3) !important
+}
+
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__item.is-active {
+  color: var(--color-text-default)
+}
+
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__item.is-active:hover,
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__item:not(.is-disabled):not(.is-active):hover {
+  color: var(--color-text-primary)
+}
+
+.app-scss .el-tabs.el-tabs--border-card .el-tabs__content {
+  padding: var(--spacing-y-4) var(--spacing-x-4)
+}
+
+.app-scss .query-page .query-body .query-grid-body .el-tabs .yj-container-card {
+  padding: var(--spacing-y-3) 0 0;
+}
+
+.app-scss .el-tabs .el-tabs__content .el-tab-pane>:first-child {
+  padding-top: var(--spacing-y-3);
+}
+
+
+.app-scss .el-date-editor.el-input {
+  width: 100%
+}
+
+.app-scss .el-date-editor .el-input__inner {
+  padding-left: var(--spacing-x-2) !important
+}
+
+.app-scss .el-date-editor:not(.el-date-editor--date):not(.el-date-editor--dates):not(.el-date-editor--week):not(.el-date-editor--weeks):not(.el-date-editor--month):not(.el-date-editor--months):not(.el-date-editor--year):not(.el-date-editor--years) .el-input__inner[readonly=readonly] {
+  background-color: var(--color-bg-default-disabled);
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-date-editor:not(.el-date-editor--date):not(.el-date-editor--dates):not(.el-date-editor--week):not(.el-date-editor--weeks):not(.el-date-editor--month):not(.el-date-editor--months):not(.el-date-editor--year):not(.el-date-editor--years) .el-input__inner[readonly=readonly]:focus,
+.app-scss .el-date-editor:not(.el-date-editor--date):not(.el-date-editor--dates):not(.el-date-editor--week):not(.el-date-editor--weeks):not(.el-date-editor--month):not(.el-date-editor--months):not(.el-date-editor--year):not(.el-date-editor--years) .el-input__inner[readonly=readonly]:hover {
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-date-editor .el-input__prefix,
+.app-scss .el-date-editor .el-input__suffix {
+  color: var(--color-text-minor);
+  font-size: 14px;
+  left: auto;
+  right: 21px;
+  transition: none
+}
+
+.app-scss .el-date-editor .el-input__prefix {
+  right: 1px !important
+}
+
+.app-scss .el-date-editor i.el-icon-circle-close {
+  font-size: 14px
+}
+
+.app-scss .el-date-editor.is-disabled .el-input__prefix,
+.app-scss .el-date-editor.is-disabled .el-input__suffix {
+  color: var(--color-text-default-disabled)
+}
+
+.app-scss .el-range-editor {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-range-editor .el-range__icon {
+  color: var(--color-text-minor);
+  line-height: 26px;
+  position: absolute;
+  right: 1px
+}
+
+.app-scss .el-range-editor .el-range-input {
+  background-color: transparent;
+  color: var(--color-text-default);
+  font-size: var(--font-size-3)
+}
+
+.app-scss .el-range-editor .el-range__close-icon {
+  color: var(--color-text-minor);
+  height: 26px;
+  line-height: 26px;
+  position: absolute;
+  right: 21px;
+  top: 0
+}
+
+.app-scss .el-range-editor .el-range-separator {
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  line-height: 19px;
+  width: 14px
+}
+
+.app-scss .el-range-editor:hover {
+  border-color: var(--color-border-primary-hover)
+}
+
+.app-scss .el-range-editor.is-active,
+.app-scss .el-range-editor:hover,
+.app-scss .el-range-editor:hover .el-range__close-icon.el-icon-circle-close {
+  background-color: var(--color-bg-container-1)
+}
+
+.app-scss .el-range-editor.is-active,
+.app-scss .el-range-editor.is-active:hover {
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-range-editor.is-active .el-range__close-icon.el-icon-circle-close {
+  background-color: var(--color-bg-container-1)
+}
+
+.app-scss .el-range-editor.is-disabled,
+.app-scss .el-range-editor.is-disabled:hover {
+  background-color: var(--color-bg-default-disabled);
+  border-color: var(--color-border-default-disabled)
+}
+
+.app-scss .el-range-editor.is-disabled .el-range-input,
+.app-scss .el-range-editor.is-disabled .el-range-separator,
+.app-scss .el-range-editor.is-disabled .el-range__icon,
+.app-scss .el-range-editor.is-disabled:hover .el-range-input,
+.app-scss .el-range-editor.is-disabled:hover .el-range-separator,
+.app-scss .el-range-editor.is-disabled:hover .el-range__icon {
+  background: transparent;
+  color: var(--color-text-default)
+}
+
+.app-scss .el-range-editor.is-readonly {
+  background-color: var(--color-bg-default-disabled)
+}
+
+.app-scss .el-range-editor.is-readonly:hover {
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-range-editor.el-date-editor--daterange.el-input__inner,
+.app-scss .el-range-editor.el-date-editor--datetimerange.el-input__inner,
+.app-scss .el-range-editor.el-date-editor--monthrange.el-input__inner {
+  padding: 3px var(--spacing-x-2);
+  width: 100%
+}
+
+.app-scss .season-picker__input .el-input__prefix,
+.app-scss .season-picker__input .el-input__suffix {
+  color: var(--color-text-minor)
+}
+
+.app-scss .season-picker__input .el-input__suffix {
+  right: 21px
+}
+
+.app-scss .season-picker__input.is-disabled .el-input__prefix,
+.app-scss .season-picker__input.is-disabled .el-input__suffix {
+  color: var(--color-text-default-disabled)
+}
+
+.el-popover.el-popper {
+  border-color: transparent;
+  border-radius: 0;
+  box-shadow: var(--shadow-1);
+  color: var(--color-text-default);
+  padding: var(--spacing-y-3)
+}
+
+.el-popover.el-popper .el-popover__title {
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-popover.el-popper .pop-content .pop-item {
+  box-shadow: none
+}
+
+.el-popover.el-popper[x-placement^=top] .popper__arrow {
+  border-top-color: transparent
+}
+
+.el-popover.el-popper[x-placement^=left] .popper__arrow {
+  border-left-color: transparent
+}
+
+.el-popover.el-popper[x-placement^=right] .popper__arrow {
+  border-right-color: transparent
+}
+
+.el-popover.el-popper[x-placement^=bottom] .popper__arrow {
+  border-bottom-color: transparent
+}
+
+.el-popover.el-popper.tl-select__tags-popover .el-tag.el-tag--light.el-tag--info {
+  background-color: var(--color-bg-default-disabled);
+  border-color: var(--color-bg-default-disabled);
+  color: var(--color-text-default);
+  font-size: var(--font-size-2)
+}
+
+.el-popover.el-popper.tl-select__tags-popover .el-tag.el-tag--light.el-tag--info .el-icon-close {
+  color: var(--color-text-minor)
+}
+
+.el-popover.el-popper.tl-select__tags-popover .el-tag.el-tag--light.el-tag--info .el-icon-close:hover {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-default)
+}
+
+.el-popover.el-popper.tl-search-panel-solution--popper .tl-search-panel__list--select {
+  color: var(--color-text-primary)
+}
+
+.el-select-dropdown.el-popper {
+  border-radius: 0;
+  box-shadow: var(--shadow-1);
+  margin-top: 2px !important
+}
+
+.el-select-dropdown.el-popper .popper__arrow {
+  display: none
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__wrap {
+  max-height: 215px
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__wrap .el-scrollbar__view .el-select-group__wrap .el-select-group__title {
+  color: var(--color-text-minor);
+  font-size: var(--font-size-3);
+  padding-left: 15px
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item {
+  color: var(--color-text-default);
+  height: var(--size-6);
+  line-height: var(--size-6);
+  padding: 0 25px 0 12px
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item.selected {
+  color: var(--color-text-primary);
+  font-weight: 400
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item.selected:after {
+  right: var(--spacing-x-3)
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item.hover,
+.el-select-dropdown.el-popper .el-select-dropdown__item.selected.hover {
+  background-color: var(--color-bg-default-hover)
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item .filter-option {
+  color: var(--color-text-primary)
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item.is-disabled {
+  color: var(--color-text-default-disabled);
+  cursor: default
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item .el-tag {
+  line-height: 22px
+}
+
+.el-select-dropdown.el-popper .el-select-dropdown__item .el-select__avatar,
+.el-select-dropdown.el-popper .el-select-dropdown__item .el-select__list,
+.el-select-dropdown.el-popper .el-select-dropdown__item i {
+  margin-right: var(--spacing-x-1)
+}
+
+.el-select-dropdown.el-popper.is-multiple .el-select-dropdown__item {
+  padding: 0 40px 0 12px
+}
+
+.el-select-dropdown.el-popper.is-multiple .el-select-dropdown__item.selected {
+  color: var(--color-text-primary)
+}
+
+.el-select-dropdown.el-popper.is-multiple .el-select-dropdown__item.selected:after {
+  right: var(--spacing-x-3)
+}
+
+.el-select-dropdown.el-popper.is-multiple .el-select-dropdown__item.selected.hover {
+  background-color: var(--color-bg-default-hover)
+}
+
+.el-picker-panel {
+  overflow: unset
+}
+
+.el-picker-panel .el-date-table tr+tr td {
+  padding-bottom: 0;
+  padding-top: var(--spacing-y-2)
+}
+
+.el-picker-panel .tl-quarter-table td.current .cell,
+.el-picker-panel .tl-quarter-table td.current:hover .cell {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary)
+}
+
+.el-picker-panel .tl-quarter-table .cell:hover {
+  background-color: var(--color-bg-primary);
+  text-decoration: none
+}
+
+.el-picker-panel .tl-quarter-table .today .cell {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel .tl-quarter-table .today .cell:hover {
+  color: var(--color-text-anti)
+}
+
+.el-time-panel.el-popper {
+  border-color: var(--color-border-default);
+  border-radius: 0
+}
+
+.el-time-panel.el-popper[x-placement^=bottom] {
+  margin-top: var(--spacing-y-2)
+}
+
+.el-time-panel.el-popper[x-placement^=top] {
+  margin-bottom: var(--spacing-y-2)
+}
+
+.el-time-panel.el-popper .popper__arrow {
+  display: none
+}
+
+.el-time-panel.el-popper .el-time-panel__content {
+  padding: var(--spacing-y-2) 0
+}
+
+.el-time-panel.el-popper .el-time-panel__content:after,
+.el-time-panel.el-popper .el-time-panel__content:before {
+  border-color: transparent;
+  height: var(--size-6)
+}
+
+.el-time-panel.el-popper .el-time-panel__content .el-time-spinner__wrapper {
+  max-height: 188px
+}
+
+.el-time-panel.el-popper .el-time-panel__content .el-time-spinner__wrapper .el-scrollbar__wrap {
+  margin-bottom: -8px !important;
+  margin-right: -8px !important
+}
+
+.el-time-panel.el-popper .el-time-panel__content .el-time-spinner__item {
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  height: var(--size-6);
+  line-height: var(--size-6)
+}
+
+.el-time-panel.el-popper .el-time-panel__content .el-time-spinner__item.active {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-time-panel.el-popper .el-time-panel__footer {
+  border-top-color: transparent;
+  height: auto;
+  padding: var(--spacing-y-2) var(--spacing-x-4) var(--spacing-y-4)
+}
+
+.el-time-panel.el-popper .el-time-panel__footer .el-time-panel__btn {
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-2);
+  font-size: var(--font-size-3);
+  line-height: 26px;
+  margin: 0;
+  width: 60px
+}
+
+.el-time-panel.el-popper .el-time-panel__footer .el-time-panel__btn.cancel {
+  color: var(--color-text-primary)
+}
+
+.el-time-panel.el-popper .el-time-panel__footer .el-time-panel__btn.confirm {
+  background: var(--color-bg-default-special);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-time-panel.el-popper .el-time-panel__footer .el-time-panel__btn.confirm:hover {
+  background: var(--color-bg-default-special-hover);
+  color: var(--color-text-primary)
+}
+
+.el-time-panel.el-popper .el-time-panel__footer .el-time-panel__btn.confirm:active {
+  background: var(--color-bg-default-special-active);
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper {
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  color: var(--color-text-default)
+}
+
+.el-picker-panel.el-popper[x-placement^=bottom] {
+  margin-top: var(--spacing-y-2)
+}
+
+.el-picker-panel.el-popper[x-placement^=top] {
+  margin-bottom: var(--spacing-y-2)
+}
+
+.el-picker-panel.el-popper .popper__arrow {
+  display: none
+}
+
+.el-picker-panel.el-popper .el-picker-panel__footer {
+  border-top-color: transparent;
+  padding: 0 var(--spacing-x-4) var(--spacing-y-4)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__footer .el-button+.el-button {
+  margin-left: var(--spacing-x-4)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__footer .el-button--default+.el-button {
+  margin-left: var(--spacing-x-1)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__icon-btn {
+  color: var(--color-text-minor)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__icon-btn:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table {
+  font-size: var(--font-size-3);
+  padding: 0
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table th {
+  border-bottom: 1px solid var(--color-border-default);
+  color: var(--color-text-default);
+  padding: 3px 0 6px
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td div {
+  height: var(--size-6);
+  padding: 0
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td div span {
+  border-radius: var(--border-radius-2);
+  height: var(--size-6);
+  line-height: var(--size-6);
+  width: var(--size-6)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td div:hover span {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.next-month,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.prev-month {
+  color: var(--color-text-default-disabled)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.next-month:hover,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.prev-month:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.next-month:hover span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.prev-month:hover span {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.today span {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.available {
+  color: var(--color-text-default)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.available:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.available:hover span {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.current:not(.disabled) span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.end-date span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.selected span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.start-date span {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-anti)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.current:not(.disabled):hover span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.end-date:hover span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.selected:hover span,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.start-date:hover span {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-anti)
+}
+
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.end-date div,
+.el-picker-panel.el-popper .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table td.start-date div {
+  border-radius: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker {
+  width: 284px
+}
+
+.el-picker-panel.el-popper.el-date-picker.has-sidebar {
+  width: 380px
+}
+
+.el-picker-panel.el-popper.el-date-picker.has-sidebar .el-picker-panel__shortcut:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__time-header {
+  border-bottom-color: var(--color-border-default);
+  margin: 0 var(--spacing-x-4);
+  padding: var(--spacing-x-4) 0 var(--spacing-y-3) 0;
+  width: calc(100% - var(--spacing-x-4)*2)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__time-header .el-date-picker__editor-wrap {
+  padding: 0 4px
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__time-header .el-date-picker__editor-wrap:first-child {
+  padding-left: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__time-header .el-date-picker__editor-wrap:last-child {
+  padding-right: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__time-header .el-date-picker__editor-wrap .el-input--small .el-input__inner {
+  height: var(--size-6);
+  line-height: var(--size-6)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__header {
+  border-bottom: 0;
+  margin: var(--spacing-y-3) var(--spacing-x-4);
+  margin-bottom: 0;
+  padding: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__header .el-date-picker__header-label {
+  color: var(--color-text-default);
+  font-size: var(--font-size-3);
+  padding: 0 1px
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__header .el-date-picker__header-label:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-date-picker__header.el-date-picker__header--bordered {
+  border-bottom-color: transparent;
+  padding-bottom: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content {
+  margin: 0 16px 8px;
+  width: 252px
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table {
+  font-size: var(--font-size-3)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td {
+  padding: 4px 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td div,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td div {
+  height: auto;
+  margin: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td .cell {
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-2);
+  color: var(--color-text-default);
+  height: 56px;
+  line-height: 56px;
+  width: 56px
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td .cell:hover,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td .cell:hover {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+  text-decoration: none
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.disabled .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.disabled .cell {
+  background-color: var(--color-bg-default-disabled);
+  color: var(--color-text-default-disabled)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.disabled .cell:hover,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.disabled .cell:hover {
+  border-color: transparent;
+  color: var(--color-text-default-disabled);
+  cursor: default;
+  text-decoration: none
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.today .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.today:hover .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.today .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.today:hover .cell {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.current.today:hover .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-month-table td.current:not(.disabled) .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.current.today:hover .cell,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-year-table td.current:not(.disabled) .cell {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-anti)
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table.is-week-mode tr.el-date-table__row.current div,
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table.is-week-mode tr.el-date-table__row:hover div {
+  background-color: var(--color-bg-container-3);
+  border-radius: 0
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table.is-week-mode tr.el-date-table__row:hover td:first-child div {
+  margin-left: 4px
+}
+
+.el-picker-panel.el-popper.el-date-picker .el-picker-panel__body-wrapper .el-picker-panel__content .el-date-table.is-week-mode tr.el-date-table__row:hover td:last-child div {
+  margin-right: 4px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker {
+  width: 552px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker.has-sidebar {
+  width: 660px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker.has-sidebar .el-picker-panel__shortcut {
+  color: var(--color-text-default)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker.has-sidebar .el-picker-panel__shortcut:hover {
+  color: var(--color-text-primary)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header {
+  border-bottom-color: var(--color-border-default);
+  margin: 0 var(--spacing-x-4);
+  padding: var(--spacing-x-4) 0 var(--spacing-y-3) 0;
+  width: calc(100% - var(--spacing-x-4)*2)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap {
+  padding: 0 4px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap:first-child {
+  padding-left: 0
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap:last-child {
+  padding-right: 0
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header .el-date-range-picker__time-picker-wrap .el-input--small .el-input__inner {
+  height: var(--size-6);
+  line-height: var(--size-6)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__time-header .el-icon-arrow-right {
+  font-size: 16px;
+  padding: 0 6px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content {
+  padding: 12px 0 8px;
+  width: 275px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content.is-left {
+  border-right-color: transparent;
+  padding-left: var(--spacing-x-4)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content.is-right {
+  padding-right: var(--spacing-x-4)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-date-range-picker__header {
+  border-bottom: none
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-date-range-picker__header div {
+  font-size: var(--font-size-3)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-date-range-picker__header .el-date-picker__header-label {
+  color: var(--color-text-default);
+  font-size: var(--font-size-4)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-date-table td.in-range div,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-date-table td.in-range div:hover {
+  background-color: var(--color-bg-container-3)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td {
+  padding: 4px 0
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td div,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td div {
+  height: auto;
+  margin: 0;
+  padding: 0
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td .cell {
+  border: 1px solid transparent;
+  border-radius: var(--border-radius-2);
+  color: var(--color-text-default);
+  height: 56px;
+  line-height: 56px;
+  width: 62px
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td .cell:hover,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td .cell:hover {
+  background-color: var(--color-bg-container-1);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+  text-decoration: none
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.current:not(.disabled) .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.current:not(.disabled) .cell {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary);
+  color: var(--color-text-anti)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.disabled .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.disabled .cell {
+  background-color: var(--color-bg-default-disabled);
+  color: var(--color-text-default-disabled)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.disabled .cell:hover,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.disabled .cell:hover {
+  border-color: transparent;
+  color: var(--color-text-default-disabled);
+  cursor: default;
+  text-decoration: none
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.in-range div,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.in-range div:hover,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.in-range div,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.in-range div:hover {
+  background-color: var(--color-bg-container-3)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.in-range.end-date div .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.in-range.start-date div .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.in-range.end-date div .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.in-range.start-date div .cell {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-anti)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.today .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.today:hover .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.today .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.today:hover .cell {
+  border-color: var(--color-border-primary);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-normal)
+}
+
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.current.today:hover .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-month-table td.current:not(.disabled) .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.current.today:hover .cell,
+.el-picker-panel.el-popper.el-date-range-picker .el-picker-panel__body-wrapper .el-date-range-picker__content .el-year-table td.current:not(.disabled) .cell {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-anti)
+}
+
+.season-picker.el-popper {
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  margin-top: 5px !important;
+  padding: 20px 15px
+}
+
+.season-picker.el-popper .season-picker__header {
+  text-align: center
+}
+
+.season-picker.el-popper .season-picker__header button.el-picker-panel__icon-btn,
+.season-picker.el-popper .season-picker__header span {
+  color: var(--color-text-default)
+}
+
+.season-picker.el-popper .season-picker__header button.el-picker-panel__icon-btn:hover,
+.season-picker.el-popper .season-picker__header span:hover {
+  color: var(--color-text-primary)
+}
+
+.season-picker.el-popper .season-picker__header .el-date-picker__header-label {
+  color: var(--color-text-default)
+}
+
+.season-picker.el-popper .season-picker__content {
+  margin-top: 10px;
+  text-align: center
+}
+
+.season-picker.el-popper .season-picker__content .el-button {
+  border-radius: 0;
+  color: var(--color-text-default);
+  width: 20%
+}
+
+.season-picker.el-popper .season-picker__content .el-button:focus,
+.season-picker.el-popper .season-picker__content .el-button:hover {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-anti)
+}
+
+.season-picker.el-popper .popper__arrow {
+  border-bottom-color: var(--color-bg-default) !important;
+  left: 35px !important
+}
+
+.el-dropdown-menu.el-popper {
+  border-color: var(--color-border-default);
+  border-radius: 0;
+  box-shadow: var(--shadow-1);
+  margin-top: 2px !important;
+  padding: 4px 0
+}
+
+.el-dropdown-menu.el-popper.is-max {
+  max-height: 195px;
+  min-width: 90px;
+  overflow-y: auto
+}
+
+.el-dropdown-menu.el-popper .popper__arrow {
+  display: none
+}
+
+.el-dropdown-menu.el-popper .el-dropdown-menu__item {
+  font-size: var(--font-size-3);
+  line-height: var(--size-6);
+  padding: 0 var(--spacing-x-3)
+}
+
+.el-dropdown-menu.el-popper .el-dropdown-menu__item:not(.is-disabled) {
+  color: var(--color-text-default)
+}
+
+.el-dropdown-menu.el-popper .el-dropdown-menu__item:not(.is-disabled):hover {
+  background-color: var(--color-bg-default-hover);
+  color: var(--color-text-default)
+}
+
+.el-dropdown-menu.el-popper .el-dropdown-menu__item span.active,
+.el-dropdown-menu.el-popper .el-dropdown-menu__item:not(.is-disabled):hover i {
+  color: var(--color-text-primary)
+}
+
+.el-dropdown-menu.el-popper .el-dropdown-menu__item--divided:before {
+  margin-left: calc(var(--spacing-x-3)*-1);
+  margin-right: calc(var(--spacing-x-3)*-1)
+}
+
+.el-dropdown-menu__item:focus,
+.el-dropdown-menu__item:not(.is-disabled):hover {
+  background-color: var(--color-bg-default-hover);
+  color: var(--color-text-default)
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form {
+  margin: 0 -16px;
+  padding: 0
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item.tl-search-panel__sps-empty-input--list {
+  margin-bottom: var(--spacing-x-4)
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item.tl-search-panel__sps-empty-input--list .el-form-item__solution-list {
+  height: var(--size-6);
+  line-height: var(--size-6);
+  margin-bottom: 0
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item.tl-search-panel__sps-empty-input--list .el-form-item__solution-list:hover {
+  font-weight: 500
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item.tl-search-panel__sps-empty-input--list .el-form-item__solution-list .tl-search-panel__list {
+  width: 195px
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item .el-form-item_solution--add {
+  border-color: var(--color-border-default);
+  color: var(--color-text-primary)
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item .el-form-item_solution--add.el-form-item_solution--disabled {
+  background: var(--color-bg-container-3);
+  color: var(--color-text-default-disabled)
+}
+
+.tl-search-panel__footer--slots .tl-search-panel__sps-empty-input .el-form .el-form-item .el-form-item__input {
+  height: var(--size-6);
+  line-height: var(--size-6)
+}
+
+.el-message-box {
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--shadow-3);
+  padding-bottom: 0 !important;
+  width: 400px
+}
+
+.el-message-box .el-message-box__header {
+  padding: var(--spacing-y-4) var(--spacing-x-4)
+}
+
+.el-message-box .el-message-box__header .el-message-box__title {
+  color: var(--color-text-default);
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium)
+}
+
+.el-message-box .el-message-box__header .el-message-box__headerbtn {
+  right: var(--spacing-x-4) !important
+}
+
+.el-message-box .el-message-box__header .el-message-box__headerbtn .el-message-box__close {
+  color: var(--color-text-minor)
+}
+
+.el-message-box .el-message-box__content {
+  color: var(--color-text-default);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 130px;
+  padding: 0 var(--spacing-x-4) var(--spacing-y-4)
+}
+
+.el-message-box .el-message-box__content .el-message-box__message {
+  color: var(--color-text-default)
+}
+
+.el-message-box .el-message-box__content .el-message-box__status.el-icon-error {
+  color: var(--color-text-error)
+}
+
+.el-message-box .el-message-box__btns {
+  padding: 0 var(--spacing-y-4) var(--spacing-x-4)
+}
+
+.el-message-box .el-message-box__btns .el-button--small {
+  font-size: 16px;
+  padding: 11px 23px
+}
+
+.el-message-box .el-message-box__btns .el-button--small.el-button--primary {
+  padding: 12px 24px
+}
+
+.el-message-box .el-message-box__btns .el-button--small+.el-button--small {
+  margin-left: var(--spacing-x-2)
+}
+
+.el-message-box .el-message-box__btns .el-button--primary {
+  color: var(--color-text-anti)
+}
+
+@-moz-document url-prefix() {
+  .el-range-editor .el-range__close-icon {
+    line-height: 22px !important
+  }
+
+  .el-range-editor .el-range__icon {
+    top: 2px !important
+  }
+}
+
+
+.query-page .query-grid-body .el-tab-pane,
+.query-page .query-grid-body .el-tabs,
+.query-page .query-grid-body .el-tabs__content,
+.query-page .query-grid-body .tl-tabs {
+  height: 100%;
+  width: 100%
+}
+
+.query-page .query-grid-body .tl-tabs {
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  position: relative;
+  padding: 16px;
+  padding-top: 8px
+}
+
+.query-page .query-grid-body .el-tabs {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  padding: 0 16px 16px;
+}
+
+.query-page .query-grid-body .el-tabs .el-tabs__header {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1
+}
+
+.query-page .query-grid-body .el-tabs .yj-container-card {
+  padding: 16px 0 0
+}
+
+
+.app-scss .el-dialog__wrapper {
+  align-items: center;
+  display: flex
+}
+
+.app-scss .el-dialog__wrapper .el-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 100vh;
+  padding-bottom: var(--spacing-x-4)
+}
+
+.app-scss .el-dialog__wrapper .el-dialog .el-dialog__body {
+  background-color: #fff;
+  flex: 1
+}
+
+.app-scss .el-dialog__wrapper .el-dialog .el-dialog__body .dialog-template-body:after {
+  clear: both;
+  content: "";
+  display: inline-block
+}
+
+.app-scss .el-dialog__wrapper.ts-object-editor__dialog .bill-page .bill-main>.yj-panel:before {
+  display: none
+}
+
+.app-scss .el-dialog {
+  background: var(--color-bg-container-1);
+  border-radius: 0;
+  box-shadow: var(--shadow-3);
+  margin-bottom: 0 !important;
+  margin-top: 0 !important;
+  min-width: 400px;
+  opacity: 1
+}
+
+.app-scss .el-dialog.is-fullscreen {
+  height: 99% !important;
+  margin-left: auto;
+  margin-right: auto;
+  width: 99% !important
+}
+
+.app-scss .el-dialog.is-fullscreen.tl-dialog--small .el-dialog__body {
+  max-height: none
+}
+
+.app-scss .el-dialog.tl-dialog--large {
+  height: 610px;
+  width: 1068px
+}
+
+.app-scss .el-dialog.tl-dialog--medium {
+  height: 500px;
+  width: 800px
+}
+
+.app-scss .el-dialog.tl-dialog--small {
+  height: auto;
+  width: 400px
+}
+
+.app-scss .el-dialog.tl-dialog--small .el-dialog__body {
+  max-height: 406px;
+  min-height: 122px
+}
+
+.app-scss .el-dialog .el-dialog__header {
+  box-shadow: none;
+  min-height: 20px;
+  padding: var(--spacing-y-4) var(--spacing-x-4)
+}
+
+.app-scss .el-dialog .el-dialog__header .el-dialog__title,
+.app-scss .el-dialog .el-dialog__header .tl-dialog__title,
+.app-scss .el-dialog .el-dialog__header .tl-popentity__title {
+  color: var(--color-text-default) !important;
+  font-size: var(--font-size-4);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-1)
+}
+
+.app-scss .el-dialog .el-dialog__header .el-dialog__title .el-dropdown,
+.app-scss .el-dialog .el-dialog__header .tl-dialog__title .el-dropdown,
+.app-scss .el-dialog .el-dialog__header .tl-popentity__title .el-dropdown {
+  font-size: var(--font-size-4)
+}
+
+.app-scss .el-dialog .el-dialog__header .el-dialog__headerbtn {
+  right: var(--spacing-x-4) !important;
+  top: var(--spacing-x-4) !important
+}
+
+.app-scss .el-dialog .el-dialog__header .el-dialog__headerbtn .el-dialog__close {
+  color: var(--color-text-minor)
+}
+
+.app-scss .el-dialog .el-dialog__header .el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--color-text-primary)
+}
+
+.app-scss .el-dialog .el-dialog__body {
+  color: var(--color-text-default);
+  margin-top: 0;
+  min-height: 122px;
+  padding: 0 var(--spacing-x-4) 0 !important
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel {
+  background-color: var(--color-bg-container-3);
+  padding: var(--spacing-y-3) var(--spacing-x-4) 0
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel+.el-divider {
+  background: transparent;
+  margin-top: 0
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel+.el-divider+.tl-table-tools,
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel+.tl-table-tools {
+  margin-top: var(--spacing-y-3)
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel .el-form {
+  padding-top: 0
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-form-panel .el-form.auto-width .tl-form-button-item {
+  padding-right: 0 !important
+}
+
+.app-scss .el-dialog .el-dialog__body .el-tabs__content .dialog-form-panel {
+  margin-top: var(--spacing-y-3)
+}
+
+.app-scss .el-dialog .el-dialog__body .el-tabs__content .dialog-form-panel .rule-waring-box {
+  margin-bottom: 0
+}
+
+.app-scss .el-dialog .el-dialog__body .yj-container-card {
+  padding: 0;
+  position: inherit
+}
+
+.app-scss .el-dialog .el-dialog__body .yj-container-card.is-fullscreen {
+  padding: var(--spacing-y-3) var(--spacing-x-4) !important
+}
+
+.app-scss .el-dialog .el-dialog__body .el-tabs .yj-container-card {
+  padding: var(--spacing-y-3) 0 0
+}
+
+.app-scss .el-dialog .el-dialog__body>.tl-search-panel .tl-search-panel__inner {
+  background: var(--color-bg-container-3);
+  box-shadow: none
+}
+
+.app-scss .el-dialog .el-dialog__body .bill-page .tl-title.is-fixed {
+  position: absolute
+}
+
+.app-scss .el-dialog .el-dialog__body .query-page {
+  background: #fff;
+  min-width: auto
+}
+
+.app-scss .el-dialog .el-dialog__body .tl-popentity__container .tl-popentity__foldbar-container {
+  background-color: #fff;
+  padding-top: 4px;
+  top: 0
+}
+
+.app-scss .el-dialog .el-dialog__body .query-tree-body {
+  margin: 0
+}
+
+.app-scss .el-dialog .el-dialog__body .query-tree-body+.query-grid-body .query-main-grid-body .yj-container-card {
+  padding-left: 16px
+}
+
+.app-scss .el-dialog .el-dialog__body .query-tree-body+.query-tree-close {
+  flex: none;
+  width: 16px
+}
+
+.app-scss .el-dialog .el-dialog__body .query-tree-body+.query-tree-close .query-tree-close--button {
+  left: 0
+}
+
+.app-scss .el-dialog .el-dialog__body>.bill-page {
+  background-color: #fff
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-footer .el-button+.el-button {
+  margin-left: var(--spacing-x-2)
+}
+
+.app-scss .el-dialog .el-dialog__body .dialog-footer .el-button.el-button--primary {
+  padding-bottom: 12px;
+  padding-top: 12px
+}
+
+.app-scss .el-dialog .el-dialog__footer {
+  background-color: var(--color-bg-container-1);
+  border-bottom-left-radius: var(--border-radius-2);
+  border-bottom-right-radius: var(--border-radius-2);
+  border-top: 0;
+  padding: var(--spacing-x-4) var(--spacing-x-4) 0;
+  word-spacing: -4px
+}
+
+.app-scss .el-dialog .el-dialog__footer .el-button {
+  font-size: 16px;
+  min-width: 80px;
+  padding: 11px 23px
+}
+
+.app-scss .el-dialog .el-dialog__footer .el-button.el-button--primary {
+  padding-bottom: 12px;
+  padding-top: 12px
+}
+
+.app-scss .el-dialog .el-dialog__footer .el-button+.el-button {
+  margin-left: var(--spacing-x-2)
+}
+
+.app-scss .el-dialog .el-dialog__footer .yj-button-list .el-button+.el-button {
+  margin-left: var(--spacing-x-2) !important
+}
+
+.app-scss .el-dialog .el-dialog__footer .tl-down-manager__footer-text {
+  margin-top: var(--spacing-y-3)
+}
+
+.app-scss .el-dialog .el-dialog__footer .tl-down-manager__footer-text i {
+  color: var(--color-text-primary)
+}
+
+.app-scss .el-dialog.is-zoom .tl-dialog__resize {
+  border-bottom: 2px solid var(--color-border-default);
+  border-right: 2px solid var(--color-border-default)
+}
+
+.app-scss .el-dialog .query-page .tl-search-panel .tl-search-panel__inner {
+  background: var(--color-bg-container-3);
+  box-shadow: none
+}
+
+.app-scss .el-dialog .query-page .query-header {
+  background: #fff
+}
+
+.app-scss .el-dialog .query-page .query-body .query-grid-body .yj-container-card {
+  padding: 0
+}
+
+.app-scss .el-dialog .query-page .query-body .query-grid-body .query-child-grid-body {
+  margin: 0
+}
+
+.app-scss .el-dialog .query-page .query-body .query-grid-body .query-child-grid-body .yj-container-card {
+  padding: var(--spacing-y-3) var(--spacing-x-4)
+}
+
+.app-scss .tl-popentity__container .tl-popentity__table-search {
+  background: var(--color-bg-container-3)
+}
+
+@media screen and (max-width: 1024px) {
+  .app-scss .el-dialog.tl-dialog--large {
+    width: 1000px
+  }
+}
+
+
+.app-scss .el-table {
+  border-color: var(--color-border-default);
+  border-radius: 0
+}
+
+.app-scss .el-table td,
+.app-scss .el-table th {
+  border-color: var(--color-border-default);
+  color: var(--color-text-default);
+  padding: 4px 0
+}
+
+.app-scss .el-table td .cell,
+.app-scss .el-table th .cell {
+  white-space: nowrap;
+}
+
+.app-scss .el-table td.el-table-column--selection {
+  text-align: center;
+}
+
+.app-scss .el-table td.is-leaf,
+.app-scss .el-table th.is-leaf {
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-table th {
+  background: #fcfcfc
+}
+
+.app-scss .el-table th .cell {
+  text-align: center
+}
+
+.app-scss .el-table th .cell.is-left {
+  text-align: left
+}
+
+.app-scss .el-table th .cell.is-right {
+  text-align: right
+}
+
+.app-scss .el-table th .cell .caret-wrapper {
+  height: 20px
+}
+
+.app-scss .el-table th .cell .caret-wrapper .sort-caret.ascending {
+  top: -1px
+}
+
+.app-scss .el-table th .cell .caret-wrapper .sort-caret.descending {
+  bottom: -1px
+}
+
+.app-scss .el-table th.ascending .sort-caret.ascending {
+  border-bottom-color: var(--color-text-primary)
+}
+
+.app-scss .el-table th.descending .sort-caret.descending {
+  border-top-color: var(--color-text-primary)
+}
+
+.app-scss .el-table .current-row {
+  background-color: var(--color-bg-default)
+}
+
+.app-scss .el-table .el-table__footer td .cell {
+  font-weight: 700
+}
+
+.app-scss .el-table.el-table--striped td {
+  border-color: transparent
+}
+
+.app-scss .el-table.el-table--striped .el-table__body tr.current-row td {
+  background: var(--color-bg-default)
+}
+
+.app-scss .el-table.el-table--striped .el-table__body .el-table__row--striped td {
+  background: var(--color-bg-container-3)
+}
+
+.app-scss .el-table.el-table--striped .el-table__body .el-table__row--striped.current-row td {
+  background: var(--color-bg-default)
+}
+
+.app-scss .el-table.el-table--striped.el-table--enable-row-hover .el-table__body tr:hover>td {
+  background-color: var(--color-bg-default-hover)
+}
+
+.app-scss .el-table.el-table--striped.el-table--enable-row-hover .el-table__body tr.current-row td {
+  background: var(--color-bg-default-hover)
+}
+
+.app-scss .el-table.el-table--border,
+.app-scss .el-table.el-table--border td {
+  border-color: var(--color-border-default)
+}
+
+.app-scss .el-table.el-table--border .el-table-column--selection .cell {
+  padding-right: 10px
+}
+
+.app-scss .el-table .el-table__cell {
+  height: 32px
+}
+
+.app-scss .el-table--border:after,
+.app-scss .el-table--group:after,
+.app-scss .el-table:before {
+  background-color: var(--color-border-default)
+}
+
+.app-scss .winStyle {
+  color: inherit
+}
+
+.app-scss[data-theme="gw"] .tl-title .tl-title__title {
+  color: var(--color-text-primary-active);
+}
+
+.app-scss[data-theme="gw"] .el-button--default,
+.app-scss[data-theme="gw"] .el-button--default.is-plain,
+.app-scss[data-theme="gw"] .el-button--more,
+.app-scss[data-theme="gw"] .tl-title__slot .el-button--default {
+  color: var(--color-text-primary)
+}
+
+.app-scss[data-theme="gw"] .el-button--default.is-disabled,
+.app-scss[data-theme="gw"] .el-button--default.is-plain.is-disabled,
+.app-scss[data-theme="gw"] .el-button--more.is-disabled,
+.app-scss[data-theme="gw"] .tl-title__slot .el-button--default.is-disabled {
+  background: var(--color-bg-container-3);
+  border-color: var(--color-border-default);
+  color: var(--color-text-default-disabled);
+}
+
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button--default:not([disabled]):not(.el-button--primary):focus i,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button--default:not([disabled]):not(.el-button--primary):focus span,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button--default:not([disabled]):not(.el-button--primary):hover i,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button--default:not([disabled]):not(.el-button--primary):hover span,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button:not([disabled]):not(.el-button--primary):focus i,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button:not([disabled]):not(.el-button--primary):focus span,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button:not([disabled]):not(.el-button--primary):hover i,
+.app-scss[data-theme="gw"] .tl-table-tools .tl-table-tools__button-area .el-button:not([disabled]):not(.el-button--primary):hover span {
+  color: var(--color-text-primary)
+}
+
+.app-scss[data-theme="gw"] .el-table th.el-table__cell {
+  background: var(--color-bg-info-light);
+}
+
+.app-scss[data-theme="gw"] .el-table {
+  border-color: #dfecec
+}
+
+.app-scss[data-theme="gw"] .el-table td,
+.app-scss .el-table th {
+  border-color: #dfecec
+}
+
+.app-scss[data-theme="gw"] .el-table td.is-leaf,
+.app-scss .el-table th.is-leaf {
+  border-color: #dfecec
+}
+
+.app-scss[data-theme="gw"] .el-table.el-table--border,
+.app-scss .el-table.el-table--border td {
+  border-color: #dfecec
+}
+
+
+.query-page .query-child-grid-body,
+.query-page .query-main-grid-body {
+  position: relative;
+  height: 50%
+}
+
+.query-page .query-child-grid-body .tl-tabs,
+.query-page .query-main-grid-body .tl-tabs {
+  padding: 0
+}
+
+.query-page .query-child-grid-body .yj-container-card,
+.query-page .query-main-grid-body .yj-container-card {
+  height: 100%
+}
+
+.query-page .query-main-grid-body .yj-container-card {
+  padding-bottom: 0
+}
+
+.query-page .query-child-grid-body {
+  margin: 0 16px 16px 16px
+}
+
+.query-page .query-child-grid-body .yj-container-card {
+  background: #f0f3f6
+}
+
+.app-scss .query-page .query-body .query-grid-body .query-main-grid-body+.query-child-grid-body {
+  background-color: var(--color-bg-container-3);
+  margin-top: calc(var(--spacing-y-3)*-1)
+}
+
+.app-scss .query-page .query-body .query-grid-body .query-child-grid-body .child-table-top-con,
+.app-scss .query-page .query-body .query-grid-body .query-child-grid-body .yj-container-card {
+  background-color: var(--color-bg-container-3)
+}
+
+
+.app-scss .el-switch,
+.app-scss .tl-switch {
+  height: 22px;
+  line-height: 22px
+}
+
+.app-scss .el-switch .el-switch__label.is-active,
+.app-scss .tl-switch .el-switch__label.is-active {
+  color: var(--color-text-primary)
+}
+
+.app-scss .el-switch .el-switch__core,
+.app-scss .tl-switch .el-switch__core {
+  background-color: var(--color-bg-default);
+  border-color: var(--color-bg-default);
+  height: 22px
+}
+
+.app-scss .el-switch .el-switch__core:after,
+.app-scss .tl-switch .el-switch__core:after {
+  left: 4px;
+  top: 2px
+}
+
+.app-scss .el-switch.is-checked .el-switch__core,
+.app-scss .tl-switch.is-checked .el-switch__core {
+  background-color: var(--color-bg-primary);
+  border-color: var(--color-border-primary)
+}
+
+.app-scss .el-switch.is-checked .el-switch__core:after,
+.app-scss .tl-switch.is-checked .el-switch__core:after {
+  left: 100%;
+  top: 2px
+}
+
+.app-scss .el-switch.is-checked.is-disabled,
+.app-scss .tl-switch.is-checked.is-disabled {
+  opacity: 1
+}
+
+.app-scss .el-switch.is-checked.is-disabled .el-switch__core,
+.app-scss .tl-switch.is-checked.is-disabled .el-switch__core {
+  background-color: var(--color-bg-primary-disabled);
+  border-color: var(--color-border-primary-disabled)
+}
+
+.app-scss .el-switch.is-disabled,
+.app-scss .tl-switch.is-disabled {
+  opacity: 1
+}
+
+.app-scss .el-switch.is-disabled .el-switch__core,
+.app-scss .tl-switch.is-disabled .el-switch__core {
+  background-color: var(--color-bg-container-3);
+  border-color: var(--color-bg-container-3);
+  cursor: default
+}
+
+
+.scrool::-webkit-scrollbar,
+::-webkit-scrollbar {
+  background-color: var(--color-bg-default) !important;
+  height: 12px;
+  width: 12px
+}
+
+.scrool::-webkit-scrollbar-track,
+::-webkit-scrollbar-track {
+  background-color: var(--color-bg-default) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important
+}
+
+.scrool::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb {
+  background-clip: content-box !important;
+  background-color: #c2cede !important;
+  border: 2px solid transparent !important;
+  border-radius: 8px;
+  box-shadow: none !important
+}
+
+.scrool::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(194, 206, 222, .8) !important
+}
+
+.el-scrollbar__wrap::-webkit-scrollbar {
+  height: 8px;
+  width: 8px
+}
+
+/* 去除可编辑表格中组件的边框线 */
+.yj-container-card__table .el-input__inner,
+.yj-container-card__table .el-textarea__inner,
+.yj-container-card__table .el-select .el-input__inner,
+.yj-container-card__table .el-date-editor .el-input__inner,
+.yj-container-card__table .el-time-picker .el-input__inner,
+.yj-container-card__table .el-input-number .el-input__inner {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 去除输入框的focus边框 */
+.yj-container-card__table .el-input__inner:focus,
+.yj-container-card__table .el-textarea__inner:focus,
+.yj-container-card__table .el-select .el-input__inner:focus,
+.yj-container-card__table .el-date-editor.is-active .el-input__inner,
+.yj-container-card__table .el-time-picker.is-active .el-input__inner,
+.yj-container-card__table .el-input-number.is-active .el-input__inner {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* 去除输入框的hover边框 */
+.yj-container-card__table .el-input__inner:hover,
+.yj-container-card__table .el-textarea__inner:hover,
+.yj-container-card__table .el-select .el-input__inner:hover,
+.yj-container-card__table .el-date-editor .el-input__inner:hover,
+.yj-container-card__table .el-time-picker .el-input__inner:hover,
+.yj-container-card__table .el-input-number .el-input__inner:hover {
+  border: none !important;
+}
+
+/* 去除el-input-number的左右按钮边框 */
+.yj-container-card__table .el-input-number__decrease,
+.yj-container-card__table .el-input-number__increase {
+  border: none !important;
+  background: transparent !important;
+}
+
+/* 去除textarea的resize图标边框 */
+.yj-container-card__table .el-textarea__inner {
+  resize: none;
+}
+
+
+.tl-popentity__container {
+  position: relative;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  width: 100%;
+  height: 100%
+}
+
+.tl-popentity__container .tl-layout__main {
+  min-width: 500px
+}
+
+.tl-popentity__container-layout {
+  width: 100%;
+  height: 100%
+}
+
+.tl-popentity__table-container,
+.tl-popentity__tree-container {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  height: 100%
+}
+
+.tl-popentity__table-body,
+.tl-popentity__tree-body {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+  overflow: hidden
+}
+
+.tl-popentity__tree-btns {
+  text-align: right;
+  margin-bottom: 8px
+}
+
+.tl-popentity__tree-btns .el-dropdown+.el-dropdown {
+  margin-left: var(--spacing-x-2)
+}
+
+.tl-popentity__tree-search input {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0
+}
+
+.tl-popentity__tree-body.is-locate {
+  margin-top: 0
+}
+
+.tl-popentity__table-search {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  padding: 12px 16px;
+  background: #f2f3f8
+}
+
+.tl-popentity__table-search-form {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1
+}
+
+.tl-popentity__table-search-btn {
+  margin-left: 16px
+}
+
+.tl-popentity__table-body,
+.tl-popentity__table-locate {
+  margin-top: 12px
+}
+
+.tl-popentity__table {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0
+}
+
+.tl-popentity__table-pagination {
+  text-align: right;
+  border: 1px solid #cbd1dc;
+  border-top: none
+}
+
+.tl-popentity__table-pagination .el-pagination {
+  padding: 6px
+}
+
+.tl-popentity__selected {
+  display: inline-block;
+  margin-right: var(--spacing-x-2);
+  line-height: var(--input-height);
+  font-size: var(--font-size-base)
+}
+
+.tl-popentity__selected span {
+  color: #f38b28
+}
+
+.tl-popentity__selected i,
+.tl-popentity__selected span {
+  margin-left: 4px
+}
+
+.tl-popentity__selected i {
+  cursor: pointer
+}
+
+.tl-popentity__foldbar-container {
+  position: absolute;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 999
+}
+
+.tl-popentity__foldbar-container .tl-foldbar {
+  margin: 0
+}
+
+.tl-popentity__foldbar-body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden
+}
+
+.tl-popentity__advanced-panel {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  height: 48px;
+  padding: 8px 12px;
+  border-radius: var(--border-radius-base);
+  color: var(--text-color-secondary);
+  -webkit-box-shadow: 0 0 12px rgba(203, 209, 220, .3);
+  box-shadow: 0 0 12px rgba(203, 209, 220, .3);
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box
+}
+
+.tl-popentity__advanced-text {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+  line-height: 32px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap
+}
+
+.tl-popentity__advanced-btn {
+  margin-left: var(--spacing-x-2)
+}
+
+.tl-popentity__advanced-query__item {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  margin-bottom: 16px
+}
+
+.tl-popentity__advanced-query__item>*+* {
+  margin-left: 4px
+}
+
+.tl-popentity__advanced-query__prop,
+.tl-popentity__advanced-query__type {
+  width: 200px !important
+}
+
+.tl-popentity__advanced-query__text {
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1
+}
+
+.tl-popentity__advanced-query__add {
+  float: right
+}
+
+.tl-layout__container.tl-layout--horizon {
+  display: flex;
+  flex-direction: row
+}
+
+.tl-layout__main {
+  position: relative;
+  -webkit-box-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+  -ms-flex-preferred-size: auto;
+  flex-basis: auto;
+  overflow: auto;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box
+}
+
+.tl-layout__main .tl-layout--main {
+  position: absolute;
+  height: 100%;
+  width: 100%
+}
+
+.tl-layout--bottom,
+.tl-layout--left,
+.tl-layout--right,
+.tl-layout--top {
+  height: 100%
+}
+
+.tl-layout__container {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  overflow: hidden
+}
+
+.app-scss .el-dialog.tl-dialog--large {
+  height: 610px;
+  width: 1068px
+}
+
+.app-scss .el-dialog.tl-dialog--medium {
+  height: 500px;
+  width: 800px
+}
+
+.app-scss .el-dialog.tl-dialog--small {
+  height: auto;
+  width: 400px
+}
+
+.app-scss .el-dialog.tl-dialog--small .el-dialog__body {
+  max-height: 406px;
+  min-height: 122px
+}
+
+.el-pagination.is-background .el-pager li:not(.disabled):hover {
+  color: var(--color-bg-primary)
+}
+
+.el-pagination.is-background .el-pager li:not(.disabled).active {
+  background-color: var(--color-bg-primary);
+  color: #FFF
+}
+
+/* ===== 内容超出视口时显示滚动条（列表页 + 单据页通用） ===== */
+
+/* 列表页：内容区允许纵向滚动 */
+.app-scss .query-page .query-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 列表页：表格卡片容器允许内容自适应高度并滚动 */
+.app-scss .query-page .query-body .query-grid-body {
+  overflow: auto;
+}
+
+.app-scss .query-page .query-body .query-grid-body .yj-container-card {
+  height: auto;
+  min-height: 100%;
+}
+
+/* 列表页：表格体和表格容器高度自适应，避免 height:100% 在 auto 父容器下解析为 0 导致 fixed 列渲染异常 */
+.app-scss .query-page .query-body .query-grid-body .yj-container-card .yj-container-card__bar + .yj-container-card__body {
+  height: auto;
+  overflow: auto;
+}
+
+.app-scss .query-page .query-body .query-grid-body .yj-container-card .yj-container-card__body .yj-container-card__table {
+  height: auto;
+  overflow: auto;
+}
+
+/* 通用：表格体允许滚动 */
+.app-scss .yj-container-card .yj-container-card__bar + .yj-container-card__body {
+  overflow: auto;
+}
+
+.app-scss .yj-container-card .yj-container-card__body .yj-container-card__table {
+  overflow: auto;
+}
+
+/* 单据页：内容区允许纵向滚动 */
+.app-scss .bill-page .bill-body {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 单据页：主内容区允许滚动 */
+.app-scss .bill-page .bill-main {
+  overflow: auto;
+}
+
+/* 单据页：面板内容允许自适应高度 */
+.app-scss .bill-page .bill-body .yj-panel {
+  height: auto;
+}

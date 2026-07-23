@@ -1,0 +1,357 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>AI 原型索引 (双语) - 按业务流程排序</title>
+  <link rel="stylesheet" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f9f9f9;padding:20px;overflow-y:auto;height:auto;min-height:100%;}
+    .title{font-size:24px;color:#0B7266;margin-bottom:6px;}
+    .subtitle{font-size:13px;color:#888;margin-bottom:20px;}
+    .section{margin-bottom:24px;}
+    .section-title{font-size:17px;color:#1A2332;font-weight:700;margin-bottom:10px;padding-left:8px;border-left:4px solid #0B7266;line-height:1.4;}
+    .section-title .step{display:inline-block;background:#0B7266;color:#fff;font-size:12px;border-radius:10px;padding:1px 8px;margin-right:8px;}
+    .grid{display:flex;flex-wrap:wrap;}
+    .card{border:1px solid #ddd;border-radius:4px;padding:12px;width:240px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,0.05);margin:0 15px 15px 0;transition:box-shadow .2s;}
+    .card:hover{box-shadow:0 4px 12px rgba(11,114,102,0.15);}
+    .card a{color:#0B7266;text-decoration:none;display:block;word-break:break-all;}
+    .card a:hover{text-decoration:underline;}
+    .cn{font-size:16px;color:#333;margin-top:4px;}
+    .en{font-size:12px;color:#666;margin-top:2px;}
+    .help-btn{position:fixed;top:20px;right:20px;z-index:1000;background:#0B7266;color:#fff;border:none;border-radius:4px;padding:8px 16px;font-size:14px;cursor:pointer;display:flex;align-items:center;/* gap-removed */;box-shadow:0 2px 8px rgba(11,114,102,0.3);}
+    .help-btn:hover{background:#0a6358;}
+    .help-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;}
+    .help-overlay.show{display:flex;}
+    .help-dialog{background:#fff;border-radius:8px;width:640px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.15);}
+    .help-dialog__header{padding:16px 24px;border-bottom:1px solid #EAECF0;font-size:16px;font-weight:600;color:#1A2332;display:flex;justify-content:space-between;align-items:center;}
+    .help-dialog__close{background:none;border:none;font-size:20px;color:#909399;cursor:pointer;padding:0;}
+    .help-dialog__close:hover{color:#333;}
+    .help-dialog__body{padding:16px 24px;}
+    .help-section{margin-bottom:20px;}
+    .help-section:last-child{margin-bottom:0;}
+    .help-section__title{font-size:15px;font-weight:600;color:#0B7266;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;}
+    .help-section__body{line-height:1.8;color:#555;}
+    .help-section__body ul,.help-section__body ol{margin:0;padding-left:20px;}
+    .help-section__body li{margin-bottom:6px;}
+    .help-section__body li b{color:#1A2332;}
+    .help-dialog__footer{padding:12px 24px;border-top:1px solid #EAECF0;text-align:right;}
+    .help-dialog__footer button{background:#0B7266;color:#fff;border:none;border-radius:4px;padding:8px 20px;font-size:14px;cursor:pointer;}
+    .help-dialog__footer button:hover{background:#0a6358;}
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <button class="help-btn" onclick="document.getElementById('helpOverlay').classList.add('show')">
+    <i class="el-icon-question" style="font-style:normal;">?</i> 帮助
+  </button>
+  <div class="title">AI 原型索引 (双语) - 共 104 页</div>
+  <div class="subtitle">按业务流程排序：基础数据 → 需求提报 → 需求汇总 → 采购计划 → 采购执行(询比招) → 中标结果 → 合同管理 → 商品上架 → 商品搜索 → 购物车与应急 → 采购申请 → 多级审批 → 订单生成 → 发货配送 → 收货验收与仓储 → 售后管理 → 支付结算 → 发票管理 → 对账清分 → 履约评价 → 运营看板 → 价格管理 → AI增强 → 特殊采购场景 → 供应链升级 → 移动端 → 系统管理与安全</div>
+  <!-- 01. 基础数据 -->
+  <div class="section">
+    <div class="section-title"><span class="step">01</span>基础数据（供应商/类目/协议/ERP）</div>
+    <div class="grid">
+      <div class="card"><a href="supplier_list.html"><span class="cn">供应商管理</span><br><span class="en">Supplier List</span></a></div>
+      <div class="card"><a href="supplier_detail_bill.html"><span class="cn">供应商档案详情</span><br><span class="en">Supplier Detail Bill</span></a></div>
+      <div class="card"><a href="supplier_credit.html"><span class="cn">供应商信用评价</span><br><span class="en">Supplier Credit</span></a></div>
+      <div class="card"><a href="supplier_credit_score.html"><span class="cn">供应商信用评分</span><br><span class="en">Supplier Credit Score</span></a></div>
+      <div class="card"><a href="supplier_grade.html"><span class="cn">供应商分级管理</span><br><span class="en">Supplier Grade</span></a></div>
+      <div class="card"><a href="supplier_penalty.html"><span class="cn">供应商处罚管理</span><br><span class="en">Supplier Penalty</span></a></div>
+      <div class="card"><a href="onboarding_list.html"><span class="cn">商户入驻</span><br><span class="en">Onboarding List</span></a></div>
+      <div class="card"><a href="onboarding_bill.html"><span class="cn">商户入驻申请单</span><br><span class="en">Onboarding Bill</span></a></div>
+      <div class="card"><a href="onboarding_flow.html"><span class="cn">商户入驻流程</span><br><span class="en">Onboarding Flow</span></a></div>
+      <div class="card"><a href="shop_management.html"><span class="cn">供应商店铺管理</span><br><span class="en">Shop Management</span></a></div>
+      <div class="card"><a href="category_list.html"><span class="cn">商品类目</span><br><span class="en">Category List</span></a></div>
+      <div class="card"><a href="agreement_list.html"><span class="cn">框架协议</span><br><span class="en">Agreement List</span></a></div>
+      <div class="card"><a href="agreement_stock_monitor.html"><span class="cn">协议库存监控</span><br><span class="en">Agreement Stock Monitor</span></a></div>
+      <div class="card"><a href="erp_sync_list.html"><span class="cn">ERP同步</span><br><span class="en">ERP Sync List</span></a></div>
+      <div class="card"><a href="erp_sync_log_detail.html"><span class="cn">ERP同步日志详情</span><br><span class="en">ERP Sync Log Detail</span></a></div>
+      <div class="card"><a href="field_mapping.html"><span class="cn">ERP字段映射</span><br><span class="en">Field Mapping</span></a></div>
+    </div>
+  </div>
+  <!-- 02. 需求提报 -->
+  <div class="section">
+    <div class="section-title"><span class="step">02</span>需求提报</div>
+    <div class="grid">
+      <div class="card"><a href="requirement_list.html"><span class="cn">采购需求管理</span><br><span class="en">Requirement List</span></a></div>
+    </div>
+  </div>
+  <!-- 03. 需求汇总 -->
+  <div class="section">
+    <div class="section-title"><span class="step">03</span>需求汇总</div>
+    <div class="grid">
+      <div class="card"><a href="requirement_summary_list.html"><span class="cn">需求汇总管理</span><br><span class="en">Requirement Summary List</span></a></div>
+    </div>
+  </div>
+  <!-- 04. 采购计划 -->
+  <div class="section">
+    <div class="section-title"><span class="step">04</span>采购计划</div>
+    <div class="grid">
+      <div class="card"><a href="purchase_plan_list.html"><span class="cn">采购计划管理</span><br><span class="en">Purchase Plan List</span></a></div>
+      <div class="card"><a href="purchase_plan_detail.html"><span class="cn">采购计划详情</span><br><span class="en">Purchase Plan Detail</span></a></div>
+      <div class="card"><a href="budget_control.html"><span class="cn">预算管控</span><br><span class="en">Budget Control</span></a></div>
+      <div class="card"><a href="purchase_method_rule.html"><span class="cn">采购方式判定规则</span><br><span class="en">Purchase Method Rule</span></a></div>
+    </div>
+  </div>
+  <!-- 05. 采购执行（询比招） -->
+  <div class="section">
+    <div class="section-title"><span class="step">05</span>采购执行（询比招）</div>
+    <div class="grid">
+      <div class="card"><a href="bid_project_list.html"><span class="cn">采购项目</span><br><span class="en">Bid Project List</span></a></div>
+      <div class="card"><a href="bid_project_detail.html"><span class="cn">寻源项目详情</span><br><span class="en">Sourcing Project Detail</span></a></div>
+      <div class="card"><a href="expert_list.html"><span class="cn">评标专家管理</span><br><span class="en">Expert List</span></a></div>
+      <div class="card"><a href="evaluation_scoring.html"><span class="cn">评标打分管理</span><br><span class="en">Evaluation Scoring</span></a></div>
+      <div class="card"><a href="auto_match.html"><span class="cn">自动匹配推荐</span><br><span class="en">Auto Match</span></a></div>
+      <div class="card"><a href="secondary_bid.html"><span class="cn">二次竞价</span><br><span class="en">Secondary Bid</span></a></div>
+    </div>
+  </div>
+  <!-- 06. 中标结果 -->
+  <div class="section">
+    <div class="section-title"><span class="step">06</span>中标结果</div>
+    <div class="grid">
+      <div class="card"><a href="bid_result_list.html"><span class="cn">中标结果管理</span><br><span class="en">Bid Result List</span></a></div>
+    </div>
+  </div>
+  <!-- 07. 合同管理 -->
+  <div class="section">
+    <div class="section-title"><span class="step">07</span>合同管理</div>
+    <div class="grid">
+      <div class="card"><a href="contract_list.html"><span class="cn">合同管理</span><br><span class="en">Contract List</span></a></div>
+      <div class="card"><a href="contract_bill.html"><span class="cn">合同详情</span><br><span class="en">Contract Bill</span></a></div>
+    </div>
+  </div>
+  <!-- 08. 商品上架 -->
+  <div class="section">
+    <div class="section-title"><span class="step">08</span>商品上架</div>
+    <div class="grid">
+      <div class="card"><a href="product_list.html"><span class="cn">商品列表</span><br><span class="en">Product List</span></a></div>
+      <div class="card"><a href="product_audit.html"><span class="cn">商品审核</span><br><span class="en">Product Audit</span></a></div>
+      <div class="card"><a href="promotion_list.html"><span class="cn">促销活动管理</span><br><span class="en">Promotion List</span></a></div>
+      <div class="card"><a href="deployment_management.html"><span class="cn">上架部署管理</span><br><span class="en">Deployment Management</span></a></div>
+    </div>
+  </div>
+  <!-- 09. 商品搜索 -->
+  <div class="section">
+    <div class="section-title"><span class="step">09</span>商品搜索</div>
+    <div class="grid">
+      <div class="card"><a href="product_selection.html"><span class="cn">商品选购</span><br><span class="en">Product Selection</span></a></div>
+      <div class="card"><a href="product_detail_bill.html"><span class="cn">商品详情</span><br><span class="en">Product Detail Bill</span></a></div>
+      <div class="card"><a href="product_compare.html"><span class="cn">商品对比</span><br><span class="en">Product Compare</span></a></div>
+      <div class="card"><a href="product_selection_guide.html"><span class="cn">选品指南</span><br><span class="en">Product Selection Guide</span></a></div>
+    </div>
+  </div>
+  <!-- 10. 购物车与应急 -->
+  <div class="section">
+    <div class="section-title"><span class="step">10</span>购物车与应急</div>
+    <div class="grid">
+      <div class="card"><a href="cart_list.html"><span class="cn">购物车管理</span><br><span class="en">Cart List</span></a></div>
+      <div class="card"><a href="emergency_purchase.html"><span class="cn">应急采购通道</span><br><span class="en">Emergency Purchase</span></a></div>
+    </div>
+  </div>
+  <!-- 11. 采购申请 -->
+  <div class="section">
+    <div class="section-title"><span class="step">11</span>采购申请</div>
+    <div class="grid">
+      <div class="card"><a href="purchase_request_list.html"><span class="cn">采购申请列表</span><br><span class="en">Purchase Request List</span></a></div>
+      <div class="card"><a href="purchase_request_bill.html"><span class="cn">采购申请单</span><br><span class="en">Purchase Request Bill</span></a></div>
+    </div>
+  </div>
+  <!-- 12. 多级审批 -->
+  <div class="section">
+    <div class="section-title"><span class="step">12</span>多级审批</div>
+    <div class="grid">
+      <div class="card"><a href="purchase_approval.html"><span class="cn">采购申请审批</span><br><span class="en">Purchase Approval</span></a></div>
+      <div class="card"><a href="role_conflict.html"><span class="cn">角色冲突检测</span><br><span class="en">Role Conflict</span></a></div>
+      <div class="card"><a href="sla_config.html"><span class="cn">SLA时效配置</span><br><span class="en">SLA Config</span></a></div>
+    </div>
+  </div>
+  <!-- 13. 订单生成 -->
+  <div class="section">
+    <div class="section-title"><span class="step">13</span>订单生成</div>
+    <div class="grid">
+      <div class="card"><a href="order_management.html"><span class="cn">订单管理</span><br><span class="en">Order Management</span></a></div>
+      <div class="card"><a href="order_list.html"><span class="cn">订单列表</span><br><span class="en">Order List</span></a></div>
+      <div class="card"><a href="purchase_order.html"><span class="cn">采购订单</span><br><span class="en">Purchase Order</span></a></div>
+    </div>
+  </div>
+  <!-- 14. 发货配送 -->
+  <div class="section">
+    <div class="section-title"><span class="step">14</span>发货配送</div>
+    <div class="grid">
+      <div class="card"><a href="shipment_list.html"><span class="cn">发货管理</span><br><span class="en">Shipment List</span></a></div>
+      <div class="card"><a href="shipment_bill.html"><span class="cn">发货单</span><br><span class="en">Shipment Bill</span></a></div>
+      <div class="card"><a href="logistics_tracking.html"><span class="cn">物流跟踪</span><br><span class="en">Logistics Tracking</span></a></div>
+      <div class="card"><a href="smart_logistics.html"><span class="cn">智能物流</span><br><span class="en">Smart Logistics</span></a></div>
+    </div>
+  </div>
+  <!-- 15. 收货验收与仓储 -->
+  <div class="section">
+    <div class="section-title"><span class="step">15</span>收货验收与仓储</div>
+    <div class="grid">
+      <div class="card"><a href="purchase_storage.html"><span class="cn">采购入库</span><br><span class="en">Purchase Storage</span></a></div>
+      <div class="card"><a href="requisition_out.html"><span class="cn">领用出库</span><br><span class="en">Requisition Out</span></a></div>
+      <div class="card"><a href="inventory_forecast.html"><span class="cn">库存预测</span><br><span class="en">Inventory Forecast</span></a></div>
+      <div class="card"><a href="scrap_disposal.html"><span class="cn">报废处置</span><br><span class="en">Scrap Disposal</span></a></div>
+      <div class="card"><a href="equipment_rental.html"><span class="cn">设备租赁</span><br><span class="en">Equipment Rental</span></a></div>
+    </div>
+  </div>
+  <!-- 16. 售后管理 -->
+  <div class="section">
+    <div class="section-title"><span class="step">16</span>售后管理</div>
+    <div class="grid">
+      <div class="card"><a href="after_sale_list.html"><span class="cn">售后工单</span><br><span class="en">After Sale List</span></a></div>
+      <div class="card"><a href="after_sale_detail.html"><span class="cn">售后工单详情</span><br><span class="en">After Sale Detail</span></a></div>
+      <div class="card"><a href="quality_analysis.html"><span class="cn">质量分析</span><br><span class="en">Quality Analysis</span></a></div>
+    </div>
+  </div>
+  <!-- 17. 支付结算 -->
+  <div class="section">
+    <div class="section-title"><span class="step">17</span>支付结算</div>
+    <div class="grid">
+      <div class="card"><a href="payment_list.html"><span class="cn">支付管理</span><br><span class="en">Payment List</span></a></div>
+      <div class="card"><a href="payment_bill.html"><span class="cn">支付单</span><br><span class="en">Payment Bill</span></a></div>
+      <div class="card"><a href="payment_reminder.html"><span class="cn">货款催付</span><br><span class="en">Payment Reminder</span></a></div>
+      <div class="card"><a href="supply_chain_finance.html"><span class="cn">供应链金融</span><br><span class="en">Supply Chain Finance</span></a></div>
+    </div>
+  </div>
+  <!-- 18. 发票管理 -->
+  <div class="section">
+    <div class="section-title"><span class="step">18</span>发票管理</div>
+    <div class="grid">
+      <div class="card"><a href="invoice_list.html"><span class="cn">发票管理</span><br><span class="en">Invoice List</span></a></div>
+      <div class="card"><a href="invoice_bill.html"><span class="cn">发票单</span><br><span class="en">Invoice Bill</span></a></div>
+      <div class="card"><a href="invoice_detail.html"><span class="cn">发票详情</span><br><span class="en">Invoice Detail</span></a></div>
+      <div class="card"><a href="invoice_verify.html"><span class="cn">发票验真</span><br><span class="en">Invoice Verify</span></a></div>
+    </div>
+  </div>
+  <!-- 19. 对账清分 -->
+  <div class="section">
+    <div class="section-title"><span class="step">19</span>对账清分</div>
+    <div class="grid">
+      <div class="card"><a href="reconciliation_list.html"><span class="cn">对账管理</span><br><span class="en">Reconciliation List</span></a></div>
+      <div class="card"><a href="reconciliation_detail.html"><span class="cn">对账详情</span><br><span class="en">Reconciliation Detail</span></a></div>
+      <div class="card"><a href="clearing_management.html"><span class="cn">清分管理</span><br><span class="en">Clearing Management</span></a></div>
+      <div class="card"><a href="finance_summary.html"><span class="cn">财务结算汇总</span><br><span class="en">Finance Summary</span></a></div>
+    </div>
+  </div>
+  <!-- 20. 履约评价 -->
+  <div class="section">
+    <div class="section-title"><span class="step">20</span>履约评价</div>
+    <div class="grid">
+      <div class="card"><a href="evaluation_list.html"><span class="cn">履约评价</span><br><span class="en">Evaluation List</span></a></div>
+      <div class="card"><a href="evaluation_bill.html"><span class="cn">履约评价单</span><br><span class="en">Evaluation Bill</span></a></div>
+      <div class="card"><a href="assessment_report.html"><span class="cn">考核报告</span><br><span class="en">Assessment Report</span></a></div>
+      <div class="card"><a href="behavior_analysis.html"><span class="cn">行为分析</span><br><span class="en">Behavior Analysis</span></a></div>
+    </div>
+  </div>
+  <!-- 21. 运营看板 -->
+  <div class="section">
+    <div class="section-title"><span class="step">21</span>运营看板</div>
+    <div class="grid">
+      <div class="card"><a href="dashboard.html"><span class="cn">运营数据看板</span><br><span class="en">Dashboard</span></a></div>
+    </div>
+  </div>
+  <!-- 22. 价格管理 -->
+  <div class="section">
+    <div class="section-title"><span class="step">22</span>价格管理</div>
+    <div class="grid">
+      <div class="card"><a href="price_index.html"><span class="cn">价格指数</span><br><span class="en">Price Index</span></a></div>
+      <div class="card"><a href="price_index_service.html"><span class="cn">价格指数服务</span><br><span class="en">Price Index Service</span></a></div>
+      <div class="card"><a href="price_matrix.html"><span class="cn">价格矩阵</span><br><span class="en">Price Matrix</span></a></div>
+    </div>
+  </div>
+  <!-- 23. AI增强 -->
+  <div class="section">
+    <div class="section-title"><span class="step">23</span>AI增强</div>
+    <div class="grid">
+      <div class="card"><a href="ai_recommendation.html"><span class="cn">AI智能推荐</span><br><span class="en">AI Recommendation</span></a></div>
+      <div class="card"><a href="ai_bid_decision.html"><span class="cn">AI智能评标决策</span><br><span class="en">AI Bid Decision</span></a></div>
+      <div class="card"><a href="ai_demand_forecast.html"><span class="cn">AI采购需求预测</span><br><span class="en">AI Demand Forecast</span></a></div>
+      <div class="card"><a href="ai_supplier_match.html"><span class="cn">AI供应商智能匹配</span><br><span class="en">AI Supplier Match</span></a></div>
+      <div class="card"><a href="ai_compliance_review.html"><span class="cn">AI合同合规审查</span><br><span class="en">AI Compliance Review</span></a></div>
+      <div class="card"><a href="ai_procurement_monitor.html"><span class="cn">AI采购流程监测</span><br><span class="en">AI Procurement Monitor</span></a></div>
+      <div class="card"><a href="ai_risk_warning.html"><span class="cn">AI供应链风险预警</span><br><span class="en">AI Risk Warning</span></a></div>
+      <div class="card"><a href="ai_supply_analysis.html"><span class="cn">AI供应链智能分析</span><br><span class="en">AI Supply Analysis</span></a></div>
+      <div class="card"><a href="ai_assistant.html"><span class="cn">AI采购智能助手</span><br><span class="en">AI Assistant</span></a></div>
+    </div>
+  </div>
+  <!-- 24. 特殊采购场景 -->
+  <div class="section">
+    <div class="section-title"><span class="step">24</span>特殊采购场景</div>
+    <div class="grid">
+      <div class="card"><a href="employee_benefit.html"><span class="cn">员工福利采购</span><br><span class="en">Employee Benefit</span></a></div>
+      <div class="card"><a href="engineering_service.html"><span class="cn">工程服务采购</span><br><span class="en">Engineering Service</span></a></div>
+      <div class="card"><a href="poverty_alleviation.html"><span class="cn">扶贫采购</span><br><span class="en">Poverty Alleviation</span></a></div>
+    </div>
+  </div>
+  <!-- 25. 供应链升级 -->
+  <div class="section">
+    <div class="section-title"><span class="step">25</span>供应链升级</div>
+    <div class="grid">
+      <div class="card"><a href="green_supply_chain.html"><span class="cn">绿色供应链</span><br><span class="en">Green Supply Chain</span></a></div>
+      <div class="card"><a href="supply_chain_share.html"><span class="cn">供应链协同共享</span><br><span class="en">Supply Chain Share</span></a></div>
+    </div>
+  </div>
+  <!-- 26. 移动端 -->
+  <div class="section">
+    <div class="section-title"><span class="step">26</span>移动端</div>
+    <div class="grid">
+      <div class="card"><a href="mobile_h5.html"><span class="cn">移动端H5</span><br><span class="en">Mobile H5</span></a></div>
+    </div>
+  </div>
+  <!-- 27. 系统管理与安全 -->
+  <div class="section">
+    <div class="section-title"><span class="step">27</span>系统管理与安全</div>
+    <div class="grid">
+      <div class="card"><a href="user_list.html"><span class="cn">用户管理</span><br><span class="en">User List</span></a></div>
+      <div class="card"><a href="role_list.html"><span class="cn">角色权限</span><br><span class="en">Role List</span></a></div>
+      <div class="card"><a href="rule_list.html"><span class="cn">业务规则</span><br><span class="en">Rule List</span></a></div>
+      <div class="card"><a href="organization_list.html"><span class="cn">组织架构树</span><br><span class="en">Organization List</span></a></div>
+      <div class="card"><a href="login_log.html"><span class="cn">登录日志</span><br><span class="en">Login Log</span></a></div>
+      <div class="card"><a href="security_audit.html"><span class="cn">安全审计</span><br><span class="en">Security Audit</span></a></div>
+      <div class="card"><a href="security_service.html"><span class="cn">安全服务</span><br><span class="en">Security Service</span></a></div>
+      <div class="card"><a href="security_warning.html"><span class="cn">安全预警</span><br><span class="en">Security Warning</span></a></div>
+    </div>
+  </div>
+  <!-- 帮助弹窗 -->
+  <div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)document.getElementById('helpOverlay').classList.remove('show')">
+    <div class="help-dialog">
+      <div class="help-dialog__header">
+        <span>帮助说明</span>
+        <button class="help-dialog__close" onclick="document.getElementById('helpOverlay').classList.remove('show')">&times;</button>
+      </div>
+      <div class="help-dialog__body">
+        <div class="help-section">
+          <div class="help-section__title">业务场景</div>
+          <div class="help-section__body"><p>本页面是<b>电子商城系统原型索引</b>，按业务流程顺序组织全部104个功能页面，涵盖从基础数据管理到AI增强的完整采购供应链业务链条，方便快速定位和浏览各功能原型。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title">页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>业务流程导航</b>：27个业务环节按流程顺序排列，每个环节展示相关功能页面卡片</li>
+              <li><b>双语标注</b>：每个页面卡片同时显示中文名称和英文名称</li>
+              <li><b>快速跳转</b>：点击任意卡片直接打开对应功能页面</li>
+              <li><b>流程覆盖</b>：基础数据→需求提报→需求汇总→采购计划→采购执行→中标结果→合同管理→商品上架→商品搜索→购物车→采购申请→多级审批→订单生成→发货→收货验收→售后管理→支付→发票→对账→履约评价→运营看板→价格管理→AI增强→特殊采购→供应链升级→移动端→系统管理</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title">详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>浏览业务环节</b>：页面按01-27编号展示各业务环节，滚动查看完整流程</li>
+              <li><b>查找目标页面</b>：在对应业务环节的卡片区域中找到所需功能页面</li>
+              <li><b>打开功能页面</b>：点击卡片链接，在新标签页中打开该功能的原型页面</li>
+              <li><b>返回索引</b>：关闭或切回原标签页即可回到索引页面继续浏览</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div class="help-dialog__footer">
+        <button onclick="document.getElementById('helpOverlay').classList.remove('show')">关闭</button>
+      </div>
+    </div>
+  </div>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

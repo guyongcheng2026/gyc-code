@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>购物车管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .cart-summary { background:#F1F6F7; border:1px solid #EAECF0; border-radius:4px; padding:16px; margin-top:12px; text-align:right; }
+    .cart-summary .summary-row { font-size:14px; color:#555; margin-bottom:6px; }
+    .cart-summary .summary-total { font-size:18px; font-weight:700; color:#0B7266; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  .tl-footer { text-align:center; }
+  /* 最大化样式 */
+  .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+  .table-maximized .yj-container-card__bar { padding: 8px 0; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">购物车管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="商品名称" title="商品名称">
+                    <el-input v-model="queryForm.productName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="商品编号" title="商品编号">
+                    <el-input v-model="queryForm.productCode" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商" title="供应商">
+                    <el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="分类" title="分类">
+                    <el-select v-model="queryForm.category" placeholder="请选择" clearable>
+                      <el-option label="电气设备" value="电气设备"></el-option>
+                      <el-option label="智能终端" value="智能终端"></el-option>
+                      <el-option label="办公用品" value="办公用品"></el-option>
+                      <el-option label="劳保用品" value="劳保用品"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="购物车列表">购物车列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          <el-button @click="batchRemove" :disabled="selection.length===0" type="danger" icon="el-icon-delete">批量移除</el-button>
+                          <el-button @click="goCheckout" :disabled="selectedItems.length===0" type="primary" icon="el-icon-s-order">结算生成采购申请</el-button>
+                        </div>
+                      </div>
+                      <div class="yj-container-card__default-buttons">
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true"><i class="el-icon-setting"></i></button>
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize"><i class="el-icon-full-screen"></i></button>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('productCode')" prop="productCode" label="商品编号" min-width="120" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('productName')" prop="productName" label="商品名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('category')" prop="category" label="分类" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('spec')" prop="spec" label="规格型号" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('supplier')" prop="supplier" label="供应商" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('unitPrice')" prop="unitPrice" label="单价(元)" min-width="120" align="right">
+                      <template slot-scope="{row}">{{ row.unitPrice.toLocaleString() }}</template>
+                    </el-table-column>
+                    <el-table-column label="数量" width="140" align="center">
+                      <template slot-scope="{row}">
+                        <el-input-number v-model="row.quantity" :min="1" :max="row.stock" size="small" @change="updateSubtotal(row)"></el-input-number>
+                      </template>
+                    </el-table-column>
+                    <el-table-column v-if="isColumnVisible('stock')" prop="stock" label="库存" min-width="80" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('subtotal')" prop="subtotal" label="金额小计(元)" min-width="130" align="right">
+                      <template slot-scope="{row}">{{ row.subtotal.toLocaleString() }}</template>
+                    </el-table-column>
+                    <el-table-column v-if="isColumnVisible('addedAt')" prop="addedAt" label="加入时间" min-width="140" align="center"></el-table-column>
+                    <el-table-column label="操作" width="100" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="text" @click="removeItem(row)">移除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                  <div class="cart-summary">
+                    <div class="summary-row">已选商品：{{ selectedItems.length }} 件</div>
+                    <div class="summary-row">商品总数：{{ totalQty }} 件</div>
+                    <div class="summary-row">涉及供应商：{{ supplierCount }} 个（结算时将按供应商自动拆分为多个采购申请）</div>
+                    <div class="summary-total">合计金额：{{ totalAmount.toLocaleString() }} 元</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+
+    <!-- 结算弹窗 -->
+    <el-dialog :lazy="true" title="结算确认" :visible.sync="checkoutVisible" width="640px">
+      <el-alert title="结算将按供应商自动拆分为多个采购申请，并进入多级审批流程" type="info" :closable="false" show-icon style="margin-bottom:16px;"></el-alert>
+      <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-set-up"></i> 履约模式选择</div>
+      <el-radio-group v-model="fulfillmentMode" style="margin-bottom:16px;">
+        <el-radio-button label="purchase">框架+选购</el-radio-button>
+        <el-radio-button label="match">框架+匹配</el-radio-button>
+        <el-radio-button label="bid">框架+竞价</el-radio-button>
+      </el-radio-group>
+      <el-alert v-if="fulfillmentMode==='purchase'" title="框架+选购：采购员在商城直接选购商品加购结算，系统自动按供应商拆分采购申请" type="success" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+      <el-alert v-if="fulfillmentMode==='match'" title="框架+匹配：采购方提交需求，系统按价格/交期/库存/信用四维度自动匹配最优供应商" type="info" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+      <el-alert v-if="fulfillmentMode==='bid'" title="框架+竞价：采购方发起竞价，多个供应商在线报价，系统自动推荐最低价" type="warning" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+      <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-warning-outline"></i> 选购限制阈值</div>
+      <el-descriptions :column="2" border style="margin-bottom:16px;">
+        <el-descriptions-item label="单次采购上限">500,000 元</el-descriptions-item>
+        <el-descriptions-item label="单次采购下限">1,000 元</el-descriptions-item>
+        <el-descriptions-item label="月度采购上限">2,000,000 元</el-descriptions-item>
+        <el-descriptions-item label="同类商品限购">{{ limitPerCategory }} 件</el-descriptions-item>
+        <el-descriptions-item label="预算管控策略">
+          <el-tag size="small" type="danger">硬管控</el-tag>
+          <span style="margin-left:6px;font-size:12px;color:#909399;">超预算禁止下单</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="超限处理">
+          <el-tag v-if="totalAmount > 500000" size="small" type="danger">超出单次上限</el-tag>
+          <el-tag v-else size="small" type="success">限额内</el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="已选商品数">{{ selectedItems.length }} 件</el-descriptions-item>
+        <el-descriptions-item label="商品总数">{{ totalQty }} 件</el-descriptions-item>
+        <el-descriptions-item label="涉及供应商">{{ supplierCount }} 个</el-descriptions-item>
+        <el-descriptions-item label="合计金额">{{ totalAmount.toLocaleString() }} 元</el-descriptions-item>
+        <el-descriptions-item label="采购方式判定">
+          <el-tag :type="methodTag">{{ determinedMethod }}</el-tag>
+          <span style="margin-left:8px;color:#909399;font-size:12px;">根据金额自动判定</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="审批层级">{{ approvalLevel }}</el-descriptions-item>
+        <el-descriptions-item label="预算余额">
+          <span style="color:#0B7266;font-weight:600;">{{ budgetRemaining.toLocaleString() }} 元</span>
+          <el-tag v-if="totalAmount > budgetRemaining" type="danger" size="small" style="margin-left:8px;">超预算</el-tag>
+          <el-tag v-else type="success" size="small" style="margin-left:8px;">预算内</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="预算使用率">
+          <el-progress :percentage="budgetUsageRate" :color="budgetUsageRate > 90 ? '#F56C6C' : budgetUsageRate > 70 ? '#E6A23C' : '#0B7266'" :show-text="true" :stroke-width="14" style="width:200px;"></el-progress>
+        </el-descriptions-item>
+      </el-descriptions>
+      <div style="margin-top:12px;">
+        <div style="font-weight:600;margin-bottom:8px;">按供应商拆分预览：</div>
+        <div class="yj-container-card__table">
+        <el-table :data="splitPreview" border style="width:100%;">
+          <el-table-column prop="supplier" label="供应商" min-width="200"></el-table-column>
+          <el-table-column prop="itemCount" label="商品数" width="80" align="center"></el-table-column>
+          <el-table-column prop="totalQty" label="总数量" width="80" align="center"></el-table-column>
+          <el-table-column label="金额" width="120" align="right">
+            <template slot-scope="{row}">{{ row.amount.toLocaleString() }} 元</template>
+          </el-table-column>
+          <el-table-column prop="reqNo" label="预生成申请编号" min-width="150"></el-table-column>
+        </el-table>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="checkoutVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmCheckout">确认结算</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            采购方在商品列表加购后，购物车支持多供应商商品共存。结算时按供应商自动拆分为多个采购申请，并调用规则中心判定采购方式、发起多级审批流程。本页面是下单选购环节的结算枢纽。适用于各业务部门的采购员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>多供应商商品共存，一站式采购无需分次下单</li>
+              <li>结算时自动按供应商拆单，每个供应商生成独立采购申请</li>
+              <li>规则中心自动判定采购方式（框架协议/询价/招标等）</li>
+              <li>流程中心自动发起多级审批（部门经理→采购经理→分管副总）</li>
+              <li>库存预占机制，避免超卖</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看购物车</b>：页面展示所有已加购商品，按供应商分组显示</li>
+              <li><b>修改数量</b>：在数量输入框修改采购数量，系统自动校验库存</li>
+              <li><b>勾选商品</b>：勾选要结算的商品前的复选框，可全选/取消全选</li>
+              <li><b>移除商品</b>：点击商品行"移除"将商品移出购物车</li>
+              <li><b>清空购物车</b>：点击"清空"移除所有商品</li>
+              <li><b>结算</b>：勾选商品后点击"结算"，系统按供应商拆单，校验库存和预算，创建采购申请，发起审批流</li>
+              <li><b>查看订单</b>：结算成功后跳转至采购申请列表查看生成结果</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;/* gap-removed */;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    function isNotEmpty(value) {
+      if (value === null || value === undefined) return false;
+      if (typeof value === 'string') return value.trim() !== '';
+      if (Array.isArray(value)) return value.length > 0;
+      return true;
+    }
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          queryForm:{productName:'',productCode:'',supplier:'',category:''},
+          tableSearchText:'',
+          selection:[],
+          checkoutVisible:false,
+          fulfillmentMode:'purchase',
+          limitPerCategory:50,
+          helpVisible:false,
+          tableData:[
+            {productCode:'PR-001',productName:'10kV高压开关柜',category:'电气设备',spec:'KYN28-12',supplier:'国电南瑞科技股份有限公司',unitPrice:128000,quantity:10,stock:50,subtotal:1280000,addedAt:'2026-06-25 09:30:00'},
+            {productCode:'PR-002',productName:'三相电力变压器',category:'电气设备',spec:'S11-M-800/10',supplier:'许继电气股份有限公司',unitPrice:86500,quantity:5,stock:20,subtotal:432500,addedAt:'2026-06-25 09:35:00'},
+            {productCode:'PR-003',productName:'智能电表',category:'智能终端',spec:'DDZ986-Z',supplier:'威胜信息技术股份有限公司',unitPrice:380,quantity:200,stock:5000,subtotal:76000,addedAt:'2026-06-25 09:40:00'},
+            {productCode:'PR-004',productName:'集中器',category:'智能终端',spec:'DJGZ23-Z',supplier:'威胜信息技术股份有限公司',unitPrice:1280,quantity:50,stock:500,subtotal:64000,addedAt:'2026-06-25 09:42:00'},
+            {productCode:'PR-005',productName:'SF6断路器',category:'电气设备',spec:'LW36-40.5',supplier:'平高电气股份有限公司',unitPrice:56800,quantity:3,stock:15,subtotal:170400,addedAt:'2026-06-25 09:45:00'},
+            {productCode:'PR-006',productName:'电流互感器',category:'电气设备',spec:'LB-110',supplier:'思源电气股份有限公司',unitPrice:12300,quantity:10,stock:30,subtotal:123000,addedAt:'2026-06-25 09:48:00'},
+            {productCode:'PR-007',productName:'办公电脑',category:'办公用品',spec:'联想启天M415',supplier:'联想集团有限公司',unitPrice:5800,quantity:15,stock:200,subtotal:87000,addedAt:'2026-06-25 09:50:00'},
+            {productCode:'PR-008',productName:'激光打印机',category:'办公用品',spec:'HP LaserJet Pro M404',supplier:'中国惠普有限公司',unitPrice:2300,quantity:5,stock:100,subtotal:11500,addedAt:'2026-06-25 09:52:00'},
+            {productCode:'PR-009',productName:'A4复印纸',category:'办公用品',spec:'80g 500张/包',supplier:'中国惠普有限公司',unitPrice:25,quantity:100,stock:2000,subtotal:2500,addedAt:'2026-06-25 09:55:00'},
+            {productCode:'PR-010',productName:'安全帽',category:'劳保用品',spec:'ABS绝缘 V级',supplier:'代尔塔防护用品公司',unitPrice:65,quantity:200,stock:1000,subtotal:13000,addedAt:'2026-06-25 09:58:00'},
+            {productCode:'PR-011',productName:'绝缘手套',category:'劳保用品',spec:'12kV 双色',supplier:'代尔塔防护用品公司',unitPrice:38,quantity:500,stock:2000,subtotal:19000,addedAt:'2026-06-25 10:00:00'},
+            {productCode:'PR-012',productName:'配电自动化终端',category:'电气设备',spec:'DTU-3000',supplier:'国电南瑞科技股份有限公司',unitPrice:18600,quantity:8,stock:40,subtotal:148800,addedAt:'2026-06-25 10:05:00'},
+            {productCode:'PR-013',productName:'避雷器',category:'电气设备',spec:'Y5W5-51/134',supplier:'思源电气股份有限公司',unitPrice:3200,quantity:30,stock:100,subtotal:96000,addedAt:'2026-06-25 10:08:00'},
+            {productCode:'PR-014',productName:'接地开关',category:'电气设备',spec:'JN15-12',supplier:'平高电气股份有限公司',unitPrice:4500,quantity:5,stock:20,subtotal:22500,addedAt:'2026-06-25 10:10:00'},
+            {productCode:'PR-015',productName:'电力电缆',category:'电气设备',spec:'YJV22-8.7/15kV 3*400',supplier:'远东电缆有限公司',unitPrice:280,quantity:500,stock:5000,subtotal:140000,addedAt:'2026-06-25 10:15:00'},
+            {productCode:'PR-016',productName:'UPS不间断电源',category:'办公用品',spec:'UPS-10KVA',supplier:'山特电子(深圳)有限公司',unitPrice:18500,quantity:2,stock:10,subtotal:37000,addedAt:'2026-06-25 10:20:00'},
+            {productCode:'PR-017',productName:'配电箱',category:'电气设备',spec:'XL-21',supplier:'国电南瑞科技股份有限公司',unitPrice:8500,quantity:8,stock:30,subtotal:68000,addedAt:'2026-06-25 10:25:00'},
+            {productCode:'PR-018',productName:'继电保护装置',category:'电气设备',spec:'RCS-941',supplier:'许继电气股份有限公司',unitPrice:42000,quantity:3,stock:10,subtotal:126000,addedAt:'2026-06-25 10:30:00'},
+            {productCode:'PR-019',productName:'监控后台系统',category:'电气设备',spec:'SYS-8000',supplier:'国电南瑞科技股份有限公司',unitPrice:156000,quantity:1,stock:5,subtotal:156000,addedAt:'2026-06-25 10:35:00'},
+            {productCode:'PR-020',productName:'通信光缆',category:'电气设备',spec:'GYTA-24B1',supplier:'远东电缆有限公司',unitPrice:12,quantity:2000,stock:10000,subtotal:24000,addedAt:'2026-06-25 10:40:00'},
+            {productCode:'PR-021',productName:'蓄电池组',category:'电气设备',spec:'GFM-300',supplier:'山特电子(深圳)有限公司',unitPrice:2800,quantity:5,stock:50,subtotal:14000,addedAt:'2026-06-25 10:45:00'},
+            {productCode:'PR-022',productName:'直流屏',category:'电气设备',spec:'GZDW-100',supplier:'许继电气股份有限公司',unitPrice:38000,quantity:2,stock:8,subtotal:76000,addedAt:'2026-06-25 10:50:00'},
+            {productCode:'PR-023',productName:'变频器',category:'电气设备',spec:'ACS-580',supplier:'思源电气股份有限公司',unitPrice:12500,quantity:3,stock:15,subtotal:37500,addedAt:'2026-06-25 10:55:00'},
+            {productCode:'PR-024',productName:'发电机',category:'电气设备',spec:'C-550',supplier:'威胜信息技术股份有限公司',unitPrice:185000,quantity:1,stock:3,subtotal:185000,addedAt:'2026-06-25 11:00:00'},
+            {productCode:'PR-025',productName:'灭火器',category:'劳保用品',spec:'MFZ-4',supplier:'代尔塔防护用品公司',unitPrice:85,quantity:20,stock:200,subtotal:1700,addedAt:'2026-06-25 11:05:00'},
+            {productCode:'PR-026',productName:'消防水带',category:'劳保用品',spec:'65mm-20m',supplier:'代尔塔防护用品公司',unitPrice:120,quantity:10,stock:100,subtotal:1200,addedAt:'2026-06-25 11:08:00'},
+            {productCode:'PR-027',productName:'手动工具套装',category:'劳保用品',spec:'12件套',supplier:'代尔塔防护用品公司',unitPrice:380,quantity:5,stock:50,subtotal:1900,addedAt:'2026-06-25 11:10:00'},
+            {productCode:'PR-028',productName:'数字万用表',category:'办公用品',spec:'Fluke-17B',supplier:'联想集团有限公司',unitPrice:650,quantity:8,stock:40,subtotal:5200,addedAt:'2026-06-25 11:15:00'},
+            {productCode:'PR-029',productName:'红外测温仪',category:'办公用品',spec:'Ti-32',supplier:'中国惠普有限公司',unitPrice:3200,quantity:2,stock:10,subtotal:6400,addedAt:'2026-06-25 11:20:00'},
+            {productCode:'PR-030',productName:'示波器',category:'办公用品',spec:'TBS-1102B',supplier:'联想集团有限公司',unitPrice:5800,quantity:1,stock:5,subtotal:5800,addedAt:'2026-06-25 11:25:00'}
+          ],
+          pageSize: 10,
+          currentPage:1,
+          fieldLabels:{},
+          // 显示设置
+          displaySettingVisible:false,
+          isTableMaximized:false,
+          visibleColumns:['productCode','productName','category','spec','supplier','unitPrice','stock','subtotal','addedAt'],
+          columnSettings:[
+            {prop:'productCode',label:'商品编号'},{prop:'productName',label:'商品名称'},{prop:'category',label:'分类'},
+            {prop:'spec',label:'规格型号'},{prop:'supplier',label:'供应商'},{prop:'unitPrice',label:'单价(元)'},
+            {prop:'stock',label:'库存'},{prop:'subtotal',label:'金额小计(元)'},{prop:'addedAt',label:'加入时间'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){
+          return this.tableData.filter(s=>{
+            if(this.queryForm.productName&&!s.productName.includes(this.queryForm.productName)) return false;
+            if(this.queryForm.productCode&&!s.productCode.includes(this.queryForm.productCode)) return false;
+            if(this.queryForm.supplier&&!s.supplier.includes(this.queryForm.supplier)) return false;
+            if(this.queryForm.category&&s.category!==this.queryForm.category) return false;
+            if(this.tableSearchText){
+              const kw=this.tableSearchText.toLowerCase();
+              const text=(s.productCode+s.productName+s.category+s.spec+s.supplier).toLowerCase();
+              if(!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        },
+        queryConditionText(){
+          const conditions=[];
+          const f=this.queryForm;
+          if(isNotEmpty(f.productName)) conditions.push('商品名称：'+f.productName);
+          if(isNotEmpty(f.productCode)) conditions.push('商品编号：'+f.productCode);
+          if(isNotEmpty(f.supplier)) conditions.push('供应商：'+f.supplier);
+          if(isNotEmpty(f.category)) conditions.push('分类：'+f.category);
+          if(conditions.length===0) return '暂无查询条件';
+          return '查询条件('+conditions.length+')：'+conditions.join('，');
+        },
+        selectedItems(){ return this.selection; },
+        totalQty(){ return this.selection.reduce((s,i)=>s+i.quantity,0); },
+        totalAmount(){ return this.selection.reduce((s,i)=>s+i.subtotal,0); },
+        supplierCount(){
+          const set=new Set();
+          this.selection.forEach(i=>set.add(i.supplier));
+          return set.size;
+        },
+        determinedMethod(){
+          const amt=this.totalAmount;
+          if(amt>=2000000) return '公开招标';
+          if(amt>=1000000) return '邀请招标';
+          if(amt>=500000) return '竞争性谈判';
+          return '询价采购';
+        },
+        methodTag(){
+          const m=this.determinedMethod;
+          if(m==='公开招标') return 'danger';
+          if(m==='邀请招标') return 'warning';
+          if(m==='竞争性谈判') return 'info';
+          return 'success';
+        },
+        approvalLevel(){
+          const amt=this.totalAmount;
+          if(amt>=1000000) return '4级（部门经理→采购经理→分管副总→总经理）';
+          if(amt>=100000) return '3级（部门经理→采购经理→分管副总）';
+          if(amt>=10000) return '2级（部门经理→采购经理）';
+          return '1级（部门经理）';
+        },
+        budgetTotal(){ return 500000; },
+        budgetRemaining(){ return this.budgetTotal - this.totalAmount; },
+        budgetUsageRate(){ return Math.min(100, Math.round(this.totalAmount / this.budgetTotal * 100)); },
+        splitPreview(){
+          const groups={};
+          this.selection.forEach(i=>{
+            if(!groups[i.supplier]) groups[i.supplier]={supplier:i.supplier,itemCount:0,totalQty:0,amount:0};
+            groups[i.supplier].itemCount++;
+            groups[i.supplier].totalQty+=i.quantity;
+            groups[i.supplier].amount+=i.subtotal;
+          });
+          let idx=1;
+          return Object.values(groups).map(g=>{
+            g.reqNo='PR-2026-'+String(idx).padStart(4,'0');
+            idx++;
+            return g;
+          });
+        }
+      },
+      watch:{
+        'queryForm.productName'(){this.currentPage=1;},
+        'queryForm.productCode'(){this.currentPage=1;},
+        'queryForm.supplier'(){this.currentPage=1;},
+        'queryForm.category'(){this.currentPage=1;},
+        tableSearchText(){this.currentPage=1;}
+      },
+      methods:{
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleQuery(){this.currentPage=1;this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录');},
+        handleReset(){this.queryForm={productName:'',productCode:'',supplier:'',category:''};this.tableSearchText='';this.currentPage=1;},
+        handleExport(){this.exportCSV();},
+        handleRefresh(){this.loadData();},
+        exportCSV() {
+          if (this.filteredData.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = Object.keys(this.filteredData[0]);
+          const headers = keys.map(k => labels[k] || k);
+          const rows = this.filteredData.map(item => keys.map(k => {
+            const v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+            return '"' + v.replace(/"/g, '""') + '"';
+          }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const title = document.title || '导出数据';
+          link.href = URL.createObjectURL(blob);
+          link.download = title + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/cart');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val){this.selection=val;},
+        updateSubtotal(row){ row.subtotal=row.unitPrice*row.quantity; },
+        removeItem(row){
+          this.$confirm('确认从购物车移除「'+row.productName+'」吗？','移除确认',{type:'warning'}).then(()=>{
+            const idx=this.tableData.findIndex(i=>i.productCode===row.productCode);
+            if(idx>-1) this.tableData.splice(idx,1);
+            this.$message.success('已移除「'+row.productName+'」');
+          }).catch(()=>{});
+        },
+        batchRemove(){
+          if(this.selection.length===0){this.$message.warning('请先选择要移除的商品');return;}
+          this.$confirm('确认移除选中的 '+this.selection.length+' 件商品吗？','批量移除',{type:'warning'}).then(()=>{
+            const codes=new Set(this.selection.map(i=>i.productCode));
+            this.tableData=this.tableData.filter(i=>!codes.has(i.productCode));
+            this.$message.success('已移除 '+this.selection.length+' 件商品');
+          }).catch(()=>{});
+        },
+        goCheckout(){
+          if(this.selection.length===0){this.$message.warning('请先选择要结算的商品');return;}
+          this.checkoutVisible=true;
+        },
+        confirmCheckout(){
+          this.$confirm('确认结算并生成采购申请吗？将按供应商拆分为 '+this.supplierCount+' 个采购申请，并进入多级审批流程。','结算确认',{type:'warning',confirmButtonText:'确认结算',cancelButtonText:'取消'}).then(()=>{
+            const codes=new Set(this.selection.map(i=>i.productCode));
+            this.tableData=this.tableData.filter(i=>!codes.has(i.productCode));
+            this.checkoutVisible=false;
+            this.$message.success('已生成 '+this.supplierCount+' 个采购申请，采购方式：'+this.determinedMethod+'，已进入多级审批流程');
+          }).catch(()=>{});
+        },
+        handlePageChange(page){this.currentPage=page;},
+        handleSizeChange(size){this.pageSize=size;this.currentPage=1;},
+        // 显示设置
+        isColumnVisible(prop){return this.visibleColumns.indexOf(prop)>-1;},
+        resetColumnSetting(){this.visibleColumns=this.columnSettings.map(function(c){return c.prop;});},
+        toggleMaximize(){this.isTableMaximized=!this.isTableMaximized;}
+      },
+      mounted(){this.handleQuery();}
+    });
+  </script>
+    <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

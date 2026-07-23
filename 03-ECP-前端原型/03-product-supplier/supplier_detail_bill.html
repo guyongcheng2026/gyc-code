@@ -1,0 +1,327 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>供应商档案详情</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .tl-footer { text-align:center; padding:20px; color:#909399; font-size:12px; border-top:1px solid #EBEEF5; margin-top:20px; }
+    /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container bill-page is-vertical">
+      <header class="el-header bill-header">
+        <div class="tl-title bill-title" area="title">
+          <div class="tl-title__title">供应商档案详情</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button @click="handleExport">导出</el-button>
+              <el-button @click="$message.info('打印')">打印</el-button>
+              <el-button type="primary" @click="$message.success('保存成功')">保存</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main bill-body">
+        <div class="bill-main">
+          <div class="yj-panel bill-form" area="form" id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>基本信息</span></div>
+                  <el-descriptions :column="3" border>
+                    <el-descriptions-item label="供应商编码">SUP-2026-0001</el-descriptions-item>
+                    <el-descriptions-item label="供应商名称">远东电缆股份有限公司</el-descriptions-item>
+                    <el-descriptions-item label="简称">远东电缆</el-descriptions-item>
+                    <el-descriptions-item label="统一社会信用代码">9132***********89X</el-descriptions-item>
+                    <el-descriptions-item label="供应商类型">制造商</el-descriptions-item>
+                    <el-descriptions-item label="企业性质">股份有限公司</el-descriptions-item>
+                    <el-descriptions-item label="注册地">江苏省无锡市</el-descriptions-item>
+                    <el-descriptions-item label="成立日期">1995-06-18</el-descriptions-item>
+                    <el-descriptions-item label="注册资本">5亿元</el-descriptions-item>
+                    <el-descriptions-item label="法人代表">蒋锡培</el-descriptions-item>
+                    <el-descriptions-item label="联系电话">0510-87210000</el-descriptions-item>
+                    <el-descriptions-item label="电子邮箱">con***@example.com</el-descriptions-item>
+                  </el-descriptions>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-panel" area="form" id="qual_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>资质信息</span></div>
+                  <div class="yj-container-card__table">
+                  <el-table :data="qualData" border stripe style="width:100%;">
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="qualName" label="资质名称" min-width="180" align="center"></el-table-column>
+                    <el-table-column prop="qualNo" label="证书编号" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="issueOrg" label="发证机构" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="validFrom" label="有效期起" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="validTo" label="有效期止" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='有效'?'success':'danger'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-panel" area="form" id="capacity_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>供货能力</span></div>
+                  <el-descriptions :column="3" border>
+                    <el-descriptions-item label="年供货额">2.5亿元</el-descriptions-item>
+                    <el-descriptions-item label="主要产品线">电力电缆、控制电缆、特种电缆</el-descriptions-item>
+                    <el-descriptions-item label="产能(月)">5000公里</el-descriptions-item>
+                    <el-descriptions-item label="交货周期">7-15个工作日</el-descriptions-item>
+                    <el-descriptions-item label="最小起订量">100米</el-descriptions-item>
+                    <el-descriptions-item label="仓储能力">50000平方米</el-descriptions-item>
+                  </el-descriptions>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-panel" area="form" id="score_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>评分汇总</span></div>
+                  <el-descriptions :column="2" border>
+                    <el-descriptions-item label="综合评级">
+                      <el-tag type="success">A级（战略供应商）</el-tag>
+                    </el-descriptions-item>
+                    <el-descriptions-item label="综合评分">94.5分</el-descriptions-item>
+                    <el-descriptions-item label="交付评分">95分</el-descriptions-item>
+                    <el-descriptions-item label="质量评分">96分</el-descriptions-item>
+                    <el-descriptions-item label="服务评分">92分</el-descriptions-item>
+                    <el-descriptions-item label="信用评分">95分</el-descriptions-item>
+                  </el-descriptions>
+                </div>
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section__title"><span>四维考核明细数据</span></div>
+                  <el-table :data="assessmentData" border style="width:100%;margin-bottom:16px;">
+                    <el-table-column prop="dimension" label="考核维度" width="120" align="center">
+                      <template slot-scope="{row}"><el-tag size="small" :type="row.type">{{ row.dimension }}</el-tag></template>
+                    </el-table-column>
+                    <el-table-column prop="score" label="得分" width="80" align="center">
+                      <template slot-scope="{row}"><span style="font-weight:600;color:#0B7266;">{{ row.score }}</span></template>
+                    </el-table-column>
+                    <el-table-column prop="weight" label="权重" width="80" align="center"></el-table-column>
+                    <el-table-column prop="weightedScore" label="加权得分" width="100" align="center"></el-table-column>
+                    <el-table-column label="趋势(近6期)" width="180" align="center">
+                      <template slot-scope="{row}">
+                        <span v-for="(t,i) in row.trend" :key="i" style="display:inline-block;margin:0 2px;font-size:12px;" :style="{color: t > row.score ? '#2e7d32' : t < row.score ? '#c62828' : '#909399'}">{{ t }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="rank" label="行业排名" width="100" align="center">
+                      <template slot-scope="{row}"><el-tag size="small" type="success">Top {{ row.rank }}%</el-tag></template>
+                    </el-table-column>
+                    <el-table-column prop="comment" label="考核说明" min-width="200"></el-table-column>
+                  </el-table>
+                  <el-descriptions :column="1" border style="margin-bottom:16px;">
+                    <el-descriptions-item label="考核周期">2026年Q2（4月-6月）</el-descriptions-item>
+                    <el-descriptions-item label="考核等级">A级（战略供应商）</el-descriptions-item>
+                    <el-descriptions-item label="考核结论">交付及时率98.5%，质量合格率99.2%，服务响应4小时内，信用记录良好。综合评定为A级战略供应商，建议续约并扩大合作范围。</el-descriptions-item>
+                  </el-descriptions>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-panel" area="form" id="order_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>近期订单</span></div>
+                  <div class="yj-container-card__table">
+                  <el-table :data="orderData" border stripe style="width:100%;">
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="orderNo" label="订单号" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="orderDate" label="下单日期" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="product" label="商品" min-width="180" align="center"></el-table-column>
+                    <el-table-column prop="qty" label="数量" min-width="80" align="center"></el-table-column>
+                    <el-table-column prop="amount" label="金额(元)" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='已完成'?'success':'warning'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="yj-panel" area="form" id="bank_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section__title"><span>银行账户</span></div>
+                  <div class="yj-container-card__table">
+                  <el-table :data="bankData" border stripe style="width:100%;">
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="bankName" label="开户银行" min-width="180" align="center"></el-table-column>
+                    <el-table-column prop="accountName" label="账户名称" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="accountNo" label="账号" min-width="200" align="center"></el-table-column>
+                    <el-table-column prop="accountType" label="账户类型" min-width="100" align="center"></el-table-column>
+                    <el-table-column prop="isDefault" label="默认账户" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag v-if="row.isDefault==='是'" type="success">默认</el-tag>
+                        <span v-else>-</span>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            供应商档案详情页展示供应商的完整主数据信息，涵盖基本信息、资质信息、供货能力、评分汇总、近期订单和银行账户六大维度。适用于采购管理员查看供应商资质有效期、供货能力评估、历史交易记录和银行账户信息，为供应商准入审批、分级管理和合作决策提供数据支撑。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>供应商全维度信息一屏展示，免去多页面跳转查询</li>
+              <li>资质信息含有效期监控，到期前自动预警，确保合作供应商资质合规</li>
+              <li>供货能力数据化（年供货额/产能/交货周期/最小起订量），支撑采购计划编制</li>
+              <li>评分汇总（综合/交付/质量/服务/信用）驱动供应商分级与差异化合作策略</li>
+              <li>近期订单记录关联交易历史，辅助供应商绩效分析与合作趋势判断</li>
+              <li>银行账户信息结构化管理，支持多账户与默认账户标记，便于付款结算</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看基本信息</b>：页面顶部展示供应商编码、名称、统一社会信用代码、企业类型、注册地、注册资本、法人代表等基本信息</li>
+              <li><b>查看资质信息</b>：资质信息表格展示营业执照、ISO认证、3C认证等资质的证书编号、发证机构、有效期和状态</li>
+              <li><b>查看供货能力</b>：供货能力区域展示年供货额、主要产品线、月产能、交货周期、最小起订量和仓储能力</li>
+              <li><b>查看评分汇总</b>：评分汇总区域展示综合评级、综合评分及交付/质量/服务/信用四维评分</li>
+              <li><b>查看近期订单</b>：近期订单表格展示该供应商最近交易记录，含订单号、下单日期、商品、数量、金额和状态</li>
+              <li><b>查看银行账户</b>：银行账户表格展示开户银行、账户名称、账号、账户类型及默认账户标记</li>
+              <li><b>导出档案</b>：点击"导出"按钮，将供应商档案信息导出为文件</li>
+              <li><b>打印档案</b>：点击"打印"按钮，打印当前供应商档案详情</li>
+              <li><b>保存修改</b>：如页面支持编辑，修改信息后点击"保存"提交更新</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          helpVisible: false,
+          qualData: [
+            {qualName:'营业执照',qualNo:'9132***********89X',issueOrg:'无锡市工商行政管理局',validFrom:'2020-01-01',validTo:'2030-12-31',status:'有效'},
+            {qualName:'ISO9001质量管理体系认证',qualNo:'02121Q12345R1M',issueOrg:'中国质量认证中心',validFrom:'2023-06-01',validTo:'2026-05-31',status:'有效'},
+            {qualName:'ISO14001环境管理体系认证',qualNo:'02121E12345R1M',issueOrg:'中国质量认证中心',validFrom:'2023-06-01',validTo:'2026-05-31',status:'有效'},
+            {qualName:'OHSAS18001职业健康安全认证',qualNo:'02121S12345R1M',issueOrg:'中国质量认证中心',validFrom:'2023-06-01',validTo:'2026-05-31',status:'有效'},
+            {qualName:'国家强制性产品认证(3C)',qualNo:'2023********1234',issueOrg:'中国质量认证中心',validFrom:'2023-01-15',validTo:'2028-01-14',status:'有效'},
+            {qualName:'安全生产许可证',qualNo:'(苏)JZ安许证字[2023]000123',issueOrg:'江苏省住建厅',validFrom:'2023-03-01',validTo:'2026-02-28',status:'有效'}
+          ],
+          orderData: [
+            {orderNo:'ORD-2026-0601-001',orderDate:'2026-06-01',product:'10kV电力电缆 YJV22-3*400',qty:'5000',amount:'627500.00',status:'已完成'},
+            {orderNo:'ORD-2026-0515-003',orderDate:'2026-05-15',product:'控制电缆 KVV-7*1.5',qty:'3000',amount:'96000.00',status:'已完成'},
+            {orderNo:'ORD-2026-0501-002',orderDate:'2026-05-01',product:'10kV电力电缆 YJV22-3*240',qty:'2000',amount:'198000.00',status:'已完成'},
+            {orderNo:'ORD-2026-0620-005',orderDate:'2026-06-20',product:'特种电缆 NH-YJV-4*120',qty:'1500',amount:'267000.00',status:'交付中'},
+            {orderNo:'ORD-2026-0625-008',orderDate:'2026-06-25',product:'10kV电力电缆 YJV22-3*300',qty:'3000',amount:'376500.00',status:'交付中'}
+          ],
+          bankData: [
+            {bankName:'中国工商银行无锡分行',accountName:'远东电缆股份有限公司',accountNo:'1102***********1234',accountType:'基本户',isDefault:'是'},
+            {bankName:'中国建设银行宜兴支行',accountName:'远东电缆股份有限公司',accountNo:'3205***********1234',accountType:'一般户',isDefault:'否'}
+          ],
+          assessmentData:[
+            {dimension:'交付',type:'success',score:95,weight:'30%',weightedScore:28.5,trend:[92,93,94,93,95,95],rank:5,comment:'交付及时率98.5%，平均交货周期8天，优于合同约定15天'},
+            {dimension:'质量',type:'warning',score:96,weight:'30%',weightedScore:28.8,trend:[94,95,96,95,96,96],rank:3,comment:'质量合格率99.2%，无重大质量事故，1次轻微外观缺陷已整改'},
+            {dimension:'服务',type:'info',score:92,weight:'20%',weightedScore:18.4,trend:[88,90,91,90,92,92],rank:10,comment:'服务响应4小时内，售后问题解决率95%，建议提升技术支持能力'},
+            {dimension:'信用',type:'danger',score:95,weight:'20%',weightedScore:19.0,trend:[93,94,95,94,95,95],rank:5,comment:'信用记录良好，无司法诉讼，无行政处罚，征信评级AA+'}
+          ]
+        };
+      },
+      methods: {
+        handleExport() {
+          const sections = [
+            ['供应商档案详情'],
+            [''],
+            ['资质信息'],
+            ['证书名称', '证书编号', '发证机构', '有效期起', '有效期止', '状态']
+          ];
+          this.qualData.forEach(r => sections.push(['"' + r.qualName + '"', '"' + r.qualNo + '"', '"' + r.issueOrg + '"', '"' + r.validFrom + '"', '"' + r.validTo + '"', '"' + r.status + '"']));
+          sections.push(['']);
+          sections.push(['近期订单']);
+          sections.push(['订单号', '下单日期', '商品', '数量', '金额', '状态']);
+          this.orderData.forEach(r => sections.push(['"' + r.orderNo + '"', '"' + r.orderDate + '"', '"' + r.product + '"', '"' + r.qty + '"', '"' + r.amount + '"', '"' + r.status + '"']));
+          sections.push(['']);
+          sections.push(['银行账户']);
+          sections.push(['开户银行', '账户名称', '账号', '账户类型', '默认账户']);
+          this.bankData.forEach(r => sections.push(['"' + r.bankName + '"', '"' + r.accountName + '"', '"' + r.accountNo + '"', '"' + r.accountType + '"', '"' + r.isDefault + '"']));
+          const csv = '\uFEFF' + sections.map(r => r.join(',')).join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = '供应商档案_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出供应商档案');
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,535 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>移动端H5</title>
+<link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+<link rel="stylesheet" href="./css/template-driven-prototype.css">
+<style>
+.app-scss{--ecp-primary:#0B7266;}
+.tl-title__title{color:#1A2332;}
+.el-button--primary{background-color:#0B7266;border-color:#0B7266;}
+.el-button--primary:hover{background-color:#0a6358;border-color:#0a6358;}
+.el-dialog__header{border-bottom:1px solid #EAECF0;}
+.el-dialog__footer{border-top:1px solid #EAECF0;}
+.help-dialog .el-dialog__body{padding:16px 24px;max-height:60vh;overflow-y:auto;}
+.help-content{font-size:14px;color:#333;}
+.help-section{margin-bottom:20px;}
+.help-section:last-child{margin-bottom:0;}
+.help-section__title{font-size:15px;font-weight:600;color:#0B7266;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;}
+.help-section__title i{margin-right:6px;}
+.help-section__body{line-height:1.8;color:#555;}
+.help-section__body ul,.help-section__body ol{margin:0;padding-left:20px;}
+.help-section__body li{margin-bottom:6px;}
+.help-section__body li b{color:#1A2332;}
+.phone-frame{width:375px;margin:20px auto;border:8px solid #1A2332;border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.15);}
+.phone-screen{height:667px;overflow-y:auto;background:#f5f5f5;position:relative;}
+.phone-header{background:#0B7266;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;}
+.phone-header .ph-title{font-size:16px;font-weight:600;}
+.phone-header .ph-icon{font-size:20px;cursor:pointer;}
+.phone-tabbar{position:sticky;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #EBEEF5;display:flex;height:56px;z-index:10;}
+.phone-tabbar .tab-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;color:#909399;font-size:11px;position:relative;}
+.phone-tabbar .tab-item.active{color:#0B7266;}
+.phone-tabbar .tab-item i{font-size:20px;margin-bottom:2px;}
+.m-cart-badge{position:absolute;top:2px;right:20%;background:#f57c00;color:#fff;font-size:10px;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 4px;}
+.phone-content{padding:12px;padding-bottom:70px;}
+.m-banner{background:linear-gradient(135deg,#0B7266,#0a6358);border-radius:8px;padding:16px;color:#fff;margin-bottom:12px;}
+.m-banner .mb-title{font-size:15px;font-weight:600;}
+.m-banner .mb-desc{font-size:12px;opacity:0.85;margin-top:4px;}
+.m-search{background:#fff;border-radius:20px;padding:8px 16px;display:flex;align-items:center;margin-bottom:12px;}
+.m-search>*+*{margin-left:8px;}
+.m-search input{border:none;outline:none;flex:1;font-size:13px;}
+.m-section-title{font-size:14px;font-weight:600;color:#1A2332;margin:12px 0 8px;display:flex;align-items:center;justify-content:space-between;}
+.m-section-title .more-link{font-size:12px;color:#0B7266;font-weight:400;cursor:pointer;}
+.m-grid{display:flex;flex-wrap:wrap;}
+.m-grid>*{margin:4px;}
+.m-product{width:calc(50% - 8px);background:#fff;border-radius:8px;overflow:hidden;cursor:pointer;}
+.m-product:active{box-shadow:0 0 0 2px #0B7266;}
+.m-product .mp-img{width:100%;height:120px;background:#F1F6F7;display:flex;align-items:center;justify-content:center;position:relative;}
+.m-product .mp-img i{font-size:40px;color:#0B7266;}
+.m-product .mp-tag{position:absolute;top:6px;left:6px;background:#f57c00;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;}
+.m-product .mp-info{padding:8px;}
+.m-product .mp-name{font-size:13px;color:#1A2332;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.m-product .mp-price{font-size:15px;color:#f57c00;font-weight:600;margin-top:4px;}
+.m-product .mp-supplier{font-size:11px;color:#909399;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.m-product .mp-addcart{position:absolute;bottom:6px;right:6px;width:28px;height:28px;border-radius:50%;background:#0B7266;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.m-cart-item{background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;}
+.m-cart-item>*+*{margin-left:12px;}
+.m-cart-item .mc-info{flex:1;}
+.m-cart-item .mc-name{font-size:13px;color:#1A2332;}
+.m-cart-item .mc-price{font-size:14px;color:#f57c00;font-weight:600;}
+.m-cart-item .mc-qty{font-size:12px;color:#909399;}
+.m-cart-item .mc-stepper{display:flex;align-items:center;}
+.m-cart-item .mc-stepper .step-btn{width:24px;height:24px;border-radius:4px;background:#F1F6F7;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:#0B7266;}
+.m-cart-item .mc-stepper .step-num{font-size:13px;color:#1A2332;min-width:32px;text-align:center;}
+.m-mine-item{background:#fff;border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.m-mine-item:active{background:#f0f0f0;}
+.m-mine-item .mm-label{font-size:14px;color:#1A2332;display:flex;align-items:center;}
+.m-mine-item .mm-label i{margin-right:8px;color:#0B7266;font-size:18px;}
+.m-mine-item .mm-value{font-size:13px;color:#909399;}
+.m-avatar{width:60px;height:60px;border-radius:50%;background:#0B7266;display:flex;align-items:center;justify-content:center;color:#fff;font-size:24px;margin:0 auto 8px;}
+.m-user-name{text-align:center;font-size:16px;font-weight:600;color:#1A2332;}
+.m-user-org{text-align:center;font-size:12px;color:#909399;margin-top:2px;}
+.m-order-card{background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;}
+.m-order-card .mo-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.m-order-card .mo-no{font-size:12px;color:#909399;}
+.m-order-card .mo-status{font-size:12px;font-weight:600;}
+.m-order-card .mo-status.s-wait{color:#f57c00;}
+.m-order-card .mo-status.s-ship{color:#0B7266;}
+.m-order-card .mo-status.s-done{color:#2e7d32;}
+.m-order-card .mo-status.s-cancel{color:#909399;}
+.m-order-card .mo-body{display:flex;align-items:center;}
+.m-order-card .mo-body>*+*{margin-left:10px;}
+.m-order-card .mo-info{flex:1;}
+.m-order-card .mo-name{font-size:13px;color:#1A2332;}
+.m-order-card .mo-amount{font-size:14px;color:#f57c00;font-weight:600;margin-top:2px;}
+.m-order-card .mo-footer{display:flex;justify-content:flex-end;/* gap-removed */;margin-top:8px;}
+.m-order-card .mo-footer .el-button{padding:6px 12px;font-size:12px;}
+.m-pr-card{background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;}
+.m-pr-card .mpr-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.m-pr-card .mpr-no{font-size:12px;color:#909399;}
+.m-pr-card .mpr-status{font-size:12px;}
+.m-pr-card .mpr-body{font-size:13px;color:#1A2332;}
+.m-pr-card .mpr-amount{font-size:13px;color:#f57c00;font-weight:600;margin-top:4px;}
+.m-empty{text-align:center;padding:40px 0;color:#909399;font-size:13px;}
+.m-emergency-banner{background:linear-gradient(135deg,#fff3e0,#ffebee);border:1.5px solid #f57c00;border-radius:8px;padding:12px;margin-bottom:12px;display:flex;align-items:center;}
+.m-emergency-banner>*+*{margin-left:10px;}
+.m-emergency-banner .meb-icon{font-size:24px;color:#c62828;}
+.m-emergency-banner .meb-text{font-size:12px;color:#c62828;line-height:1.5;}
+.m-emergency-banner .meb-btn{flex-shrink:0;}
+.m-notice{background:#fff;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;}
+.m-notice .mn-icon{color:#f57c00;font-size:16px;margin-right:8px;}
+.m-notice .mn-text{font-size:12px;color:#555;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.m-notice .mn-close{color:#c0c4cc;font-size:14px;cursor:pointer;}
+.m-order-track{background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;}
+.m-order-track .mot-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.m-order-track .mot-no{font-size:12px;color:#909399;}
+.m-order-track .mot-steps{display:flex;align-items:center;}
+.m-order-track .mot-step{flex:1;text-align:center;position:relative;z-index:1;}
+.m-order-track .mot-step .dot{width:20px;height:20px;border-radius:50%;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;}
+.m-order-track .mot-step .dot.done{background:#0B7266;}
+.m-order-track .mot-step .dot.current{background:#f57c00;}
+.m-order-track .mot-step .dot.pending{background:#dcdfe6;}
+.m-order-track .mot-step .label{font-size:10px;color:#909399;}
+.m-order-track .mot-step .label.active{color:#1A2332;font-weight:600;}
+.m-order-track .mot-step .line{position:absolute;top:10px;left:50%;width:100%;height:2px;background:#dcdfe6;z-index:0;}
+.m-order-track .mot-step:last-child .line{display:none;}
+.m-order-track .mot-step .line.done{background:#0B7266;}
+.m-order-track .mot-info{margin-top:10px;font-size:12px;color:#555;line-height:1.6;}
+</style>
+</head>
+<body class="app-scss" data-theme="dap">
+<div id="app">
+<section class="el-container query-page custom-page is-vertical">
+<header class="el-header query-header">
+<div class="tl-title query-title" area="title">
+<div class="tl-title__title">移动端H5</div>
+<div class="tl-title__slot"><el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button></div>
+</div>
+</header>
+<main class="el-main query-body">
+<div area="query-body" class="query-grid-body">
+<div class="yj-container-card" area="grid">
+<div class="yj-container-card__bar">
+<div class="yj-container-card__toolbar">
+<div class="tl-table-tools">
+<div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">移动端H5适配原型（375px）</span></div>
+<div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">4个Tab：首页 / 商品列表 / 购物车 / 我的</span></div>
+<div class="tl-table-tools__button tl-table-tools__button-area">
+<div class="yj-button-list">
+<div class="yj-button-list" style="width:100%;">
+<el-button :type="activeTab==='home'?'primary':''" @click="switchTab('home')">首页</el-button>
+<el-button :type="activeTab==='list'?'primary':''" @click="switchTab('list')">商品列表</el-button>
+<el-button :type="activeTab==='cart'?'primary':''" @click="switchTab('cart')">购物车</el-button>
+<el-button :type="activeTab==='mine'?'primary':''" @click="switchTab('mine')">我的</el-button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="yj-container-card__body">
+<div class="yj-container-card__table">
+<div class="phone-frame">
+<div class="phone-screen">
+<div class="phone-header">
+<i class="el-icon-arrow-left ph-icon" @click="goBack"></i>
+<span class="ph-title">{{ tabTitle }}</span>
+<i class="el-icon-more ph-icon" @click="$message.info('更多菜单')"></i>
+</div>
+<!-- 首页 -->
+<div class="phone-content" v-if="activeTab==='home'">
+<div class="m-banner"><div class="mb-title">远光商城</div><div class="mb-desc">企业采购一站式服务平台</div></div>
+<div class="m-search"><i class="el-icon-search" style="color:#909399;"></i><input v-model="searchKeyword" placeholder="搜索商品名称、品牌、规格" @keyup.enter="handleSearch" /><i class="el-icon-search" style="color:#0B7266;cursor:pointer;font-size:18px;" @click="handleSearch"></i></div>
+<div class="m-emergency-banner"><i class="el-icon-warning-outline meb-icon"></i><div class="meb-text">应急采购通道：突发事件/抢险救灾，单次≤50万，跳过比价直接指定供应商，事后补审批。</div><el-button type="danger" class="meb-btn" @click="handleEmergency">立即前往</el-button></div>
+<div class="m-notice" v-if="noticeVisible"><i class="el-icon-bell mn-icon"></i><span class="mn-text">{{ noticeText }}</span><i class="el-icon-close mn-close" @click="noticeVisible=false"></i></div>
+<div class="m-section-title">快捷入口</div>
+<div class="m-grid">
+<div style="width:calc(25% - 6px);text-align:center;background:#fff;border-radius:8px;padding:12px 4px;cursor:pointer;" @click="switchTab('list')"><i class="el-icon-goods" style="font-size:24px;color:#0B7266;"></i><div style="font-size:11px;color:#555;margin-top:4px;">商品选购</div></div>
+<div style="width:calc(25% - 6px);text-align:center;background:#fff;border-radius:8px;padding:12px 4px;cursor:pointer;" @click="handleQuickEntry('pr')"><i class="el-icon-document" style="font-size:24px;color:#0B7266;"></i><div style="font-size:11px;color:#555;margin-top:4px;">采购申请</div></div>
+<div style="width:calc(25% - 6px);text-align:center;background:#fff;border-radius:8px;padding:12px 4px;cursor:pointer;" @click="handleQuickEntry('order')"><i class="el-icon-truck" style="font-size:24px;color:#0B7266;"></i><div style="font-size:11px;color:#555;margin-top:4px;">订单跟踪</div></div>
+<div style="width:calc(25% - 6px);text-align:center;background:#fff;border-radius:8px;padding:12px 4px;cursor:pointer;" @click="handleEmergency"><i class="el-icon-warning-outline" style="font-size:24px;color:#f57c00;"></i><div style="font-size:11px;color:#555;margin-top:4px;">应急采购</div></div>
+</div>
+<div class="m-section-title">热门商品<span class="more-link" @click="switchTab('list')">查看全部 ></span></div>
+<div class="m-grid">
+<div class="m-product" v-for="item in hotProducts" @click="viewProduct(item)">
+<div class="mp-img"><i class="el-icon-goods"></i><span class="mp-tag" v-if="item.salesCount>300">热销</span><div class="mp-addcart" @click.stop="addToCart(item)"><i class="el-icon-shopping-cart-2"></i></div></div>
+<div class="mp-info"><div class="mp-name">{{ item.name }}</div><div class="mp-price">¥{{ item.price.toLocaleString() }}</div><div class="mp-supplier">{{ item.supplier }}</div></div>
+</div>
+</div>
+</div>
+<!-- 商品列表 -->
+<div class="phone-content" v-if="activeTab==='list'">
+<div class="m-search"><i class="el-icon-search" style="color:#909399;"></i><input v-model="searchKeyword" placeholder="搜索商品" @keyup.enter="handleSearch" /><i class="el-icon-search" style="color:#0B7266;cursor:pointer;font-size:18px;" @click="handleSearch"></i></div>
+<div style="display:flex;/* gap-removed */;margin-bottom:10px;overflow-x:auto;padding-bottom:4px;">
+<div v-for="cat in categories" :key="cat" :style="{padding:'4px 12px',borderRadius:'14px',fontSize:'12px',whiteSpace:'nowrap',cursor:'pointer',background:searchCategory===cat?'#0B7266':'#fff',color:searchCategory===cat?'#fff':'#555'}" @click="searchCategory=cat">{{ cat }}</div>
+</div>
+<div class="m-empty" v-if="filteredProducts.length===0">未找到匹配商品</div>
+<div class="m-grid">
+<div class="m-product" v-for="item in filteredProducts" @click="viewProduct(item)">
+<div class="mp-img"><i class="el-icon-goods"></i><span class="mp-tag" v-if="item.status==='待审核'">新品</span><div class="mp-addcart" @click.stop="addToCart(item)"><i class="el-icon-shopping-cart-2"></i></div></div>
+<div class="mp-info"><div class="mp-name">{{ item.name }}</div><div class="mp-price">¥{{ item.price.toLocaleString() }}</div><div class="mp-supplier">{{ item.supplier }}</div></div>
+</div>
+</div>
+</div>
+<!-- 购物车 -->
+<div class="phone-content" v-if="activeTab==='cart'">
+<div class="m-section-title">购物车（{{ cartItems.length }}件商品）</div>
+<div class="m-empty" v-if="cartItems.length===0"><i class="el-icon-shopping-cart-2" style="font-size:48px;color:#dcdfe6;display:block;margin-bottom:8px;"></i>购物车空空如也<div style="margin-top:12px;"><el-button type="primary" @click="switchTab('list')">去选购</el-button></div></div>
+<div class="m-cart-item" v-for="(item,idx) in cartItems" :key="idx">
+<i class="el-icon-goods" style="font-size:32px;color:#0B7266;"></i>
+<div class="mc-info"><div class="mc-name">{{ item.name }}</div><div class="mc-price">¥{{ (item.price*item.qty).toLocaleString() }}</div><div class="mc-qty">单价 ¥{{ item.price.toLocaleString() }}/{{ item.unit }}</div></div>
+<div class="mc-stepper"><div class="step-btn" @click="changeQty(idx,-1)"><i class="el-icon-minus"></i></div><span class="step-num">{{ item.qty }}</span><div class="step-btn" @click="changeQty(idx,1)"><i class="el-icon-plus"></i></div></div>
+</div>
+<div style="background:#fff;border-radius:8px;padding:16px;margin-top:8px;" v-if="cartItems.length>0">
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#909399;margin-bottom:4px;"><span>商品总数</span><span>{{ cartTotalQty }}件</span></div>
+<div style="display:flex;justify-content:space-between;font-size:13px;color:#909399;margin-bottom:4px;"><span>预估运费</span><span>¥0.00（包邮）</span></div>
+<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:600;color:#1A2332;margin-bottom:12px;"><span>合计</span><span style="color:#f57c00;">¥{{ cartTotal.toLocaleString() }}</span></div>
+<el-button type="primary" style="width:100%;" @click="submitPurchase">提交采购申请</el-button>
+</div>
+</div>
+<!-- 我的 -->
+<div class="phone-content" v-if="activeTab==='mine'">
+<div style="padding:20px 0 12px;"><div class="m-avatar"><i class="el-icon-user" style="font-size:28px;"></i></div><div class="m-user-name">张三</div><div class="m-user-org">远光软件 · 采购员</div></div>
+<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;">
+<div class="m-section-title" style="margin:0 0 10px;">我的订单</div>
+<div style="display:flex;">
+<div style="flex:1;text-align:center;cursor:pointer;" @click="viewOrders('待发货')"><i class="el-icon-wallet" style="font-size:22px;color:#f57c00;"></i><div style="font-size:11px;color:#555;margin-top:4px;">待发货</div><div style="font-size:13px;font-weight:600;color:#1A2332;">{{ orderStats.waitShip }}</div></div>
+<div style="flex:1;text-align:center;cursor:pointer;" @click="viewOrders('已发货')"><i class="el-icon-truck" style="font-size:22px;color:#0B7266;"></i><div style="font-size:11px;color:#555;margin-top:4px;">已发货</div><div style="font-size:13px;font-weight:600;color:#1A2332;">{{ orderStats.shipped }}</div></div>
+<div style="flex:1;text-align:center;cursor:pointer;" @click="viewOrders('已收货')"><i class="el-icon-circle-check" style="font-size:22px;color:#2e7d32;"></i><div style="font-size:11px;color:#555;margin-top:4px;">已收货</div><div style="font-size:13px;font-weight:600;color:#1A2332;">{{ orderStats.received }}</div></div>
+<div style="flex:1;text-align:center;cursor:pointer;" @click="viewOrders('已取消')"><i class="el-icon-circle-close" style="font-size:22px;color:#909399;"></i><div style="font-size:11px;color:#555;margin-top:4px;">已取消</div><div style="font-size:13px;font-weight:600;color:#1A2332;">{{ orderStats.cancelled }}</div></div>
+</div>
+</div>
+<div class="m-mine-item" @click="viewOrders('all')"><span class="mm-label"><i class="el-icon-tickets"></i>全部订单</span><span class="mm-value">{{ myOrders.length }}笔 ></span></div>
+<div class="m-mine-item" @click="viewMyPR"><span class="mm-label"><i class="el-icon-document"></i>采购申请</span><span class="mm-value">{{ myPRList.length }}笔{{ prStats.draft>0?'（'+prStats.draft+'笔草稿）':'' }} ></span></div>
+<div class="m-mine-item" @click="showAddressDialog"><span class="mm-label"><i class="el-icon-location-outline"></i>收货地址</span><span class="mm-value">{{ defaultAddress }} ></span></div>
+<div class="m-mine-item" @click="showInvoiceDialog"><span class="mm-label"><i class="el-icon-document-checked"></i>发票管理</span><span class="mm-value">{{ invoiceList.length }}张开票中 ></span></div>
+<div class="m-mine-item" @click="viewAfterSale"><span class="mm-label"><i class="el-icon-service"></i>售后工单</span><span class="mm-value">{{ afterSaleList.length }}笔 ></span></div>
+<div class="m-mine-item" @click="$message.info('设置功能开发中')"><span class="mm-label"><i class="el-icon-setting"></i>设置</span><span class="mm-value">></span></div>
+</div>
+<!-- 订单列表子页 -->
+<div class="phone-content" v-if="activeTab==='orders'">
+<div class="m-section-title">{{ orderFilterTitle }}</div>
+<div class="m-empty" v-if="filteredOrders.length===0">暂无订单</div>
+<div class="m-order-card" v-for="o in filteredOrders" :key="o.orderNo">
+<div class="mo-header"><span class="mo-no">{{ o.orderNo }}</span><span class="mo-status" :class="orderStatusClass(o.status)">{{ o.status }}</span></div>
+<div class="mo-body"><i class="el-icon-goods" style="font-size:32px;color:#0B7266;"></i><div class="mo-info"><div class="mo-name">{{ o.subject }}</div><div class="mo-amount">¥{{ o.amount.toLocaleString() }}</div><div style="font-size:11px;color:#909399;margin-top:2px;">{{ o.supplier }}</div></div></div>
+<div class="mo-footer">
+<el-button @click="trackOrder(o)">物流追踪</el-button>
+<el-button type="primary" v-if="o.status==='待发货'" @click="cancelOrder(o)">取消</el-button>
+<el-button type="success" v-if="o.status==='已发货'" @click="confirmReceive(o)">确认收货</el-button>
+<el-button type="primary" v-if="o.status==='已发货'" @click="scanReceive(o)">扫码收货</el-button>
+<el-button v-if="o.status==='已收货'" @click="applyAfterSale(o)">申请售后</el-button>
+</div>
+</div>
+</div>
+<!-- 采购申请子页 -->
+<div class="phone-content" v-if="activeTab==='prlist'">
+<div class="m-section-title">我的采购申请</div>
+<div class="m-empty" v-if="myPRList.length===0">暂无采购申请</div>
+<div class="m-pr-card" v-for="pr in myPRList" :key="pr.reqNo">
+<div class="mpr-header"><span class="mpr-no">{{ pr.reqNo }}</span><span class="mpr-status" :style="{color:pr.status==='草稿'?'#f57c00':pr.status==='审批中'?'#0B7266':'#2e7d32'}">{{ pr.status }}</span></div>
+<div class="mpr-body">{{ pr.subject }}</div>
+<div class="mpr-amount">¥{{ pr.amount.toLocaleString() }}</div>
+<div style="font-size:11px;color:#909399;margin-top:4px;">申请日期：{{ pr.applyDate }} | 采购方式：{{ pr.method }}</div>
+<div style="display:flex;justify-content:flex-end;/* gap-removed */;margin-top:8px;">
+<el-button v-if="pr.status==='草稿'" @click="editPR(pr)">编辑</el-button>
+<el-button type="primary" v-if="pr.status==='草稿'" @click="submitPR(pr)">提交审批</el-button>
+<el-button v-if="pr.status==='审批中'" @click="$message.info('审批流程中，请耐心等待')">查看进度</el-button>
+<el-button v-if="pr.status==='已通过'" @click="$message.info('已通过，可前往订单管理查看')">查看订单</el-button>
+</div>
+</div>
+</div>
+<!-- 底部Tab栏 -->
+<div class="phone-tabbar">
+<div class="tab-item" :class="{active:activeTab==='home'}" @click="switchTab('home')"><i class="el-icon-s-home"></i>首页</div>
+<div class="tab-item" :class="{active:activeTab==='list'}" @click="switchTab('list')"><i class="el-icon-goods"></i>商品</div>
+<div class="tab-item" :class="{active:activeTab==='cart'}" @click="switchTab('cart')"><i class="el-icon-shopping-cart-full"></i>购物车<span class="m-cart-badge" v-if="cartItems.length>0">{{ cartItems.length }}</span></div>
+<div class="tab-item" :class="{active:activeTab==='mine'}" @click="switchTab('mine')"><i class="el-icon-user"></i>我的</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</section>
+<!-- 扫码收货弹窗 -->
+<el-dialog :lazy="true" title="扫码收货" :visible.sync="scanVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div v-if="scanOrder" style="padding:0;">
+<div style="text-align:center;padding:20px 0;border-bottom:1px solid #EBEEF5;">
+<div style="width:120px;height:120px;margin:0 auto;border:2px dashed #0B7266;border-radius:12px;display:flex;align-items:center;justify-content:center;background:#F1F6F7;">
+<i class="el-icon-full-screen" style="font-size:48px;color:#0B7266;"></i>
+</div>
+<div style="margin-top:12px;font-size:13px;color:#909399;">将摄像头对准物资条码进行扫描</div>
+<el-button type="primary" style="margin-top:12px;" @click="simulateScan" icon="el-icon-camera">模拟扫码</el-button>
+</div>
+<div v-if="scanResult" style="padding:16px 0;">
+<div style="font-size:14px;font-weight:600;color:#0B7266;margin-bottom:8px;">扫码结果</div>
+<el-table :data="scanResult" border style="width:100%;font-size:12px;">
+<el-table-column prop="code" label="物资编码" min-width="100"></el-table-column>
+<el-table-column prop="name" label="物资名称" min-width="100"></el-table-column>
+<el-table-column prop="qty" label="数量" width="60" align="center"></el-table-column>
+<el-table-column label="状态" width="70" align="center">
+<template slot-scope="{row}"><el-tag size="mini" type="success">{{ row.status }}</el-tag></template>
+</el-table-column>
+</el-table>
+<div style="margin-top:12px;text-align:right;">
+<el-button type="success" @click="confirmScanReceive" icon="el-icon-check">确认签收</el-button>
+</div>
+</div>
+</div>
+</el-dialog>
+<!-- 商品详情弹窗 -->
+<el-dialog :lazy="true" title="商品详情" :visible.sync="productDetailVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div v-if="currentProduct" style="padding:0;">
+<div style="width:100%;height:200px;background:#F1F6F7;display:flex;align-items:center;justify-content:center;border-radius:8px;"><i class="el-icon-goods" style="font-size:64px;color:#0B7266;"></i></div>
+<div style="padding:16px 0;">
+<div style="font-size:16px;font-weight:600;color:#1A2332;">{{ currentProduct.name }}</div>
+<div style="font-size:22px;color:#f57c00;font-weight:700;margin-top:8px;">¥{{ currentProduct.price.toLocaleString() }}<span style="font-size:13px;color:#909399;font-weight:400;">/{{ currentProduct.unit }}</span></div>
+<div style="font-size:13px;color:#909399;margin-top:6px;">规格：{{ currentProduct.spec }} | 品牌：{{ currentProduct.brand }}</div>
+<div style="font-size:13px;color:#555;margin-top:8px;padding-top:8px;border-top:1px solid #EBEEF5;">供应商：{{ currentProduct.supplier }}</div>
+<div style="font-size:13px;color:#555;line-height:1.6;margin-top:8px;">{{ currentProduct.productDesc }}</div>
+<div style="display:flex;/* gap-removed */;margin-top:16px;">
+<el-button type="primary" style="flex:1;" @click="addToCart(currentProduct);productDetailVisible=false;">加入购物车</el-button>
+<el-button style="flex:1;" @click="addToCart(currentProduct);productDetailVisible=false;switchTab('cart');">立即购买</el-button>
+</div>
+</div>
+</div>
+</el-dialog>
+<!-- 物流追踪弹窗 -->
+<el-dialog :lazy="true" :title="'物流追踪 - '+ (currentTrackOrder?currentTrackOrder.orderNo:'')" :visible.sync="trackVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div v-if="currentTrackOrder" class="m-order-track">
+<div class="mot-header"><span class="mot-no">{{ currentTrackOrder.orderNo }}</span><span style="font-size:12px;font-weight:600;color:#0B7266;">{{ currentTrackOrder.status }}</span></div>
+<div class="mot-steps">
+<div class="mot-step" v-for="(s,idx) in orderSteps(currentTrackOrder)" :key="idx">
+<div class="line" :class="{done:s.state==='done'}" v-if="idx<orderSteps(currentTrackOrder).length-1"></div>
+<div class="dot" :class="s.state"><i :class="s.state==='done'?'el-icon-check':s.state==='current'?'el-icon-loading':''"></i></div>
+<div class="label" :class="{active:s.state!=='pending'}">{{ s.name }}</div>
+</div>
+</div>
+<div class="mot-info">
+<div>下单时间：{{ currentTrackOrder.orderDate }}</div>
+<div v-if="currentTrackOrder.status==='已发货'">物流状态：运输中，预计2-3天到达</div>
+<div v-if="currentTrackOrder.status==='已收货'">签收时间：{{ currentTrackOrder.receiveDate }}</div>
+<div v-if="currentTrackOrder.status==='待发货'">供应商备货中，预计1-2天发货</div>
+<div v-if="currentTrackOrder.status==='已取消'">订单已取消</div>
+</div>
+</div>
+</el-dialog>
+<!-- 收货地址弹窗 -->
+<el-dialog :lazy="true" title="收货地址管理" :visible.sync="addressVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div v-for="addr in addressList" :key="addr.label" style="background:#f5f7fa;border-radius:8px;padding:12px;margin-bottom:8px;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+<el-tag size="mini" type="success" v-if="addr.isDefault">默认</el-tag>
+<el-tag size="mini">{{ addr.label }}</el-tag>
+</div>
+<div style="font-size:13px;color:#1A2332;font-weight:600;">{{ addr.org }}</div>
+<div style="font-size:13px;color:#555;margin-top:4px;">{{ addr.address }}</div>
+<div style="font-size:12px;color:#909399;margin-top:4px;">{{ addr.contact }} {{ addr.phone }}</div>
+</div>
+</el-dialog>
+<!-- 发票管理弹窗 -->
+<el-dialog :lazy="true" title="发票管理" :visible.sync="invoiceVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div v-for="inv in invoiceList" :key="inv.invoiceNo" style="background:#f5f7fa;border-radius:8px;padding:12px;margin-bottom:8px;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+<span style="font-size:12px;color:#909399;">{{ inv.invoiceNo }}</span>
+<el-tag size="mini" type="warning">{{ inv.status }}</el-tag>
+</div>
+<div style="font-size:13px;color:#1A2332;">{{ inv.type }}</div>
+<div style="font-size:13px;color:#f57c00;font-weight:600;margin-top:4px;">¥{{ inv.amount.toLocaleString() }}</div>
+<div style="font-size:12px;color:#909399;margin-top:4px;">关联订单：{{ inv.orderNo }} | 抬头：{{ inv.title }}</div>
+</div>
+</el-dialog>
+<!-- 应急采购弹窗 -->
+<el-dialog :lazy="true" title="应急采购" :visible.sync="emergencyVisible" width="340px" custom-class="help-dialog" append-to-body>
+<div style="background:linear-gradient(135deg,#fff3e0,#ffebee);border:1px solid #f57c00;border-radius:8px;padding:10px;margin-bottom:12px;">
+<div style="font-size:12px;color:#c62828;line-height:1.5;"><b>应急采购须知：</b>适用于突发事件、抢险救灾等紧急场景。单次金额≤50万，跳过比价直接指定供应商，事后补审批。</div>
+</div>
+<el-form label-suffix="：" :model="emergencyForm" label-width="80px" size="mini">
+<el-form-item label="供应商"><el-input v-model="emergencyForm.supplier" placeholder="直接指定供应商"></el-input></el-form-item>
+<el-form-item label="采购事项"><el-input v-model="emergencyForm.subject" placeholder="紧急采购事项"></el-input></el-form-item>
+<el-form-item label="金额(元)"><el-input v-model="emergencyForm.amount" placeholder="≤500000" type="number"></el-input></el-form-item>
+<el-form-item label="紧急程度"><el-radio-group v-model="emergencyForm.urgentLevel" size="mini"><el-radio-button label="紧急"></el-radio-button><el-radio-button label="特急"></el-radio-button></el-radio-group></el-form-item>
+<el-form-item label="事由说明"><el-input type="textarea" v-model="emergencyForm.reason" :rows="3" placeholder="请说明应急采购事由"></el-input></el-form-item>
+</el-form>
+<div slot="footer">
+<el-button @click="emergencyVisible=false">取消</el-button>
+<el-button type="danger" @click="submitEmergency">立即采购</el-button>
+</div>
+</el-dialog>
+<!-- 帮助弹窗 -->
+<el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+  <div class="help-content">
+    <div class="help-section">
+      <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+      <div class="help-section__body">移动端H5适配页面，模拟375px手机屏幕，展示远光商城移动端4个核心Tab：首页、商品列表、购物车、个人中心，以及订单跟踪、采购申请、应急采购等子页面。</div>
+    </div>
+    <div class="help-section">
+      <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+      <div class="help-section__body">
+        <ul>
+          <li>移动端适配，采购员随时随地发起采购</li>
+          <li>应急采购快速通道，紧急物资一键下单</li>
+          <li>订单跟踪实时推送，物流状态随时查看</li>
+          <li>与PC端数据同步，审批流程无缝衔接</li>
+        </ul>
+      </div>
+    </div>
+    <div class="help-section">
+      <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+      <div class="help-section__body">
+        <ol>
+          <li><b>切换Tab</b>：点击顶部按钮组或底部Tab栏切换4个页面</li>
+          <li><b>首页</b>：查看Banner、搜索商品、快捷入口、热门商品、应急采购入口</li>
+          <li><b>商品列表</b>：按分类筛选、搜索商品、点击查看详情、加入购物车</li>
+          <li><b>购物车</b>：调整数量、查看合计、提交采购申请（自动生成申请编号）</li>
+          <li><b>我的</b>：查看订单状态统计、全部订单、采购申请、收货地址、发票管理、售后工单</li>
+          <li><b>订单跟踪</b>：查看5节点物流追踪时间线（下单→发货→运输→签收）</li>
+          <li><b>应急采购</b>：直接指定供应商，填写事由，事后补审批</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div slot="footer">
+    <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+  </div>
+</el-dialog>
+</div>
+<script src="./js/vue.min.js"></script>
+<script src="./js/element-ui.js"></script>
+<script>
+new Vue({
+el:'#app',
+data:function(){return {
+activeTab:'home',helpVisible:false,searchKeyword:'',searchCategory:'全部',
+noticeVisible:true,noticeText:'系统公告：远光商城2026年Q3框架协议采购计划已发布，请及时查阅。',
+prevTab:'home',orderFilter:'all',
+categories:['全部','电气设备','智能终端','办公设备','办公用品','劳保用品'],
+products:[
+{code:'PR-001',name:'10kV高压开关柜',category:'电气设备',spec:'KYN28-12',supplier:'国电南瑞科技股份有限公司',price:128000,stock:45,status:'在售',salesCount:156,unit:'台',brand:'国电南瑞',productDesc:'10kV高压开关柜，KYN28-12型，适用于3.6~12kV三相交流50Hz单母线及单母线分段系统的接受和分配电能。'},
+{code:'PR-002',name:'三相电力变压器',category:'电气设备',spec:'S11-M-800/10',supplier:'许继电气股份有限公司',price:86500,stock:28,status:'在售',salesCount:179,unit:'台',brand:'许继电气',productDesc:'S11-M系列全密封卷铁心配电变压器，节能低噪，适用于城乡电网。'},
+{code:'PR-003',name:'智能电表',category:'智能终端',spec:'DDZ986-Z',supplier:'威胜信息技术股份有限公司',price:380,stock:1200,status:'在售',salesCount:202,unit:'只',brand:'威胜信息',productDesc:'单相智能电能表，支持远程抄表、费控、阶梯电价，符合某电力集团标准。'},
+{code:'PR-004',name:'集中器',category:'智能终端',spec:'DJGZ23-Z',supplier:'威胜信息技术股份有限公司',price:1280,stock:560,status:'在售',salesCount:225,unit:'台',brand:'威胜信息',productDesc:'集中器II型，上行4G/下行微功率无线，支持本地/远程通信。'},
+{code:'PR-005',name:'SF6断路器',category:'电气设备',spec:'LW36-40.5',supplier:'平高电气股份有限公司',price:56800,stock:18,status:'在售',salesCount:248,unit:'台',brand:'平高电气',productDesc:'LW36-40.5型SF6断路器，三相交流50Hz，额定电压40.5kV户外安装。'},
+{code:'PR-006',name:'电流互感器',category:'电气设备',spec:'LB-110',supplier:'思源电气股份有限公司',price:12300,stock:65,status:'在售',salesCount:271,unit:'台',brand:'思源电气',productDesc:'LB-110型户外油浸倒立式电流互感器，110kV系统。'},
+{code:'PR-007',name:'办公电脑',category:'办公设备',spec:'联想启天M415',supplier:'联想集团有限公司',price:5800,stock:120,status:'在售',salesCount:294,unit:'台',brand:'联想',productDesc:'联想启天M415，i5-10400/8G/256G SSD/23.8寸显示器。'},
+{code:'PR-008',name:'激光打印机',category:'办公设备',spec:'HP LaserJet Pro M404',supplier:'中国惠普有限公司',price:2300,stock:85,status:'在售',salesCount:317,unit:'台',brand:'惠普',productDesc:'HP LaserJet Pro M404，A4黑白激光打印机，打印速度38ppm。'},
+{code:'PR-009',name:'A4复印纸',category:'办公用品',spec:'80g 500张/包',supplier:'得力集团有限公司',price:25,stock:5000,status:'在售',salesCount:340,unit:'包',brand:'得力',productDesc:'得力A4复印纸，80g/m²，500张/包，白色，适用于各类打印复印。'},
+{code:'PR-010',name:'安全帽',category:'劳保用品',spec:'ABS绝缘 V级',supplier:'代尔塔防护用品公司',price:65,stock:2000,status:'在售',salesCount:363,unit:'顶',brand:'代尔塔',productDesc:'ABS安全帽，V级绝缘，耐冲击耐穿刺，适用于电力施工作业。'},
+{code:'PR-011',name:'绝缘手套',category:'劳保用品',spec:'12kV 双色',supplier:'代尔塔防护用品公司',price:38,stock:3500,status:'在售',salesCount:386,unit:'副',brand:'代尔塔',productDesc:'12kV绝缘手套，双色设计，适用于高压电气设备操作。'},
+{code:'PR-012',name:'配电自动化终端',category:'智能终端',spec:'DTU-3000',supplier:'国电南瑞科技股份有限公司',price:18600,stock:42,status:'在售',salesCount:409,unit:'台',brand:'国电南瑞',productDesc:'DTU-3000配电自动化终端，支持三遥功能，适用于配电网自动化。'},
+{code:'PR-015',name:'电力电缆',category:'电气设备',spec:'YJV22-8.7/15kV 3*400',supplier:'远东电缆有限公司',price:280,stock:8500,status:'在售',salesCount:478,unit:'米',brand:'远东电缆',productDesc:'YJV22-8.7/15kV 3×400mm²交联聚乙烯绝缘钢带铠装聚氯乙烯护套电力电缆。'},
+{code:'PR-016',name:'UPS不间断电源',category:'办公设备',spec:'UPS-10KVA',supplier:'山特电子(深圳)有限公司',price:18500,stock:32,status:'在售',salesCount:501,unit:'台',brand:'山特',productDesc:'山特UPS-10KVA在线式不间断电源，适用于机房及关键负载供电。'},
+{code:'PR-017',name:'配电箱',category:'电气设备',spec:'XL-21',supplier:'国电南瑞科技股份有限公司',price:8500,stock:65,status:'在售',salesCount:524,unit:'台',brand:'国电南瑞',productDesc:'XL-21型动力配电箱，适用于工矿企业交流50Hz电压380V及以下低压配电系统。'},
+{code:'PR-018',name:'继电保护装置',category:'智能终端',spec:'RCS-941',supplier:'国电南瑞科技股份有限公司',price:42000,stock:25,status:'在售',salesCount:547,unit:'台',brand:'国电南瑞',productDesc:'RCS-941系列微机线路保护装置，适用于110kV及以下电压等级线路。'},
+{code:'PR-021',name:'蓄电池组',category:'电气设备',spec:'GFM-300',supplier:'宁波双鹿电池有限公司',price:2800,stock:180,status:'在售',salesCount:616,unit:'组',brand:'双鹿',productDesc:'GFM-300阀控式铅酸蓄电池，适用于电力直流系统备用电源。'},
+{code:'PR-022',name:'直流屏',category:'电气设备',spec:'GZDW-100',supplier:'许继电气股份有限公司',price:38000,stock:15,status:'在售',salesCount:639,unit:'面',brand:'许继电气',productDesc:'GZDW-100智能高频开关直流电源系统，适用于变电站直流操作电源。'},
+{code:'PR-023',name:'变频器',category:'电气设备',spec:'ACS-580',supplier:'ABB(中国)有限公司',price:12500,stock:45,status:'在售',salesCount:662,unit:'台',brand:'ABB',productDesc:'ABB ACS-580通用型变频器，4-160kW，适用于风机水泵等负载。'},
+{code:'PR-024',name:'发电机',category:'电气设备',spec:'C-550',supplier:'康明斯(中国)有限公司',price:185000,stock:5,status:'在售',salesCount:685,unit:'台',brand:'康明斯',productDesc:'康明斯C-550柴油发电机组，550kW，适用于备用及应急电源。'}
+],
+cartItems:[
+{code:'PR-015',name:'电力电缆',price:280,qty:500,unit:'米',supplier:'远东电缆有限公司'},
+{code:'PR-011',name:'绝缘手套',price:38,qty:20,unit:'副',supplier:'代尔塔防护用品公司'},
+{code:'PR-010',name:'安全帽',price:65,qty:30,unit:'顶',supplier:'代尔塔防护用品公司'}
+],
+myOrders:[
+{orderNo:'OD-2026-0003',supplier:'威胜信息技术股份有限公司',subject:'智能电表批量采购',amount:456000,status:'已发货',orderDate:'2026-04-15',receiveDate:''},
+{orderNo:'OD-2026-0005',supplier:'平高电气股份有限公司',subject:'SF6断路器采购',amount:284000,status:'待发货',orderDate:'2026-04-20',receiveDate:''},
+{orderNo:'OD-2026-0006',supplier:'思源电气股份有限公司',subject:'电流互感器采购',amount:79950,status:'已发货',orderDate:'2026-04-22',receiveDate:''},
+{orderNo:'OD-2026-0007',supplier:'代尔塔防护用品公司',subject:'安全防护用品采购',amount:86000,status:'已收货',orderDate:'2026-04-25',receiveDate:'2026-05-08'},
+{orderNo:'OD-2026-0009',supplier:'中国惠普有限公司',subject:'激光打印机采购',amount:46000,status:'已取消',orderDate:'2026-05-02',receiveDate:''},
+{orderNo:'OD-2026-0010',supplier:'山特电子(深圳)有限公司',subject:'UPS不间断电源采购',amount:92500,status:'待发货',orderDate:'2026-05-05',receiveDate:''},
+{orderNo:'OD-2026-0013',supplier:'联想集团有限公司',subject:'办公电脑批量采购',amount:290000,status:'已收货',orderDate:'2026-05-12',receiveDate:'2026-05-25'},
+{orderNo:'OD-2026-0025',supplier:'平高电气股份有限公司',subject:'断路器采购',amount:142000,status:'待发货',orderDate:'2026-06-12',receiveDate:''}
+],
+myPRList:[
+{reqNo:'PR-2026-0031',subject:'10kV电力电缆采购',amount:140000,status:'草稿',applyDate:'2026-07-05',method:'询比价'},
+{reqNo:'PR-2026-0028',subject:'安全防护用品年度采购',amount:195000,status:'审批中',applyDate:'2026-07-02',method:'框架协议'},
+{reqNo:'PR-2026-0025',subject:'办公电脑更新采购',amount:174000,status:'已通过',applyDate:'2026-06-28',method:'询比价'}
+],
+addressList:[
+{label:'公司',address:'南京市建邺区江东中路369号',org:'远光软件股份有限公司',contact:'张三',phone:'138****8888',isDefault:true},
+{label:'项目现场',address:'淮安市金湖县工业园区一路',org:'金湖供电公司',contact:'李四',phone:'139****6666',isDefault:false}
+],
+invoiceList:[
+{invoiceNo:'INV-2026-0012',orderNo:'OD-2026-0007',amount:86000,title:'远光软件股份有限公司',status:'开票中',type:'增值税专用发票'},
+{invoiceNo:'INV-2026-0015',orderNo:'OD-2026-0013',amount:290000,title:'远光软件股份有限公司',status:'开票中',type:'增值税专用发票'}
+],
+afterSaleList:[
+{ticketNo:'AS-2026-0003',orderNo:'OD-2026-0007',issue:'安全帽颜色与订单不符',status:'处理中',createTime:'2026-05-10'},
+{ticketNo:'AS-2026-0008',orderNo:'OD-2026-0013',issue:'电脑蓝屏故障',status:'待响应',createTime:'2026-05-28'}
+],
+productDetailVisible:false,currentProduct:null,
+addressVisible:false,invoiceVisible:false,trackVisible:false,currentTrackOrder:null,
+emergencyVisible:false,emergencyForm:{supplier:'',subject:'',amount:'',reason:'',urgentLevel:'紧急'},
+scanVisible:false,scanOrder:null,scanResult:null
+};},
+computed:{
+tabTitle:function(){var t={home:'远光商城',list:'商品列表',cart:'购物车',mine:'我的',orders:'我的订单',prlist:'采购申请'};return t[this.activeTab]||'远光商城';},
+hotProducts:function(){return this.products.filter(function(p){return p.status==='在售';}).slice(0,4);},
+filteredProducts:function(){var self=this;var kw=self.searchKeyword.toLowerCase();return self.products.filter(function(p){var matchKw=!kw||p.name.toLowerCase().indexOf(kw)>=0||p.supplier.toLowerCase().indexOf(kw)>=0||p.spec.toLowerCase().indexOf(kw)>=0;var matchCat=self.searchCategory==='全部'||p.category===self.searchCategory;return matchKw&&matchCat&&p.status!=='下架';});},
+cartTotal:function(){return this.cartItems.reduce(function(s,i){return s+i.price*i.qty;},0);},
+cartTotalQty:function(){return this.cartItems.reduce(function(s,i){return s+i.qty;},0);},
+orderStats:function(){var s={waitShip:0,shipped:0,received:0,cancelled:0};this.myOrders.forEach(function(o){if(o.status==='待发货')s.waitShip++;else if(o.status==='已发货')s.shipped++;else if(o.status==='已收货')s.received++;else if(o.status==='已取消')s.cancelled++;});return s;},
+prStats:function(){var s={draft:0,approving:0,approved:0};this.myPRList.forEach(function(p){if(p.status==='草稿')s.draft++;else if(p.status==='审批中')s.approving++;else if(p.status==='已通过')s.approved++;});return s;},
+defaultAddress:function(){var d=this.addressList.find(function(a){return a.isDefault;});return d?d.address.substring(0,12)+'...':'未设置';},
+orderFilterTitle:function(){if(this.orderFilter==='all')return '全部订单';return this.orderFilter+'订单';},
+filteredOrders:function(){var self=this;if(self.orderFilter==='all')return self.myOrders;return self.myOrders.filter(function(o){return o.status===self.orderFilter;});}
+},
+methods:{
+switchTab:function(tab){this.prevTab=this.activeTab;this.activeTab=tab;},
+goBack:function(){if(this.activeTab==='orders'||this.activeTab==='prlist'){this.activeTab='mine';}else if(this.activeTab!=='home'){this.activeTab='home';}},
+handleSearch:function(){if(!this.searchKeyword){this.$message.warning('请输入搜索关键词');return;}this.activeTab='list';this.$message.success('搜索"'+this.searchKeyword+'"，找到'+this.filteredProducts.length+'件商品');},
+handleQuickEntry:function(type){if(type==='pr'){this.activeTab='prlist';}else if(type==='order'){this.activeTab='orders';this.orderFilter='all';}},
+handleEmergency:function(){this.emergencyVisible=true;},
+viewProduct:function(item){this.currentProduct=item;this.productDetailVisible=true;},
+addToCart:function(item){var exist=this.cartItems.find(function(c){return c.code===item.code;});if(exist){exist.qty++;}else{this.cartItems.push({code:item.code,name:item.name,price:item.price,qty:1,unit:item.unit,supplier:item.supplier});}this.$message.success(item.name+' 已加入购物车');},
+changeQty:function(idx,delta){var item=this.cartItems[idx];item.qty+=delta;if(item.qty<=0){this.cartItems.splice(idx,1);}},
+submitPurchase:function(){var self=this;var total=self.cartTotal;var reqNo='PR-2026-'+String(31+self.myPRList.length).padStart(4,'0');var items=self.cartItems.map(function(c){return c.name+'×'+c.qty+c.unit;}).join('；');self.myPRList.unshift({reqNo:reqNo,subject:'移动端采购申请（'+items.substring(0,20)+'...）',amount:total,status:'草稿',applyDate:'2026-07-08',method:'询比价'});self.$confirm('采购申请已生成！\n编号：'+reqNo+'\n金额：¥'+total.toLocaleString()+'\n状态：草稿（待提交审批）','提交成功',{confirmButtonText:'去查看',cancelButtonText:'继续购物',type:'success'}).then(function(){self.cartItems=[];self.activeTab='prlist';}).catch(function(){});},
+viewOrders:function(filter){this.orderFilter=filter;this.activeTab='orders';},
+viewMyPR:function(){this.activeTab='prlist';},
+showAddressDialog:function(){this.addressVisible=true;},
+showInvoiceDialog:function(){this.invoiceVisible=true;},
+viewAfterSale:function(){var list=this.afterSaleList;if(list.length===0){this.$message.info('暂无售后工单');}else{this.$message.info('共有'+list.length+'笔售后工单：'+list.map(function(a){return a.ticketNo;}).join('、'));}},
+orderStatusClass:function(status){if(status==='待发货')return's-wait';if(status==='已发货')return's-ship';if(status==='已收货')return's-done';return's-cancel';},
+orderSteps:function(order){var steps=[{name:'下单',state:'done'},{name:'发货',state:'pending'},{name:'运输',state:'pending'},{name:'签收',state:'pending'}];if(order.status==='待发货'){steps[1].state='current';}else if(order.status==='已发货'){steps[1].state='done';steps[2].state='current';}else if(order.status==='已收货'){steps[1].state='done';steps[2].state='done';steps[3].state='done';}else if(order.status==='已取消'){steps[0].state='done';}return steps;},
+trackOrder:function(order){this.currentTrackOrder=order;this.trackVisible=true;},
+cancelOrder:function(order){var self=this;self.$confirm('确认取消订单 '+order.orderNo+'？','取消订单',{confirmButtonText:'确认取消',cancelButtonText:'返回',type:'warning'}).then(function(){order.status='已取消';self.$message.success('订单已取消');}).catch(function(){});},
+confirmReceive:function(order){var self=this;self.$confirm('确认已收到订单 '+order.orderNo+' 的商品？','确认收货',{confirmButtonText:'确认收货',cancelButtonText:'取消',type:'success'}).then(function(){order.status='已收货';order.receiveDate='2026-07-08';self.$message.success('已确认收货');}).catch(function(){});},
+scanReceive:function(order){this.scanOrder=order;this.scanResult=null;this.scanVisible=true;},
+simulateScan:function(){this.scanResult=[{code:'MAT-01-01-01-01-001',name:'10kV高压开关柜',qty:5,status:'已扫'},{code:'MAT-01-01-01-01-002',name:'三相电力变压器',qty:3,status:'已扫'},{code:'MAT-01-01-01-01-003',name:'智能电表',qty:100,status:'已扫'}];this.$message.success('扫码成功，已识别3项物资');},
+confirmScanReceive:function(){if(this.scanOrder){this.scanOrder.status='已收货';this.scanOrder.receiveDate='2026-07-08';}this.scanVisible=false;this.$message.success('扫码签收完成，已同步ERP入库');},
+applyAfterSale:function(order){this.afterSaleList.push({ticketNo:'AS-2026-'+String(8+this.afterSaleList.length).padStart(4,'0'),orderNo:order.orderNo,issue:'商品质量问题',status:'待响应',createTime:'2026-07-08'});this.$message.success('售后工单已创建，客服将尽快响应');},
+editPR:function(pr){this.$message.info('编辑采购申请 '+pr.reqNo+'（移动端暂不支持编辑，请前往PC端操作）');},
+submitPR:function(pr){pr.status='审批中';this.$message.success('采购申请 '+pr.reqNo+' 已提交审批');},
+submitEmergency:function(){var f=this.emergencyForm;if(!f.supplier||!f.subject||!f.amount){this.$message.warning('请填写完整信息');return;}if(parseFloat(f.amount)>500000){this.$message.warning('应急采购单次金额不能超过50万');return;}var reqNo='EM-2026-'+String(1+this.myPRList.length).padStart(4,'0');this.myPRList.unshift({reqNo:reqNo,subject:'[应急]'+f.subject,amount:parseFloat(f.amount),status:'草稿',applyDate:'2026-07-08',method:'应急采购（事后补审批）'});this.emergencyVisible=false;this.$alert('应急采购已提交！\n编号：'+reqNo+'\n供应商：'+f.supplier+'\n金额：¥'+parseFloat(f.amount).toLocaleString()+'\n紧急程度：'+f.urgentLevel+'\n状态：草稿（需事后补审批）','应急采购成功',{confirmButtonText:'去查看',type:'warning'}).then(function(){this.activeTab='prlist';}.bind(this));this.emergencyForm={supplier:'',subject:'',amount:'',reason:'',urgentLevel:'紧急'};}
+}
+});
+</script>
+<footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

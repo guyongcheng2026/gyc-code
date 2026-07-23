@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>协议库存监控</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-toggle{text-align:center;margin-bottom:12px}.stat-toggle .el-button{font-size:13px;color:#0B7266}
+.stat-cards { display:flex; margin-bottom:16px; } .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">协议库存监控</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="协议编号"><el-input v-model="queryForm.agreementNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="预警类型"><el-select v-model="queryForm.alertType" placeholder="请选择" clearable><el-option label="协议到期" value="协议到期"></el-option><el-option label="余量不足" value="余量不足"></el-option><el-option label="库存下限" value="库存下限"></el-option><el-option label="库存上限" value="库存上限"></el-option><el-option label="滞销" value="滞销"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="协议状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="执行中" value="active"></el-option><el-option label="即将到期" value="expiring"></el-option><el-option label="已到期" value="expired"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="协议库存监控">协议库存监控</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+<div class="stat-cards" v-show="!statCollapsed">
+                  <div class="stat-card"><div class="stat-label">执行中协议</div><div class="stat-value">{{ activeCount }}<span class="stat-unit">个</span></div></div>
+                  <div class="stat-card"><div class="stat-label">即将到期</div><div class="stat-value" style="color:#f57c00">{{ expiringCount }}<span class="stat-unit">个</span></div></div>
+                  <div class="stat-card"><div class="stat-label">余量预警</div><div class="stat-value" style="color:#c62828">{{ lowStockCount }}<span class="stat-unit">个</span></div></div>
+                  <div class="stat-card"><div class="stat-label">协议总额</div><div class="stat-value">{{ totalAmount }}<span class="stat-unit">万元</span></div></div>
+                </div>
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="agreementNo" label="协议编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="agreementName" label="协议名称" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="totalAmount" label="协议总额(元)" min-width="130" align="right"><template slot-scope="{row}">{{ row.totalAmount.toLocaleString() }}</template></el-table-column>
+                  <el-table-column prop="usedAmount" label="已使用金额(元)" min-width="140" align="right"><template slot-scope="{row}">{{ row.usedAmount.toLocaleString() }}</template></el-table-column>
+                  <el-table-column prop="usageRate" label="使用率" width="100" align="center"><template slot-scope="{row}"><el-progress :percentage="row.usageRate" :stroke-width="10" :status="row.usageRate>=90?'success':row.usageRate>=70?'warning':'exception'"></el-progress></template></el-table-column>
+                  <el-table-column prop="remainingQty" label="剩余数量" width="100" align="center"><template slot-scope="{row}"><span :style="{color:row.remainingQty<=row.totalQty*0.1?'#c62828':'#909399'}">{{ row.remainingQty }}/{{ row.totalQty }}</span></template></el-table-column>
+                  <el-table-column prop="endDate" label="到期日期" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="daysToExpire" label="剩余天数" width="90" align="center"><template slot-scope="{row}"><el-tag :type="row.daysToExpire<=0?'danger':row.daysToExpire<=30?'warning':'success'" size="small">{{ row.daysToExpire<=0?'已到期':row.daysToExpire+'天' }}</el-tag></template></el-table-column>
+                  <el-table-column prop="alertType" label="预警类型" min-width="100" align="center"><template slot-scope="{row}"><el-tag v-if="row.alertType" :type="row.alertType==='滞销'?'info':row.alertType==='库存上限'?'warning':'danger'" size="small">{{ row.alertType }}</el-tag><span v-else style="color:#2e7d32">正常</span></template></el-table-column>
+                  <el-table-column prop="status" label="状态" width="90" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='active'?'success':row.status==='expiring'?'warning':'danger'" size="small">{{ row.status==='active'?'执行中':row.status==='expiring'?'即将到期':'已到期' }}</el-tag></template></el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">详情</el-button></template></el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="协议库存详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div class="form-section-title"><i class="el-icon-s-order"></i> 协议基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="协议编号">{{ currentDetail.agreementNo }}</el-descriptions-item>
+          <el-descriptions-item label="协议名称">{{ currentDetail.agreementName }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="协议总额">{{ currentDetail.totalAmount.toLocaleString() }} 元</el-descriptions-item>
+          <el-descriptions-item label="开始日期">{{ currentDetail.startDate }}</el-descriptions-item>
+          <el-descriptions-item label="到期日期">{{ currentDetail.endDate }}</el-descriptions-item>
+          <el-descriptions-item label="剩余天数">{{ currentDetail.daysToExpire }} 天</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status==='active'?'执行中':currentDetail.status==='expiring'?'即将到期':'已到期' }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="form-section-title"><i class="el-icon-goods"></i> 协议商品明细</div>
+        <el-table :data="currentDetail.products || []" border size="small" style="margin-bottom:16px;">
+          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+          <el-table-column prop="productName" label="商品名称" min-width="160"></el-table-column>
+          <el-table-column prop="spec" label="规格型号" min-width="140"></el-table-column>
+          <el-table-column prop="agreedPrice" label="协议单价" width="120" align="right"></el-table-column>
+          <el-table-column prop="agreedQty" label="协议数量" width="100" align="center"></el-table-column>
+          <el-table-column prop="usedQty" label="已下单" width="90" align="center"></el-table-column>
+          <el-table-column prop="remainingQty" label="剩余" width="90" align="center"><template slot-scope="{row}"><span :style="{color:row.remainingQty<=row.agreedQty*0.1?'#c62828':'#909399'}">{{ row.remainingQty }}</span></template></el-table-column>
+          <el-table-column prop="usageRate" label="使用率" width="100" align="center"><template slot-scope="{row}"><el-progress :percentage="Math.round(row.usedQty/row.agreedQty*100)" :stroke-width="8"></el-progress></template></el-table-column>
+        </el-table>
+        <el-alert v-if="currentDetail.alertType" :title="'预警：'+currentDetail.alertType" type="warning" :closable="false" show-icon>
+          <span v-if="currentDetail.alertType==='协议到期'">距协议到期仅剩{{ currentDetail.daysToExpire }}天，请通知供应商续签</span>
+          <span v-else-if="currentDetail.alertType==='余量不足'">协议剩余数量不足10%，请通知采购方补货</span>
+          <span v-else-if="currentDetail.alertType==='滞销'">该协议下商品90天无销量，建议下架</span>
+        </el-alert>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div><div class="help-section__body">监控框架协议的执行情况，包括协议使用率、剩余数量、到期预警、库存上下限预警和滞销预警，确保协议库存健康运转。适用于采购部门的协议管理员。</div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div><div class="help-section__body"><ul><li>实时监控协议使用率，防止超量下单</li><li>到期前30天自动预警，避免协议断档</li><li>余量不足10%时提醒补货，保障供应连续性</li><li>滞销商品90天预警，优化库存结构</li></ul></div></div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          statCollapsed: true,
+          isSearchPanelCollapsed: false,
+          labelWidth: '100px',
+          queryForm: { agreementNo:'', supplier:'', alertType:'', status:'' },
+          tableSearchText: '',
+          currentPage: 1,
+          pageSize: 10,
+          selection: [],
+          detailVisible: false,
+          helpVisible: false,
+          currentDetail: null,
+          tableData: [
+            { agreementNo:'FA-2026-001', agreementName:'2026年度电气设备框架协议', supplier:'远东电缆股份有限公司', totalAmount:5000000, usedAmount:3850000, usageRate:77, totalQty:10000, remainingQty:2300, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'', status:'active', products:[{productName:'YJV22-10kV-3×240',spec:'10kV/3×240mm²',agreedPrice:128.5,agreedQty:5000,usedQty:3850,remainingQty:1150},{productName:'YJV22-10kV-3×120',spec:'10kV/3×120mm²',agreedPrice:78.3,agreedQty:5000,usedQty:3850,remainingQty:1150}] },
+            { agreementNo:'FA-2026-002', agreementName:'办公耗材年度采购协议', supplier:'史泰博(上海)有限公司', totalAmount:800000, usedAmount:720000, usageRate:90, totalQty:5000, remainingQty:500, startDate:'2026-01-01', endDate:'2026-06-30', daysToExpire:21, alertType:'余量不足', status:'expiring', products:[{productName:'A4复印纸',spec:'70g/500张',agreedPrice:28.0,agreedQty:3000,usedQty:2700,remainingQty:300},{productName:'激光硒鼓',spec:'HP-26A',agreedPrice:320.0,agreedQty:2000,usedQty:1800,remainingQty:200}] },
+            { agreementNo:'FA-2025-089', agreementName:'劳保用品年度采购协议', supplier:'北京赛诺菲安全装备有限公司', totalAmount:1200000, usedAmount:180000, usageRate:15, totalQty:3000, remainingQty:2550, startDate:'2025-07-01', endDate:'2026-06-30', daysToExpire:21, alertType:'滞销', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-003', agreementName:'智能电表框架协议', supplier:'宁波三星医疗电气股份有限公司', totalAmount:3200000, usedAmount:2880000, usageRate:90, totalQty:8000, remainingQty:800, startDate:'2026-03-01', endDate:'2027-02-28', daysToExpire:234, alertType:'余量不足', status:'active', products:[] },
+            { agreementNo:'FA-2025-076', agreementName:'煤炭物资专用设备协议', supplier:'郑州煤矿机械集团股份有限公司', totalAmount:6000000, usedAmount:6000000, usageRate:100, totalQty:200, remainingQty:0, startDate:'2025-03-01', endDate:'2026-02-28', daysToExpire:-131, alertType:'', status:'expired', products:[] },
+            { agreementNo:'FA-2026-005', agreementName:'UPS电源设备采购协议', supplier:'厦门科华恒盛股份有限公司', totalAmount:1500000, usedAmount:450000, usageRate:30, totalQty:300, remainingQty:210, startDate:'2026-04-01', endDate:'2027-03-31', daysToExpire:265, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-006', agreementName:'安全防护用品采购协议', supplier:'3M中国有限公司', totalAmount:500000, usedAmount:475000, usageRate:95, totalQty:5000, remainingQty:250, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'库存上限', status:'active', products:[] },
+            { agreementNo:'FA-2026-007', agreementName:'化工物资特种管道协议', supplier:'中泰化学股份有限公司', totalAmount:2800000, usedAmount:1960000, usageRate:70, totalQty:1000, remainingQty:300, startDate:'2026-02-01', endDate:'2027-01-31', daysToExpire:206, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-008', agreementName:'电力电缆年度框架协议', supplier:'江苏中天科技股份有限公司', totalAmount:4500000, usedAmount:3150000, usageRate:70, totalQty:8000, remainingQty:2400, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-009', agreementName:'变压器设备采购协议', supplier:'特变电工股份有限公司', totalAmount:8000000, usedAmount:7200000, usageRate:90, totalQty:50, remainingQty:5, startDate:'2026-03-01', endDate:'2027-02-28', daysToExpire:234, alertType:'余量不足', status:'active', products:[] },
+            { agreementNo:'FA-2026-010', agreementName:'开关柜设备采购协议', supplier:'正泰集团股份有限公司', totalAmount:3500000, usedAmount:2450000, usageRate:70, totalQty:200, remainingQty:60, startDate:'2026-02-15', endDate:'2027-02-14', daysToExpire:219, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-011', agreementName:'绝缘材料年度采购协议', supplier:'山东泰开绝缘子有限公司', totalAmount:1800000, usedAmount:1620000, usageRate:90, totalQty:5000, remainingQty:500, startDate:'2026-01-01', endDate:'2026-08-31', daysToExpire:53, alertType:'协议到期', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-012', agreementName:'光伏组件框架协议', supplier:'隆基绿能科技股份有限公司', totalAmount:12000000, usedAmount:9600000, usageRate:80, totalQty:5000, remainingQty:1000, startDate:'2026-04-01', endDate:'2027-03-31', daysToExpire:265, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-013', agreementName:'风电设备年度协议', supplier:'金风科技股份有限公司', totalAmount:15000000, usedAmount:12000000, usageRate:80, totalQty:30, remainingQty:6, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2025-092', agreementName:'通信光缆采购协议', supplier:'烽火通信科技股份有限公司', totalAmount:2200000, usedAmount:2200000, usageRate:100, totalQty:6000, remainingQty:0, startDate:'2025-06-01', endDate:'2026-05-31', daysToExpire:-40, alertType:'', status:'expired', products:[] },
+            { agreementNo:'FA-2026-014', agreementName:'配电箱体年度协议', supplier:'良信电器股份有限公司', totalAmount:1600000, usedAmount:480000, usageRate:30, totalQty:800, remainingQty:560, startDate:'2026-05-01', endDate:'2027-04-30', daysToExpire:295, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-015', agreementName:'互感器设备采购协议', supplier:'大连第一互感器有限责任公司', totalAmount:2500000, usedAmount:2000000, usageRate:80, totalQty:1200, remainingQty:240, startDate:'2026-03-01', endDate:'2027-02-28', daysToExpire:234, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-016', agreementName:'避雷器年度采购协议', supplier:'南阳金冠电气有限公司', totalAmount:900000, usedAmount:810000, usageRate:90, totalQty:3000, remainingQty:300, startDate:'2026-01-15', endDate:'2026-07-15', daysToExpire:6, alertType:'余量不足', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-017', agreementName:'电容器组框架协议', supplier:'西安西电电力电容器有限责任公司', totalAmount:3800000, usedAmount:1900000, usageRate:50, totalQty:400, remainingQty:200, startDate:'2026-02-01', endDate:'2027-01-31', daysToExpire:206, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-018', agreementName:'电力铁塔年度协议', supplier:'常熟铁塔有限公司', totalAmount:6500000, usedAmount:5850000, usageRate:90, totalQty:2000, remainingQty:200, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'余量不足', status:'active', products:[] },
+            { agreementNo:'FA-2025-095', agreementName:'电缆附件采购协议', supplier:'3M中国有限公司', totalAmount:1200000, usedAmount:360000, usageRate:30, totalQty:4000, remainingQty:2800, startDate:'2025-08-01', endDate:'2026-07-31', daysToExpire:22, alertType:'滞销', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-019', agreementName:'GIS组合电器协议', supplier:'河南平高电气股份有限公司', totalAmount:20000000, usedAmount:16000000, usageRate:80, totalQty:20, remainingQty:4, startDate:'2026-03-15', endDate:'2027-03-14', daysToExpire:248, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-020', agreementName:'继电保护装置年度协议', supplier:'南京南瑞继保电气有限公司', totalAmount:4200000, usedAmount:3780000, usageRate:90, totalQty:600, remainingQty:60, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'余量不足', status:'active', products:[] },
+            { agreementNo:'FA-2026-021', agreementName:'计量箱体采购协议', supplier:'浙江正泰仪器仪表有限责任公司', totalAmount:1100000, usedAmount:550000, usageRate:50, totalQty:5000, remainingQty:2500, startDate:'2026-04-01', endDate:'2027-03-31', daysToExpire:265, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2025-088', agreementName:'电缆桥架年度协议', supplier:'江苏通鼎互联信息股份有限公司', totalAmount:800000, usedAmount:160000, usageRate:20, totalQty:3000, remainingQty:2400, startDate:'2025-09-01', endDate:'2026-08-31', daysToExpire:53, alertType:'滞销', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-022', agreementName:'电力金具采购协议', supplier:'中国电力科学研究院有限公司', totalAmount:1500000, usedAmount:1200000, usageRate:80, totalQty:8000, remainingQty:1600, startDate:'2026-02-10', endDate:'2027-02-09', daysToExpire:215, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2026-023', agreementName:'控制电缆年度框架协议', supplier:'宝胜科技创新股份有限公司', totalAmount:2800000, usedAmount:2520000, usageRate:90, totalQty:12000, remainingQty:1200, startDate:'2026-01-01', endDate:'2026-12-31', daysToExpire:175, alertType:'余量不足', status:'active', products:[] },
+            { agreementNo:'FA-2026-024', agreementName:'电力钢管杆年度协议', supplier:'中国能源建设集团有限公司', totalAmount:5000000, usedAmount:4000000, usageRate:80, totalQty:500, remainingQty:100, startDate:'2026-03-01', endDate:'2027-02-28', daysToExpire:234, alertType:'', status:'active', products:[] },
+            { agreementNo:'FA-2025-098', agreementName:'消防器材采购协议', supplier:'海湾安全技术有限公司', totalAmount:600000, usedAmount:540000, usageRate:90, totalQty:2000, remainingQty:200, startDate:'2025-07-01', endDate:'2026-06-30', daysToExpire:21, alertType:'协议到期', status:'expiring', products:[] },
+            { agreementNo:'FA-2026-025', agreementName:'光纤复合架空地线协议', supplier:'长飞光纤光缆股份有限公司', totalAmount:3200000, usedAmount:2240000, usageRate:70, totalQty:7000, remainingQty:2100, startDate:'2026-02-01', endDate:'2027-01-31', daysToExpire:206, alertType:'', status:'active', products:[] }
+          ]
+        };
+      },
+      computed: {
+        queryConditionText() { const p=[]; if(this.queryForm.agreementNo)p.push('协议编号:'+this.queryForm.agreementNo); if(this.queryForm.supplier)p.push('供应商:'+this.queryForm.supplier); if(this.queryForm.alertType)p.push('预警:'+this.queryForm.alertType); if(this.queryForm.status)p.push('状态:'+this.queryForm.status); return p.length?p.join(' | '):'全部'; },
+        filteredData() {
+          return this.tableData.filter(r => {
+            if(this.queryForm.agreementNo && !r.agreementNo.includes(this.queryForm.agreementNo)) return false;
+            if(this.queryForm.supplier && !r.supplier.includes(this.queryForm.supplier)) return false;
+            if(this.queryForm.alertType && r.alertType !== this.queryForm.alertType) return false;
+            if(this.queryForm.status && r.status !== this.queryForm.status) return false;
+            if(this.tableSearchText) { const kw=this.tableSearchText.toLowerCase(); const text=(r.agreementNo+r.agreementName+r.supplier).toLowerCase(); if(!text.includes(kw)) return false; }
+            return true;
+          });
+        },
+        pagedData() { const s=(this.currentPage-1)*this.pageSize; return this.filteredData.slice(s,s+this.pageSize); },
+        total() { return this.filteredData.length; },
+        activeCount() { return this.tableData.filter(r=>r.status==='active').length; },
+        expiringCount() { return this.tableData.filter(r=>r.status==='expiring').length; },
+        lowStockCount() { return this.tableData.filter(r=>r.alertType && r.alertType!=='').length; },
+        totalAmount() { return (this.tableData.reduce((s,r)=>s+r.totalAmount,0)/10000).toFixed(1); }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; },
+        handleReset() { this.queryForm={agreementNo:'',supplier:'',alertType:'',status:''}; this.currentPage=1; },
+        handleExport() { this.$message.success('导出成功'); },
+        handleRefresh() { this.$message.success('刷新成功'); },
+        handleDetail(row) { this.currentDetail=row; this.detailVisible=true; },
+        handleSelectionChange(val) { this.selection=val; },
+        handlePageChange(page) { this.currentPage=page; },
+        handleSizeChange(size) { this.pageSize=size; this.currentPage=1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

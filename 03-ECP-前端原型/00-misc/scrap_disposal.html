@@ -1,0 +1,520 @@
+﻿﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>闲废处置</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .tl-footer { text-align:center; }
+    .stat-cards { display:flex; margin-bottom:16px; }
+    .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .stat-toggle { text-align:center; margin-bottom:12px; }
+    .stat-toggle .el-button { font-size:13px; color:#0B7266; }
+    .table-maximized { position:fixed !important; top:0; left:0; right:0; bottom:0; z-index:2000; background:#fff; padding:16px; overflow:auto; }
+    .table-maximized .yj-container-card__bar { padding:8px 0; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">闲废处置</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header">
+              <span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span>
+            </div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="处置单号" title="处置单号">
+                    <el-input v-model="queryForm.disposalNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="处置方式" title="处置方式">
+                    <el-select v-model="queryForm.disposalType" placeholder="请选择" clearable>
+                      <el-option label="竞价转让" value="竞价转让"></el-option>
+                      <el-option label="协议转让" value="协议转让"></el-option>
+                      <el-option label="报废销毁" value="报废销毁"></el-option>
+                      <el-option label="捐赠" value="捐赠"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待审批" value="待审批"></el-option>
+                      <el-option label="处置中" value="处置中"></el-option>
+                      <el-option label="已完成" value="已完成"></el-option>
+                      <el-option label="已驳回" value="已驳回"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="申请单位" title="申请单位">
+                    <el-input v-model="queryForm.applyUnit" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="申请日期" title="申请日期">
+                    <el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                    <span title="闲废处置列表">闲废处置列表</span>
+                  </div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                    共 {{ filteredData.length }} 条记录
+                  </div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleAdd" icon="el-icon-plus">新建处置单</el-button>
+                        <el-button type="warning" @click="handleBatchApprove" icon="el-icon-s-check" :disabled="!hasPending">批量审批</el-button>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__default-buttons">
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true"><i class="el-icon-setting"></i></button>
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize"><i class="el-icon-full-screen"></i></button>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger">
+                      <el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table" style="position:relative;">
+                <div class="stat-toggle">
+                  <el-button type="text" @click="statCollapsed = !statCollapsed">
+                    <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                    {{ statCollapsed ? '展开统计' : '收起统计' }}
+                  </el-button>
+                </div>
+                <div class="stat-cards" v-show="!statCollapsed">
+                  <div class="stat-card"><div class="stat-label">处置单总数(笔)</div><div class="stat-value">{{ filteredData.length }}</div></div>
+                  <div class="stat-card"><div class="stat-label">待审批(笔)</div><div class="stat-value" style="color:#f57c00;">{{ statPendingCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">处置中(笔)</div><div class="stat-value" style="color:#1565C0;">{{ statProcessingCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">已完成(笔)</div><div class="stat-value" style="color:#2e7d32;">{{ statCompletedCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">回收金额(元)</div><div class="stat-value">{{ statTotalRecovery }}</div></div>
+                </div>
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @row-click="handleRowClick" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="45" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('disposalNo')" prop="disposalNo" label="处置单号" width="140" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('materialName')" prop="materialName" label="闲废物资" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('quantity')" prop="quantity" label="数量" width="100" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('unit')" prop="unit" label="单位" width="70" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('disposalType')" prop="disposalType" label="处置方式" width="100" align="center">
+                    <template slot-scope="scope"><el-tag :type="disposalTag(scope.row.disposalType)" size="small">{{ scope.row.disposalType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('recoveryAmount')" prop="recoveryAmount" label="回收金额(元)" width="130" align="center">
+                    <template slot-scope="scope"><span style="color:#2e7d32;font-weight:600;">{{ scope.row.recoveryAmount.toLocaleString() }}</span></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('buyer')" prop="buyer" label="受让方/处置方" width="160" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('applyUnit')" prop="applyUnit" label="申请单位" width="140" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('applyDate')" prop="applyDate" label="申请日期" width="120" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('status')" prop="status" label="状态" width="90" align="center">
+                    <template slot-scope="scope"><el-tag :type="scope.row.status==='已完成'?'success':scope.row.status==='处置中'?'warning':scope.row.status==='已驳回'?'danger':'info'" size="small">{{ scope.row.status }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="160" align="center" fixed="right">
+                    <template slot-scope="scope">
+                      <el-button type="text" @click.stop="handleDetail(scope.row)">详情</el-button>
+                      <el-button type="text" v-if="scope.row.status==='待审批'" @click.stop="handleApprove(scope.row)">审批</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog title="处置单详情" :visible.sync="detailVisible" width="780px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-descriptions :column="2" border v-if="currentRow">
+        <el-descriptions-item label="处置单号">{{ currentRow.disposalNo }}</el-descriptions-item>
+        <el-descriptions-item label="闲废物资">{{ currentRow.materialName }}</el-descriptions-item>
+        <el-descriptions-item label="数量">{{ currentRow.quantity }} {{ currentRow.unit }}</el-descriptions-item>
+        <el-descriptions-item label="处置方式">{{ currentRow.disposalType }}</el-descriptions-item>
+        <el-descriptions-item label="回收金额">{{ currentRow.recoveryAmount.toLocaleString() }} 元</el-descriptions-item>
+        <el-descriptions-item label="受让方/处置方">{{ currentRow.buyer }}</el-descriptions-item>
+        <el-descriptions-item label="申请单位">{{ currentRow.applyUnit }}</el-descriptions-item>
+        <el-descriptions-item label="申请日期">{{ currentRow.applyDate }}</el-descriptions-item>
+        <el-descriptions-item label="审批编号">{{ currentRow.approvalNo }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="currentRow.status==='已完成'?'success':currentRow.status==='处置中'?'warning':currentRow.status==='已驳回'?'danger':'info'" size="small">{{ currentRow.status }}</el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
+      <div v-if="currentRow" class="form-section-title"><i class="el-icon-document"></i> 物资明细清单</div>
+      <div class="yj-container-card__table" v-if="currentRow">
+        <el-table :data="currentRow.items || []" border size="small" style="margin-top:8px;">
+          <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+          <el-table-column prop="matCode" label="物资编码" width="140" align="center"></el-table-column>
+          <el-table-column prop="matName" label="物资名称" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="spec" label="规格型号" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="qty" label="数量" width="80" align="center"></el-table-column>
+          <el-table-column prop="bookValue" label="账面价值(元)" width="120" align="center">
+            <template slot-scope="scope">{{ scope.row.bookValue.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="evalValue" label="评估价值(元)" width="120" align="center">
+            <template slot-scope="scope">{{ scope.row.evalValue.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="disposalResult" label="处置去向" width="100" align="center"></el-table-column>
+        </el-table>
+      </div>
+      <div v-if="currentRow" class="form-section-title"><i class="el-icon-set-up"></i> 处置流程</div>
+      <el-steps v-if="currentRow" :active="currentRow.stepActive || 0" align-center>
+        <el-step title="闲废鉴定" description="确认闲废状态"></el-step>
+        <el-step title="价值评估" description="第三方评估"></el-step>
+        <el-step title="审批备案" description="管理层审批"></el-step>
+        <el-step title="挂牌处置" description="平台公开竞价"></el-step>
+        <el-step title="交割完成" description="物资移交"></el-step>
+      </el-steps>
+      <div slot="footer">
+        <el-button type="primary" @click="detailVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-delete"></i> 业务场景</div>
+          <div class="help-section__body">闲废处置是针对闲置、报废物资通过电子商城平台进行公开、透明的处置流转，实现资源再利用和价值最大化，同时满足国资监管合规要求。适用于资产管理员、运维分公司、工程分公司等需要处置退役/闲置/报废物资的场景。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-collection"></i> 处置方式</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>竞价转让</b>：公开挂牌竞价，价高者得，适用于有残值且有市场需求的物资</li>
+              <li><b>协议转让</b>：定向协议转让，适用于特定对象（如兄弟单位调拨）</li>
+              <li><b>报废销毁</b>：无残值物资环保销毁，须有销毁证明</li>
+              <li><b>捐赠</b>：公益捐赠，履行社会责任，须备案</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-marketing"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>资源化率</b>：再利用+回收占比，衡量绿色处置水平</li>
+              <li><b>降本贡献</b>：回收资金冲减采购成本，节约预算</li>
+              <li><b>合规留痕</b>：处置全过程电子化记录，满足国资监管审计要求</li>
+              <li><b>阳光透明</b>：竞价转让公开挂牌，杜绝暗箱操作</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-warning-outline"></i> 合规要求</div>
+          <div class="help-section__body">
+            <ul>
+              <li>处置前须经专业机构价值评估，评估报告归档</li>
+              <li>竞价转让须在指定平台公开进行，竞价记录留痕</li>
+              <li>处置过程全程留痕，接受审计监督</li>
+              <li>回收资金按规定上缴或纳入预算管理</li>
+              <li>审批超时3个工作日自动催办，超时未处理自动记录</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-connection"></i> 上下业务环节</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>上游</b>：资产管理/盘点 — 退役/闲置/报废物资登记入库，生成闲废物资台账</li>
+              <li><b>上游</b>：采购入库 — 采购物资全生命周期管理，退役后进入闲废处置流程</li>
+              <li><b>本页</b>：闲废处置 — 闲废鉴定→价值评估→审批备案→挂牌处置→交割完成</li>
+              <li><b>下游</b>：财务核算 — 回收资金入账，冲减采购成本，纳入预算管理</li>
+              <li><b>下游</b>：审计监督 — 处置全过程电子留痕，接受国资监管审计</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '90px',
+          isSearchPanelCollapsed: false,
+          queryForm: { disposalNo: '', disposalType: '', status: '', applyUnit: '', dateRange: [] },
+          tableSearchText: '',
+          pageSize: 10,
+          currentPage: 1,
+          statCollapsed: true,
+          detailVisible: false,
+          helpVisible: false,
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          currentRow: null,
+          selectedRows: [],
+          visibleColumns: ['disposalNo','materialName','quantity','unit','disposalType','recoveryAmount','buyer','applyUnit','applyDate','status'],
+          columnSettings: [
+            {prop:'disposalNo',label:'处置单号'},{prop:'materialName',label:'闲废物资'},{prop:'quantity',label:'数量'},
+            {prop:'unit',label:'单位'},{prop:'disposalType',label:'处置方式'},{prop:'recoveryAmount',label:'回收金额(元)'},
+            {prop:'buyer',label:'受让方/处置方'},{prop:'applyUnit',label:'申请单位'},{prop:'applyDate',label:'申请日期'},
+            {prop:'status',label:'状态'}
+          ],
+          fieldLabels: {
+            disposalNo:'处置单号', materialName:'闲废物资', quantity:'数量', unit:'单位',
+            disposalType:'处置方式', recoveryAmount:'回收金额(元)', buyer:'受让方/处置方',
+            applyUnit:'申请单位', applyDate:'申请日期', status:'状态', approvalNo:'审批编号'
+          },
+          tableData: []
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(function(r) {
+            if (this.queryForm.disposalNo && r.disposalNo.indexOf(this.queryForm.disposalNo) === -1) return false;
+            if (this.queryForm.disposalType && r.disposalType !== this.queryForm.disposalType) return false;
+            if (this.queryForm.status && r.status !== this.queryForm.status) return false;
+            if (this.queryForm.applyUnit && r.applyUnit.indexOf(this.queryForm.applyUnit) === -1) return false;
+            if (this.queryForm.dateRange && this.queryForm.dateRange.length === 2) {
+              if (r.applyDate < this.queryForm.dateRange[0] || r.applyDate > this.queryForm.dateRange[1]) return false;
+            }
+            if (this.tableSearchText) {
+              var kw = this.tableSearchText.toLowerCase();
+              var text = (r.disposalNo + r.materialName + r.disposalType + r.buyer + r.applyUnit + r.status).toLowerCase();
+              if (text.indexOf(kw) === -1) return false;
+            }
+            return true;
+          }.bind(this));
+        },
+        pagedData() {
+          var start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        hasPending() {
+          return this.selectedRows.length > 0;
+        },
+        queryConditionText() {
+          var conditions = [];
+          var f = this.queryForm;
+          if (f.disposalNo) conditions.push('处置单号：' + f.disposalNo);
+          if (f.disposalType) conditions.push('处置方式：' + f.disposalType);
+          if (f.status) conditions.push('状态：' + f.status);
+          if (f.applyUnit) conditions.push('申请单位：' + f.applyUnit);
+          if (f.dateRange && f.dateRange.length === 2) conditions.push('日期：' + f.dateRange[0] + '至' + f.dateRange[1]);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        statPendingCount() {
+          return this.filteredData.filter(function(i){ return i.status === '待审批'; }).length;
+        },
+        statProcessingCount() {
+          return this.filteredData.filter(function(i){ return i.status === '处置中'; }).length;
+        },
+        statCompletedCount() {
+          return this.filteredData.filter(function(i){ return i.status === '已完成'; }).length;
+        },
+        statTotalRecovery() {
+          var total = this.filteredData.reduce(function(s, i){ return s + (i.recoveryAmount || 0); }, 0);
+          return total.toLocaleString();
+        }
+      },
+      watch: {
+        'queryForm.disposalNo'() { this.currentPage = 1; },
+        'queryForm.disposalType'() { this.currentPage = 1; },
+        'queryForm.status'() { this.currentPage = 1; },
+        'queryForm.applyUnit'() { this.currentPage = 1; },
+        'queryForm.dateRange'() { this.currentPage = 1; },
+        tableSearchText() { this.currentPage = 1; }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        disposalTag(type) {
+          var m = { '竞价转让':'success', '协议转让':'warning', '报废销毁':'danger', '捐赠':'info' };
+          return m[type] || 'info';
+        },
+        handleQuery() { this.currentPage = 1; this.$message.success('查询完成，共 ' + this.filteredData.length + ' 条记录'); },
+        handleReset() {
+          this.queryForm = { disposalNo: '', disposalType: '', status: '', applyUnit: '', dateRange: [] };
+          this.tableSearchText = '';
+          this.currentPage = 1;
+        },
+        handleExport() { this.exportCSV(); },
+        handleRefresh() { this.$message.success('数据已刷新'); },
+        exportCSV() {
+          if (this.filteredData.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          var labels = this.fieldLabels || {};
+          var keys = Object.keys(this.filteredData[0]).filter(function(k){ return k !== 'items' && k !== 'stepActive'; });
+          var headers = keys.map(function(k){ return labels[k] || k; });
+          var rows = this.filteredData.map(function(item) {
+            return keys.map(function(k) {
+              var v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+              return '"' + v.replace(/"/g, '""') + '"';
+            }).join(',');
+          });
+          var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '导出数据') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        handleRowClick(row) { this.handleDetail(row); },
+        handleDetail(row) { this.currentRow = row; this.detailVisible = true; },
+        handleApprove(row) {
+          this.$confirm('确认审批通过处置单 ' + row.disposalNo + '？', '审批确认', { type: 'warning' }).then(function() {
+            var target = this.tableData.find(function(i){ return i.disposalNo === row.disposalNo; });
+            if (target) { target.status = '处置中'; target.stepActive = 3; }
+            this.$message.success('审批通过');
+          }.bind(this)).catch(function(){});
+        },
+        handleBatchApprove() {
+          if (this.selectedRows.length === 0) { this.$message.warning('请先选择待审批的处置单'); return; }
+          var pending = this.selectedRows.filter(function(r){ return r.status === '待审批'; });
+          if (pending.length === 0) { this.$message.warning('所选处置单中没有待审批的记录'); return; }
+          this.$confirm('确认批量审批 ' + pending.length + ' 条处置单？', '批量审批', { type: 'warning' }).then(function() {
+            pending.forEach(function(r) {
+              var target = this.tableData.find(function(i){ return i.disposalNo === r.disposalNo; });
+              if (target) { target.status = '处置中'; target.stepActive = 3; }
+            }.bind(this));
+            this.$message.success('已批量审批 ' + pending.length + ' 条处置单');
+          }.bind(this)).catch(function(){});
+        },
+        handleSelectionChange(val) { this.selectedRows = val; },
+        handleAdd() { this.$message.info('新建处置单功能开发中'); },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; },
+        isColumnVisible(prop) { return this.visibleColumns.indexOf(prop) > -1; },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c){ return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; },
+        initData() {
+          var items1 = [
+            {matCode:'XF-2026-0001',matName:'退役变压器',spec:'S11-315kVA',qty:3,bookValue:45000,evalValue:28000,disposalResult:'竞价转让'},
+            {matCode:'XF-2026-0002',matName:'废旧电缆',spec:'YJV22-10kV',qty:500,bookValue:80000,evalValue:52000,disposalResult:'竞价转让'}
+          ];
+          var items2 = [
+            {matCode:'XF-2026-0003',matName:'退役开关柜',spec:'KYN28-12',qty:2,bookValue:36000,evalValue:18000,disposalResult:'协议转让'}
+          ];
+          var items3 = [
+            {matCode:'XF-2026-0004',matName:'报废电能表',spec:'DDSY102',qty:120,bookValue:12000,evalValue:3600,disposalResult:'报废销毁'}
+          ];
+          var raw = [
+            {disposalNo:'XF-2026-0701',materialName:'退役变压器S11-315kVA',quantity:3,unit:'台',disposalType:'竞价转让',recoveryAmount:84000,buyer:'华源再生资源',status:'已完成',applyUnit:'运维分公司',applyDate:'2026-05-10',approvalNo:'SP-2026-0312'},
+            {disposalNo:'XF-2026-0702',materialName:'废旧电力电缆YJV22-10kV',quantity:1200,unit:'米',disposalType:'竞价转让',recoveryAmount:66000,buyer:'金诚回收',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-05-15',approvalNo:'SP-2026-0318'},
+            {disposalNo:'XF-2026-0703',materialName:'退役开关柜KYN28-12',quantity:5,unit:'面',disposalType:'协议转让',recoveryAmount:45000,buyer:'兄弟单位调拨',status:'处置中',applyUnit:'运维分公司',applyDate:'2026-06-01',approvalNo:'SP-2026-0355'},
+            {disposalNo:'XF-2026-0704',materialName:'报废电能表DDSY102',quantity:350,unit:'只',disposalType:'报废销毁',recoveryAmount:0,buyer:'环保销毁中心',status:'已完成',applyUnit:'营销分公司',applyDate:'2026-06-10',approvalNo:'SP-2026-0367'},
+            {disposalNo:'XF-2026-0705',materialName:'退役配电箱XL-21',quantity:8,unit:'台',disposalType:'竞价转让',recoveryAmount:22000,buyer:'鑫达机电',status:'处置中',applyUnit:'运维分公司',applyDate:'2026-06-20',approvalNo:'SP-2026-0378'},
+            {disposalNo:'XF-2026-0706',materialName:'废旧金具绝缘子',quantity:800,unit:'件',disposalType:'竞价转让',recoveryAmount:12000,buyer:'永盛回收',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-06-25',approvalNo:'SP-2026-0382'},
+            {disposalNo:'XF-2026-0707',materialName:'退役蓄电池组GFM-300',quantity:16,unit:'组',disposalType:'协议转让',recoveryAmount:38000,buyer:'储能科技公司',status:'处置中',applyUnit:'信通分公司',applyDate:'2026-07-01',approvalNo:'SP-2026-0395'},
+            {disposalNo:'XF-2026-0708',materialName:'闲置办公家具',quantity:50,unit:'件',disposalType:'捐赠',recoveryAmount:0,buyer:'乡村振兴定点帮扶村',status:'已完成',applyUnit:'综合服务中心',applyDate:'2026-07-05',approvalNo:'SP-2026-0401'},
+            {disposalNo:'XF-2026-0709',materialName:'退役通信设备',quantity:12,unit:'套',disposalType:'竞价转让',recoveryAmount:56000,buyer:'联通回收',status:'待审批',applyUnit:'信通分公司',applyDate:'2026-07-08',approvalNo:'SP-2026-0410'},
+            {disposalNo:'XF-2026-0710',materialName:'废旧钢管塔材',quantity:2000,unit:'kg',disposalType:'竞价转让',recoveryAmount:8800,buyer:'钢铁回收站',status:'待审批',applyUnit:'工程分公司',applyDate:'2026-07-09',approvalNo:'SP-2026-0415'},
+            {disposalNo:'XF-2026-0711',materialName:'退役断路器LW36-40.5',quantity:4,unit:'台',disposalType:'竞价转让',recoveryAmount:32000,buyer:'东方电气回收',status:'已完成',applyUnit:'运维分公司',applyDate:'2026-05-18',approvalNo:'SP-2026-0325'},
+            {disposalNo:'XF-2026-0712',materialName:'废旧铝绞线',quantity:3000,unit:'米',disposalType:'竞价转让',recoveryAmount:15000,buyer:'铝业回收',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-05-20',approvalNo:'SP-2026-0330'},
+            {disposalNo:'XF-2026-0713',materialName:'退役互感器',quantity:18,unit:'台',disposalType:'协议转让',recoveryAmount:27000,buyer:'电力设备再制造',status:'处置中',applyUnit:'运维分公司',applyDate:'2026-06-05',approvalNo:'SP-2026-0358'},
+            {disposalNo:'XF-2026-0714',materialName:'报废避雷器',quantity:60,unit:'只',disposalType:'报废销毁',recoveryAmount:0,buyer:'环保销毁中心',status:'已完成',applyUnit:'运维分公司',applyDate:'2026-06-12',approvalNo:'SP-2026-0370'},
+            {disposalNo:'XF-2026-0715',materialName:'退役发电机',quantity:2,unit:'台',disposalType:'竞价转让',recoveryAmount:45000,buyer:'机电回收公司',status:'处置中',applyUnit:'综合服务中心',applyDate:'2026-06-22',approvalNo:'SP-2026-0380'},
+            {disposalNo:'XF-2026-0716',materialName:'废旧铁塔构件',quantity:5000,unit:'kg',disposalType:'竞价转让',recoveryAmount:22000,buyer:'钢铁回收站',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-06-28',approvalNo:'SP-2026-0385'},
+            {disposalNo:'XF-2026-0717',materialName:'退役UPS电源',quantity:8,unit:'台',disposalType:'竞价转让',recoveryAmount:18000,buyer:'电子设备回收',status:'待审批',applyUnit:'信通分公司',applyDate:'2026-07-02',approvalNo:'SP-2026-0398'},
+            {disposalNo:'XF-2026-0718',materialName:'闲置空调设备',quantity:15,unit:'台',disposalType:'捐赠',recoveryAmount:0,buyer:'社区公益中心',status:'已完成',applyUnit:'综合服务中心',applyDate:'2026-07-06',approvalNo:'SP-2026-0405'},
+            {disposalNo:'XF-2026-0719',materialName:'退役电容器组',quantity:20,unit:'台',disposalType:'竞价转让',recoveryAmount:14000,buyer:'电力设备回收',status:'待审批',applyUnit:'运维分公司',applyDate:'2026-07-08',approvalNo:'SP-2026-0412'},
+            {disposalNo:'XF-2026-0720',materialName:'废旧铜排母线',quantity:800,unit:'kg',disposalType:'竞价转让',recoveryAmount:36000,buyer:'有色金属回收',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-05-25',approvalNo:'SP-2026-0335'},
+            {disposalNo:'XF-2026-0721',materialName:'退役隔离开关',quantity:10,unit:'组',disposalType:'协议转让',recoveryAmount:20000,buyer:'兄弟单位调拨',status:'处置中',applyUnit:'运维分公司',applyDate:'2026-06-08',approvalNo:'SP-2026-0362'},
+            {disposalNo:'XF-2026-0722',materialName:'报废绝缘子串',quantity:300,unit:'串',disposalType:'报废销毁',recoveryAmount:0,buyer:'环保销毁中心',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-06-15',approvalNo:'SP-2026-0372'},
+            {disposalNo:'XF-2026-0723',materialName:'退役变频器',quantity:5,unit:'台',disposalType:'竞价转让',recoveryAmount:25000,buyer:'工业设备回收',status:'处置中',applyUnit:'综合服务中心',applyDate:'2026-06-25',approvalNo:'SP-2026-0383'},
+            {disposalNo:'XF-2026-0724',materialName:'废旧控制柜',quantity:12,unit:'面',disposalType:'竞价转让',recoveryAmount:18000,buyer:'鑫达机电',status:'已完成',applyUnit:'运维分公司',applyDate:'2026-06-30',approvalNo:'SP-2026-0390'},
+            {disposalNo:'XF-2026-0725',materialName:'退役变压器S9-200',quantity:2,unit:'台',disposalType:'竞价转让',recoveryAmount:16000,buyer:'华源再生资源',status:'待审批',applyUnit:'运维分公司',applyDate:'2026-07-03',approvalNo:'SP-2026-0400'},
+            {disposalNo:'XF-2026-0726',materialName:'废旧电缆YJV22-1kV',quantity:2000,unit:'米',disposalType:'竞价转让',recoveryAmount:10000,buyer:'金诚回收',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-05-28',approvalNo:'SP-2026-0340'},
+            {disposalNo:'XF-2026-0727',materialName:'退役直流屏',quantity:3,unit:'面',disposalType:'协议转让',recoveryAmount:15000,buyer:'电力设备再制造',status:'处置中',applyUnit:'运维分公司',applyDate:'2026-07-01',approvalNo:'SP-2026-0396'},
+            {disposalNo:'XF-2026-0728',materialName:'报废安全工器具',quantity:200,unit:'件',disposalType:'报废销毁',recoveryAmount:0,buyer:'环保销毁中心',status:'已完成',applyUnit:'安全监察部',applyDate:'2026-07-04',approvalNo:'SP-2026-0403'},
+            {disposalNo:'XF-2026-0729',materialName:'退役通信电源',quantity:6,unit:'套',disposalType:'竞价转让',recoveryAmount:30000,buyer:'联通回收',status:'待审批',applyUnit:'信通分公司',applyDate:'2026-07-07',approvalNo:'SP-2026-0408'},
+            {disposalNo:'XF-2026-0730',materialName:'废旧钢材构件',quantity:8000,unit:'kg',disposalType:'竞价转让',recoveryAmount:32000,buyer:'钢铁回收站',status:'已完成',applyUnit:'工程分公司',applyDate:'2026-07-09',approvalNo:'SP-2026-0416'}
+          ];
+          var stepMap = { '待审批': 2, '处置中': 3, '已完成': 5, '已驳回': 2 };
+          var itemPool = [items1, items2, items3, items1, items2, items3, items1, items2, items3, items1];
+          raw.forEach(function(r, idx) {
+            r.items = itemPool[idx % itemPool.length];
+            r.stepActive = stepMap[r.status] || 0;
+          });
+          this.tableData = raw;
+        }
+      },
+      mounted() {
+        this.initData();
+        this.handleQuery();
+      }
+    });
+  </script>
+</body>
+</html>

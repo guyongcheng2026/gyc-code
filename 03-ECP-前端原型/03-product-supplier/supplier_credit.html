@@ -1,0 +1,353 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>供应商征信查询</title>
+<link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+<link rel="stylesheet" href="./css/template-driven-prototype.css">
+<style>
+.app-scss{--ecp-primary:#0B7266}.tl-title__title{color:#1A2332}
+.el-button--primary{background-color:#0B7266;border-color:#0B7266}.el-button--primary:hover{background-color:#0a6358;border-color:#0a6358}
+.el-table th.el-table__cell{background:#F1F6F7;color:#1A2332;font-weight:600}.el-table .el-table__cell{font-size:13px}
+.el-tag--success{background-color:#e8f5e9;border-color:#c8e6c9;color:#2e7d32}.el-tag--warning{background-color:#fff8e1;border-color:#ffecb3;color:#f57c00}
+.el-tag--danger{background-color:#ffebee;border-color:#ffcdd2;color:#c62828}.el-tag--info{background-color:#eceff1;border-color:#cfd8dc;color:#455a64}
+.el-dialog__header{border-bottom:1px solid #EAECF0}.el-dialog__footer{border-top:1px solid #EAECF0}
+.detail-dialog .el-dialog__body{padding:16px 24px;max-height:72vh;overflow-y:auto}
+.help-dialog .el-dialog__body{padding:16px 24px;max-height:60vh;overflow-y:auto}
+.detail-section{margin-bottom:20px}
+.detail-section__title{font-size:15px;font-weight:600;color:#0B7266;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #E0F0EE}
+.detail-section__title i{margin-right:6px}
+.risk-alert{margin-bottom:12px}
+.link-group{display:flex;/* gap-removed */;flex-wrap:wrap}
+.link-group a{color:#0B7266;text-decoration:none;font-size:13px}
+.link-group a:hover{text-decoration:underline}
+.help-content{font-size:14px;color:#333}.help-section{margin-bottom:20px}.help-section:last-child{margin-bottom:0}
+.help-section__title{font-size:15px;font-weight:600;color:#0B7266;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid #E0F0EE}
+.help-section__title i{margin-right:6px}.help-section__body{line-height:1.8;color:#555}
+.help-section__body ul,.help-section__body ol{margin:0;padding-left:20px}.help-section__body li{margin-bottom:6px}.help-section__body li b{color:#1A2332}
+.tl-footer{text-align:center}
+.stat-toggle{text-align:center;margin-bottom:12px}.stat-toggle .el-button{font-size:13px;color:#0B7266}
+.stat-cards{display:flex;/* gap-removed */;margin-bottom:16px}
+.stat-card{flex:1;background:#F1F6F7;border:1px solid #E0F0EE;border-radius:8px;padding:16px;text-align:center}
+.stat-card__value{font-size:28px;font-weight:700;color:#0B7266}.stat-card__label{font-size:13px;color:#909399;margin-top:4px}
+.stat-card--danger .stat-card__value{color:#c62828}.stat-card--warning .stat-card__value{color:#f57c00}.stat-card--success .stat-card__value{color:#2e7d32}
+</style>
+</head>
+<body class="app-scss" data-theme="dap">
+<div id="app">
+<section class="el-container query-page is-vertical">
+<header class="el-header query-header">
+<div class="tl-title query-title" area="title"><div class="tl-title__title">供应商征信查询</div><div class="tl-title__slot"></div></div>
+<div class="tl-search-panel query-search-panel"><div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+<div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+<div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed"><div class="yj-container query-form" area="query-form">
+<el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+<el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="名称/编号" clearable></el-input></el-form-item>
+<el-form-item class="tl-form-item" label="统一信用代码"><el-input v-model="queryForm.creditCode" placeholder="请输入" clearable></el-input></el-form-item>
+<el-form-item class="tl-form-item" label="供应商分类"><el-select v-model="queryForm.category" placeholder="请选择" clearable><el-option label="物资类" value="物资类"></el-option><el-option label="设备类" value="设备类"></el-option><el-option label="信息类" value="信息类"></el-option><el-option label="服务类" value="服务类"></el-option><el-option label="施工类" value="施工类"></el-option></el-select></el-form-item>
+<el-form-item class="tl-form-item" label="征信等级"><el-select v-model="queryForm.creditLevel" placeholder="请选择" clearable><el-option label="AAA" value="AAA"></el-option><el-option label="AA" value="AA"></el-option><el-option label="A" value="A"></el-option><el-option label="B" value="B"></el-option><el-option label="C" value="C"></el-option></el-select></el-form-item>
+<el-form-item class="tl-form-item" label="风险等级"><el-select v-model="queryForm.riskLevel" placeholder="请选择" clearable><el-option label="低风险" value="低"></el-option><el-option label="中风险" value="中"></el-option><el-option label="高风险" value="高"></el-option></el-select></el-form-item>
+<el-form-item class="tl-form-item" label="数据来源"><el-select v-model="queryForm.dataSource" placeholder="请选择" clearable><el-option label="企查查" value="企查查"></el-option><el-option label="天眼查" value="天眼查"></el-option><el-option label="国家企业信用信息公示系统" value="国家企业信用信息公示系统"></el-option><el-option label="中诚信" value="中诚信"></el-option></el-select></el-form-item>
+<el-form-item class="tl-form-item" label="更新日期"><el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" clearable></el-date-picker></el-form-item>
+<el-form-item class="tl-form-item tl-form-button-item">
+<el-button type="primary" @click="handleQuery">查询</el-button><el-button @click="handleReset">重置</el-button>
+<el-button type="primary" @click="handleBatchRefresh" icon="el-icon-refresh">批量征信刷新</el-button>
+<el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+<el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+</el-form-item></el-form></div></div>
+<div class="tl-search-panel__footer"><button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed?'展开':'收起'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed?'el-icon-arrow-down':'el-icon-arrow-up'"></i></button></div>
+</div></div></header>
+<main class="el-main query-body"><div area="query-body" class="query-grid-body"><div class="yj-container-card" area="grid" id="queryGrid">
+<div class="yj-container-card__bar"><div class="yj-container-card__toolbar"><div class="tl-table-tools">
+<div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="供应商征信列表">供应商征信列表</span></div>
+<div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条</span></div>
+<div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+<div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+</div></div></div>
+<div class="yj-container-card__table">
+<div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+<div class="stat-cards" v-show="!statCollapsed">
+<div class="stat-card"><div class="stat-card__value">{{ statData.totalCount }}</div><div class="stat-card__label">征信记录</div></div>
+<div class="stat-card stat-card--success"><div class="stat-card__value">{{ statData.aaaCount }}</div><div class="stat-card__label">AAA级</div></div>
+<div class="stat-card stat-card--warning"><div class="stat-card__value">{{ statData.warningCount }}</div><div class="stat-card__label">风险预警</div></div>
+<div class="stat-card stat-card--danger"><div class="stat-card__value">{{ statData.riskCount }}</div><div class="stat-card__label">高风险供应商</div></div>
+<div class="stat-card"><div class="stat-card__value">{{ statData.avgScore }}</div><div class="stat-card__label">平均征信分</div></div>
+</div>
+<el-alert v-if="riskSuppliers.length > 0" title="风险提示：当前有 2 家供应商存在高风险征信记录，建议及时关注并采取管控措施" type="warning" show-icon :closable="false" style="margin-bottom:12px;"></el-alert>
+<el-table :data="pagedData" border style="width:100%" @selection-change="handleSelectionChange">
+<el-table-column type="selection" width="45" align="center"></el-table-column>
+<el-table-column prop="supplierCode" label="供应商编号" width="110" align="center"></el-table-column>
+<el-table-column prop="supplierName" label="供应商名称" min-width="160" show-overflow-tooltip></el-table-column>
+<el-table-column prop="category" label="分类" width="70" align="center"><template slot-scope="{row}"><el-tag size="mini" type="info">{{ row.category }}</el-tag></template></el-table-column>
+<el-table-column prop="creditCode" label="统一信用代码" min-width="150" show-overflow-tooltip></el-table-column>
+<el-table-column label="征信等级" width="70" align="center"><template slot-scope="{row}"><el-tag size="small" :type="row.creditLevel==='AAA'?'success':row.creditLevel==='AA'?'success':row.creditLevel==='A'?'':row.creditLevel==='B'?'warning':'danger'">{{ row.creditLevel }}</el-tag></template></el-table-column>
+<el-table-column prop="creditScore" label="征信分" width="60" align="center"><template slot-scope="{row}"><span :style="{color:row.creditScore>=80?'#2e7d32':row.creditScore>=60?'#f57c00':'#c62828',fontWeight:600}">{{ row.creditScore }}</span></template></el-table-column>
+<el-table-column label="风险等级" width="70" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.riskLevel==='高'?'danger':row.riskLevel==='中'?'warning':'success'">{{ row.riskLevel }}</el-tag></template></el-table-column>
+<el-table-column prop="legalAction" label="司法" width="50" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.legalAction>0?'danger':'success'">{{ row.legalAction }}</el-tag></template></el-table-column>
+<el-table-column prop="abnormal" label="异常" width="50" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.abnormal>0?'warning':'success'">{{ row.abnormal }}</el-tag></template></el-table-column>
+<el-table-column prop="businessStatus" label="经营状态" width="70" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.businessStatus==='在营'?'success':row.businessStatus==='注销'?'info':'danger'">{{ row.businessStatus }}</el-tag></template></el-table-column>
+<el-table-column prop="dataSource" label="数据来源" width="90" align="center" show-overflow-tooltip></el-table-column>
+<el-table-column prop="updateTime" label="更新时间" width="100" align="center"></el-table-column>
+<el-table-column label="操作" width="130" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">详情</el-button><el-button type="text" @click="handleReport(row)">征信报告</el-button></template></el-table-column>
+</el-table>
+<el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small style="margin-top:12px;text-align:right;"></el-pagination>
+</div></div></div></main>
+</section>
+<el-dialog :lazy="true" title="征信详情" :visible.sync="detailVisible" width="860px" custom-class="detail-dialog">
+<div v-if="currentDetail">
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-document"></i> 企业基本信息</div>
+<el-descriptions :column="3" border>
+<el-descriptions-item label="供应商编号">{{ currentDetail.supplierCode }}</el-descriptions-item>
+<el-descriptions-item label="供应商名称">{{ currentDetail.supplierName }}</el-descriptions-item>
+<el-descriptions-item label="供应商分类">{{ currentDetail.category }}</el-descriptions-item>
+<el-descriptions-item label="统一信用代码">{{ currentDetail.creditCode }}</el-descriptions-item>
+<el-descriptions-item label="法定代表人">{{ currentDetail.legalPerson }}</el-descriptions-item>
+<el-descriptions-item label="注册资本">{{ currentDetail.registerCapital }}</el-descriptions-item>
+<el-descriptions-item label="成立日期">{{ currentDetail.establishDate }}</el-descriptions-item>
+<el-descriptions-item label="企业类型">{{ currentDetail.companyType }}</el-descriptions-item>
+<el-descriptions-item label="经营状态"><el-tag size="mini" :type="currentDetail.businessStatus==='在营'?'success':currentDetail.businessStatus==='注销'?'info':'danger'">{{ currentDetail.businessStatus }}</el-tag></el-descriptions-item>
+<el-descriptions-item label="注册地址" :span="3">{{ currentDetail.registerAddress }}</el-descriptions-item>
+<el-descriptions-item label="经营范围" :span="3">{{ currentDetail.businessScope }}</el-descriptions-item>
+</el-descriptions>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-medal"></i> 征信评分</div>
+<el-descriptions :column="3" border>
+<el-descriptions-item label="征信等级"><el-tag size="small" :type="currentDetail.creditLevel==='AAA'?'success':currentDetail.creditLevel==='AA'?'success':currentDetail.creditLevel==='A'?'':currentDetail.creditLevel==='B'?'warning':'danger'">{{ currentDetail.creditLevel }}</el-tag></el-descriptions-item>
+<el-descriptions-item label="征信分"><span :style="{color:currentDetail.creditScore>=80?'#2e7d32':currentDetail.creditScore>=60?'#f57c00':'#c62828',fontWeight:600,fontSize:'16px'}">{{ currentDetail.creditScore }}</span></el-descriptions-item>
+<el-descriptions-item label="风险等级"><el-tag size="small" :type="currentDetail.riskLevel==='高'?'danger':currentDetail.riskLevel==='中'?'warning':'success'">{{ currentDetail.riskLevel }}</el-tag></el-descriptions-item>
+<el-descriptions-item label="数据来源">{{ currentDetail.dataSource }}</el-descriptions-item>
+<el-descriptions-item label="查询时间">{{ currentDetail.queryTime }}</el-descriptions-item>
+<el-descriptions-item label="更新时间">{{ currentDetail.updateTime }}</el-descriptions-item>
+</el-descriptions>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-warning-outline"></i> 风险信息</div>
+<el-table :data="currentDetail.riskItems" border style="width:100%;margin-bottom:12px;">
+<el-table-column prop="type" label="风险类型" width="110" align="center"></el-table-column>
+<el-table-column prop="count" label="数量" width="60" align="center"></el-table-column>
+<el-table-column prop="detail" label="详情" min-width="200" show-overflow-tooltip></el-table-column>
+<el-table-column prop="level" label="风险等级" width="80" align="center"><template slot-scope="{row}"><el-tag size="small" :type="row.level==='高'?'danger':row.level==='中'?'warning':'info'">{{ row.level }}</el-tag></template></el-table-column>
+</el-table>
+<el-alert v-if="currentDetail.creditLevel==='C'" class="risk-alert" title="该供应商征信等级为C，存在较高风险，建议谨慎合作" type="error" show-icon :closable="false"></el-alert>
+<el-alert v-else-if="currentDetail.creditLevel==='B'" class="risk-alert" title="该供应商征信等级为B，存在一定风险，建议加强管控" type="warning" show-icon :closable="false"></el-alert>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-office-building"></i> 经营信息</div>
+<el-descriptions :column="2" border>
+<el-descriptions-item label="年营业额">{{ currentDetail.annualRevenue }}</el-descriptions-item>
+<el-descriptions-item label="员工人数">{{ currentDetail.employeeCount }}</el-descriptions-item>
+<el-descriptions-item label="参保人数">{{ currentDetail.insuredCount }}</el-descriptions-item>
+<el-descriptions-item label="进出口额">{{ currentDetail.importExport }}</el-descriptions-item>
+<el-descriptions-item label="是否有行政处罚" :span="2">{{ currentDetail.hasAdminPenalty }}</el-descriptions-item>
+</el-descriptions>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-connection"></i> 关联企业</div>
+<el-table :data="currentDetail.relatedCompanies" border style="width:100%;">
+<el-table-column prop="companyName" label="关联企业名称" min-width="200"></el-table-column>
+<el-table-column prop="relation" label="关联关系" width="120" align="center"></el-table-column>
+<el-table-column prop="creditLevel" label="征信等级" width="80" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.creditLevel==='AAA'||row.creditLevel==='AA'?'success':row.creditLevel==='A'?'':row.creditLevel==='B'?'warning':'danger'">{{ row.creditLevel }}</el-tag></template></el-table-column>
+<el-table-column prop="status" label="经营状态" width="80" align="center"></el-table-column>
+</el-table>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-document-copy"></i> 知识产权</div>
+<el-descriptions :column="3" border>
+<el-descriptions-item label="商标">{{ currentDetail.ip.trademark }}</el-descriptions-item>
+<el-descriptions-item label="专利">{{ currentDetail.ip.patent }}</el-descriptions-item>
+<el-descriptions-item label="软件著作权">{{ currentDetail.ip.copyright }}</el-descriptions-item>
+</el-descriptions>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-tickets"></i> 行政许可</div>
+<el-table :data="currentDetail.licenses" border style="width:100%;">
+<el-table-column prop="licenseName" label="许可名称" min-width="200"></el-table-column>
+<el-table-column prop="licenseNo" label="许可编号" width="160" align="center"></el-table-column>
+<el-table-column prop="issueOrg" label="发证机关" width="160" align="center"></el-table-column>
+<el-table-column prop="validTo" label="有效期至" width="120" align="center"></el-table-column>
+<el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag size="mini" :type="row.status==='有效'?'success':'danger'">{{ row.status }}</el-tag></template></el-table-column>
+</el-table>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-time"></i> 征信变更历史</div>
+<el-table :data="currentDetail.creditHistory" border style="width:100%;">
+<el-table-column prop="date" label="日期" width="120" align="center"></el-table-column>
+<el-table-column prop="event" label="变更事项" min-width="160"></el-table-column>
+<el-table-column prop="before" label="变更前" width="100" align="center"></el-table-column>
+<el-table-column prop="after" label="变更后" width="100" align="center"></el-table-column>
+<el-table-column prop="source" label="数据来源" width="120" align="center"></el-table-column>
+</el-table>
+</div>
+<div class="detail-section">
+<div class="detail-section__title"><i class="el-icon-link"></i> 关联业务</div>
+<div class="link-group">
+<a href="supplier_credit_score.html">信用评分详情</a>
+<a href="supplier_grade.html">分级管理</a>
+<a href="supplier_penalty.html">处罚记录</a>
+<a href="supplier_detail_bill.html">供应商档案</a>
+<a href="supplier_list.html">供应商列表</a>
+</div>
+</div>
+</div>
+<div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+</el-dialog>
+<el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+<div class="help-content">
+<div class="help-section"><div class="help-section__title"><i class="el-icon-info"></i> 功能说明</div>
+<div class="help-section__body"><p>供应商征信查询对接第三方征信机构（企查查/天眼查/国家企业信用信息公示系统/中诚信），查询供应商企业征信信息，为采购决策提供风险参考。</p>
+<ul>
+<li><b>企业基本信息</b>：注册资本、法人、成立日期、经营状态、注册地址、经营范围</li>
+<li><b>征信评分</b>：AAA/AA/A/B/C五级，综合评分0-100，含风险等级和数据来源</li>
+<li><b>司法风险</b>：诉讼案件、被执行人、失信记录</li>
+<li><b>经营风险</b>：经营异常、行政处罚、严重违法</li>
+<li><b>经营信息</b>：年营业额、员工人数、参保人数、进出口额</li>
+<li><b>关联企业</b>：关联企业名称、关联关系、征信等级</li>
+<li><b>知识产权</b>：商标、专利、软件著作权</li>
+<li><b>行政许可</b>：许可名称、编号、发证机关、有效期</li>
+<li><b>征信变更历史</b>：等级变化、风险事件时间线</li>
+</ul></div></div>
+<div class="help-section"><div class="help-section__title"><i class="el-icon-s-shop"></i> 业务场景</div>
+<div class="help-section__body"><p>在供应商准入审批、采购寻源、合同签订、订单分配等关键环节，采购管理人员需查询供应商企业征信信息，评估合作风险。本页面提供第三方征信数据查询入口，与供应商管理、信用评分、分级管理、处罚管理形成供应商风险管控闭环。</p></div></div>
+<div class="help-section"><div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+<div class="help-section__body"><ul>
+<li>对接第三方征信机构，获取权威企业征信数据，避免信息不对称</li>
+<li>司法风险、经营异常、行政处罚等多维度风险信息一屏展示</li>
+<li>风险等级实时监控，高风险供应商自动预警提示</li>
+<li>征信变更历史追踪，掌握供应商信用动态变化趋势</li>
+<li>关联企业穿透查询，识别潜在关联风险</li>
+<li>与信用评分、分级管理、处罚管理联动，形成供应商风险管控闭环</li>
+</ul></div></div>
+<div class="help-section"><div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+<div class="help-section__body"><ol>
+<li><b>查询供应商</b>：在查询面板输入供应商名称/编号、统一信用代码，选择供应商分类、征信等级、风险等级、数据来源、更新日期范围，点击"查询"按钮筛选</li>
+<li><b>查看征信详情</b>：点击列表行"详情"按钮，弹窗展示企业基本信息、征信评分、风险信息、经营信息、关联企业、知识产权、行政许可、征信变更历史</li>
+<li><b>查看征信报告</b>：点击"征信报告"按钮，跳转第三方征信机构查看完整企业征信报告</li>
+<li><b>批量征信刷新</b>：勾选多行后点击"批量征信刷新"按钮，批量调用第三方接口更新征信数据</li>
+<li><b>风险预警</b>：页面顶部统计卡片展示风险预警数量，高风险供应商自动标红提示</li>
+<li><b>导出数据</b>：点击"导出"按钮，将当前筛选结果导出为CSV文件</li>
+<li><b>关联业务跳转</b>：在详情弹窗底部可快速跳转至信用评分、分级管理、处罚记录、供应商档案等关联页面</li>
+</ol></div></div>
+<div class="help-section"><div class="help-section__title"><i class="el-icon-warning"></i> 征信等级说明</div>
+<div class="help-section__body"><ul>
+<li><b>AAA</b>：信用极好，无司法风险、无经营异常，征信分≥90</li>
+<li><b>AA</b>：信用优良，无重大风险记录，征信分80-89</li>
+<li><b>A</b>：信用良好，少量低风险记录，征信分70-79</li>
+<li><b>B</b>：信用一般，存在一定风险，征信分60-69，建议加强管控</li>
+<li><b>C</b>：信用较差，存在较高风险，征信分&lt;60，建议谨慎合作</li>
+</ul></div></div>
+</div>
+<div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+</el-dialog>
+</div>
+<script src="./js/vue.min.js"></script>
+<script src="./js/element-ui.js"></script>
+<script>
+new Vue({el:'#app',data(){return{
+labelWidth:'90px',statCollapsed: true,
+          isSearchPanelCollapsed:false,
+queryForm:{supplier:'',creditCode:'',category:'',creditLevel:'',riskLevel:'',dataSource:'',dateRange:''},tableSearchText:'',
+pageSize:10,currentPage:1,detailVisible:false,helpVisible:false,currentDetail:null,selection:[],
+statData:{totalCount:12,aaaCount:4,warningCount:3,riskCount:2,avgScore:78},
+tableData:[
+{supplierCode:'SP-001',supplierName:'远东电缆股份有限公司',category:'物资类',creditCode:'913202827541289X',creditLevel:'AAA',creditScore:92,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:30:00',legalPerson:'蒋锡培',registerCapital:'22亿人民币',establishDate:'1992-01-10',companyType:'股份有限公司',registerAddress:'江苏省无锡市宜兴市远东大道6号',businessScope:'电线电缆制造、销售；电力工程设计、施工',annualRevenue:'180亿元',employeeCount:'8000人',insuredCount:'7500人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'120项',patent:'350项',copyright:'45项'},relatedCompanies:[{companyName:'远东智慧能源股份有限公司',relation:'控股子公司',creditLevel:'AA',status:'在营'},{companyName:'远东电缆销售有限公司',relation:'全资子公司',creditLevel:'AAA',status:'在营'}],licenses:[{licenseName:'电线电缆生产许可证',licenseNo:'XK-2026-001',issueOrg:'国家市场监管总局',validTo:'2028-12-31',status:'有效'},{licenseName:'安全生产许可证',licenseNo:'(苏)JZ安许证字[2023]000123',issueOrg:'江苏省住建厅',validTo:'2026-02-28',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-01-01',event:'定期征信更新',before:'AA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-002',supplierName:'某建材供应商',category:'物资类',creditCode:'913100006789012X',creditLevel:'C',creditScore:38,riskLevel:'高',legalAction:5,abnormal:3,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:35:00',legalPerson:'张某',registerCapital:'500万人民币',establishDate:'2018-06-15',companyType:'有限责任公司',registerAddress:'上海市浦东新区某路88号',businessScope:'建筑材料销售',annualRevenue:'3000万元',employeeCount:'50人',insuredCount:'32人',importExport:'无',hasAdminPenalty:'有（2次）',ip:{trademark:'0项',patent:'0项',copyright:'0项'},relatedCompanies:[{companyName:'某建材贸易有限公司',relation:'关联企业',creditLevel:'C',status:'在营'}],licenses:[{licenseName:'建筑材料经营许可证',licenseNo:'JZ-2026-008',issueOrg:'上海市建委',validTo:'2026-06-30',status:'已过期'}],creditHistory:[{date:'2026-07-01',event:'新增失信记录',before:'B',after:'C',source:'企查查'},{date:'2026-04-01',event:'新增行政处罚',before:'B',after:'B',source:'企查查'},{date:'2026-01-01',event:'定期征信更新',before:'B',after:'B',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:5,detail:'3件合同纠纷、2件劳动争议',level:'高'},
+{type:'经营异常',count:3,detail:'2次未按期年报、1次地址异常',level:'高'},
+{type:'行政处罚',count:2,detail:'1次税务处罚、1次环保处罚',level:'高'},
+{type:'失信记录',count:1,detail:'被列为失信被执行人',level:'高'}]},
+{supplierCode:'SP-003',supplierName:'联想(北京)有限公司',category:'信息类',creditCode:'911100007109389X',creditLevel:'AAA',creditScore:95,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:40:00',legalPerson:'杨元庆',registerCapital:'25亿人民币',establishDate:'1996-03-15',companyType:'有限责任公司',registerAddress:'北京市海淀区中关村东路6号',businessScope:'计算机硬件、软件研发与销售',annualRevenue:'4000亿元',employeeCount:'50000人',insuredCount:'48000人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'5000项',patent:'20000项',copyright:'8000项'},relatedCompanies:[{companyName:'联想集团香港有限公司',relation:'控股母公司',creditLevel:'AAA',status:'在营'},{companyName:'联想(上海)有限公司',relation:'全资子公司',creditLevel:'AAA',status:'在营'}],licenses:[{licenseName:'计算机信息系统集成资质',licenseNo:'CR-2026-001',issueOrg:'工信部',validTo:'2028-06-30',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-004',supplierName:'某五金机电公司',category:'物资类',creditCode:'913300004567890X',creditLevel:'B',creditScore:62,riskLevel:'中',legalAction:2,abnormal:1,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:45:00',legalPerson:'李某',registerCapital:'1000万人民币',establishDate:'2015-09-20',companyType:'有限责任公司',registerAddress:'浙江省杭州市某区某路66号',businessScope:'五金交电、机电设备销售',annualRevenue:'5000万元',employeeCount:'80人',insuredCount:'65人',importExport:'无',hasAdminPenalty:'有（1次）',ip:{trademark:'5项',patent:'3项',copyright:'0项'},relatedCompanies:[{companyName:'某五金机电分公司',relation:'分支机构',creditLevel:'B',status:'在营'}],licenses:[{licenseName:'五金机电经营许可证',licenseNo:'WJ-2026-012',issueOrg:'杭州市市监局',validTo:'2027-03-31',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'B',after:'B',source:'企查查'},{date:'2026-04-01',event:'新增诉讼记录',before:'A',after:'B',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:2,detail:'1件买卖合同纠纷、1件质量纠纷',level:'中'},
+{type:'经营异常',count:1,detail:'1次未按期公示年报',level:'中'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-005',supplierName:'正泰电器股份有限公司',category:'设备类',creditCode:'913303007539001X',creditLevel:'AA',creditScore:88,riskLevel:'低',legalAction:1,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:50:00',legalPerson:'南存辉',registerCapital:'21亿人民币',establishDate:'1997-08-05',companyType:'股份有限公司',registerAddress:'浙江省温州市乐清市正泰工业园',businessScope:'低压电器、输配电设备制造与销售',annualRevenue:'400亿元',employeeCount:'20000人',insuredCount:'18500人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'800项',patent:'3000项',copyright:'500项'},relatedCompanies:[{companyName:'正泰新能科技有限公司',relation:'控股子公司',creditLevel:'AA',status:'在营'},{companyName:'浙江正泰电缆有限公司',relation:'全资子公司',creditLevel:'AA',status:'在营'}],licenses:[{licenseName:'低压电器生产许可证',licenseNo:'XK-2026-003',issueOrg:'国家市场监管总局',validTo:'2028-12-31',status:'有效'},{licenseName:'安全生产许可证',licenseNo:'(浙)JZ安许证字[2023]000456',issueOrg:'浙江省住建厅',validTo:'2026-08-31',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AA',after:'AA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AA',after:'AA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:1,detail:'1件商标侵权(作为被告)',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-006',supplierName:'3M中国有限公司',category:'物资类',creditCode:'913100006074128X',creditLevel:'AAA',creditScore:90,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 10:55:00',legalPerson:'丁威',registerCapital:'1.5亿美元',establishDate:'1984-10-20',companyType:'有限责任公司(外商投资)',registerAddress:'上海市徐汇区漕河泾开发区',businessScope:'多元化科技产品研发制造',annualRevenue:'200亿元',employeeCount:'6000人',insuredCount:'5800人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'2000项',patent:'5000项',copyright:'200项'},relatedCompanies:[{companyName:'3M香港有限公司',relation:'关联企业',creditLevel:'AAA',status:'在营'}],licenses:[{licenseName:'外商投资企业批准证书',licenseNo:'WT-2026-005',issueOrg:'上海市商委',validTo:'2028-10-20',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-007',supplierName:'特变电工股份有限公司',category:'设备类',creditCode:'91650100MA7890123X',creditLevel:'AAA',creditScore:91,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:00:00',legalPerson:'张新',registerCapital:'38亿人民币',establishDate:'1993-02-26',companyType:'股份有限公司',registerAddress:'新疆昌吉市特变电工工业园',businessScope:'变压器、电线电缆、新能源设备制造',annualRevenue:'800亿元',employeeCount:'15000人',insuredCount:'14000人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'300项',patent:'2000项',copyright:'100项'},relatedCompanies:[{companyName:'特变电工衡阳变压器有限公司',relation:'控股子公司',creditLevel:'AA',status:'在营'},{companyName:'新特能源股份有限公司',relation:'控股子公司',creditLevel:'AA',status:'在营'}],licenses:[{licenseName:'变压器生产许可证',licenseNo:'XK-2026-007',issueOrg:'国家市场监管总局',validTo:'2028-06-30',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-008',supplierName:'国电南瑞科技股份有限公司',category:'信息类',creditCode:'91320100MA1234567X',creditLevel:'AA',creditScore:85,riskLevel:'低',legalAction:1,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:05:00',legalPerson:'冷俊',registerCapital:'40亿人民币',establishDate:'2001-02-28',companyType:'股份有限公司',registerAddress:'江苏省南京市江宁区诚信大道19号',businessScope:'电力自动化、信息化系统研发',annualRevenue:'500亿元',employeeCount:'10000人',insuredCount:'9500人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'150项',patent:'2500项',copyright:'800项'},relatedCompanies:[{companyName:'南瑞继保电气有限公司',relation:'关联企业',creditLevel:'AA',status:'在营'}],licenses:[{licenseName:'计算机信息系统集成资质',licenseNo:'CR-2026-008',issueOrg:'工信部',validTo:'2028-06-30',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AA',after:'AA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AA',after:'AA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:1,detail:'1件专利纠纷(作为原告)',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-009',supplierName:'施耐德电气(中国)有限公司',category:'设备类',creditCode:'91110108MA0123456X',creditLevel:'AAA',creditScore:93,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:10:00',legalPerson:'尹正',registerCapital:'1.2亿美元',establishDate:'1995-05-18',companyType:'有限责任公司(外商投资)',registerAddress:'北京市朝阳区望京街8号',businessScope:'电气设备、自动化产品制造销售',annualRevenue:'300亿元',employeeCount:'8000人',insuredCount:'7800人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'600项',patent:'3000项',copyright:'300项'},relatedCompanies:[{companyName:'施耐德电气香港有限公司',relation:'关联企业',creditLevel:'AAA',status:'在营'}],licenses:[{licenseName:'外商投资企业批准证书',licenseNo:'WT-2026-009',issueOrg:'北京市商委',validTo:'2028-05-18',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-010',supplierName:'某劳保用品公司',category:'物资类',creditCode:'91310112MA9012345X',creditLevel:'B',creditScore:65,riskLevel:'中',legalAction:1,abnormal:1,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:15:00',legalPerson:'王某',registerCapital:'300万人民币',establishDate:'2016-03-10',companyType:'有限责任公司',registerAddress:'上海市闵行区某路168号',businessScope:'劳保用品、安全防护用品销售',annualRevenue:'2000万元',employeeCount:'30人',insuredCount:'22人',importExport:'无',hasAdminPenalty:'有（1次）',ip:{trademark:'2项',patent:'0项',copyright:'0项'},relatedCompanies:[{companyName:'某安全防护分公司',relation:'分支机构',creditLevel:'B',status:'在营'}],licenses:[{licenseName:'劳保用品经营许可证',licenseNo:'LB-2026-010',issueOrg:'上海市市监局',validTo:'2027-03-10',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'B',after:'B',source:'企查查'},{date:'2026-04-01',event:'新增行政处罚',before:'A',after:'B',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:1,detail:'1件劳动争议',level:'中'},
+{type:'经营异常',count:1,detail:'1次未按期公示年报',level:'中'},
+{type:'行政处罚',count:1,detail:'1次产品标识不规范',level:'中'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-011',supplierName:'ABB(中国)有限公司',category:'设备类',creditCode:'91110108MA1234567X',creditLevel:'AAA',creditScore:94,riskLevel:'低',legalAction:0,abnormal:0,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:20:00',legalPerson:'赵永占',registerCapital:'1亿美元',establishDate:'1994-12-08',companyType:'有限责任公司(外商投资)',registerAddress:'北京市朝阳区酒仙桥路10号',businessScope:'电气产品、机器人、自动化系统',annualRevenue:'250亿元',employeeCount:'7000人',insuredCount:'6800人',importExport:'有',hasAdminPenalty:'无',ip:{trademark:'400项',patent:'4000项',copyright:'200项'},relatedCompanies:[{companyName:'ABB香港有限公司',relation:'关联企业',creditLevel:'AAA',status:'在营'}],licenses:[{licenseName:'外商投资企业批准证书',licenseNo:'WT-2026-011',issueOrg:'北京市商委',validTo:'2028-12-08',status:'有效'}],creditHistory:[{date:'2026-07-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'},{date:'2026-04-01',event:'定期征信更新',before:'AAA',after:'AAA',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:0,detail:'无诉讼记录',level:'低'},
+{type:'经营异常',count:0,detail:'无经营异常',level:'低'},
+{type:'行政处罚',count:0,detail:'无行政处罚',level:'低'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]},
+{supplierCode:'SP-012',supplierName:'某IT设备供应商',category:'信息类',creditCode:'91310115MA5678901X',creditLevel:'C',creditScore:42,riskLevel:'高',legalAction:3,abnormal:2,businessStatus:'在营',dataSource:'企查查/天眼查',updateTime:'2026-07-01',queryTime:'2026-07-01 11:25:00',legalPerson:'陈某',registerCapital:'200万人民币',establishDate:'2019-01-15',companyType:'有限责任公司',registerAddress:'上海市浦东新区某路299号',businessScope:'计算机及配件销售',annualRevenue:'1500万元',employeeCount:'15人',insuredCount:'8人',importExport:'无',hasAdminPenalty:'有（2次）',ip:{trademark:'0项',patent:'0项',copyright:'0项'},relatedCompanies:[{companyName:'某IT设备维修部',relation:'分支机构',creditLevel:'C',status:'在营'}],licenses:[{licenseName:'计算机经营许可证',licenseNo:'IT-2026-012',issueOrg:'上海市市监局',validTo:'2026-01-15',status:'已过期'}],creditHistory:[{date:'2026-07-01',event:'新增失信记录',before:'B',after:'C',source:'企查查'},{date:'2026-04-01',event:'新增诉讼',before:'B',after:'B',source:'企查查'},{date:'2026-01-01',event:'定期征信更新',before:'A',after:'B',source:'企查查'}],riskItems:[
+{type:'司法诉讼',count:3,detail:'2件合同纠纷、1件侵权',level:'高'},
+{type:'经营异常',count:2,detail:'1次地址异常、1次未按期年报',level:'高'},
+{type:'行政处罚',count:2,detail:'1次虚假宣传、1次税务处罚',level:'高'},
+{type:'失信记录',count:0,detail:'无失信记录',level:'低'}]}
+]}},
+computed:{
+queryConditionText(){const p=[];if(this.queryForm.supplier)p.push('供应商:'+this.queryForm.supplier);if(this.queryForm.creditCode)p.push('信用代码:'+this.queryForm.creditCode);if(this.queryForm.category)p.push('分类:'+this.queryForm.category);if(this.queryForm.creditLevel)p.push('等级:'+this.queryForm.creditLevel);if(this.queryForm.riskLevel)p.push('风险:'+this.queryForm.riskLevel);if(this.queryForm.dataSource)p.push('来源:'+this.queryForm.dataSource);if(this.queryForm.dateRange&&this.queryForm.dateRange.length===2)p.push('日期:'+this.queryForm.dateRange[0]+'至'+this.queryForm.dateRange[1]);return p.length?p.join(' | '):'全部条件'},
+filteredData(){return this.tableData.filter(r=>{let m=true;if(this.queryForm.supplier&&!(r.supplierName.includes(this.queryForm.supplier)||r.supplierCode.toLowerCase().includes(this.queryForm.supplier.toLowerCase())))m=false;if(this.queryForm.creditCode&&!r.creditCode.includes(this.queryForm.creditCode))m=false;if(this.queryForm.category&&r.category!==this.queryForm.category)m=false;if(this.queryForm.creditLevel&&r.creditLevel!==this.queryForm.creditLevel)m=false;if(this.queryForm.riskLevel&&r.riskLevel!==this.queryForm.riskLevel)m=false;if(this.queryForm.dataSource&&!r.dataSource.includes(this.queryForm.dataSource))m=false;if(this.queryForm.dateRange&&this.queryForm.dateRange.length===2){if(r.updateTime<this.queryForm.dateRange[0]||r.updateTime>this.queryForm.dateRange[1])m=false}if(this.tableSearchText){if(!(r.supplierCode+r.supplierName+r.creditCode+r.category+r.dataSource).toLowerCase().includes(this.tableSearchText.toLowerCase()))m=false}return m})},
+pagedData(){const s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+riskSuppliers(){return this.tableData.filter(r=>r.riskLevel==='高')}
+},
+methods:{
+toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed},
+handleQuery(){this.currentPage=1},
+handleReset(){this.queryForm={supplier:'',creditCode:'',category:'',creditLevel:'',riskLevel:'',dataSource:'',dateRange:''};this.currentPage=1},
+handleRefresh(){this.$message.success('数据已刷新')},
+handleSelectionChange(val){this.selection=val},
+handleBatchRefresh(){if(this.selection.length===0){this.$message.warning('请先勾选需要刷新征信的供应商');return}this.$message.success('已对 '+this.selection.length+' 家供应商发起征信刷新')},
+handleExport(){
+if(this.filteredData.length===0){this.$message.warning('没有可导出的数据');return}
+var keys=['supplierCode','supplierName','category','creditCode','creditLevel','creditScore','riskLevel','legalAction','abnormal','businessStatus','dataSource','updateTime'];
+var headers=['供应商编号','供应商名称','分类','统一信用代码','征信等级','征信分','风险等级','司法','异常','经营状态','数据来源','更新时间'];
+var rows=this.filteredData.map(function(r){return keys.map(function(k){var v=r[k]===null||r[k]===undefined?'':String(r[k]);return '"'+v.replace(/"/g,'""')+'"'}).join(',')});
+var csv='\uFEFF'+headers.join(',')+'\n'+rows.join('\n');
+var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+var link=document.createElement('a');link.href=URL.createObjectURL(blob);
+link.download='供应商征信_'+new Date().toISOString().split('T')[0]+'.csv';
+document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);
+this.$message.success('已导出 '+this.filteredData.length+' 条记录')
+},
+handleSizeChange(v){this.pageSize=v;this.currentPage=1},handlePageChange(v){this.currentPage=v},
+handleDetail(r){this.currentDetail=Object.assign({},r);this.detailVisible=true},
+handleReport(r){this.$message.info('正在跳转 '+r.dataSource+' 查看完整征信报告')}
+}});
+</script>
+<footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body></html>

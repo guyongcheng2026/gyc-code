@@ -1,0 +1,415 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>履约评价单（一单一评价）</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .bill-title-text span { margin-right:20px; color:#6B7280; }
+    .tl-section--title { font-weight:600; color:#1A2332; padding:8px 0; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .tl-footer { text-align:center; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color:#1A2332; }
+    html, body, #app { min-height: 100vh; }
+    .score-row { display:flex; align-items:center; margin-bottom:16px; }
+    .score-label { width:160px; text-align:right; padding-right:12px; font-size:14px; color:#333; }
+    .score-stars { flex:1; }
+    .score-value { width:60px; text-align:center; font-size:18px; font-weight:700; color:#0B7266; }
+    .eval-summary { background:#F1F6F7; border:1px solid #EAECF0; border-radius:4px; padding:16px; margin-top:12px; }
+    .eval-summary .summary-row { font-size:14px; color:#555; margin-bottom:6px; display:flex; justify-content:space-between; }
+    .eval-summary .summary-total { font-size:22px; font-weight:700; color:#0B7266; }
+    .dimension-card { border:1px solid #EAECF0; border-radius:4px; padding:16px; margin-bottom:16px; }
+    .dimension-card__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; display:flex; justify-content:space-between; align-items:center; }
+    .dimension-card__title .weight-badge { background:#E0F0EE; color:#0B7266; font-size:12px; border-radius:10px; padding:2px 10px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <div class="bill-page ywdj-page">
+      <div class="tl-title bill-title" area="title">
+        <div class="tl-title__title">履约评价单</div>
+        <div class="tl-title__slot">
+          <div class="bill-title-text">
+            <span>评价编号：{{ billForm.evalNo }}</span>
+            <span>订单编号：{{ billForm.orderNo }}</span>
+            <span>评价状态：{{ billForm.status }}</span>
+          </div>
+          <div class="yj-button-list">
+            <el-button @click="handleExport">导出</el-button>
+            <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            <el-button @click="handlePrint">打印</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="bill-body">
+        <div class="bill-main">
+          <div class="yj-panel bill-form" area="form" id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+
+                <!-- 基本信息 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">订单基本信息</div>
+                    <i :class="sectionStates.basic ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.basic = !sectionStates.basic" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.basic">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="订单编号"><el-input v-model="billForm.orderNo" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="订单日期"><el-input v-model="billForm.orderDate" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="供应商"><el-input v-model="billForm.supplier" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="采购方"><el-input v-model="billForm.buyer" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="订单金额"><el-input v-model="billForm.orderAmount" disabled><template slot="prefix">¥</template></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="收货日期"><el-input v-model="billForm.deliveryDate" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="验收日期"><el-input v-model="billForm.acceptanceDate" disabled></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="物资品类"><el-input v-model="billForm.category" disabled></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 评价说明 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">评价说明</div>
+                    <i :class="sectionStates.notice ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.notice = !sectionStates.notice" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.notice">
+                    <div style="padding:12px;line-height:1.8;font-size:13px;color:#555;background:#F9FBFB;border-radius:4px;">
+                      <p>本评价采用<b>"一单一评价"</b>机制，订单验收完成后由采购方对供应商进行多维度评价。</p>
+                      <p>评价维度包括：<b>商户服务（30%）</b>、<b>物流履约（30%）</b>、<b>商品评价（40%）</b>，各维度满分5分。</p>
+                      <p>综合评分 = 商户服务 x 30% + 物流履约 x 30% + 商品评价 x 40%，评分结果将应用于供应商履约考核。</p>
+                      <p>评价等级：优秀（>=4.5）| 良好（>=4.0）| 合格（>=3.0）| 不合格（<3.0）</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 维度一：商户服务 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">维度一：商户服务评价（权重30%）</div>
+                    <i :class="sectionStates.service ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.service = !sectionStates.service" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.service">
+                    <div class="dimension-card">
+                      <div class="dimension-card__title">商户服务 <span class="weight-badge">权重 30%</span></div>
+                      <div class="score-row">
+                        <div class="score-label">服务态度</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.serviceAttitude" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.serviceAttitude.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">响应速度</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.responseSpeed" :max="5" show-text :texts="['极慢','较慢','一般','较快','极快']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.responseSpeed.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">沟通配合</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.communication" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.communication.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">售后处理</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.afterSales" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.afterSales.toFixed(1) }}</div>
+                      </div>
+                      <div style="text-align:right;font-size:13px;color:#555;margin-top:8px;">
+                        商户服务均分：<b style="color:#0B7266;font-size:16px;">{{ serviceAvg }}</b> / 5.0
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 维度二：物流履约 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">维度二：物流履约评价（权重30%）</div>
+                    <i :class="sectionStates.logistics ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.logistics = !sectionStates.logistics" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.logistics">
+                    <div class="dimension-card">
+                      <div class="dimension-card__title">物流履约 <span class="weight-badge">权重 30%</span></div>
+                      <div class="score-row">
+                        <div class="score-label">配送人员服务</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.deliveryStaff" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.deliveryStaff.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">交货及时性</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.onTimeDelivery" :max="5" show-text :texts="['严重延误','有延误','按时','提前','远超预期']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.onTimeDelivery.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">包装完好度</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.packaging" :max="5" show-text :texts="['严重破损','有破损','一般','完好','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.packaging.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">物流信息</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.logisticsInfo" :max="5" show-text :texts="['无信息','信息少','一般','较全','实时追踪']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.logisticsInfo.toFixed(1) }}</div>
+                      </div>
+                      <div style="text-align:right;font-size:13px;color:#555;margin-top:8px;">
+                        物流履约均分：<b style="color:#0B7266;font-size:16px;">{{ logisticsAvg }}</b> / 5.0
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 维度三：商品评价 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">维度三：商品评价（权重40%）</div>
+                    <i :class="sectionStates.product ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.product = !sectionStates.product" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.product">
+                    <div class="dimension-card">
+                      <div class="dimension-card__title">商品评价 <span class="weight-badge">权重 40%</span></div>
+                      <div class="score-row">
+                        <div class="score-label">商品质量</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.productQuality" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.productQuality.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">配置性能</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.performance" :max="5" show-text :texts="['不达标','低于预期','达标','超预期','远超预期']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.performance.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">外观材质</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.appearance" :max="5" show-text :texts="['极差','不满意','一般','满意','极好']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.appearance.toFixed(1) }}</div>
+                      </div>
+                      <div class="score-row">
+                        <div class="score-label">商品价格</div>
+                        <div class="score-stars"><el-rate v-model="evalForm.priceScore" :max="5" show-text :texts="['极贵','偏贵','合理','性价比高','极划算']"></el-rate></div>
+                        <div class="score-value">{{ evalForm.priceScore.toFixed(1) }}</div>
+                      </div>
+                      <div style="text-align:right;font-size:13px;color:#555;margin-top:8px;">
+                        商品评价均分：<b style="color:#0B7266;font-size:16px;">{{ productAvg }}</b> / 5.0
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 评价汇总 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">评价汇总</div>
+                    <i :class="sectionStates.summary ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.summary = !sectionStates.summary" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.summary">
+                    <div class="eval-summary">
+                      <div class="summary-row"><span>商户服务（30%）：{{ serviceAvg }} x 30% = </span><span>{{ (serviceAvg * 0.3).toFixed(2) }}</span></div>
+                      <div class="summary-row"><span>物流履约（30%）：{{ logisticsAvg }} x 30% = </span><span>{{ (logisticsAvg * 0.3).toFixed(2) }}</span></div>
+                      <div class="summary-row"><span>商品评价（40%）：{{ productAvg }} x 40% = </span><span>{{ (productAvg * 0.4).toFixed(2) }}</span></div>
+                      <div class="summary-row" style="border-top:1px solid #EAECF0;padding-top:8px;margin-top:8px;">
+                        <span style="font-size:16px;font-weight:600;color:#1A2332;">综合评分</span>
+                        <span class="summary-total">{{ totalScore }} <el-tag :type="evalLevel==='优秀'?'success':evalLevel==='良好'?'primary':evalLevel==='合格'?'warning':'danger'" style="margin-left:8px;">{{ evalLevel }}</el-tag></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 文字评价 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">文字评价</div>
+                    <i :class="sectionStates.text ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.text = !sectionStates.text" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.text">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="evalForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="优点描述" style="width:100%;"><el-input type="textarea" v-model="evalForm.pros" :rows="3" placeholder="请描述本次采购中供应商的优点和亮点" style="width:700px;"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="改进建议" style="width:100%;"><el-input type="textarea" v-model="evalForm.cons" :rows="3" placeholder="请描述需要改进的方面" style="width:700px;"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="扣分原因" style="width:100%;"><el-input type="textarea" v-model="evalForm.deductReason" :rows="2" placeholder="如有扣分，请说明原因" style="width:700px;"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="总体评价" style="width:100%;"><el-input type="textarea" v-model="evalForm.overallComment" :rows="3" placeholder="请输入总体评价" style="width:700px;"></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 评价人信息 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">评价人信息</div>
+                    <i :class="sectionStates.evaluator ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.evaluator = !sectionStates.evaluator" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.evaluator">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="评价人"><el-input v-model="billForm.evaluator"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="评价日期"><el-input v-model="billForm.evalDate"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="评价部门"><el-input v-model="billForm.evalDept"></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="联系方式"><el-input v-model="billForm.evalContact"></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面操作区 -->
+      <div class="tl-toolbar bill-footer tl-footer">
+        <div class="yj-button-list">
+          <el-button @click="handleCancel">取消</el-button>
+          <el-button @click="handleSaveDraft">保存草稿</el-button>
+          <el-button type="primary" @click="handleSubmit">提交评价</el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            订单验收完成后，采购方对供应商进行"一单一评价"，从商户服务（30%）、物流履约（30%）、商品评价（40%）三个维度打分，综合评分驱动供应商履约考核和分级管理。本页面是评价表单详情页，适用于采购员提交评价、采购经理审核评价。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>一单一评价</b>：每笔订单独立评价，数据客观充分</li>
+              <li><b>三维度评价</b>：商户服务+物流履约+商品评价，评价全面</li>
+              <li><b>权重计算</b>：30%+30%+40%加权综合评分，科学合理</li>
+              <li><b>评价等级</b>：优秀/良好/合格/不合格四级，驱动供应商分级</li>
+              <li><b>考核联动</b>：评价结果直接应用于供应商四维考核和扣分处罚</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看订单信息</b>：页面顶部展示订单编号、供应商、金额、验收日期等基本信息</li>
+              <li><b>商户服务评分</b>：对服务态度、响应速度、沟通配合、售后处理4项打分（1-5星）</li>
+              <li><b>物流履约评分</b>：对配送人员、交货及时性、包装完好度、物流信息4项打分</li>
+              <li><b>商品评价评分</b>：对商品质量、配置性能、外观材质、商品价格4项打分</li>
+              <li><b>查看汇总</b>：系统自动计算各维度均分和加权综合评分，显示评价等级</li>
+              <li><b>填写文字评价</b>：填写优点描述、改进建议、扣分原因、总体评价</li>
+              <li><b>保存草稿</b>：点击"保存草稿"暂存评价内容</li>
+              <li><b>提交评价</b>：点击"提交评价"完成评价提交，评价结果同步至供应商考核</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'110px',
+          helpVisible:false,
+          sectionStates:{basic:true,notice:true,service:true,logistics:true,product:true,summary:true,text:true,evaluator:true},
+          billForm:{
+            evalNo:'EVAL-2026-0031',
+            orderNo:'OD-2026-0031',
+            orderDate:'2026-06-15',
+            supplier:'国电南瑞科技股份有限公司',
+            buyer:'江苏省电力公司',
+            orderAmount:'856,000',
+            deliveryDate:'2026-06-28',
+            acceptanceDate:'2026-07-02',
+            category:'变压器设备',
+            status:'待评价',
+            evaluator:'张明',
+            evalDate:'2026-07-09',
+            evalDept:'物资采购部',
+            evalContact:'138****5678'
+          },
+          evalForm:{
+            serviceAttitude:4.5,
+            responseSpeed:4.0,
+            communication:4.5,
+            afterSales:4.0,
+            deliveryStaff:4.5,
+            onTimeDelivery:5.0,
+            packaging:4.0,
+            logisticsInfo:4.5,
+            productQuality:4.5,
+            performance:4.0,
+            appearance:4.5,
+            priceScore:4.0,
+            pros:'交货及时，配送人员服务态度好，商品质量符合预期',
+            cons:'建议优化包装材料，当前包装偏薄',
+            deductReason:'包装轻微破损扣0.5分',
+            overallComment:'总体表现优秀，建议继续保持服务水平，优化包装材料。'
+          }
+        };
+      },
+      computed:{
+        serviceAvg(){return ((this.evalForm.serviceAttitude+this.evalForm.responseSpeed+this.evalForm.communication+this.evalForm.afterSales)/4).toFixed(2);},
+        logisticsAvg(){return ((this.evalForm.deliveryStaff+this.evalForm.onTimeDelivery+this.evalForm.packaging+this.evalForm.logisticsInfo)/4).toFixed(2);},
+        productAvg(){return ((this.evalForm.productQuality+this.evalForm.performance+this.evalForm.appearance+this.evalForm.priceScore)/4).toFixed(2);},
+        totalScore(){return (parseFloat(this.serviceAvg)*0.3+parseFloat(this.logisticsAvg)*0.3+parseFloat(this.productAvg)*0.4).toFixed(2);},
+        evalLevel(){
+          const s=parseFloat(this.totalScore);
+          if(s>=4.5) return '优秀';
+          if(s>=4.0) return '良好';
+          if(s>=3.0) return '合格';
+          return '不合格';
+        }
+      },
+      methods:{
+        handleExport(){
+          const data=[['评价编号',this.billForm.evalNo],['订单编号',this.billForm.orderNo],['供应商',this.billForm.supplier],
+            ['商户服务均分',this.serviceAvg],['物流履约均分',this.logisticsAvg],['商品评价均分',this.productAvg],
+            ['综合评分',this.totalScore],['评价等级',this.evalLevel],
+            ['优点描述',this.evalForm.pros],['改进建议',this.evalForm.cons],['扣分原因',this.evalForm.deductReason],
+            ['总体评价',this.evalForm.overallComment],['评价人',this.billForm.evaluator],['评价日期',this.billForm.evalDate]];
+          const csv='\uFEFF'+data.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+          const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+          const link=document.createElement('a');
+          link.href=URL.createObjectURL(blob);
+          link.download='履约评价单_'+this.billForm.evalNo+'.csv';
+          document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);
+          this.$message.success('评价单已导出');
+        },
+        handlePrint(){window.print();},
+        handleCancel(){window.history.back();},
+        handleSaveDraft(){this.$message.success('草稿已保存');},
+        handleSubmit(){this.$message.success('评价已提交，综合评分：'+this.totalScore+'，等级：'+this.evalLevel);}
+      },
+      mounted(){}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

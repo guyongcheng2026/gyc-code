@@ -1,0 +1,499 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>评标打分管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul,.help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">评标打分管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="项目编号"><el-input v-model="queryForm.projectNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="项目名称"><el-input v-model="queryForm.projectName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方"><el-input v-model="queryForm.buyer" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方式"><el-select v-model="queryForm.purchaseMethod" placeholder="请选择" clearable><el-option label="公开招标" value="公开招标"></el-option><el-option label="邀请招标" value="邀请招标"></el-option><el-option label="竞争性谈判" value="竞争性谈判"></el-option><el-option label="单一来源" value="单一来源"></el-option><el-option label="询价采购" value="询价采购"></el-option><el-option label="框架协议" value="框架协议"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="评审状态"><el-select v-model="queryForm.evalStatus" placeholder="请选择" clearable><el-option label="专家抽取中" value="专家抽取中"></el-option><el-option label="评审进行中" value="评审进行中"></el-option><el-option label="评审完成" value="评审完成"></el-option><el-option label="结果公示" value="结果公示"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="评审时间"><el-date-picker v-model="queryForm.evalTimeRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" clearable></el-date-picker></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible=true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed?'展开查询面板':'收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed?'el-icon-arrow-down':'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                    <span title="评标打分列表">评标打分列表</span>
+                  </div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" icon="el-icon-s-claim" @click="handleBatchConfirm" :disabled="selection.length===0">批量确认结果</el-button>
+                        <el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger">
+                      <el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="projectNo" label="项目编号" min-width="130" align="center"></el-table-column>
+                  <el-table-column prop="projectName" label="项目名称" min-width="220" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="buyer" label="采购方" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="purchaseMethod" label="采购方式" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="expertCount" label="专家人数" width="90" align="center"></el-table-column>
+                  <el-table-column prop="bidderCount" label="投标家数" width="90" align="center"></el-table-column>
+                  <el-table-column prop="evalStatus" label="评审状态" min-width="110" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag size="small" :type="row.evalStatus==='结果公示'?'success':row.evalStatus==='评审完成'?'':row.evalStatus==='评审进行中'?'warning':'info'">{{ row.evalStatus }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="evalTime" label="评审开始时间" min-width="150" align="center"></el-table-column>
+                  <el-table-column prop="evalEndTime" label="评审结束时间" min-width="150" align="center"></el-table-column>
+                  <el-table-column prop="awardSupplier" label="拟中标供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="awardAmount" label="拟中标金额(元)" min-width="130" align="right">
+                    <template slot-scope="{row}">{{ row.awardAmount ? row.awardAmount.toLocaleString() : '-' }}</template>
+                  </el-table-column>
+                  <el-table-column prop="creator" label="创建人" min-width="80" align="center"></el-table-column>
+                  <el-table-column prop="createTime" label="创建时间" min-width="110" align="center"></el-table-column>
+                  <el-table-column label="操作" width="260" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                      <el-button type="text" @click="viewExperts(row)">专家名单</el-button>
+                      <el-button type="text" @click="viewScores(row)">查看评分</el-button>
+                      <el-button type="text" v-if="row.evalStatus==='评审完成'" @click="confirmResult(row)" style="color:#0B7266">确认结果</el-button>
+                      <el-button type="text" v-if="row.evalStatus==='专家抽取中'" @click="startEval(row)" style="color:#f57c00">开始评审</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+              <div style="margin-top:12px;text-align:right;">
+                <el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="filteredData.length" layout="total,sizes,prev,pager,next,jumper"></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="评标详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-flag"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="项目编号">{{ currentDetail.projectNo }}</el-descriptions-item>
+          <el-descriptions-item label="项目名称">{{ currentDetail.projectName }}</el-descriptions-item>
+          <el-descriptions-item label="采购方">{{ currentDetail.buyer }}</el-descriptions-item>
+          <el-descriptions-item label="采购方式">{{ currentDetail.purchaseMethod }}</el-descriptions-item>
+          <el-descriptions-item label="创建人">{{ currentDetail.creator }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ currentDetail.createTime }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-data"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="专家人数">{{ currentDetail.expertCount }} 人</el-descriptions-item>
+          <el-descriptions-item label="投标家数">{{ currentDetail.bidderCount }} 家</el-descriptions-item>
+          <el-descriptions-item label="评审状态">
+            <el-tag size="small" :type="currentDetail.evalStatus==='结果公示'?'success':currentDetail.evalStatus==='评审完成'?'':currentDetail.evalStatus==='评审进行中'?'warning':'info'">{{ currentDetail.evalStatus }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="拟中标供应商">{{ currentDetail.awardSupplier || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="拟中标金额">{{ currentDetail.awardAmount ? currentDetail.awardAmount.toLocaleString() + ' 元' : '-' }}</el-descriptions-item>
+          <el-descriptions-item label="评审专家">{{ currentDetail.experts }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 评分模型 -->
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-set-up"></i> 评分模型（综合评分法）</div>
+        <el-table :data="scoreModel" border size="small" style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="factor" label="评分因素" min-width="120" align="center"></el-table-column>
+          <el-table-column prop="weight" label="权重" width="80" align="center">
+            <template slot-scope="{row}"><span style="font-weight:600;color:#0B7266;">{{ row.weight }}%</span></template>
+          </el-table-column>
+          <el-table-column prop="maxScore" label="满分" width="80" align="center"></el-table-column>
+          <el-table-column prop="description" label="评分标准" min-width="200" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="bidderAScore" label="投标方A" width="90" align="center">
+            <template slot-scope="{row}"><span style="font-weight:600;color:#2e7d32;">{{ row.bidderAScore }}</span></template>
+          </el-table-column>
+          <el-table-column prop="bidderBScore" label="投标方B" width="90" align="center">
+            <template slot-scope="{row}"><span style="font-weight:600;color:#f57c00;">{{ row.bidderBScore }}</span></template>
+          </el-table-column>
+          <el-table-column prop="bidderCScore" label="投标方C" width="90" align="center">
+            <template slot-scope="{row}"><span style="font-weight:600;color:#409EFF;">{{ row.bidderCScore }}</span></template>
+          </el-table-column>
+        </el-table>
+        <div style="background:#F1F6F7;border-radius:4px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-around;text-align:center;">
+          <div><div style="font-size:12px;color:#909399;">投标方A总分</div><div style="font-size:22px;font-weight:700;color:#2e7d32;">{{ scoreTotal.A }}</div></div>
+          <div><div style="font-size:12px;color:#909399;">投标方B总分</div><div style="font-size:22px;font-weight:700;color:#f57c00;">{{ scoreTotal.B }}</div></div>
+          <div><div style="font-size:12px;color:#909399;">投标方C总分</div><div style="font-size:22px;font-weight:700;color:#409EFF;">{{ scoreTotal.C }}</div></div>
+        </div>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="评审开始时间">{{ currentDetail.evalTime }}</el-descriptions-item>
+          <el-descriptions-item label="评审结束时间">{{ currentDetail.evalEndTime || '进行中' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 专家名单弹窗 -->
+    <el-dialog :lazy="true" title="评审专家名单" :visible.sync="expertVisible" width="600px">
+      <el-table :data="currentExperts" border stripe style="width:100%;">
+        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+        <el-table-column prop="name" label="专家姓名" min-width="100" align="center"></el-table-column>
+        <el-table-column prop="specialty" label="专业领域" min-width="120" align="center"></el-table-column>
+        <el-table-column prop="source" label="来源" min-width="100" align="center"></el-table-column>
+        <el-table-column prop="role" label="评审角色" min-width="100" align="center"></el-table-column>
+      </el-table>
+      <div slot="footer"><el-button type="primary" @click="expertVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 评分详情弹窗 -->
+    <el-dialog :lazy="true" title="评分明细" :visible.sync="scoreVisible" width="800px">
+      <div style="margin-bottom:12px;color:#666;font-size:13px;">项目：{{ currentScoreProject }}</div>
+      <el-table :data="currentScores" border stripe style="width:100%;">
+        <el-table-column prop="bidder" label="投标供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+        <el-table-column prop="businessScore" label="商务评分" width="100" align="center"></el-table-column>
+        <el-table-column prop="techScore" label="技术评分" width="100" align="center"></el-table-column>
+        <el-table-column prop="priceScore" label="价格评分" width="100" align="center"></el-table-column>
+        <el-table-column prop="totalScore" label="综合总分" width="100" align="center">
+          <template slot-scope="{row}"><span style="font-weight:600;color:#0B7266;">{{ row.totalScore }}</span></template>
+        </el-table-column>
+        <el-table-column prop="rank" label="排名" width="80" align="center">
+          <template slot-scope="{row}"><el-tag :type="row.rank===1?'success':row.rank===2?'warning':'info'" size="small">{{ row.rank }}</el-tag></template>
+        </el-table-column>
+        <el-table-column prop="remark" label="评审意见" min-width="150" align="center" show-overflow-tooltip></el-table-column>
+      </el-table>
+      <div slot="footer"><el-button type="primary" @click="scoreVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 导出配置弹窗 -->
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="500px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item class="tl-form-item" label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel</el-radio>
+            <el-radio label="csv">CSV</el-radio>
+            <el-radio label="pdf">PDF</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            采购项目开标后，采购部门组织评标专家进行商务/技术/价格三维评审，系统记录各专家打分，自动计算综合得分并排名，异常评分自动预警。评审完成后确认中标结果，触发中标通知书发放。适用于采购部门的定标人员、评标组织人员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>专家随机抽取，避免人为干预，确保评审公正性</li>
+              <li>商务/技术/价格三维评分体系，综合权重可配置</li>
+              <li>异常评分自动预警（如某专家打分偏离均值超过阈值）</li>
+              <li>评审过程全程留痕，支持审计追溯</li>
+              <li>评审结果自动推送至中标结果管理，缩短定标周期</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询项目</b>：在查询面板输入项目编号/名称，选择采购方式、评审状态，点击"查询"筛选</li>
+              <li><b>专家抽取</b>：项目进入"专家抽取中"状态后，系统从专家库随机抽取评审专家</li>
+              <li><b>开始评审</b>：专家到场后点击"开始评审"，评审状态变为"评审进行中"</li>
+              <li><b>查看评分</b>：点击"查看评分"查看各投标供应商的商务/技术/价格得分和综合排名</li>
+              <li><b>确认结果</b>：评审完成后点击"确认结果"，系统自动生成中标结果并推送至中标结果管理</li>
+              <li><b>专家名单</b>：点击"专家名单"查看评审专家组构成、专业领域和评审角色</li>
+              <li><b>导出数据</b>：点击"导出"配置导出范围和字段，导出评审数据</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    function isNotEmpty(v){return v!==null&&v!==undefined&&String(v).trim()!==''&&!(Array.isArray(v)&&v.length===0);}
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'110px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          expertVisible:false,
+          scoreVisible:false,
+          exportVisible:false,
+          tableSearchText:'',
+          queryForm:{projectNo:'',projectName:'',buyer:'',purchaseMethod:'',evalStatus:'',evalTimeRange:null},
+          currentDetail:null,
+          scoreModel: [
+            { factor: '技术方案', weight: 30, maxScore: 30, description: '技术方案的完整性、可行性、先进性', bidderAScore: 26, bidderBScore: 22, bidderCScore: 28 },
+            { factor: '商务报价', weight: 40, maxScore: 40, description: '价格竞争力，以最低有效报价为基准', bidderAScore: 38, bidderBScore: 35, bidderCScore: 32 },
+            { factor: '企业资质', weight: 15, maxScore: 15, description: 'ISO认证、行业资质、类似业绩', bidderAScore: 13, bidderBScore: 12, bidderCScore: 14 },
+            { factor: '售后服务', weight: 10, maxScore: 10, description: '服务响应时效、保修期限、培训方案', bidderAScore: 9, bidderBScore: 8, bidderCScore: 9 },
+            { factor: '履约能力', weight: 5, maxScore: 5, description: '生产能力、供货周期、财务状况', bidderAScore: 5, bidderBScore: 4, bidderCScore: 4 }
+          ],
+          currentExperts:[],
+          currentScores:[],
+          currentScoreProject:'',
+          selection:[],
+          exportForm:{range:'all',format:'excel',fields:['projectNo','projectName','buyer','purchaseMethod','expertCount','bidderCount','evalStatus','evalTime','evalEndTime','awardSupplier','awardAmount','creator','createTime']},
+          exportableFields:[
+            {key:'projectNo',label:'项目编号'},{key:'projectName',label:'项目名称'},{key:'buyer',label:'采购方'},
+            {key:'purchaseMethod',label:'采购方式'},{key:'expertCount',label:'专家人数'},{key:'bidderCount',label:'投标家数'},
+            {key:'evalStatus',label:'评审状态'},{key:'evalTime',label:'评审开始时间'},{key:'evalEndTime',label:'评审结束时间'},
+            {key:'awardSupplier',label:'拟中标供应商'},{key:'awardAmount',label:'拟中标金额'},{key:'creator',label:'创建人'},
+            {key:'createTime',label:'创建时间'}
+          ],
+          currentPage:1,
+          pageSize: 10,
+          fieldLabels:{projectNo:'项目编号',projectName:'项目名称',buyer:'采购方',purchaseMethod:'采购方式',expertCount:'专家人数',bidderCount:'投标家数',evalStatus:'评审状态',evalTime:'评审开始时间',evalEndTime:'评审结束时间',awardSupplier:'拟中标供应商',awardAmount:'拟中标金额(元)',creator:'创建人',createTime:'创建时间'},
+          tableData:[
+            {projectNo:'PRJ-2026-0001',projectName:'江苏省电力公司10kV高压开关柜集中采购',buyer:'江苏省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:5,evalStatus:'结果公示',evalTime:'2026-05-08 09:00',evalEndTime:'2026-05-08 17:30',awardSupplier:'国电南瑞科技股份有限公司',awardAmount:4560000,creator:'张明',createTime:'2026-04-20',experts:'王建华（组长）、李志强、赵敏、陈静、刘洋、周磊、孙丽'},
+            {projectNo:'PRJ-2026-0002',projectName:'湖南省电力公司智能电表批量采购',buyer:'湖南省电力公司',purchaseMethod:'询价采购',expertCount:5,bidderCount:4,evalStatus:'结果公示',evalTime:'2026-05-10 09:00',evalEndTime:'2026-05-10 15:00',awardSupplier:'威胜信息技术股份有限公司',awardAmount:2380000,creator:'李华',createTime:'2026-04-22',experts:'郑伟、朱军、胡敏、林峰、黄婷'},
+            {projectNo:'PRJ-2026-0003',projectName:'浙江省电力公司电力变压器采购招标',buyer:'浙江省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:6,evalStatus:'结果公示',evalTime:'2026-05-15 09:00',evalEndTime:'2026-05-15 18:00',awardSupplier:'许继电气股份有限公司',awardAmount:8920000,creator:'王强',createTime:'2026-04-25',experts:'杨超、徐刚、马兰、高明、罗斌、梁涛、宋佳'},
+            {projectNo:'PRJ-2026-0004',projectName:'河南省电力公司SF6断路器采购',buyer:'河南省电力公司',purchaseMethod:'单一来源',expertCount:3,bidderCount:1,evalStatus:'结果公示',evalTime:'2026-05-16 14:00',evalEndTime:'2026-05-16 16:00',awardSupplier:'平高电气股份有限公司',awardAmount:1850000,creator:'赵敏',createTime:'2026-04-28',experts:'董浩、彭勇、曹颖'},
+            {projectNo:'PRJ-2026-0005',projectName:'湖北省电力公司电力电缆采购招标',buyer:'湖北省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:5,evalStatus:'结果公示',evalTime:'2026-05-20 09:00',evalEndTime:'2026-05-20 17:30',awardSupplier:'远东电缆有限公司',awardAmount:12680000,creator:'刘洋',createTime:'2026-05-01',experts:'魏鑫、蒋琳、韩冰、唐杰、冯瑞、邓超、曹颖'},
+            {projectNo:'PRJ-2026-0006',projectName:'安徽省电力公司电流互感器询价采购',buyer:'安徽省电力公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:4,evalStatus:'结果公示',evalTime:'2026-05-23 09:00',evalEndTime:'2026-05-23 12:00',awardSupplier:'思源电气股份有限公司',awardAmount:520000,creator:'陈静',createTime:'2026-05-05',experts:'张明、李华、王强'},
+            {projectNo:'PRJ-2026-0007',projectName:'综合服务公司安全防护用品年度询价',buyer:'综合服务公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:3,evalStatus:'结果公示',evalTime:'2026-05-25 09:00',evalEndTime:'2026-05-25 11:30',awardSupplier:'代尔塔防护用品（中国）有限公司',awardAmount:380000,creator:'周磊',createTime:'2026-05-08',experts:'赵敏、刘洋、陈静'},
+            {projectNo:'PRJ-2026-0008',projectName:'信息通信分公司办公电脑批量更新询价',buyer:'信息通信分公司',purchaseMethod:'询价采购',expertCount:5,bidderCount:3,evalStatus:'结果公示',evalTime:'2026-05-27 09:00',evalEndTime:'2026-05-27 14:00',awardSupplier:'联想（北京）有限公司',awardAmount:1560000,creator:'孙丽',createTime:'2026-05-10',experts:'郑伟、朱军、胡敏、林峰、黄婷'},
+            {projectNo:'PRJ-2026-0009',projectName:'山东省电力公司配电自动化终端招标',buyer:'山东省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:4,evalStatus:'评审完成',evalTime:'2026-06-03 09:00',evalEndTime:'2026-06-03 17:00',awardSupplier:'国电南瑞科技股份有限公司',awardAmount:3280000,creator:'张明',createTime:'2026-05-15',experts:'王建华（组长）、李志强、赵敏、陈静、刘洋、周磊、孙丽'},
+            {projectNo:'PRJ-2026-0010',projectName:'江苏省电力公司集中器采购询价',buyer:'江苏省电力公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:3,evalStatus:'评审完成',evalTime:'2026-06-05 09:00',evalEndTime:'2026-06-05 12:00',awardSupplier:'威胜信息技术股份有限公司',awardAmount:890000,creator:'李华',createTime:'2026-05-18',experts:'郑伟、朱军、胡敏'},
+            {projectNo:'PRJ-2026-0011',projectName:'江苏省电力公司办公电脑批量询价',buyer:'江苏省电力公司',purchaseMethod:'询价采购',expertCount:5,bidderCount:3,evalStatus:'评审完成',evalTime:'2026-06-08 09:00',evalEndTime:'2026-06-08 14:00',awardSupplier:'联想（北京）有限公司',awardAmount:1280000,creator:'王强',createTime:'2026-05-20',experts:'林峰、黄婷、杨超、徐刚、马兰'},
+            {projectNo:'PRJ-2026-0012',projectName:'浙江省电力公司变压器追加竞争性谈判',buyer:'浙江省电力公司',purchaseMethod:'竞争性谈判',expertCount:5,bidderCount:3,evalStatus:'评审完成',evalTime:'2026-06-10 09:00',evalEndTime:'2026-06-10 16:00',awardSupplier:'许继电气股份有限公司',awardAmount:2150000,creator:'赵敏',createTime:'2026-05-22',experts:'高明、罗斌、梁涛、宋佳、董浩'},
+            {projectNo:'PRJ-2026-0013',projectName:'河南省电力公司断路器补充询价',buyer:'河南省电力公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:2,evalStatus:'评审完成',evalTime:'2026-06-12 09:00',evalEndTime:'2026-06-12 11:30',awardSupplier:'平高电气股份有限公司',awardAmount:680000,creator:'刘洋',createTime:'2026-05-25',experts:'彭勇、曹颖、魏鑫'},
+            {projectNo:'PRJ-2026-0014',projectName:'安徽省电力公司互感器采购询价',buyer:'安徽省电力公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:3,evalStatus:'评审完成',evalTime:'2026-06-15 09:00',evalEndTime:'2026-06-15 12:00',awardSupplier:'思源电气股份有限公司',awardAmount:760000,creator:'陈静',createTime:'2026-05-28',experts:'蒋琳、韩冰、唐杰'},
+            {projectNo:'PRJ-2026-0015',projectName:'综合服务公司劳保用品年度询价',buyer:'综合服务公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:3,evalStatus:'评审完成',evalTime:'2026-06-18 09:00',evalEndTime:'2026-06-18 11:00',awardSupplier:'代尔塔防护用品（中国）有限公司',awardAmount:520000,creator:'周磊',createTime:'2026-06-01',experts:'冯瑞、邓超、曹颖'},
+            {projectNo:'PRJ-2026-0016',projectName:'湖北省电力公司电缆追加公开招标',buyer:'湖北省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:4,evalStatus:'评审进行中',evalTime:'2026-06-22 09:00',evalEndTime:'',awardSupplier:'',awardAmount:0,creator:'张明',createTime:'2026-06-05',experts:'王建华（组长）、李志强、赵敏、陈静、刘洋、周磊、孙丽'},
+            {projectNo:'PRJ-2026-0017',projectName:'信息通信分公司打印机批量询价',buyer:'信息通信分公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:3,evalStatus:'评审进行中',evalTime:'2026-06-24 09:00',evalEndTime:'',awardSupplier:'',awardAmount:0,creator:'李华',createTime:'2026-06-08',experts:'郑伟、朱军、胡敏'},
+            {projectNo:'PRJ-2026-0018',projectName:'信息通信分公司UPS电源询价',buyer:'信息通信分公司',purchaseMethod:'询价采购',expertCount:3,bidderCount:2,evalStatus:'评审进行中',evalTime:'2026-06-25 14:00',evalEndTime:'',awardSupplier:'',awardAmount:0,creator:'王强',createTime:'2026-06-10',experts:'林峰、黄婷、杨超'},
+            {projectNo:'PRJ-2026-0019',projectName:'山东省电力公司开关柜采购公开招标',buyer:'山东省电力公司',purchaseMethod:'公开招标',expertCount:7,bidderCount:5,evalStatus:'专家抽取中',evalTime:'2026-06-28 09:00',evalEndTime:'',awardSupplier:'',awardAmount:0,creator:'赵敏',createTime:'2026-06-12',experts:'待抽取'},
+            {projectNo:'PRJ-2026-0020',projectName:'江苏省电力公司电表采购框架协议',buyer:'江苏省电力公司',purchaseMethod:'框架协议',expertCount:5,bidderCount:3,evalStatus:'专家抽取中',evalTime:'2026-06-30 09:00',evalEndTime:'',awardSupplier:'',awardAmount:0,creator:'刘洋',createTime:'2026-06-15',experts:'待抽取'}
+          ]
+        };
+      },
+      computed:{
+        scoreTotal(){
+          return {
+            A: this.scoreModel.reduce((s, r) => s + r.bidderAScore, 0),
+            B: this.scoreModel.reduce((s, r) => s + r.bidderBScore, 0),
+            C: this.scoreModel.reduce((s, r) => s + r.bidderCScore, 0)
+          };
+        },
+        filteredData(){
+          let d=this.tableData;
+          if(isNotEmpty(this.queryForm.projectNo)) d=d.filter(i=>i.projectNo.indexOf(this.queryForm.projectNo)>-1);
+          if(isNotEmpty(this.queryForm.projectName)) d=d.filter(i=>i.projectName.indexOf(this.queryForm.projectName)>-1);
+          if(isNotEmpty(this.queryForm.buyer)) d=d.filter(i=>i.buyer.indexOf(this.queryForm.buyer)>-1);
+          if(isNotEmpty(this.queryForm.purchaseMethod)) d=d.filter(i=>i.purchaseMethod===this.queryForm.purchaseMethod);
+          if(isNotEmpty(this.queryForm.evalStatus)) d=d.filter(i=>i.evalStatus===this.queryForm.evalStatus);
+          if(isNotEmpty(this.queryForm.evalTimeRange)&&this.queryForm.evalTimeRange.length===2){
+            const s=this.queryForm.evalTimeRange[0],e=this.queryForm.evalTimeRange[1];
+            d=d.filter(i=>i.evalTime.substring(0,10)>=s&&i.evalTime.substring(0,10)<=e);
+          }
+          if(isNotEmpty(this.tableSearchText)){
+            const t=this.tableSearchText.toLowerCase();
+            d=d.filter(i=>(i.projectNo+i.projectName+i.buyer+i.purchaseMethod+i.awardSupplier+i.creator).toLowerCase().indexOf(t)>-1);
+          }
+          return d;
+        },
+        pagedData(){
+          const s=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(s,s+this.pageSize);
+        },
+        queryConditionText(){
+          let p=[];
+          if(isNotEmpty(this.queryForm.projectNo)) p.push('项目编号：'+this.queryForm.projectNo);
+          if(isNotEmpty(this.queryForm.projectName)) p.push('项目名称：'+this.queryForm.projectName);
+          if(isNotEmpty(this.queryForm.buyer)) p.push('采购方：'+this.queryForm.buyer);
+          if(isNotEmpty(this.queryForm.purchaseMethod)) p.push('采购方式：'+this.queryForm.purchaseMethod);
+          if(isNotEmpty(this.queryForm.evalStatus)) p.push('评审状态：'+this.queryForm.evalStatus);
+          if(isNotEmpty(this.queryForm.evalTimeRange)&&this.queryForm.evalTimeRange.length===2) p.push('评审时间：'+this.queryForm.evalTimeRange[0]+' 至 '+this.queryForm.evalTimeRange[1]);
+          return p.length? p.join('，'):'全部';
+        }
+      },
+      methods:{
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleQuery(){this.currentPage=1;this.isSearchPanelCollapsed=true;},
+        handleReset(){this.queryForm={projectNo:'',projectName:'',buyer:'',purchaseMethod:'',evalStatus:'',evalTimeRange:null};this.tableSearchText='';this.currentPage=1;},
+        handleExport(){this.exportVisible=true;},
+        handleRefresh(){this.$message.success('数据已刷新');},
+        handleSelectionChange(val){this.selection=val;},
+        handlePageChange(v){this.currentPage=v;},
+        handleSizeChange(v){this.pageSize=v;this.currentPage=1;},
+        viewDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        viewExperts(row){
+          if(row.experts==='待抽取'){this.$message.warning('专家尚未抽取，请稍后再试');return;}
+          const names=row.experts.split('、');
+          const specialties=['电力系统','继电保护','高电压技术','电力电子','输配电工程','电力自动化','电力设备','通信工程','计算机科学','财务管理'];
+          const sources=['省级专家库','国家级专家库','行业协会'];
+          this.currentExperts=names.map((n,i)=>({name:n.replace(/（组长）/,''),specialty:specialties[i%specialties.length],source:sources[i%3],role:i===0?'评审组长':'评审专家'}));
+          this.expertVisible=true;
+        },
+        viewScores(row){
+          if(row.evalStatus==='专家抽取中'){this.$message.warning('项目尚未开始评审');return;}
+          this.currentScoreProject=row.projectNo+' '+row.projectName;
+          const bidders=['国电南瑞科技股份有限公司','许继电气股份有限公司','平高电气股份有限公司','远东电缆有限公司','威胜信息技术股份有限公司','思源电气股份有限公司','联想（北京）有限公司','海康威视数字技术股份有限公司'];
+          const count=row.bidderCount;
+          const scores=[];
+          for(let i=0;i<count;i++){
+            const bs=70+Math.round(Math.random()*25);
+            const ts=70+Math.round(Math.random()*25);
+            const ps=60+Math.round(Math.random()*35);
+            const total=(bs*0.3+ts*0.4+ps*0.3).toFixed(1);
+            scores.push({bidder:bidders[i],businessScore:bs,techScore:ts,priceScore:ps,totalScore:Number(total),rank:0,remark:bs>=90&&ts>=90?'各项指标优秀':bs<75?'商务资质待补充':'综合表现良好'});
+          }
+          scores.sort((a,b)=>b.totalScore-a.totalScore);
+          scores.forEach((s,i)=>s.rank=i+1);
+          this.currentScores=scores;
+          this.scoreVisible=true;
+        },
+        startEval(row){
+          this.$confirm('确认开始「'+row.projectName+'」的评审？','开始评审',{type:'warning'}).then(()=>{
+            row.evalStatus='评审进行中';
+            this.$message.success('评审已开始，专家可开始打分');
+          }).catch(()=>{});
+        },
+        confirmResult(row){
+          if(!row.awardSupplier){
+            const bidders=['国电南瑞科技股份有限公司','许继电气股份有限公司','平高电气股份有限公司','远东电缆有限公司','威胜信息技术股份有限公司'];
+            row.awardSupplier=bidders[Math.floor(Math.random()*bidders.length)];
+            row.awardAmount=Math.round(500000+Math.random()*10000000);
+          }
+          this.$confirm('确认「'+row.projectName+'」的评审结果？拟中标供应商：'+row.awardSupplier,'确认结果',{type:'warning'}).then(()=>{
+            row.evalStatus='结果公示';
+            this.$message.success('评审结果已确认，中标结果已推送至中标结果管理');
+          }).catch(()=>{});
+        },
+        handleBatchConfirm(){
+          const done=this.selection.filter(i=>i.evalStatus==='评审完成');
+          if(done.length===0){this.$message.warning('所选记录中没有评审完成的项目');return;}
+          this.$confirm('确认批量确认 '+done.length+' 个项目的评审结果？','批量确认',{type:'warning'}).then(()=>{
+            done.forEach(r=>{
+              if(!r.awardSupplier){r.awardSupplier='国电南瑞科技股份有限公司';r.awardAmount=Math.round(500000+Math.random()*10000000);}
+              r.evalStatus='结果公示';
+            });
+            this.$message.success('已批量确认 '+done.length+' 个项目的评审结果');
+          }).catch(()=>{});
+        },
+        selectAllExportFields(){this.exportForm.fields=this.exportableFields.map(f=>f.key);},
+        invertExportFields(){const s=new Set(this.exportForm.fields);this.exportForm.fields=this.exportableFields.filter(f=>!s.has(f.key)).map(f=>f.key);},
+        confirmExport(){
+          let data=[];
+          if(this.exportForm.range==='all') data=this.filteredData;
+          else if(this.exportForm.range==='selected') data=this.selection;
+          else data=this.pagedData;
+          if(data.length===0){this.$message.warning('没有可导出的数据');return;}
+          const labels=this.fieldLabels||{};
+          const keys=this.exportForm.fields;
+          const headers=keys.map(k=>labels[k]||k);
+          const rows=data.map(item=>keys.map(k=>{const v=item[k]===null||item[k]===undefined?'':String(item[k]);return '"'+v.replace(/"/g,'""')+'"';}).join(','));
+          const csv='\uFEFF'+headers.join(',')+'\n'+rows.join('\n');
+          const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+          const link=document.createElement('a');
+          link.href=URL.createObjectURL(blob);
+          link.download='评标打分管理_'+new Date().toISOString().split('T')[0]+'.csv';
+          document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 '+data.length+' 条记录');
+          this.exportVisible=false;
+        }
+      },
+      mounted() {}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

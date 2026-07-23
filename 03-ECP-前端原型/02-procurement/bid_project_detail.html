@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>寻源项目详情</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .bill-title-text span { margin-right:20px; color:#6B7280; }
+    .tl-section--title { font-weight:600; color:#1A2332; padding:8px 0; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .summary-qty { margin-right:20px; color:#6B7280; font-size:14px; }
+    html, body, #app { min-height:100vh; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <div class="bill-page ywdj-page">
+      <div class="tl-title bill-title" area="title">
+        <div class="tl-title__title">寻源项目详情</div>
+        <div class="tl-title__slot">
+          <div class="bill-title-text">
+            <span>编号：{{ billForm.projectNo }}</span>
+            <span>制单日期：{{ billForm.createdTime }}</span>
+          </div>
+          <div class="yj-button-list">
+            <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+            <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            <el-button @click="handlePrint" icon="el-icon-printer">打印</el-button>
+            <el-button type="primary" @click="$message.success('保存成功')">保存</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="bill-body">
+        <div class="bill-main">
+          <div class="yj-panel bill-form" area="form" id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <!-- 基本信息 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">基本信息</div>
+                    <i :class="sectionStates.main ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.main = !sectionStates.main" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.main">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="项目编号"><el-input v-model="billForm.projectNo" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="项目名称"><el-input v-model="billForm.projectName" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="项目类型"><el-input v-model="billForm.projectType" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="状态">
+                          <el-tag :type="statusType(billForm.status)">{{ billForm.status }}</el-tag>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="采购组织"><el-input v-model="billForm.org" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="创建人"><el-input v-model="billForm.createdBy" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="创建时间"><el-input v-model="billForm.createdTime" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="截止时间"><el-input v-model="billForm.deadline" readonly></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 招标信息 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">招标信息</div>
+                    <i :class="sectionStates.bid ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.bid = !sectionStates.bid" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.bid">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="招标方式"><el-input v-model="billForm.bidMethod" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="招标范围"><el-input v-model="billForm.bidScope" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="评标方法"><el-input v-model="billForm.evalMethod" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="预算金额(元)"><el-input :value="billForm.budgetAmount.toLocaleString()" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="投标截止时间"><el-input v-model="billForm.bidDeadline" readonly></el-input></el-form-item>
+                        <el-form-item class="tl-form-item" label="开标时间"><el-input v-model="billForm.openBidTime" readonly></el-input></el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 标包明细 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">标包明细</div>
+                    <i :class="sectionStates.detail ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.detail = !sectionStates.detail" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.detail">
+                    <div class="yj-container-card__table">
+                      <el-table :data="detailItems" border stripe style="width:100%;">
+                        <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                        <el-table-column prop="packageNo" label="标包号" width="100" align="center"></el-table-column>
+                        <el-table-column prop="packageName" label="标包名称" min-width="150" align="center"></el-table-column>
+                        <el-table-column prop="materialCategory" label="物资类别" min-width="120" align="center"></el-table-column>
+                        <el-table-column prop="qty" label="数量" width="80" align="center" sortable="custom"></el-table-column>
+                        <el-table-column prop="unit" label="单位" width="60" align="center"></el-table-column>
+                        <el-table-column prop="budgetPrice" label="预算单价(元)" width="130" align="right" sortable="custom">
+                          <template slot-scope="{row}">{{ row.budgetPrice.toLocaleString() }}</template>
+                        </el-table-column>
+                        <el-table-column label="预算小计(元)" width="140" align="right">
+                          <template slot-scope="{row}">{{ (row.qty * row.budgetPrice).toLocaleString() }}</template>
+                        </el-table-column>
+                      </el-table>
+                      <div style="margin-top:12px;text-align:right;font-size:14px;">
+                        <span class="summary-qty">合计数量：{{ totalQty }}</span>
+                        <span style="font-weight:700;color:#0B7266;">合计预算：{{ totalAmount.toLocaleString() }} 元</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 审批记录 -->
+                <div class="tl-section" style="margin-top:16px;">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">审批记录</div>
+                    <i :class="sectionStates.approval ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.approval = !sectionStates.approval" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.approval">
+                    <div style="padding:12px;">
+                      <el-steps :active="approvalActive" finish-status="success" align-center>
+                        <el-step title="项目创建" :description="billForm.createdBy + ' ' + billForm.createdTime"></el-step>
+                        <el-step title="招标审核" description="李经理 2026-06-28"></el-step>
+                        <el-step title="发布招标" description="系统自动 2026-06-29"></el-step>
+                        <el-step title="评标中" description="评标委员会 2026-07-01"></el-step>
+                        <el-step title="定标审批" description="待审批"></el-step>
+                      </el-steps>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面操作区 -->
+      <div class="tl-toolbar bill-footer">
+        <div class="yj-button-list">
+          <el-button @click="handleCancel">返回</el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            本页面展示寻源项目的完整详情信息，包括基本信息、招标信息、标包明细及审批记录。寻源项目经定标审批后，可进入合同签订环节。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>寻源项目信息一站式展示，无需多页面跳转</li>
+              <li>标包明细清晰展示，物资信息一目了然</li>
+              <li>审批流程进度可视，当前步骤一目了然</li>
+              <li>审批记录完整留痕，支持审计追溯</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看基本信息</b>：页面顶部展示项目编号、项目名称、项目类型、状态等基本信息</li>
+              <li><b>查看招标信息</b>：招标信息区域展示招标方式、招标范围、评标方法、预算金额</li>
+              <li><b>查看标包明细</b>：标包明细区域展示标包号、标包名称、物资类别、数量、预算单价</li>
+              <li><b>查看审批记录</b>：审批记录区域展示各步骤审批人、审批意见、审批时间</li>
+              <li><b>导出数据</b>：点击"导出"将寻源项目信息导出为CSV文件</li>
+              <li><b>打印单据</b>：点击"打印"打印寻源项目详情，用于线下存档</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'120px',
+          helpVisible:false,
+          sectionStates:{main:true,bid:true,detail:true,approval:true},
+          billForm:{
+            projectNo:'BID-2026-001',
+            projectName:'某电力集团江苏电力2026年第二批物资招标采购项目',
+            projectType:'公开招标',
+            status:'评标中',
+            org:'江苏省电力公司',
+            createdBy:'张明',
+            createdTime:'2026-06-27 09:00',
+            deadline:'2026-07-15 17:00',
+            bidMethod:'公开招标',
+            bidScope:'电力设备、电缆、金具等',
+            evalMethod:'综合评分法',
+            budgetAmount:8500000,
+            bidDeadline:'2026-07-15 17:00',
+            openBidTime:'2026-07-16 09:30'
+          },
+          detailItems:[
+            {packageNo:'标包1',packageName:'高压开关柜',materialCategory:'电气设备',qty:20,unit:'台',budgetPrice:85000},
+            {packageNo:'标包2',packageName:'电力变压器',materialCategory:'电气设备',qty:10,unit:'台',budgetPrice:125000},
+            {packageNo:'标包3',packageName:'电力电缆',materialCategory:'电缆材料',qty:5000,unit:'米',budgetPrice:280},
+            {packageNo:'标包4',packageName:'绝缘子',materialCategory:'绝缘材料',qty:500,unit:'片',budgetPrice:350},
+            {packageNo:'标包5',packageName:'金具',materialCategory:'金具材料',qty:1000,unit:'套',budgetPrice:120}
+          ]
+        };
+      },
+      computed:{
+        totalQty(){return this.detailItems.reduce((s,i)=>s+i.qty,0);},
+        totalAmount(){return this.detailItems.reduce((s,i)=>s+i.qty*i.budgetPrice,0);},
+        approvalActive(){return 3;}
+      },
+      methods:{
+        statusType(status){
+          if(status==='已完成'||status==='已定标') return 'success';
+          if(status==='评标中'||status==='招标中') return 'warning';
+          if(status==='已终止') return 'danger';
+          return 'info';
+        },
+        handleExport(){
+          if(this.detailItems.length===0){this.$message.warning('没有可导出的数据');return;}
+          const headers=['标包号','标包名称','物资类别','数量','单位','预算单价(元)','预算小计(元)'];
+          const rows=this.detailItems.map(item=>[item.packageNo,item.packageName,item.materialCategory,item.qty,item.unit,item.budgetPrice,item.qty*item.budgetPrice].map(v=>'"'+v+'"').join(','));
+          const csv='\uFEFF'+headers.join(',')+'\n'+rows.join('\n');
+          const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+          const link=document.createElement('a');
+          link.href=URL.createObjectURL(blob);
+          link.download='寻源项目标包_'+this.billForm.projectNo+'_'+new Date().toISOString().split('T')[0]+'.csv';
+          document.body.appendChild(link);link.click();document.body.removeChild(link);URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 '+this.detailItems.length+' 个标包');
+        },
+        handlePrint(){window.print();},
+        handleCancel(){window.history.back();}
+      }
+    });
+  </script>
+</body>
+</html>

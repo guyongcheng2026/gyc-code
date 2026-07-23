@@ -1,0 +1,746 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>中标结果管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-tag--primary { background-color:#e3f2fd; border-color:#bbdefb; color:#1565c0; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul,.help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .el-form--inline .el-form-item--small .el-form-item__content { line-height:32px; }
+    .amount-range-wrap { display:flex; align-items:center; }
+    .amount-range-wrap .el-input { width:110px; }
+    .amount-range-wrap span { margin:0 4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">中标结果管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="中标通知编号" title="中标通知编号">
+                    <el-input v-model="queryForm.winNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="项目编号" title="项目编号">
+                    <el-input v-model="queryForm.projectNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="项目名称" title="项目名称">
+                    <el-input v-model="queryForm.projectName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="中标供应商" title="中标供应商">
+                    <el-input v-model="queryForm.winner" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方式" title="采购方式">
+                    <el-select v-model="queryForm.method" placeholder="请选择" clearable>
+                      <el-option label="公开招标" value="公开招标"></el-option>
+                      <el-option label="邀请招标" value="邀请招标"></el-option>
+                      <el-option label="竞争性谈判" value="竞争性谈判"></el-option>
+                      <el-option label="单一来源" value="单一来源"></el-option>
+                      <el-option label="询价采购" value="询价采购"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方" title="采购方">
+                    <el-input v-model="queryForm.buyer" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="已中标" value="已中标"></el-option>
+                      <el-option label="待发放" value="待发放"></el-option>
+                      <el-option label="已发放" value="已发放"></el-option>
+                      <el-option label="已签约" value="已签约"></el-option>
+                      <el-option label="已上架" value="已上架"></el-option>
+                      <el-option label="已流标" value="已流标"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="中标金额" title="中标金额">
+                    <div class="amount-range-wrap">
+                      <el-input v-model="queryForm.amountMin" placeholder="最低金额" clearable></el-input>
+                      <span style="color:#999;">-</span>
+                      <el-input v-model="queryForm.amountMax" placeholder="最高金额" clearable></el-input>
+                    </div>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="定标日期" title="定标日期">
+                    <el-date-picker v-model="queryForm.awardDateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" clearable></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                    <span title="中标结果列表">中标结果列表</span>
+                  </div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" icon="el-icon-s-claim" @click="handleAwardConfirm" :disabled="selection.length===0">定标确认</el-button>
+                        <el-button type="primary" icon="el-icon-s-promotion" @click="handleBatchPublish" :disabled="selection.length===0">批量发布中标公告</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger">
+                      <el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange" :row-class-name="rowClassName">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="winNo" label="中标通知编号" min-width="150" align="center"></el-table-column>
+                  <el-table-column prop="projectNo" label="项目编号" min-width="130" align="center"></el-table-column>
+                  <el-table-column prop="projectName" label="项目名称" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="buyer" label="采购方" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="method" label="采购方式" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="winner" label="中标供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="winAmount" label="中标金额(元)" min-width="130" align="right">
+                    <template slot-scope="{row}">{{ row.winAmount.toLocaleString() }}</template>
+                  </el-table-column>
+                  <el-table-column prop="score" label="评审总分" min-width="90" align="center">
+                    <template slot-scope="{row}">
+                      <span style="cursor:pointer;color:#0B7266;" @click="viewScoreDetail(row)">{{ row.score }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="标的物资" min-width="160" align="center" show-overflow-tooltip>
+                    <template slot-scope="{row}">
+                      <span v-if="row.materialsSummary">{{ row.materialsSummary }}</span>
+                      <span v-else style="color:#999;">详见评标报告</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="合同编号" min-width="140" align="center">
+                    <template slot-scope="{row}">
+                      <span v-if="row.contractNo" style="color:#0B7266;">{{ row.contractNo }}</span>
+                      <span v-else style="color:#999;">-</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="status" label="状态" min-width="100" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="statusTagType(row.status)" size="small">{{ row.status }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="awardDate" label="定标日期" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="publishDate" label="公告发布时间" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="creator" label="操作人" min-width="90" align="center"></el-table-column>
+                  <el-table-column label="操作" width="280" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                      <el-button type="text" v-if="row.status==='已中标'" @click="confirmAward(row)">定标</el-button>
+                      <el-button type="text" v-if="row.status==='待发放'" @click="publishNotice(row)">发放通知</el-button>
+                      <el-button type="text" v-if="row.status==='已发放'" @click="signContract(row)">签订合同</el-button>
+                      <el-button type="text" v-if="row.status==='已签约'" @click="pushToShelf(row)">推送上架</el-button>
+                      <el-button type="text" v-if="row.status==='已中标'||row.status==='待发放'" @click="rejectBid(row)">驳回</el-button>
+                      <el-button type="text" v-if="row.status==='已发放'" @click="printNotice(row)">打印通知</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+              <div style="margin-top:12px;text-align:right;">
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="中标结果详情" :visible.sync="detailVisible" width="760px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-flag"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="中标通知编号" :span="2">{{ currentDetail.winNo }}</el-descriptions-item>
+          <el-descriptions-item label="项目编号">{{ currentDetail.projectNo }}</el-descriptions-item>
+          <el-descriptions-item label="采购方式">{{ currentDetail.method }}</el-descriptions-item>
+          <el-descriptions-item label="项目名称" :span="2">{{ currentDetail.projectName }}</el-descriptions-item>
+          <el-descriptions-item label="采购方">{{ currentDetail.buyer }}</el-descriptions-item>
+          <el-descriptions-item label="中标供应商">{{ currentDetail.winner }}</el-descriptions-item>
+          <el-descriptions-item label="状态" :span="2">
+            <el-tag :type="statusTagType(currentDetail.status)">{{ currentDetail.status }}</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-data"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="中标金额(元)">{{ currentDetail.winAmount.toLocaleString() }}</el-descriptions-item>
+          <el-descriptions-item label="评审总分">{{ currentDetail.score }} 分</el-descriptions-item>
+          <el-descriptions-item label="商务评分">{{ currentDetail.businessScore }} 分</el-descriptions-item>
+          <el-descriptions-item label="技术评分">{{ currentDetail.techScore }} 分</el-descriptions-item>
+          <el-descriptions-item label="价格评分">{{ currentDetail.priceScore }} 分</el-descriptions-item>
+          <el-descriptions-item label="评审专家">{{ currentDetail.experts }}</el-descriptions-item>
+          <el-descriptions-item label="未中标供应商" :span="2">{{ currentDetail.losers || '无' }}</el-descriptions-item>
+          <el-descriptions-item label="合同编号" v-if="currentDetail.contractNo">{{ currentDetail.contractNo }}</el-descriptions-item>
+          <el-descriptions-item label="上架商品数" v-if="currentDetail.shelfCount">{{ currentDetail.shelfCount }} 个</el-descriptions-item>
+          <el-descriptions-item label="供应商联系人" v-if="currentDetail.contactPerson">{{ currentDetail.contactPerson }}</el-descriptions-item>
+          <el-descriptions-item label="联系方式" v-if="currentDetail.contactPhone">{{ currentDetail.contactPhone }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 中标物资明细 -->
+        <div style="margin-top:4px;" v-if="currentDetail && currentDetail.items && currentDetail.items.length">
+          <h4 style="font-size:14px;font-weight:600;margin-bottom:8px;color:#1A2332;">中标物资明细</h4>
+          <el-table :data="currentDetail.items" border size="small" style="width:100%;margin-bottom:16px;">
+            <el-table-column type="index" label="序号" width="50" align="center"></el-table-column>
+            <el-table-column prop="materialCode" label="物资编码" min-width="120" align="center"></el-table-column>
+            <el-table-column prop="materialName" label="物资名称" min-width="160" align="center"></el-table-column>
+            <el-table-column prop="spec" label="规格型号" min-width="130" align="center"></el-table-column>
+            <el-table-column prop="unit" label="单位" width="60" align="center"></el-table-column>
+            <el-table-column prop="quantity" label="数量" width="80" align="center"></el-table-column>
+            <el-table-column prop="unitPrice" label="单价(元)" width="100" align="right">
+              <template slot-scope="{row}">{{ row.unitPrice.toLocaleString() }}</template>
+            </el-table-column>
+            <el-table-column label="小计(元)" width="110" align="right">
+              <template slot-scope="{row}">{{ (row.unitPrice * row.quantity).toLocaleString() }}</template>
+            </el-table-column>
+          </el-table>
+        </div>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="定标日期">{{ currentDetail.awardDate }}</el-descriptions-item>
+          <el-descriptions-item label="公告发布时间">{{ currentDetail.publishDate || '未发布' }}</el-descriptions-item>
+          <el-descriptions-item label="操作人">{{ currentDetail.creator }}</el-descriptions-item>
+          <el-descriptions-item label="操作时间">{{ currentDetail.createTime }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="margin-top:12px;text-align:right;" v-if="currentDetail">
+          <el-button type="text" icon="el-icon-document" @click="viewBidReport(currentDetail)" v-if="currentDetail.hasReport">查看评标报告</el-button>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 定标确认弹窗 -->
+    <el-dialog :lazy="true" title="定标确认" :visible.sync="awardVisible" width="560px" custom-class="detail-dialog">
+      <el-form :model="awardForm" label-width="110px" label-suffix="：" v-if="awardRow">
+        <el-form-item label="项目编号">{{ awardRow.projectNo }}</el-form-item>
+        <el-form-item label="项目名称">{{ awardRow.projectName }}</el-form-item>
+        <el-form-item label="中标供应商">
+          <el-select v-model="awardForm.winner" placeholder="请选择中标供应商" filterable style="width:100%;">
+            <el-option v-for="s in awardForm.bidders" :key="s" :label="s" :value="s"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="中标金额(元)">
+          <el-input v-model.number="awardForm.winAmount" placeholder="请输入中标金额" type="number" min="0"></el-input>
+        </el-form-item>
+        <el-form-item label="定标日期">
+          <el-date-picker v-model="awardForm.awardDate" type="date" value-format="yyyy-MM-dd" style="width:100%;"></el-date-picker>
+        </el-form-item>
+        <el-form-item label="定标意见">
+          <el-input v-model="awardForm.comment" type="textarea" :rows="3" placeholder="请输入定标意见"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="awardVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmAwardSubmit">确认定标</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 驳回弹窗 -->
+    <el-dialog :lazy="true" title="驳回定标" :visible.sync="rejectVisible" width="480px">
+      <el-form :model="rejectForm" label-width="80px" label-suffix="：">
+        <el-form-item label="项目">{{ rejectRow?.projectName }}</el-form-item>
+        <el-form-item label="驳回原因">
+          <el-select v-model="rejectForm.reason" placeholder="请选择驳回原因" style="width:100%;">
+            <el-option label="评标过程有误，需重新评审" value="评标过程有误，需重新评审"></el-option>
+            <el-option label="供应商资质待核实" value="供应商资质待核实"></el-option>
+            <el-option label="价格异常，需重新议价" value="价格异常，需重新议价"></el-option>
+            <el-option label="采购计划调整，暂缓定标" value="采购计划调整，暂缓定标"></el-option>
+            <el-option label="其他原因" value="其他原因"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="详细说明">
+          <el-input v-model="rejectForm.detail" type="textarea" :rows="3" placeholder="请输入详细说明"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="rejectVisible=false">取消</el-button>
+        <el-button type="danger" @click="confirmReject">确认驳回</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 评分详情弹窗 -->
+    <el-dialog :lazy="true" title="评审评分详情" :visible.sync="scoreVisible" width="700px">
+      <el-table :data="scoreData" border size="small" style="width:100%;" v-if="scoreData.length">
+        <el-table-column type="index" label="排名" width="60" align="center">
+          <template slot-scope="{row,$index}">{{ $index + 1 }}</template>
+        </el-table-column>
+        <el-table-column prop="bidder" label="投标供应商" min-width="180" align="center"></el-table-column>
+        <el-table-column prop="businessScore" label="商务分(40%)" width="110" align="center"></el-table-column>
+        <el-table-column prop="techScore" label="技术分(40%)" width="110" align="center"></el-table-column>
+        <el-table-column prop="priceScore" label="价格分(20%)" width="110" align="center"></el-table-column>
+        <el-table-column prop="totalScore" label="总分" width="80" align="center">
+          <template slot-scope="{row}">
+            <span :style="{color: row.totalScore>=90?'#2e7d32':'#f57c00',fontWeight:600}">{{ row.totalScore }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div slot="footer"><el-button type="primary" @click="scoreVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 导出配置弹窗 -->
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            评标专家完成打分后，采购部门在本页面录入定标结果，发放中标通知书，并与中标供应商签订采购合同。本页面承接评标环节（上游：评标打分管理），输出中标结果并触发合同管理和商品上架流程（下游：合同管理→商品上架）。适用于采购部门的定标人员、合同签订人员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>中标结果结构化记录（中标供应商/中标金额/物资明细），支持审计追溯</li>
+              <li>中标通知书在线发放，缩短传统纸质通知周期</li>
+              <li>中标结果自动推送至合同管理，驱动合同起草</li>
+              <li>中标商品自动推送至商品上架环节，实现"中标即上架"</li>
+              <li>未中标供应商自动通知，提升供应商体验</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 状态流转说明</div>
+          <div class="help-section__body">
+            <p style="background:#F8F9FA;padding:10px;border-radius:4px;font-size:13px;">
+              <b>评标完成</b> → <span style="color:#1565c0;">已中标</span> → <span style="color:#f57c00;">待发放</span> → <span style="color:#e65100;">已发放</span> → <span style="color:#0B7266;">已签约</span> → <span style="color:#2e7d32;">已上架</span>
+              <br>← 可驳回重新评标 ←
+            </p>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询结果</b>：在查询面板输入项目编号/中标供应商，选择状态、定标日期范围，点击"查询"筛选</li>
+              <li><b>定标确认</b>：评标完成后，选中记录点击"定标确认"，选择中标供应商，录入中标金额和定标意见</li>
+              <li><b>发放通知</b>：定标后点击"发放中标通知书"，系统自动通知中标供应商</li>
+              <li><b>查看详情</b>：点击"详情"查看中标结果完整信息、评标打分记录、中标物资明细</li>
+              <li><b>签订合同</b>：点击"签订合同"，跳转至合同管理页面起草合同</li>
+              <li><b>推送上架</b>：中标商品自动推送至商品上架环节，运营人员审核后上架</li>
+              <li><b>驳回</b>：如评标过程有误，可驳回至评标环节重新评审</li>
+              <li><b>导出数据</b>：点击"导出"导出中标结果清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    function isNotEmpty(v){return v!==null&&v!==undefined&&String(v).trim()!==''&&!(Array.isArray(v)&&v.length===0);}
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'120px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          queryForm:{winNo:'',projectNo:'',projectName:'',winner:'',method:'',buyer:'',status:'',amountMin:'',amountMax:'',awardDateRange:null},
+          tableSearchText:'',
+          selection:[],
+          tableData:[
+            {winNo:'WIN-2026-0001',projectNo:'PROJ-2026-0001',projectName:'10kV高压开关柜公开招标',buyer:'江苏省电力公司',method:'公开招标',winner:'国电南瑞科技股份有限公司',winAmount:1258000,score:92.5,businessScore:36.5,techScore:46.0,priceScore:10.0,status:'已上架',awardDate:'2026-05-09',publishDate:'2026-05-12',experts:'张工、李工、王工、赵工、刘工',losers:'许继电气股份有限公司、平高电气股份有限公司',contactPerson:'王芳',contactPhone:'025-8888****',materialsSummary:'10kV开关柜×12台、避雷器×24台',contractNo:'CT-2026-0101',shelfCount:2,creator:'陈明',createTime:'2026-05-08',hasReport:true,items:[{materialCode:'SW-1001',materialName:'10kV高压开关柜',spec:'KYN28A-12',unit:'台',quantity:12,unitPrice:78000},{materialCode:'ACC-0201',materialName:'氧化锌避雷器',spec:'YH5WZ-17/45',unit:'台',quantity:24,unitPrice:12500}]},
+            {winNo:'WIN-2026-0002',projectNo:'PROJ-2026-0002',projectName:'智能电表批量采购询价',buyer:'湖南省电力公司',method:'询价采购',winner:'威胜信息技术股份有限公司',winAmount:442000,score:88.0,businessScore:35.0,techScore:44.0,priceScore:9.0,status:'已上架',awardDate:'2026-05-11',publishDate:'2026-05-13',experts:'周工、吴工、郑工',losers:'华立科技股份有限公司、宁波三星医疗电气',contactPerson:'刘经理',contactPhone:'0731-8888****',materialsSummary:'智能电表×2000台、集中器×50台',contractNo:'CT-2026-0102',shelfCount:2,creator:'陈明',createTime:'2026-05-10',hasReport:false,items:[{materialCode:'MET-1001',materialName:'单相智能电表',spec:'DDZY666-Z',unit:'台',quantity:2000,unitPrice:180},{materialCode:'MET-2001',materialName:'集中器',spec:'DCGL33-Z',unit:'台',quantity:50,unitPrice:1640}]},
+            {winNo:'WIN-2026-0003',projectNo:'PROJ-2026-0003',projectName:'电力变压器采购招标',buyer:'浙江省电力公司',method:'公开招标',winner:'许继电气股份有限公司',winAmount:675000,score:90.0,businessScore:36.0,techScore:45.0,priceScore:9.0,status:'已上架',awardDate:'2026-05-16',publishDate:'2026-05-19',experts:'张工、李工、王工、赵工、刘工',losers:'特变电工股份有限公司、中国西电集团',contactPerson:'赵工',contactPhone:'0571-8888****',materialsSummary:'油浸式变压器×5台',contractNo:'CT-2026-0103',shelfCount:1,creator:'陈明',createTime:'2026-05-15',hasReport:true,items:[{materialCode:'TR-2001',materialName:'油浸式变压器',spec:'S13-M-630/10',unit:'台',quantity:5,unitPrice:135000}]},
+            {winNo:'WIN-2026-0004',projectNo:'PROJ-2026-0004',projectName:'SF6断路器单一来源',buyer:'河南省电力公司',method:'单一来源',winner:'平高电气股份有限公司',winAmount:284000,score:85.0,businessScore:34.0,techScore:43.0,priceScore:8.0,status:'已上架',awardDate:'2026-05-16',publishDate:'2026-05-18',experts:'郑工、冯工、韩工',losers:'无',contactPerson:'杨经理',contactPhone:'0371-8888****',materialsSummary:'SF6断路器×8台',contractNo:'CT-2026-0104',shelfCount:1,creator:'王强',createTime:'2026-05-15',hasReport:false,items:[{materialCode:'CB-3001',materialName:'SF6断路器',spec:'LW36-126',unit:'台',quantity:8,unitPrice:35500}]},
+            {winNo:'WIN-2026-0005',projectNo:'PROJ-2026-0005',projectName:'电力电缆采购招标',buyer:'湖北省电力公司',method:'公开招标',winner:'远东电缆有限公司',winAmount:2356000,score:91.0,businessScore:36.0,techScore:45.5,priceScore:9.5,status:'已上架',awardDate:'2026-05-21',publishDate:'2026-05-25',experts:'张工、李工、王工、赵工、刘工',losers:'中天科技股份有限公司、宝胜科技创新股份有限公司',contactPerson:'李经理',contactPhone:'027-8888****',materialsSummary:'交联电缆×50km、控制电缆×30km',contractNo:'CT-2026-0105',shelfCount:2,creator:'陈明',createTime:'2026-05-20',hasReport:true,items:[{materialCode:'CB-4001',materialName:'交联聚乙烯绝缘电缆',spec:'YJV22-8.7/15kV-3×240',unit:'km',quantity:50,unitPrice:30800},{materialCode:'CB-4002',materialName:'控制电缆',spec:'KVV22-450/750V-4×2.5',unit:'km',quantity:30,unitPrice:16200}]},
+            {winNo:'WIN-2026-0006',projectNo:'PROJ-2026-0006',projectName:'电流互感器询价采购',buyer:'安徽省电力公司',method:'询价采购',winner:'思源电气股份有限公司',winAmount:78000,score:87.0,businessScore:35.0,techScore:43.5,priceScore:8.5,status:'已上架',awardDate:'2026-05-24',publishDate:'2026-05-26',experts:'周工、吴工、郑工',losers:'大连北方互感器有限公司',materialsSummary:'电流互感器×30台',contractNo:'CT-2026-0106',shelfCount:1,creator:'王强',createTime:'2026-05-23',hasReport:false,items:[{materialCode:'CT-5001',materialName:'电流互感器',spec:'LZZBJ9-10C1',unit:'台',quantity:30,unitPrice:2600}]},
+            {winNo:'WIN-2026-0007',projectNo:'PROJ-2026-0007',projectName:'安全防护用品询价',buyer:'综合服务公司',method:'询价采购',winner:'代尔塔防护用品公司',winAmount:84000,score:86.0,businessScore:34.0,techScore:43.5,priceScore:8.5,status:'已上架',awardDate:'2026-05-26',publishDate:'2026-05-28',experts:'周工、吴工、郑工',losers:'3M中国有限公司、霍尼韦尔(天津)',materialsSummary:'安全帽×500顶、绝缘手套×500双',contractNo:'CT-2026-0107',shelfCount:2,creator:'王强',createTime:'2026-05-25',hasReport:false,items:[{materialCode:'PPE-6001',materialName:'安全帽',spec:'ABS材质 某电力集团定制',unit:'顶',quantity:500,unitPrice:68},{materialCode:'PPE-6002',materialName:'绝缘手套',spec:'12kV 橡胶绝缘',unit:'双',quantity:500,unitPrice:100}]},
+            {winNo:'WIN-2026-0008',projectNo:'PROJ-2026-0008',projectName:'办公电脑更新询价',buyer:'信息通信分公司',method:'询价采购',winner:'联想集团有限公司',winAmount:170000,score:88.5,businessScore:35.0,techScore:44.5,priceScore:9.0,status:'已上架',awardDate:'2026-05-28',publishDate:'2026-05-30',experts:'郑工、冯工、韩工',losers:'戴尔(中国)有限公司、惠普(中国)有限公司',materialsSummary:'台式电脑×40台',contractNo:'CT-2026-0108',shelfCount:1,creator:'陈明',createTime:'2026-05-27',hasReport:false,items:[{materialCode:'IT-7001',materialName:'台式电脑',spec:'ThinkCentre M760t',unit:'台',quantity:40,unitPrice:4250}]},
+            {winNo:'WIN-2026-0009',projectNo:'PROJ-2026-0009',projectName:'配电自动化终端招标',buyer:'山东省电力公司',method:'公开招标',winner:'国电南瑞科技股份有限公司',winAmount:368000,score:90.5,businessScore:36.0,techScore:45.5,priceScore:9.0,status:'已签约',awardDate:'2026-06-05',publishDate:'2026-06-07',experts:'张工、李工、王工、赵工、刘工',losers:'北京四方继保、长园深瑞继保',contactPerson:'孙工程师',contactPhone:'0531-8888****',materialsSummary:'配电自动化终端×20套',contractNo:'CT-2026-0109',shelfCount:0,creator:'陈明',createTime:'2026-06-03',hasReport:true,items:[{materialCode:'DA-8001',materialName:'配电自动化终端',spec:'FTU-2000',unit:'套',quantity:20,unitPrice:18400}]},
+            {winNo:'WIN-2026-0010',projectNo:'PROJ-2026-0010',projectName:'集中器采购询价',buyer:'江苏省电力公司',method:'询价采购',winner:'威胜信息技术股份有限公司',winAmount:350000,score:87.5,businessScore:35.0,techScore:44.0,priceScore:8.5,status:'已签约',awardDate:'2026-06-07',publishDate:'',experts:'周工、吴工、郑工',losers:'宁波三星医疗电气、华立科技',contactPerson:'刘经理',contactPhone:'025-8888****',materialsSummary:'集中器×500台',contractNo:'CT-2026-0110',shelfCount:0,creator:'王强',createTime:'2026-06-04',hasReport:false,items:[{materialCode:'MET-2002',materialName:'集中器',spec:'DCGL33-Z 4G版',unit:'台',quantity:500,unitPrice:700}]},
+            {winNo:'WIN-2026-0011',projectNo:'PROJ-2026-0011',projectName:'办公电脑批量询价',buyer:'江苏省电力公司',method:'询价采购',winner:'联想集团有限公司',winAmount:285000,score:88.0,businessScore:35.0,techScore:44.0,priceScore:9.0,status:'已签约',awardDate:'2026-06-09',publishDate:'',experts:'郑工、冯工、韩工',losers:'戴尔(中国)有限公司',contactPerson:'周经理',contactPhone:'025-8888****',materialsSummary:'笔记本电脑×50台',contractNo:'CT-2026-0111',shelfCount:0,creator:'陈明',createTime:'2026-06-08',hasReport:false,items:[{materialCode:'IT-7002',materialName:'笔记本电脑',spec:'ThinkPad T14 Gen 5',unit:'台',quantity:50,unitPrice:5700}]},
+            {winNo:'WIN-2026-0012',projectNo:'PROJ-2026-0012',projectName:'变压器追加竞争性谈判',buyer:'浙江省电力公司',method:'竞争性谈判',winner:'许继电气股份有限公司',winAmount:340000,score:89.0,businessScore:35.5,techScore:44.5,priceScore:9.0,status:'已签约',awardDate:'2026-06-12',publishDate:'',experts:'郑工、冯工、韩工、何工、黄工',losers:'特变电工股份有限公司',contactPerson:'赵工',contactPhone:'0571-8888****',materialsSummary:'干式变压器×3台',contractNo:'CT-2026-0112',shelfCount:0,creator:'王强',createTime:'2026-06-11',hasReport:true,items:[{materialCode:'TR-2002',materialName:'干式变压器',spec:'SCB13-1250/10',unit:'台',quantity:3,unitPrice:113333}]},
+            {winNo:'WIN-2026-0013',projectNo:'PROJ-2026-0013',projectName:'断路器补充询价',buyer:'河南省电力公司',method:'询价采购',winner:'平高电气股份有限公司',winAmount:139000,score:86.5,businessScore:34.5,techScore:43.5,priceScore:8.5,status:'已签约',awardDate:'2026-06-15',publishDate:'',experts:'周工、吴工、郑工',losers:'河南森源电气股份有限公司',contactPerson:'杨经理',contactPhone:'0371-8888****',materialsSummary:'真空断路器×10台',contractNo:'CT-2026-0113',shelfCount:0,creator:'陈明',createTime:'2026-06-14',hasReport:false,items:[{materialCode:'CB-3002',materialName:'真空断路器',spec:'ZN63A-12/T1250-31.5',unit:'台',quantity:10,unitPrice:13900}]},
+            {winNo:'WIN-2026-0014',projectNo:'PROJ-2026-0014',projectName:'互感器采购询价',buyer:'安徽省电力公司',method:'询价采购',winner:'思源电气股份有限公司',winAmount:241000,score:87.0,businessScore:35.0,techScore:43.5,priceScore:8.5,status:'已签约',awardDate:'2026-06-17',publishDate:'',experts:'周工、吴工、郑工',losers:'大连北方互感器有限公司',contactPerson:'李经理',contactPhone:'0551-8888****',materialsSummary:'电压互感器×40台、电流互感器×60台',contractNo:'CT-2026-0114',shelfCount:0,creator:'王强',createTime:'2026-06-16',hasReport:false,items:[{materialCode:'VT-5001',materialName:'电压互感器',spec:'JDZ-10',unit:'台',quantity:40,unitPrice:3200},{materialCode:'CT-5002',materialName:'电流互感器',spec:'LZZBJ9-10',unit:'台',quantity:60,unitPrice:1800}]},
+            {winNo:'WIN-2026-0015',projectNo:'PROJ-2026-0015',projectName:'劳保用品年度询价',buyer:'综合服务公司',method:'询价采购',winner:'代尔塔防护用品公司',winAmount:191000,score:86.0,businessScore:34.0,techScore:43.5,priceScore:8.5,status:'已签约',awardDate:'2026-06-19',publishDate:'',experts:'周工、吴工、郑工',losers:'3M中国有限公司',contactPerson:'张经理',contactPhone:'010-8888****',materialsSummary:'绝缘鞋×300双、防护服×200套',contractNo:'CT-2026-0115',shelfCount:0,creator:'陈明',createTime:'2026-06-18',hasReport:false,items:[{materialCode:'PPE-6003',materialName:'绝缘鞋',spec:'10kV 电力专用',unit:'双',quantity:300,unitPrice:285},{materialCode:'PPE-6004',materialName:'防护服',spec:'电弧防护服 ATPV 8cal',unit:'套',quantity:200,unitPrice:498}]},
+            {winNo:'WIN-2026-0016',projectNo:'PROJ-2026-0016',projectName:'电缆追加公开招标',buyer:'湖北省电力公司',method:'公开招标',winner:'远东电缆有限公司',winAmount:3304000,score:91.5,businessScore:36.5,techScore:45.5,priceScore:9.5,status:'已发放',awardDate:'2026-06-22',publishDate:'',experts:'张工、李工、王工、赵工、刘工',losers:'中天科技股份有限公司',contactPerson:'李经理',contactPhone:'027-8888****',materialsSummary:'高压电缆×80km、低压电缆×40km',contractNo:'',shelfCount:0,creator:'陈明',createTime:'2026-06-21',hasReport:true,items:[{materialCode:'CB-4003',materialName:'高压电力电缆',spec:'YJV-26/35kV-1×400',unit:'km',quantity:80,unitPrice:29800},{materialCode:'CB-4004',materialName:'低压电力电缆',spec:'YJV-0.6/1kV-4×185',unit:'km',quantity:40,unitPrice:13200}]},
+            {winNo:'WIN-2026-0017',projectNo:'PROJ-2026-0017',projectName:'打印机批量询价',buyer:'信息通信分公司',method:'询价采购',winner:'中国惠普有限公司',winAmount:67600,score:87.5,businessScore:35.0,techScore:44.0,priceScore:8.5,status:'已发放',awardDate:'2026-06-24',publishDate:'',experts:'郑工、冯工、韩工',losers:'兄弟(中国)商业有限公司',contactPerson:'陈经理',contactPhone:'010-8888****',materialsSummary:'A4激光打印机×20台',contractNo:'',shelfCount:0,creator:'王强',createTime:'2026-06-23',hasReport:false,items:[{materialCode:'IT-7003',materialName:'A4激光打印机',spec:'HP LaserJet Pro M305',unit:'台',quantity:20,unitPrice:3380}]},
+            {winNo:'WIN-2026-0018',projectNo:'PROJ-2026-0018',projectName:'UPS电源询价',buyer:'信息通信分公司',method:'询价采购',winner:'山特电子(深圳)有限公司',winAmount:181000,score:88.0,businessScore:35.0,techScore:44.0,priceScore:9.0,status:'已发放',awardDate:'2026-06-26',publishDate:'',experts:'郑工、冯工、韩工',losers:'华为技术有限公司',contactPerson:'王工',contactPhone:'010-8888****',materialsSummary:'UPS电源×10台',contractNo:'',shelfCount:0,creator:'陈明',createTime:'2026-06-25',hasReport:false,items:[{materialCode:'IT-7004',materialName:'UPS不间断电源',spec:'UPS 20kVA/18kW',unit:'台',quantity:10,unitPrice:18100}]},
+            {winNo:'WIN-2026-0019',projectNo:'PROJ-2026-0019',projectName:'开关柜采购公开招标',buyer:'山东省电力公司',method:'公开招标',winner:'国电南瑞科技股份有限公司',winAmount:4420000,score:92.0,businessScore:36.5,techScore:46.0,priceScore:9.5,status:'待发放',awardDate:'2026-06-28',publishDate:'',experts:'张工、李工、王工、赵工、刘工',losers:'许继电气股份有限公司、平高电气股份有限公司',contactPerson:'孙工程师',contactPhone:'0531-8888****',materialsSummary:'开关柜×35台、母线桥×10套',contractNo:'',shelfCount:0,creator:'陈明',createTime:'2026-06-27',hasReport:true,items:[{materialCode:'SW-1002',materialName:'高压开关柜',spec:'KYN61-40.5',unit:'台',quantity:35,unitPrice:116000},{materialCode:'SW-1003',materialName:'母线桥',spec:'1250A/4P 封闭式',unit:'套',quantity:10,unitPrice:45000}]},
+            {winNo:'WIN-2026-0020',projectNo:'PROJ-2026-0020',projectName:'电表采购框架协议',buyer:'江苏省电力公司',method:'询价采购',winner:'威胜信息技术股份有限公司',winAmount:930000,score:89.0,businessScore:35.5,techScore:44.5,priceScore:9.0,status:'待发放',awardDate:'2026-06-29',publishDate:'',experts:'周工、吴工、郑工',losers:'华立科技股份有限公司',contactPerson:'刘经理',contactPhone:'025-8888****',materialsSummary:'三相智能电表×1000台',contractNo:'',shelfCount:0,creator:'王强',createTime:'2026-06-28',hasReport:false,items:[{materialCode:'MET-1002',materialName:'三相智能电表',spec:'DSZ666-Z',unit:'台',quantity:1000,unitPrice:930}]},
+            {winNo:'WIN-2026-0021',projectNo:'PROJ-2026-0021',projectName:'继电保护装置邀请招标',buyer:'某电力集团四川省电力公司',method:'邀请招标',winner:'国电南瑞科技股份有限公司',winAmount:1850000,score:91.0,businessScore:36.0,techScore:46.0,priceScore:9.0,status:'已中标',awardDate:'',publishDate:'',experts:'张工、李工、王工、赵工、刘工',losers:'北京四方继保、长园深瑞',contactPerson:'何工',contactPhone:'028-8888****',materialsSummary:'继电保护装置×15套',contractNo:'',shelfCount:0,creator:'赵敏',createTime:'2026-06-30',hasReport:true,items:[{materialCode:'RP-9001',materialName:'继电保护装置',spec:'PCS-931',unit:'套',quantity:15,unitPrice:123333}]},
+            {winNo:'WIN-2026-0022',projectNo:'PROJ-2026-0022',projectName:'视频会议系统采购',buyer:'信息通信分公司',method:'竞争性谈判',winner:'',winAmount:0,score:0,businessScore:0,techScore:0,priceScore:0,status:'已流标',awardDate:'2026-07-01',publishDate:'',experts:'郑工、冯工、韩工',losers:'所有投标方',contactPerson:'',contactPhone:'',materialsSummary:'因供应商报价均超预算，本次流标',contractNo:'',shelfCount:0,creator:'赵敏',createTime:'2026-06-20',hasReport:false,items:[]},
+            {winNo:'WIN-2026-0023',projectNo:'PROJ-2026-0023',projectName:'无人机巡检系统招标',buyer:'湖北省电力公司',method:'公开招标',winner:'深圳大疆创新科技有限公司',winAmount:2850000,score:93.0,businessScore:37.0,techScore:47.0,priceScore:9.0,status:'已中标',awardDate:'',publishDate:'',experts:'张工、李工、王工、赵工、刘工',losers:'中科云图、南方测绘',contactPerson:'吴经理',contactPhone:'0755-8888****',materialsSummary:'无人机×20架、地面站×5套、挂载设备×30套',contractNo:'',shelfCount:0,creator:'赵敏',createTime:'2026-07-01',hasReport:true,items:[{materialCode:'UAV-1001',materialName:'多旋翼无人机',spec:'Mavic 3E 行业版',unit:'架',quantity:20,unitPrice:65000},{materialCode:'UAV-1002',materialName:'地面控制站',spec:'DJI RC Plus',unit:'套',quantity:5,unitPrice:38000},{materialCode:'UAV-1003',materialName:'热成像挂载',spec:'H20T',unit:'套',quantity:30,unitPrice:32000}]}
+          ],
+          pageSize:10,
+          currentPage:1,
+          detailVisible:false,
+          helpVisible:false,
+          exportVisible:false,
+          currentDetail:null,
+          awardVisible:false,
+          awardRow:null,
+          awardForm:{winner:'',winAmount:0,awardDate:'',comment:'',bidders:[]},
+          rejectVisible:false,
+          rejectRow:null,
+          rejectForm:{reason:'',detail:''},
+          scoreVisible:false,
+          scoreData:[],
+          exportForm:{range:'all',format:'csv',fields:[]}
+        };
+      },
+      computed:{
+        filteredData(){
+          let d=this.tableData;
+          if(isNotEmpty(this.queryForm.winNo)) d=d.filter(i=>i.winNo.indexOf(this.queryForm.winNo)>-1);
+          if(isNotEmpty(this.queryForm.projectNo)) d=d.filter(i=>i.projectNo.indexOf(this.queryForm.projectNo)>-1);
+          if(isNotEmpty(this.queryForm.projectName)) d=d.filter(i=>i.projectName.indexOf(this.queryForm.projectName)>-1);
+          if(isNotEmpty(this.queryForm.winner)) d=d.filter(i=>i.winner&&i.winner.indexOf(this.queryForm.winner)>-1);
+          if(isNotEmpty(this.queryForm.method)) d=d.filter(i=>i.method===this.queryForm.method);
+          if(isNotEmpty(this.queryForm.buyer)) d=d.filter(i=>i.buyer&&i.buyer.indexOf(this.queryForm.buyer)>-1);
+          if(isNotEmpty(this.queryForm.status)) d=d.filter(i=>i.status===this.queryForm.status);
+          if(isNotEmpty(this.queryForm.amountMin)) d=d.filter(i=>i.winAmount>=Number(this.queryForm.amountMin));
+          if(isNotEmpty(this.queryForm.amountMax)) d=d.filter(i=>i.winAmount<=Number(this.queryForm.amountMax));
+          if(isNotEmpty(this.queryForm.awardDateRange)&&this.queryForm.awardDateRange.length===2){
+            const s=this.queryForm.awardDateRange[0],e=this.queryForm.awardDateRange[1];
+            d=d.filter(i=>i.awardDate&&i.awardDate>=s&&i.awardDate<=e);
+          }
+          if(isNotEmpty(this.tableSearchText)){
+            const t=this.tableSearchText.toLowerCase();
+            d=d.filter(i=>(i.winNo+i.projectNo+i.projectName+i.buyer+i.method+(i.winner||'')+i.status).toLowerCase().indexOf(t)>-1);
+          }
+          return d;
+        },
+        pagedData(){
+          const start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        queryConditionText(){
+          const conditions = [];
+          const f = this.queryForm;
+          if (f.winNo) conditions.push('中标通知编号：' + f.winNo);
+          if (f.projectNo) conditions.push('项目编号：' + f.projectNo);
+          if (f.projectName) conditions.push('项目名称：' + f.projectName);
+          if (f.winner) conditions.push('中标供应商：' + f.winner);
+          if (f.method) conditions.push('采购方式：' + f.method);
+          if (f.status) conditions.push('状态：' + f.status);
+          if (f.buyer) conditions.push('采购方：' + f.buyer);
+          if (f.amountMin || f.amountMax) conditions.push('金额：' + (f.amountMin||'0') + '-' + (f.amountMax||'不限'));
+          if (f.awardDateRange && f.awardDateRange.length === 2) conditions.push('定标日期：' + f.awardDateRange[0] + ' 至 ' + f.awardDateRange[1]);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        exportableFields(){
+          return [
+            {key:'winNo',label:'中标通知编号'},
+            {key:'projectNo',label:'项目编号'},
+            {key:'projectName',label:'项目名称'},
+            {key:'buyer',label:'采购方'},
+            {key:'method',label:'采购方式'},
+            {key:'winner',label:'中标供应商'},
+            {key:'winAmount',label:'中标金额(元)'},
+            {key:'score',label:'评审总分'},
+            {key:'materialsSummary',label:'标的物资'},
+            {key:'contractNo',label:'合同编号'},
+            {key:'status',label:'状态'},
+            {key:'awardDate',label:'定标日期'},
+            {key:'publishDate',label:'公告发布时间'},
+            {key:'creator',label:'操作人'},
+            {key:'createTime',label:'创建时间'}
+          ];
+        },
+        fieldLabels(){
+          const m = {};
+          this.exportableFields.forEach(f => { m[f.key] = f.label; });
+          return m;
+        }
+      },
+      watch:{
+        'queryForm.winNo'(){this.currentPage=1;},
+        'queryForm.projectNo'(){this.currentPage=1;},
+        'queryForm.projectName'(){this.currentPage=1;},
+        'queryForm.winner'(){this.currentPage=1;},
+        'queryForm.method'(){this.currentPage=1;},
+        'queryForm.status'(){this.currentPage=1;},
+        'queryForm.buyer'(){this.currentPage=1;},
+        'queryForm.amountMin'(){this.currentPage=1;},
+        'queryForm.amountMax'(){this.currentPage=1;},
+        tableSearchText(){this.currentPage=1;}
+      },
+      methods:{
+        isEmpty(v){
+          return v === null || v === undefined || v === '';
+        },
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleQuery(){this.currentPage=1;this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录');},
+        handleReset(){
+          this.queryForm={winNo:'',projectNo:'',projectName:'',winner:'',method:'',buyer:'',status:'',amountMin:'',amountMax:'',awardDateRange:null};
+          this.tableSearchText='';
+          this.currentPage=1;
+        },
+        handleExport(){this.exportVisible=true;},
+        handleRefresh(){this.loadData();},
+        loadData(){
+          this.$message.success('数据已刷新，共 '+this.tableData.length+' 条记录');
+        },
+        statusTagType(status){
+          const map = {'已上架':'success','已签约':'primary','已发放':'warning','待发放':'warning','已中标':'primary','已流标':'danger'};
+          return map[status] || 'info';
+        },
+        rowClassName({row}){
+          if (row.status === '已流标') return 'row-cancelled';
+          return '';
+        },
+        handleSelectionChange(val){this.selection=val;},
+        viewDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        viewScoreDetail(row){
+          if (!row.winner) { this.$message.warning('尚未定标，暂无评分数据'); return; }
+          const bidders = [];
+          if (row.winner) bidders.push(row.winner);
+          if (row.losers) {
+            row.losers.split('、').forEach(n => {
+              if (n !== '无' && n !== '所有投标方' && !bidders.includes(n)) bidders.push(n);
+            });
+          }
+          if (bidders.length === 0) { this.$message.warning('暂无评分数据'); return; }
+          this.scoreData = bidders.map((name, idx) => {
+            const isWinner = name === row.winner;
+            return {
+              bidder: name,
+              businessScore: isWinner ? row.businessScore : Math.round((row.businessScore - 2 + Math.random() * 4) * 10) / 10,
+              techScore: isWinner ? row.techScore : Math.round((row.techScore - 3 + Math.random() * 4) * 10) / 10,
+              priceScore: isWinner ? row.priceScore : Math.round((row.priceScore - 1.5 + Math.random() * 3) * 10) / 10,
+              totalScore: isWinner ? row.score : Math.round((row.score - 5 + Math.random() * 5) * 10) / 10
+            };
+          });
+          this.scoreVisible = true;
+        },
+        // 定标确认
+        handleAwardConfirm(){
+          const eligible = this.selection.filter(i => i.status === '已中标');
+          if (eligible.length === 0) { this.$message.warning('所选记录中没有已中标状态的项目'); return; }
+          if (eligible.length > 1) { this.$message.warning('请一次只定标一条记录'); return; }
+          this.confirmAward(eligible[0]);
+        },
+        confirmAward(row){
+          this.awardRow = row;
+          const allBidders = [];
+          if (row.winner) allBidders.push(row.winner);
+          if (row.losers) {
+            row.losers.split('、').forEach(n => {
+              if (n !== '无' && n !== '所有投标方' && !allBidders.includes(n)) allBidders.push(n);
+            });
+          }
+          this.awardForm = {
+            winner: row.winner || '',
+            winAmount: row.winAmount || 0,
+            awardDate: new Date().toISOString().slice(0,10),
+            comment: '经评审，同意定标',
+            bidders: allBidders.length ? allBidders : ['国电南瑞科技股份有限公司','许继电气股份有限公司','平高电气股份有限公司']
+          };
+          this.awardVisible = true;
+        },
+        confirmAwardSubmit(){
+          if (!this.awardForm.winner) { this.$message.warning('请选择中标供应商'); return; }
+          if (!this.awardForm.winAmount || this.awardForm.winAmount <= 0) { this.$message.warning('请输入有效中标金额'); return; }
+          const row = this.awardRow;
+          row.winner = this.awardForm.winner;
+          row.winAmount = this.awardForm.winAmount;
+          row.awardDate = this.awardForm.awardDate;
+          row.status = '待发放';
+          this.awardVisible = false;
+          this.$message.success('定标确认完成，项目「'+row.projectName+'」已转为待发放状态');
+        },
+        // 驳回定标
+        rejectBid(row){
+          this.rejectRow = row;
+          this.rejectForm = {reason:'评标过程有误，需重新评审',detail:''};
+          this.rejectVisible = true;
+        },
+        confirmReject(){
+          if (!this.rejectForm.reason) { this.$message.warning('请选择驳回原因'); return; }
+          const row = this.rejectRow;
+          this.$confirm('确认将项目「'+row.projectName+'」驳回至评标环节？','驳回确认',{type:'warning'}).then(()=>{
+            row.status = '已中标';
+            this.$message.success('已驳回至评标环节，原因：'+this.rejectForm.reason);
+            this.rejectVisible = false;
+          }).catch(()=>{});
+        },
+        // 分发标通知书
+        publishNotice(row){
+          this.$confirm('确认向供应商「'+row.winner+'」发放中标通知书吗？系统将自动发送短信和邮件通知。','发放确认',{type:'warning',confirmButtonText:'发放',cancelButtonText:'取消'}).then(()=>{
+            row.status='已发放';
+            row.publishDate = new Date().toISOString().slice(0,10);
+            this.$message.success('已向「'+row.winner+'」发放中标通知书，通知已发送');
+          }).catch(()=>{});
+        },
+        // 打印通知书
+        printNotice(row){
+          this.$message.success('正在生成中标通知书打印文件：'+row.winNo);
+        },
+        // 查看评标报告
+        viewBidReport(row){
+          this.$message.info('评标报告：'+row.projectName+' 评标报告.pdf（模拟文件）');
+        },
+        // 签订合同
+        signContract(row){
+          this.$confirm('确认与供应商「'+row.winner+'」签订采购合同吗？系统将跳转至合同管理页面起草合同。','签约确认',{type:'warning',confirmButtonText:'签约',cancelButtonText:'取消'}).then(()=>{
+            row.status='已签约';
+            row.contractNo='CT-2026-' + String(Math.floor(Math.random()*9000+1000));
+            this.$message.success('已与「'+row.winner+'」签订采购合同，合同编号：'+row.contractNo);
+          }).catch(()=>{});
+        },
+        // 推送上架
+        pushToShelf(row){
+          this.$confirm('确认将中标商品推送至商品上架环节吗？','上架确认',{type:'warning',confirmButtonText:'推送',cancelButtonText:'取消'}).then(()=>{
+            row.status='已上架';
+            row.shelfCount = (row.items && row.items.length) || 0;
+            this.$message.success('已推送至商品上架环节，共 '+row.shelfCount+' 个商品将在审核后可选购');
+          }).catch(()=>{});
+        },
+        // 批量操作
+        handleBatchPublish(){
+          if(this.selection.length===0){this.$message.warning('请先选择待发放的中标记录');return;}
+          const pending=this.selection.filter(i=>i.status==='待发放');
+          if(pending.length===0){this.$message.warning('所选记录中没有待发放状态的中标结果');return;}
+          this.$confirm('确认批量发放 '+pending.length+' 个中标通知书？系统将自动发送通知给对应供应商。','批量发放',{type:'warning'}).then(()=>{
+            const today = new Date().toISOString().slice(0,10);
+            pending.forEach(i=>{i.status='已发放';i.publishDate=today;});
+            this.$message.success('已批量发放 '+pending.length+' 个中标通知书');
+          }).catch(()=>{});
+        },
+        // 导出
+        selectAllExportFields(){
+          this.exportForm.fields = this.exportableFields.map(f => f.key);
+        },
+        invertExportFields(){
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport(){
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请选择导出字段'); return; }
+          this.exportCSV();
+          this.exportVisible = false;
+        },
+        exportCSV() {
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          const keys = this.exportForm.fields;
+          const labels = this.fieldLabels || {};
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => {
+            const v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+            return '"' + v.replace(/"/g, '""') + '"';
+          }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const title = document.title || '中标结果导出';
+          link.href = URL.createObjectURL(blob);
+          link.download = title + '_' + new Date().toISOString().slice(0,10) + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录');
+        },
+        handlePageChange(page){this.currentPage=page;},
+        handleSizeChange(size){this.pageSize=size;this.currentPage=1;}
+      },
+      mounted(){
+        this.handleQuery();
+        this.$nextTick(() => this.selectAllExportFields());
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

@@ -1,0 +1,244 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>库存智能预测</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">库存智能预测</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-refresh" @click="handleForecast">AI重新预测</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出报告</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="商品名称"><el-input v-model="queryForm.productName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="预测类型"><el-select v-model="queryForm.forecastType" placeholder="请选择" clearable><el-option label="补货预测" value="补货预测"></el-option><el-option label="安全库存" value="安全库存"></el-option><el-option label="呆滞预警" value="呆滞预警"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="预警级别"><el-select v-model="queryForm.alertLevel" placeholder="请选择" clearable><el-option label="紧急补货" value="紧急补货"></el-option><el-option label="预警" value="预警"></el-option><el-option label="正常" value="正常"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">AI预测商品数</div><div class="stat-value">320</div><div class="stat-sub">本月覆盖</div></div>
+            <div class="stat-card"><div class="stat-label">紧急补货预警</div><div class="stat-value" style="color:#c62828;">18</div><div class="stat-sub">需立即处理</div></div>
+            <div class="stat-card"><div class="stat-label">安全库存预警</div><div class="stat-value" style="color:#f57c00;">42</div><div class="stat-sub">待关注</div></div>
+            <div class="stat-card"><div class="stat-label">预测准确率</div><div class="stat-value" style="color:#2e7d32;">94.8%</div><div class="stat-sub">近6个月均值</div></div>
+            <div class="stat-card"><div class="stat-label">库存周转天数</div><div class="stat-value">28.5</div><div class="stat-sub">天</div></div>
+          </div>
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="库存预测列表">库存智能预测列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="productCode" label="商品编码" min-width="120" align="center"></el-table-column>
+                  <el-table-column prop="productName" label="商品名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="category" label="类目" width="100" align="center"></el-table-column>
+                  <el-table-column prop="currentStock" label="当前库存" width="90" align="center"></el-table-column>
+                  <el-table-column prop="safeStock" label="安全库存" width="90" align="center"></el-table-column>
+                  <el-table-column prop="forecastStock" label="预测库存(30天)" width="120" align="center">
+                    <template slot-scope="{row}"><span :style="{color: row.forecastStock < row.safeStock ? '#c62828' : row.forecastStock < row.safeStock * 1.5 ? '#f57c00' : '#2e7d32'}">{{ row.forecastStock }}</span></template>
+                  </el-table-column>
+                  <el-table-column prop="replenishQty" label="建议补货量" width="110" align="center">
+                    <template slot-scope="{row}"><span v-if="row.replenishQty > 0" style="font-weight:600;color:#0B7266;">{{ row.replenishQty }}</span><span v-else>-</span></template>
+                  </el-table-column>
+                  <el-table-column prop="turnoverDays" label="周转天数" width="90" align="center"></el-table-column>
+                  <el-table-column prop="alertLevel" label="预警级别" width="100" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.alertLevel==='紧急补货'?'danger':row.alertLevel==='预警'?'warning':'success'" size="small">{{ row.alertLevel }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">详情</el-button></template></el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="预测详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="商品编码">{{ currentDetail.productCode }}</el-descriptions-item>
+          <el-descriptions-item label="商品名称">{{ currentDetail.productName }}</el-descriptions-item>
+          <el-descriptions-item label="当前库存">{{ currentDetail.currentStock }}</el-descriptions-item>
+          <el-descriptions-item label="安全库存">{{ currentDetail.safeStock }}</el-descriptions-item>
+          <el-descriptions-item label="预测库存">{{ currentDetail.forecastStock }}</el-descriptions-item>
+          <el-descriptions-item label="建议补货量">{{ currentDetail.replenishQty || '-' }}</el-descriptions-item>
+        </el-descriptions>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-data-analysis"></i> AI预测分析</div>
+        <el-alert title="基于近12个月历史销量数据，AI模型预测未来30天销量走势，建议补货量100件" type="warning" :closable="false" show-icon style="margin-bottom:12px;"></el-alert>
+        <el-table :data="forecastTrend" border style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="week" label="周期" width="100" align="center"></el-table-column>
+          <el-table-column prop="history" label="历史销量" width="100" align="center"></el-table-column>
+          <el-table-column prop="forecast" label="预测销量" width="100" align="center"></el-table-column>
+          <el-table-column prop="confidence" label="置信度" width="90" align="center">
+            <template slot-scope="{row}"><span :style="{color: row.confidence > 90 ? '#2e7d32' : '#f57c00'}">{{ row.confidence }}%</span></template>
+          </el-table-column>
+          <el-table-column prop="stock" label="预测库存" width="100" align="center"></el-table-column>
+          <el-table-column label="状态" width="90" align="center"><template slot-scope="{row}"><el-tag :type="row.stock < currentDetail.safeStock ? 'danger' : row.stock < currentDetail.safeStock * 1.5 ? 'warning' : 'success'" size="small">{{ row.stock < currentDetail.safeStock ? '紧急' : row.stock < currentDetail.safeStock * 1.5 ? '预警' : '正常' }}</el-tag></template></el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">本页面基于AI销量预测模型，结合历史销量、季节性因素、促销活动等数据，自动预测未来30天库存需求，生成补货建议和安全库存预警。支撑智能采购决策，减少缺货和库存积压风险。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>AI销量预测，提前识别缺货风险</li>
+              <li>智能补货建议，降低库存积压</li>
+              <li>呆滞物料预警，优化库存结构</li>
+              <li>预测准确率94%+，持续迭代优化</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看统计看板</b>：AI预测覆盖数、紧急预警数、准确率等指标</li>
+              <li><b>查询预测列表</b>：按商品/类型/预警级别筛选</li>
+              <li><b>重新预测</b>：点击"AI重新预测"触发最新预测计算</li>
+              <li><b>查看详情</b>：点击"详情"查看AI预测分析、趋势数据</li>
+              <li><b>导出报告</b>：点击"导出报告"导出库存预测分析报告</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          currentDetail:null,
+          forecastTrend:[
+            {week:'第1周',history:85,forecast:90,confidence:96,stock:215},
+            {week:'第2周',history:92,forecast:95,confidence:94,stock:120},
+            {week:'第3周',history:78,forecast:82,confidence:92,stock:38},
+            {week:'第4周',history:88,forecast:88,confidence:90,stock:50}
+          ],
+          queryForm:{productName:'',forecastType:'',alertLevel:''},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          tableData:[
+            {productCode:'PR-003',productName:'智能电表DDZ986-Z',category:'电气设备',currentStock:250,forecastStock:38,safeStock:100,replenishQty:200,turnoverDays:22,alertLevel:'紧急补货'},
+            {productCode:'PR-012',productName:'配电自动化终端DTU-3000',category:'电气设备',currentStock:15,forecastStock:8,safeStock:20,replenishQty:50,turnoverDays:18,alertLevel:'紧急补货'},
+            {productCode:'PR-006',productName:'电流互感器LB-110',category:'电气设备',currentStock:30,forecastStock:18,safeStock:30,replenishQty:30,turnoverDays:25,alertLevel:'预警'},
+            {productCode:'PR-004',productName:'集中器DJGZ23-Z',category:'智能终端',currentStock:80,forecastStock:55,safeStock:50,replenishQty:0,turnoverDays:30,alertLevel:'正常'},
+            {productCode:'PR-007',productName:'办公电脑联想启天M415',category:'办公设备',currentStock:120,forecastStock:85,safeStock:60,replenishQty:0,turnoverDays:35,alertLevel:'正常'},
+            {productCode:'PR-010',productName:'安全帽ABS绝缘V级',category:'劳保用品',currentStock:50,forecastStock:28,safeStock:40,replenishQty:50,turnoverDays:20,alertLevel:'预警'},
+            {productCode:'PR-001',productName:'10kV高压开关柜KYN28-12',category:'电气设备',currentStock:18,forecastStock:12,safeStock:15,replenishQty:20,turnoverDays:28,alertLevel:'预警'},
+            {productCode:'PR-005',productName:'SF6断路器LW36-40.5',category:'电气设备',currentStock:8,forecastStock:3,safeStock:10,replenishQty:15,turnoverDays:15,alertLevel:'紧急补货'},
+            {productCode:'PR-009',productName:'A4复印纸80g',category:'办公用品',currentStock:500,forecastStock:420,safeStock:200,replenishQty:0,turnoverDays:45,alertLevel:'正常'},
+            {productCode:'PR-011',productName:'绝缘手套12kV双色',category:'劳保用品',currentStock:80,forecastStock:52,safeStock:80,replenishQty:80,turnoverDays:12,alertLevel:'紧急补货'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){var q=this.queryForm,text=this.tableSearchText.toLowerCase();var f=this.tableData.filter(function(p){if(q.productName&&p.productName.indexOf(q.productName)===-1)return false;if(q.forecastType&&p.forecastType!==q.forecastType)return false;if(q.alertLevel&&p.alertLevel!==q.alertLevel)return false;if(text){var t=(p.productCode+p.productName+p.category+p.alertLevel).toLowerCase();if(t.indexOf(text)===-1)return false}return true});this.total=f.length;return f},
+        pagedData(){var s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+        queryConditionText(){var f=this.queryForm;var parts=[];if(f.productName)parts.push('商品：'+f.productName);if(f.forecastType)parts.push('类型：'+f.forecastType);if(f.alertLevel)parts.push('预警：'+f.alertLevel);return parts.length>0?parts.join(' | '):'全部'}
+      },
+      watch:{'queryForm'( ){this.currentPage=1},tableSearchText(){this.currentPage=1}},
+      methods:{
+        handleQuery(){this.currentPage=1;this.$message.success('查询成功');},
+        handleReset(){this.queryForm={productName:'',forecastType:'',alertLevel:''};this.currentPage=1;},
+        handleRefresh(){this.$message.success('刷新成功');},
+        handleForecast(){this.$message.success('AI预测已完成，准确率94.8%');},
+        handlePageChange(p){this.currentPage=p;},
+        handleSizeChange(s){this.pageSize=s;this.currentPage=1;},
+        handleSelectionChange(v){this.selection=v;},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleExport(){this.$message.success('导出库存预测分析报告');}
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

@@ -1,0 +1,447 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>支付管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">支付管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="支付编号" title="支付编号">
+                    <el-input v-model="queryForm.paymentNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="订单编号" title="订单编号">
+                    <el-input v-model="queryForm.orderNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商" title="供应商">
+                    <el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="支付通道" title="支付通道">
+                    <el-select v-model="queryForm.payChannel" placeholder="请选择" clearable>
+                      <el-option label="电e宝" value="电e宝"></el-option>
+                      <el-option label="网银" value="网银"></el-option>
+                      <el-option label="银行承兑" value="银行承兑"></el-option>
+                      <el-option label="第三方" value="第三方"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待支付" value="待支付"></el-option>
+                      <el-option label="成功" value="成功"></el-option>
+                      <el-option label="失败" value="失败"></el-option>
+                      <el-option label="已退款" value="已退款"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">支付记录列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="paymentNo" label="支付编号" min-width="150" align="center"></el-table-column>
+                    <el-table-column prop="orderNo" label="订单编号" min-width="150" align="center"></el-table-column>
+                    <el-table-column prop="supplier" label="供应商" min-width="190" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="payChannel" label="支付通道" min-width="110" align="center"></el-table-column>
+                    <el-table-column prop="payMethod" label="支付方式" min-width="100" align="center"></el-table-column>
+                    <el-table-column prop="payAmount" label="支付金额(元)" min-width="140" align="right"></el-table-column>
+                    <el-table-column prop="payTime" label="支付时间" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="thirdPartyNo" label="第三方流水" min-width="160" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='成功'?'success':row.status==='待支付'?'warning':row.status==='失败'?'danger':'info'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="220" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="success" v-if="row.status==='待支付'" @click="handlePay(row)">支付</el-button>
+                        <el-button type="warning" v-if="row.status==='成功'" @click="handleRefund(row)">退款</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="支付详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-wallet"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="支付编号">{{ currentDetail.paymentNo }}</el-descriptions-item>
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="支付方式">{{ currentDetail.payMethod }}</el-descriptions-item>
+          <el-descriptions-item label="支付ID">{{ currentDetail.paymentId }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-coin"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="支付金额">{{ currentDetail.payAmount }}</el-descriptions-item>
+          <el-descriptions-item label="银行流水号">{{ currentDetail.bankSerialNo }}</el-descriptions-item>
+          <el-descriptions-item label="付款账户">{{ currentDetail.payAccount }}</el-descriptions-item>
+          <el-descriptions-item label="收款账户">{{ currentDetail.receiveAccount }}</el-descriptions-item>
+          <el-descriptions-item label="支付渠道">{{ currentDetail.payChannel }}</el-descriptions-item>
+          <el-descriptions-item label="手续费">{{ currentDetail.fee }}</el-descriptions-item>
+          <el-descriptions-item label="第三方流水号">{{ currentDetail.thirdPartyNo }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-edit-outline"></i> 操作记录</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="支付时间">{{ currentDetail.payTime }}</el-descriptions-item>
+          <el-descriptions-item label="经办人">{{ currentDetail.operator }}</el-descriptions-item>
+          <el-descriptions-item label="备注">{{ currentDetail.remark }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div v-if="currentDetail.payChannel === '电e宝'" style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-connection"></i> 电e宝四方协同</div>
+        <el-descriptions v-if="currentDetail.payChannel === '电e宝'" :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="专区指令编号">{{ currentDetail.ebaoOrderNo || 'EB-2026-000891' }}</el-descriptions-item>
+          <el-descriptions-item label="ERP凭证号">{{ currentDetail.erpVoucherNo || 'FI-2026-06-7782' }}</el-descriptions-item>
+          <el-descriptions-item label="财务管控审批">{{ currentDetail.finApproval || '已审批' }}</el-descriptions-item>
+          <el-descriptions-item label="电e宝清算状态">{{ currentDetail.ebaoStatus || '已清算' }}</el-descriptions-item>
+          <el-descriptions-item label="到账确认时间">{{ currentDetail.confirmTime || '2026-06-22 14:35' }}</el-descriptions-item>
+          <el-descriptions-item label="四方协议编号">{{ currentDetail.protocolNo || 'PRO-2026-0312' }}</el-descriptions-item>
+        </el-descriptions>
+        <el-alert v-if="currentDetail.payChannel === '电e宝'" title="电e宝四方协同流程：专区发起→ERP校验预算→财务管控审批→电e宝清算→到账确认" type="info" :closable="false" style="margin-bottom:16px;"></el-alert>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 发票信息</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="发票类型">{{ currentDetail.invoiceType || '增值税专用发票' }}</el-descriptions-item>
+          <el-descriptions-item label="发票号码">{{ currentDetail.invoiceNo || '032002600111-57891' }}</el-descriptions-item>
+          <el-descriptions-item label="开票日期">{{ currentDetail.invoiceDate || '2026-06-23' }}</el-descriptions-item>
+          <el-descriptions-item label="发票金额">{{ currentDetail.invoiceAmount || currentDetail.payAmount }} 元</el-descriptions-item>
+          <el-descriptions-item label="验真状态">
+            <el-tag :type="(currentDetail.invoiceVerified || true) ? 'success' : 'warning'" size="small">{{ (currentDetail.invoiceVerified || true) ? '已验真' : '待验真' }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="进项税抵扣">{{ currentDetail.taxDeduction || '已同步ERP' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            订单验收通过后进入支付环节，本页面管理支付记录和支付状态查询。支持电e宝、网银支付、银行承兑汇票、第三方支付四种支付通道。本页面承接订单验收，输出支付记录驱动发票和对账。适用于财务专员发起支付、查询支付状态。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>四种支付通道覆盖不同场景（电e宝/网银/票据/第三方）</li>
+              <li>支付状态全程跟踪（待支付→支付中→成功/失败/退款）</li>
+              <li>第三方流水号关联，支付可追溯</li>
+              <li>支付数据同步ERP财务模块，业财一体</li>
+              <li>支付异常自动重试，失败告警</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询支付</b>：在查询面板输入支付编号/订单号，选择支付通道、状态、支付日期范围，点击"查询"筛选</li>
+              <li><b>发起支付</b>：对待支付订单点击"支付"，选择支付通道，确认支付金额</li>
+              <li><b>查看详情</b>：点击"详情"查看支付完整信息、第三方流水号、支付时间</li>
+              <li><b>支付状态</b>：实时查看支付状态（待支付/支付中/成功/失败/退款）</li>
+              <li><b>退款操作</b>：已支付订单如需退款，点击"退款"，填写退款原因</li>
+              <li><b>导出数据</b>：点击"导出"导出支付清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          queryForm: {paymentNo:'',orderNo:'',supplier:'',payChannel:'',status:''},
+          tableSearchText:'',
+          tableData: [
+            {paymentNo:'PAY-2026-0001',orderNo:'OD-2026-0001',supplier:'国电南瑞科技股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'1,280,000',payTime:'2026-04-10 14:30',thirdPartyNo:'EB2026041014305',status:'成功',paymentId:'P-0001',bankSerialNo:'BK20260627001',payAccount:'6222****1234',receiveAccount:'6225****0001',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0002',orderNo:'OD-2026-0002',supplier:'许继电气股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'692,000',payTime:'2026-04-12 10:15',thirdPartyNo:'BK2026041210152',status:'成功',paymentId:'P-0002',bankSerialNo:'BK20260627002',payAccount:'6222****2345',receiveAccount:'6225****0002',fee:'25',operator:'财务乙',remark:'预付款'},
+            {paymentNo:'PAY-2026-0003',orderNo:'OD-2026-0003',supplier:'威胜信息技术股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'456,000',payTime:'2026-04-15 16:45',thirdPartyNo:'EB2026041516458',status:'成功',paymentId:'P-0003',bankSerialNo:'BK20260627003',payAccount:'6222****3456',receiveAccount:'6225****0003',fee:'50',operator:'财务甲',remark:'尾款'},
+            {paymentNo:'PAY-2026-0004',orderNo:'OD-2026-0004',supplier:'联想集团有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'174,000',payTime:'2026-04-18 09:20',thirdPartyNo:'BK2026041809201',status:'成功',paymentId:'P-0004',bankSerialNo:'BK20260627004',payAccount:'6222****4567',receiveAccount:'6225****0004',fee:'0',operator:'财务乙',remark:'分期付款'},
+            {paymentNo:'PAY-2026-0005',orderNo:'OD-2026-0005',supplier:'平高电气股份有限公司',payChannel:'银行承兑',payMethod:'票据支付',payAmount:'284,000',payTime:'2026-04-20 11:00',thirdPartyNo:'BA2026042011003',status:'待支付',paymentId:'P-0005',bankSerialNo:'BK20260627005',payAccount:'6222****5678',receiveAccount:'6225****0005',fee:'15',operator:'财务甲',remark:'全额付款'},
+            {paymentNo:'PAY-2026-0006',orderNo:'OD-2026-0007',supplier:'代尔塔防护用品公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'86,000',payTime:'2026-04-25 15:30',thirdPartyNo:'EB2026042515307',status:'成功',paymentId:'P-0006',bankSerialNo:'BK20260627006',payAccount:'6222****6789',receiveAccount:'6225****0006',fee:'30',operator:'财务乙',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0007',orderNo:'OD-2026-0009',supplier:'中国惠普有限公司',payChannel:'第三方',payMethod:'在线支付',payAmount:'46,000',payTime:'2026-05-02 14:00',thirdPartyNo:'TP2026050214004',status:'已退款',paymentId:'P-0007',bankSerialNo:'BK20260627007',payAccount:'6222****7890',receiveAccount:'6225****0007',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0008',orderNo:'OD-2026-0010',supplier:'山特电子(深圳)有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'92,500',payTime:'2026-05-05 10:30',thirdPartyNo:'EB2026050510301',status:'成功',paymentId:'P-0008',bankSerialNo:'BK20260627008',payAccount:'6222****8901',receiveAccount:'6225****0008',fee:'20',operator:'财务乙',remark:'紧急付款'},
+            {paymentNo:'PAY-2026-0009',orderNo:'OD-2026-0011',supplier:'国电南瑞科技股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'372,000',payTime:'2026-05-08 11:15',thirdPartyNo:'BK2026050811153',status:'成功',paymentId:'P-0009',bankSerialNo:'BK20260627009',payAccount:'6222****9012',receiveAccount:'6225****0009',fee:'45',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0010',orderNo:'OD-2026-0012',supplier:'威胜信息技术股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'358,400',payTime:'2026-05-10 14:20',thirdPartyNo:'EB2026051014207',status:'成功',paymentId:'P-0010',bankSerialNo:'BK20260627010',payAccount:'6222****0123',receiveAccount:'6225****0010',fee:'0',operator:'财务乙',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0011',orderNo:'OD-2026-0013',supplier:'联想集团有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'290,000',payTime:'2026-05-12 09:45',thirdPartyNo:'BK2026051209451',status:'成功',paymentId:'P-0011',bankSerialNo:'BK20260627001',payAccount:'6222****1234',receiveAccount:'6225****0001',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0012',orderNo:'OD-2026-0014',supplier:'许继电气股份有限公司',payChannel:'银行承兑',payMethod:'票据支付',payAmount:'346,000',payTime:'2026-05-15 16:00',thirdPartyNo:'BA2026051516003',status:'成功',paymentId:'P-0012',bankSerialNo:'BK20260627002',payAccount:'6222****2345',receiveAccount:'6225****0002',fee:'25',operator:'财务乙',remark:'预付款'},
+            {paymentNo:'PAY-2026-0013',orderNo:'OD-2026-0015',supplier:'平高电气股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'142,000',payTime:'2026-05-18 10:00',thirdPartyNo:'EB2026051810005',status:'待支付',paymentId:'P-0013',bankSerialNo:'BK20260627003',payAccount:'6222****3456',receiveAccount:'6225****0003',fee:'50',operator:'财务甲',remark:'尾款'},
+            {paymentNo:'PAY-2026-0014',orderNo:'OD-2026-0016',supplier:'思源电气股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'246,000',payTime:'2026-05-20 15:30',thirdPartyNo:'BK2026052015302',status:'成功',paymentId:'P-0014',bankSerialNo:'BK20260627004',payAccount:'6222****4567',receiveAccount:'6225****0004',fee:'0',operator:'财务乙',remark:'分期付款'},
+            {paymentNo:'PAY-2026-0015',orderNo:'OD-2026-0017',supplier:'代尔塔防护用品公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'195,000',payTime:'2026-05-22 11:00',thirdPartyNo:'EB2026052211008',status:'成功',paymentId:'P-0015',bankSerialNo:'BK20260627005',payAccount:'6222****5678',receiveAccount:'6225****0005',fee:'15',operator:'财务甲',remark:'全额付款'},
+            {paymentNo:'PAY-2026-0016',orderNo:'OD-2026-0018',supplier:'远东电缆有限公司',payChannel:'银行承兑',payMethod:'票据支付',payAmount:'3,360,000',payTime:'2026-05-25 14:15',thirdPartyNo:'BA2026052514156',status:'成功',paymentId:'P-0016',bankSerialNo:'BK20260627006',payAccount:'6222****6789',receiveAccount:'6225****0006',fee:'30',operator:'财务乙',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0017',orderNo:'OD-2026-0019',supplier:'中国惠普有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'69,000',payTime:'2026-05-28 09:30',thirdPartyNo:'BK2026052809304',status:'成功',paymentId:'P-0017',bankSerialNo:'BK20260627007',payAccount:'6222****7890',receiveAccount:'6225****0007',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0018',orderNo:'OD-2026-0020',supplier:'山特电子(深圳)有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'185,000',payTime:'2026-06-02 10:45',thirdPartyNo:'EB2026060210452',status:'成功',paymentId:'P-0018',bankSerialNo:'BK20260627008',payAccount:'6222****8901',receiveAccount:'6225****0008',fee:'20',operator:'财务乙',remark:'紧急付款'},
+            {paymentNo:'PAY-2026-0019',orderNo:'OD-2026-0021',supplier:'国电南瑞科技股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'4,500,000',payTime:'2026-06-05 11:00',thirdPartyNo:'BK2026060511007',status:'成功',paymentId:'P-0019',bankSerialNo:'BK20260627009',payAccount:'6222****9012',receiveAccount:'6225****0009',fee:'45',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0020',orderNo:'OD-2026-0022',supplier:'威胜信息技术股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'948,700',payTime:'2026-06-08 14:30',thirdPartyNo:'EB2026060814303',status:'成功',paymentId:'P-0020',bankSerialNo:'BK20260627010',payAccount:'6222****0123',receiveAccount:'6225****0010',fee:'0',operator:'财务乙',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0021',orderNo:'OD-2026-0023',supplier:'联想集团有限公司',payChannel:'银行承兑',payMethod:'票据支付',payAmount:'174,000',payTime:'2026-06-10 09:15',thirdPartyNo:'BA2026061009155',status:'成功',paymentId:'P-0021',bankSerialNo:'BK20260627001',payAccount:'6222****1234',receiveAccount:'6225****0001',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0022',orderNo:'OD-2026-0024',supplier:'许继电气股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'346,000',payTime:'2026-06-12 15:00',thirdPartyNo:'BK2026061215009',status:'成功',paymentId:'P-0022',bankSerialNo:'BK20260627002',payAccount:'6222****2345',receiveAccount:'6225****0002',fee:'25',operator:'财务乙',remark:'预付款'},
+            {paymentNo:'PAY-2026-0023',orderNo:'OD-2026-0025',supplier:'平高电气股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'142,000',payTime:'2026-06-15 10:20',thirdPartyNo:'EB2026061510204',status:'待支付',paymentId:'P-0023',bankSerialNo:'BK20260627003',payAccount:'6222****3456',receiveAccount:'6225****0003',fee:'50',operator:'财务甲',remark:'尾款'},
+            {paymentNo:'PAY-2026-0024',orderNo:'OD-2026-0026',supplier:'思源电气股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'123,000',payTime:'2026-06-18 11:45',thirdPartyNo:'BK2026061811452',status:'成功',paymentId:'P-0024',bankSerialNo:'BK20260627004',payAccount:'6222****4567',receiveAccount:'6225****0004',fee:'0',operator:'财务乙',remark:'分期付款'},
+            {paymentNo:'PAY-2026-0025',orderNo:'OD-2026-0027',supplier:'代尔塔防护用品公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'130,000',payTime:'2026-06-20 14:00',thirdPartyNo:'EB2026062014007',status:'成功',paymentId:'P-0025',bankSerialNo:'BK20260627005',payAccount:'6222****5678',receiveAccount:'6225****0005',fee:'15',operator:'财务甲',remark:'全额付款'},
+            {paymentNo:'PAY-2026-0026',orderNo:'OD-2026-0028',supplier:'远东电缆有限公司',payChannel:'银行承兑',payMethod:'票据支付',payAmount:'1,400,000',payTime:'2026-06-22 09:30',thirdPartyNo:'BA2026062209301',status:'成功',paymentId:'P-0026',bankSerialNo:'BK20260627006',payAccount:'6222****6789',receiveAccount:'6225****0006',fee:'30',operator:'财务乙',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0027',orderNo:'OD-2026-0029',supplier:'中国惠普有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'81,700',payTime:'2026-06-25 15:15',thirdPartyNo:'BK2026062515153',status:'成功',paymentId:'P-0027',bankSerialNo:'BK20260627007',payAccount:'6222****7890',receiveAccount:'6225****0007',fee:'0',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0028',orderNo:'OD-2026-0030',supplier:'山特电子(深圳)有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'92,500',payTime:'2026-06-27 10:00',thirdPartyNo:'EB2026062710005',status:'待支付',paymentId:'P-0028',bankSerialNo:'BK20260627008',payAccount:'6222****8901',receiveAccount:'6225****0008',fee:'20',operator:'财务乙',remark:'紧急付款'},
+            {paymentNo:'PAY-2026-0029',orderNo:'OD-2026-0031',supplier:'国电南瑞科技股份有限公司',payChannel:'网银',payMethod:'在线支付',payAmount:'568,000',payTime:'2026-06-28 14:45',thirdPartyNo:'BK2026062814458',status:'失败',paymentId:'P-0029',bankSerialNo:'BK20260627009',payAccount:'6222****9012',receiveAccount:'6225****0009',fee:'45',operator:'财务甲',remark:'正常付款'},
+            {paymentNo:'PAY-2026-0030',orderNo:'OD-2026-0032',supplier:'许继电气股份有限公司',payChannel:'电e宝',payMethod:'在线支付',payAmount:'155,000',payTime:'2026-06-29 09:00',thirdPartyNo:'EB2026062909002',status:'成功',paymentId:'P-0030',bankSerialNo:'BK20260627010',payAccount:'6222****0123',receiveAccount:'6225****0010',fee:'0',operator:'财务乙',remark:'正常付款'}
+        ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          detailVisible:false,
+          helpVisible: false,
+          currentDetail:null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'paymentNo',label:'支付编号'},{key:'orderNo',label:'订单编号'},{key:'supplier',label:'供应商'},
+            {key:'payChannel',label:'支付通道'},{key:'payMethod',label:'支付方式'},{key:'payAmount',label:'支付金额(元)'},
+            {key:'payTime',label:'支付时间'},{key:'thirdPartyNo',label:'第三方流水'},{key:'status',label:'状态'},
+            {key:'paymentId',label:'支付ID'},{key:'bankSerialNo',label:'银行流水号'},{key:'payAccount',label:'付款账户'},
+            {key:'receiveAccount',label:'收款账户'},{key:'fee',label:'手续费'},{key:'operator',label:'经办人'},{key:'remark',label:'备注'}
+          ],
+          fieldLabels:{
+            paymentNo:'支付编号',
+            orderNo:'订单编号',
+            supplier:'供应商',
+            payChannel:'支付通道',
+            payMethod:'支付方式',
+            payAmount:'支付金额(元)',
+            payTime:'支付时间',
+            thirdPartyNo:'第三方流水',
+            status:'状态'
+          }
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(item => {
+            if (this.queryForm.paymentNo && !item.paymentNo.toLowerCase().includes(this.queryForm.paymentNo.toLowerCase())) return false;
+            if (this.queryForm.orderNo && !item.orderNo.toLowerCase().includes(this.queryForm.orderNo.toLowerCase())) return false;
+            if (this.queryForm.supplier && !item.supplier.includes(this.queryForm.supplier)) return false;
+            if (this.queryForm.payChannel && item.payChannel !== this.queryForm.payChannel) return false;
+            if (this.queryForm.status && item.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = ((item.paymentNo || '') + ' ' + (item.orderNo || '') + ' ' + (item.supplier || '') + ' ' + (item.payChannel || '') + ' ' + (item.status || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (f.paymentNo) conditions.push('支付编号：'+f.paymentNo);
+          if (f.orderNo) conditions.push('订单编号：'+f.orderNo);
+          if (f.supplier) conditions.push('供应商：'+f.supplier);
+          if (f.payChannel) conditions.push('支付通道：'+f.payChannel);
+          if (f.status) conditions.push('状态：'+f.status);
+          return conditions.length===0 ? '暂无查询条件' : '查询条件('+conditions.length+')：'+conditions.join('，');
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {paymentNo:'',orderNo:'',supplier:'',payChannel:'',status:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.loadData(); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '付款列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/payments');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        handlePay(row) {
+          this.$confirm('确认支付订单 '+row.orderNo+'，金额 '+row.payAmount+' 元？', '支付确认', { type:'warning' }).then(() => {
+            row.status = '成功';
+            row.payTime = new Date().toISOString().replace('T',' ').substring(0,16);
+            this.$message.success('支付成功');
+          }).catch(() => {});
+        },
+        handleRefund(row) {
+          this.$confirm('确认对订单 '+row.orderNo+' 发起退款？退款后状态将变为"已退款"', '退款确认', { type:'warning' }).then(() => {
+            row.status = '已退款';
+            this.$message.success('退款申请已提交');
+          }).catch(() => {});
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

@@ -1,0 +1,498 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>价格指数服务</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .tl-footer { text-align:center; }
+    .stat-cards { display:flex; margin-bottom:16px; }
+    .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .stat-toggle { text-align:center; margin-bottom:12px; }
+    .stat-toggle .el-button { font-size:13px; color:#0B7266; }
+    .table-maximized { position:fixed !important; top:0; left:0; right:0; bottom:0; z-index:2000; background:#fff; padding:16px; overflow:auto; }
+    .table-maximized .yj-container-card__bar { padding:8px 0; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">价格指数服务</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header">
+              <span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span>
+            </div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="物资名称" title="物资名称">
+                    <el-input v-model="queryForm.materialName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="指数类型" title="指数类型">
+                    <el-select v-model="queryForm.indexType" placeholder="请选择" clearable>
+                      <el-option label="综合价格指数" value="综合价格指数"></el-option>
+                      <el-option label="分类价格指数" value="分类价格指数"></el-option>
+                      <el-option label="对标价格指数" value="对标价格指数"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="趋势" title="趋势">
+                    <el-select v-model="queryForm.trend" placeholder="请选择" clearable>
+                      <el-option label="上涨" value="上涨"></el-option>
+                      <el-option label="下跌" value="下跌"></el-option>
+                      <el-option label="平稳" value="平稳"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh-left">刷新指数</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                    <span title="价格指数列表">价格指数列表</span>
+                  </div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                    共 {{ filteredData.length }} 条记录
+                  </div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleAdd" icon="el-icon-plus">新增指数</el-button>
+                      </div>
+                    </div>
+                    <div class="yj-container-card__default-buttons">
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true"><i class="el-icon-setting"></i></button>
+                      <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize"><i class="el-icon-full-screen"></i></button>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger">
+                      <el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table" style="position:relative;">
+                <div class="stat-toggle">
+                  <el-button type="text" @click="statCollapsed = !statCollapsed">
+                    <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                    {{ statCollapsed ? '展开统计' : '收起统计' }}
+                  </el-button>
+                </div>
+                <div class="stat-cards" v-show="!statCollapsed">
+                  <div class="stat-card"><div class="stat-label">指数总数(条)</div><div class="stat-value">{{ filteredData.length }}</div></div>
+                  <div class="stat-card"><div class="stat-label">上涨中(条)</div><div class="stat-value" style="color:#c62828;">{{ statRisingCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">下跌中(条)</div><div class="stat-value" style="color:#2e7d32;">{{ statFallingCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">异常预警(条)</div><div class="stat-value" style="color:#f57c00;">{{ statWarningCount }}</div></div>
+                  <div class="stat-card"><div class="stat-label">数据覆盖率</div><div class="stat-value">96.8<span class="stat-unit">%</span></div></div>
+                </div>
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @row-click="handleRowClick">
+                  <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('indexNo')" prop="indexNo" label="指数编号" width="120" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('materialName')" prop="materialName" label="物资名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column v-if="isColumnVisible('indexType')" prop="indexType" label="指数类型" width="120" align="center">
+                    <template slot-scope="scope"><el-tag size="small" type="info">{{ scope.row.indexType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('currentIndex')" prop="currentIndex" label="当前指数" width="100" align="center">
+                    <template slot-scope="scope"><span style="font-weight:700;font-size:15px;color:#1A2332;">{{ scope.row.currentIndex }}</span></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('changeRate')" prop="changeRate" label="日涨跌幅(%)" width="110" align="center">
+                    <template slot-scope="scope"><span :style="{color:scope.row.changeRate>0?'#c62828':'#2e7d32',fontWeight:600}">{{ scope.row.changeRate>0?'↑':'↓' }}{{ Math.abs(scope.row.changeRate) }}%</span></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('trend')" prop="trend" label="趋势" width="80" align="center">
+                    <template slot-scope="scope"><el-tag :type="scope.row.trend==='上涨'?'danger':scope.row.trend==='下跌'?'success':'info'" size="small">{{ scope.row.trend }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column v-if="isColumnVisible('dataSource')" prop="dataSource" label="数据源数" width="90" align="center"></el-table-column>
+                  <el-table-column v-if="isColumnVisible('updateTime')" prop="updateTime" label="更新时间" width="160" align="center"></el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right">
+                    <template slot-scope="scope">
+                      <el-button type="text" @click.stop="handleDetail(scope.row)">详情</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog title="价格指数详情" :visible.sync="detailVisible" width="800px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-descriptions :column="2" border v-if="currentRow">
+        <el-descriptions-item label="指数编号">{{ currentRow.indexNo }}</el-descriptions-item>
+        <el-descriptions-item label="物资名称">{{ currentRow.materialName }}</el-descriptions-item>
+        <el-descriptions-item label="指数类型">{{ currentRow.indexType }}</el-descriptions-item>
+        <el-descriptions-item label="当前指数">{{ currentRow.currentIndex }}</el-descriptions-item>
+        <el-descriptions-item label="日涨跌幅">{{ currentRow.changeRate }}%</el-descriptions-item>
+        <el-descriptions-item label="趋势"><el-tag :type="currentRow.trend==='上涨'?'danger':currentRow.trend==='下跌'?'success':'info'" size="small">{{ currentRow.trend }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="数据源数">{{ currentRow.dataSource }}</el-descriptions-item>
+        <el-descriptions-item label="更新时间">{{ currentRow.updateTime }}</el-descriptions-item>
+      </el-descriptions>
+      <div v-if="currentRow" class="form-section-title"><i class="el-icon-data-line"></i> 指数走势（近12期）</div>
+      <div class="yj-container-card__table" v-if="currentRow">
+        <el-table :data="currentRow.trendData || []" border size="small" style="margin-top:8px;">
+          <el-table-column prop="period" label="期次" width="100" align="center"></el-table-column>
+          <el-table-column prop="indexValue" label="指数值" width="100" align="center"></el-table-column>
+          <el-table-column prop="changeRate" label="涨跌幅" width="100" align="center">
+            <template slot-scope="scope"><span :style="{color:scope.row.changeRate>0?'#c62828':'#2e7d32'}">{{ scope.row.changeRate>0?'+':'' }}{{ scope.row.changeRate }}%</span></template>
+          </el-table-column>
+          <el-table-column prop="marketPrice" label="市场均价(元)" width="130" align="center">
+            <template slot-scope="scope">{{ scope.row.marketPrice.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="ecpPrice" label="商城均价(元)" width="130" align="center">
+            <template slot-scope="scope">{{ scope.row.ecpPrice.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="deviation" label="偏离度" width="100" align="center">
+            <template slot-scope="scope"><span :style="{color:Math.abs(scope.row.deviation)>10?'#c62828':'#2e7d32'}">{{ scope.row.deviation }}%</span></template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div v-if="currentRow" class="form-section-title"><i class="el-icon-connection"></i> 数据来源</div>
+      <div class="yj-container-card__table" v-if="currentRow">
+        <el-table :data="currentRow.sourceData || []" border size="small" style="margin-top:8px;">
+          <el-table-column prop="sourceName" label="数据源名称" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="sourceType" label="类型" width="120" align="center"></el-table-column>
+          <el-table-column prop="price" label="报价(元)" width="120" align="center">
+            <template slot-scope="scope">{{ scope.row.price.toLocaleString() }}</template>
+          </el-table-column>
+          <el-table-column prop="weight" label="权重" width="80" align="center"></el-table-column>
+          <el-table-column prop="reliability" label="可靠度" width="100" align="center">
+            <template slot-scope="scope"><el-rate v-model="scope.row.reliability" disabled :max="5"></el-rate></template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="detailVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-data-line"></i> 业务场景</div>
+          <div class="help-section__body">价格指数服务通过采集多源市场价格数据（电商平台、行业市场、供应商报价等），经过加权计算生成物资价格指数，为采购决策提供客观参考依据。适用于采购价格监控、预算编制、供应商议价等场景。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-collection"></i> 指数类型</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>综合价格指数</b>：覆盖全部物资类别的宏观价格指数，反映整体价格波动</li>
+              <li><b>分类价格指数</b>：特定物资类别的价格指数（如电力电缆、配电变压器）</li>
+              <li><b>对标价格指数</b>：与外部对标平台（如国网物资采购平台）的价格对比指数</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-marketing"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>价格监控</b>：实时跟踪市场价格变动，及时发现异常波动</li>
+              <li><b>采购参考</b>：为采购预算编制和供应商议价提供客观依据</li>
+              <li><b>偏离预警</b>：当物资价格偏离指数超过阈值时自动预警</li>
+              <li><b>趋势预测</b>：基于历史数据预测未来价格走势</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-warning-outline"></i> 异常预警规则</div>
+          <div class="help-section__body">
+            <ul>
+              <li>当物资价格偏离指数超过10%时自动触发预警</li>
+              <li>连续3日涨跌幅超过5%触发趋势预警</li>
+              <li>数据源异常中断触发数据质量预警</li>
+              <li>指数更新频率：每日8:00自动刷新</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-connection"></i> 上下业务环节</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>上游</b>：市场数据采集 — 定时抓取电商平台、行业市场价格数据</li>
+              <li><b>上游</b>：供应商报价管理 — 供应商定期上报价格作为数据源之一</li>
+              <li><b>本页</b>：价格指数服务 — 多源数据加权计算，生成物资价格指数</li>
+              <li><b>下游</b>：采购申请审批 — 采购申请价格与指数对比，超阈值触发审批</li>
+              <li><b>下游</b>：合同价格管理 — 合同价格参照价格指数进行监控</li>
+              <li><b>下游</b>：预算编制 — 采购预算参考价格指数进行预估</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '90px',
+          isSearchPanelCollapsed: false,
+          queryForm: { materialName: '', indexType: '', trend: '' },
+          tableSearchText: '',
+          pageSize: 10,
+          currentPage: 1,
+          statCollapsed: true,
+          detailVisible: false,
+          helpVisible: false,
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          currentRow: null,
+          visibleColumns: ['indexNo','materialName','indexType','currentIndex','changeRate','trend','dataSource','updateTime'],
+          columnSettings: [
+            {prop:'indexNo',label:'指数编号'},{prop:'materialName',label:'物资名称'},{prop:'indexType',label:'指数类型'},
+            {prop:'currentIndex',label:'当前指数'},{prop:'changeRate',label:'日涨跌幅'},{prop:'trend',label:'趋势'},
+            {prop:'dataSource',label:'数据源数'},{prop:'updateTime',label:'更新时间'}
+          ],
+          fieldLabels: {
+            indexNo:'指数编号', materialName:'物资名称', indexType:'指数类型', currentIndex:'当前指数',
+            changeRate:'日涨跌幅', trend:'趋势', dataSource:'数据源数', updateTime:'更新时间'
+          },
+          tableData: []
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(function(r) {
+            if (this.queryForm.materialName && r.materialName.indexOf(this.queryForm.materialName) === -1) return false;
+            if (this.queryForm.indexType && r.indexType !== this.queryForm.indexType) return false;
+            if (this.queryForm.trend && r.trend !== this.queryForm.trend) return false;
+            if (this.tableSearchText) {
+              var kw = this.tableSearchText.toLowerCase();
+              var text = (r.indexNo + r.materialName + r.indexType + r.trend).toLowerCase();
+              if (text.indexOf(kw) === -1) return false;
+            }
+            return true;
+          }.bind(this));
+        },
+        pagedData() {
+          var start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        queryConditionText() {
+          var conditions = [];
+          var f = this.queryForm;
+          if (f.materialName) conditions.push('物资：' + f.materialName);
+          if (f.indexType) conditions.push('指数类型：' + f.indexType);
+          if (f.trend) conditions.push('趋势：' + f.trend);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        statRisingCount() {
+          return this.filteredData.filter(function(i){ return i.trend === '上涨'; }).length;
+        },
+        statFallingCount() {
+          return this.filteredData.filter(function(i){ return i.trend === '下跌'; }).length;
+        },
+        statWarningCount() {
+          return this.filteredData.filter(function(i){ return Math.abs(i.changeRate) > 10; }).length;
+        }
+      },
+      watch: {
+        'queryForm.materialName'() { this.currentPage = 1; },
+        'queryForm.indexType'() { this.currentPage = 1; },
+        'queryForm.trend'() { this.currentPage = 1; },
+        tableSearchText() { this.currentPage = 1; }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage = 1; this.$message.success('查询完成，共 ' + this.filteredData.length + ' 条记录'); },
+        handleReset() {
+          this.queryForm = { materialName: '', indexType: '', trend: '' };
+          this.tableSearchText = '';
+          this.currentPage = 1;
+        },
+        handleExport() { this.exportCSV(); },
+        handleRefresh() { this.$message.success('价格指数刷新中，请稍候...'); },
+        exportCSV() {
+          if (this.filteredData.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          var labels = this.fieldLabels || {};
+          var keys = ['indexNo','materialName','indexType','currentIndex','changeRate','trend','dataSource','updateTime'];
+          var headers = keys.map(function(k){ return labels[k] || k; });
+          var rows = this.filteredData.map(function(item) {
+            return keys.map(function(k) {
+              var v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+              return '"' + v.replace(/"/g, '""') + '"';
+            }).join(',');
+          });
+          var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '导出数据') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        handleRowClick(row) { this.handleDetail(row); },
+        handleDetail(row) { this.currentRow = row; this.detailVisible = true; },
+        handleAdd() { this.$message.info('新增指数功能开发中'); },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; },
+        isColumnVisible(prop) { return this.visibleColumns.indexOf(prop) > -1; },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c){ return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; },
+        initData() {
+          var trendTemplate = [
+            {period:'2026-06W1',indexValue:105.2,changeRate:0.8,marketPrice:4820,ecpPrice:4750,deviation:-1.5},
+            {period:'2026-06W2',indexValue:106.1,changeRate:0.9,marketPrice:4850,ecpPrice:4780,deviation:-1.4},
+            {period:'2026-06W3',indexValue:104.8,changeRate:-1.2,marketPrice:4810,ecpPrice:4760,deviation:-1.0},
+            {period:'2026-06W4',indexValue:103.5,changeRate:-1.2,marketPrice:4780,ecpPrice:4720,deviation:-1.3},
+            {period:'2026-07W1',indexValue:102.8,changeRate:-0.7,marketPrice:4750,ecpPrice:4700,deviation:-1.1},
+            {period:'2026-07W2',indexValue:103.2,changeRate:0.4,marketPrice:4760,ecpPrice:4710,deviation:-1.1},
+            {period:'2026-07W3',indexValue:104.1,changeRate:0.9,marketPrice:4790,ecpPrice:4730,deviation:-1.3},
+            {period:'2026-07W4',indexValue:105.6,changeRate:1.4,marketPrice:4830,ecpPrice:4760,deviation:-1.4},
+            {period:'2026-08W1',indexValue:106.8,changeRate:1.1,marketPrice:4870,ecpPrice:4790,deviation:-1.6},
+            {period:'2026-08W2',indexValue:108.2,changeRate:1.3,marketPrice:4920,ecpPrice:4830,deviation:-1.8},
+            {period:'2026-08W3',indexValue:107.5,changeRate:-0.6,marketPrice:4900,ecpPrice:4820,deviation:-1.6},
+            {period:'2026-08W4',indexValue:108.8,changeRate:1.2,marketPrice:4940,ecpPrice:4850,deviation:-1.8}
+          ];
+          var sourceTemplate = [
+            {sourceName:'京东工业品',sourceType:'电商平台',price:4850,weight:'25%',reliability:4},
+            {sourceName:'震坤行',sourceType:'电商平台',price:4820,weight:'20%',reliability:4},
+            {sourceName:'1688工业品',sourceType:'电商平台',price:4900,weight:'15%',reliability:3},
+            {sourceName:'行业市场报价',sourceType:'市场数据',price:4880,weight:'25%',reliability:5},
+            {sourceName:'供应商报价均值',sourceType:'供应商',price:4790,weight:'15%',reliability:5}
+          ];
+          var raw = [
+            {indexNo:'PI-001',materialName:'10kV电力电缆',indexType:'分类价格指数',currentIndex:108.8,changeRate:1.2,trend:'上涨',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-002',materialName:'配电变压器',indexType:'分类价格指数',currentIndex:95.2,changeRate:-0.8,trend:'下跌',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-003',materialName:'钢芯铝绞线',indexType:'分类价格指数',currentIndex:112.5,changeRate:2.1,trend:'上涨',dataSource:6,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-004',materialName:'复合绝缘子',indexType:'分类价格指数',currentIndex:101.3,changeRate:0.2,trend:'平稳',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-005',materialName:'高压断路器',indexType:'分类价格指数',currentIndex:98.7,changeRate:-1.5,trend:'下跌',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-006',materialName:'电力金具(综合)',indexType:'综合价格指数',currentIndex:104.5,changeRate:0.5,trend:'上涨',dataSource:8,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-007',materialName:'智能电表',indexType:'分类价格指数',currentIndex:96.8,changeRate:-0.3,trend:'下跌',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-008',materialName:'通信光缆',indexType:'分类价格指数',currentIndex:103.2,changeRate:0.0,trend:'平稳',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-009',materialName:'铁塔钢材',indexType:'对标价格指数',currentIndex:115.6,changeRate:3.2,trend:'上涨',dataSource:7,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-010',materialName:'安全工器具',indexType:'综合价格指数',currentIndex:100.1,changeRate:0.1,trend:'平稳',dataSource:6,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-011',materialName:'低压开关柜',indexType:'分类价格指数',currentIndex:102.4,changeRate:0.6,trend:'上涨',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-012',materialName:'电能质量设备',indexType:'分类价格指数',currentIndex:97.8,changeRate:-1.2,trend:'下跌',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-013',materialName:'光伏组件',indexType:'对标价格指数',currentIndex:88.5,changeRate:-2.5,trend:'下跌',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-014',materialName:'储能电池',indexType:'对标价格指数',currentIndex:92.3,changeRate:-1.8,trend:'下跌',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-015',materialName:'电动汽车充电桩',indexType:'综合价格指数',currentIndex:105.6,changeRate:1.5,trend:'上涨',dataSource:6,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-016',materialName:'电力调度系统',indexType:'综合价格指数',currentIndex:110.2,changeRate:0.9,trend:'上涨',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-017',materialName:'接地装置',indexType:'分类价格指数',currentIndex:99.6,changeRate:0.1,trend:'平稳',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-018',materialName:'电力电缆附件',indexType:'分类价格指数',currentIndex:101.8,changeRate:0.3,trend:'平稳',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-019',materialName:'变压器油',indexType:'分类价格指数',currentIndex:118.5,changeRate:4.5,trend:'上涨',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-020',materialName:'杆塔基础材料',indexType:'对标价格指数',currentIndex:106.8,changeRate:1.8,trend:'上涨',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-021',materialName:'电力通信设备',indexType:'综合价格指数',currentIndex:103.5,changeRate:0.4,trend:'平稳',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-022',materialName:'无功补偿装置',indexType:'分类价格指数',currentIndex:98.2,changeRate:-0.6,trend:'下跌',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-023',materialName:'防雷接地材料',indexType:'分类价格指数',currentIndex:100.9,changeRate:0.2,trend:'平稳',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-024',materialName:'自动化控制设备',indexType:'综合价格指数',currentIndex:107.3,changeRate:1.1,trend:'上涨',dataSource:5,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-025',materialName:'电缆保护管',indexType:'分类价格指数',currentIndex:99.2,changeRate:-0.3,trend:'下跌',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-026',materialName:'配电自动化终端',indexType:'分类价格指数',currentIndex:104.8,changeRate:0.8,trend:'上涨',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-027',materialName:'电能表检定设备',indexType:'对标价格指数',currentIndex:101.5,changeRate:0.3,trend:'平稳',dataSource:3,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-028',materialName:'输电线路材料',indexType:'综合价格指数',currentIndex:109.6,changeRate:1.6,trend:'上涨',dataSource:6,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-029',materialName:'电力安全监测系统',indexType:'综合价格指数',currentIndex:102.8,changeRate:0.5,trend:'上涨',dataSource:4,updateTime:'2026-07-09 08:00'},
+            {indexNo:'PI-030',materialName:'输变电在线监测装置',indexType:'分类价格指数',currentIndex:105.1,changeRate:0.9,trend:'上涨',dataSource:3,updateTime:'2026-07-09 08:00'}
+          ];
+          var self = this;
+          raw.forEach(function(r) {
+            r.trendData = trendTemplate.map(function(t) {
+              var ratio = (r.currentIndex / 108.8);
+              return {
+                period: t.period,
+                indexValue: parseFloat((t.indexValue * ratio).toFixed(1)),
+                changeRate: parseFloat((t.changeRate * (Math.random() > 0.5 ? 1 : -1) * 0.5).toFixed(1)),
+                marketPrice: Math.round(t.marketPrice * ratio),
+                ecpPrice: Math.round(t.ecpPrice * ratio),
+                deviation: parseFloat((t.deviation * (Math.random() > 0.3 ? 1 : -1)).toFixed(1))
+              };
+            });
+            r.sourceData = sourceTemplate.map(function(s) {
+              return {
+                sourceName: s.sourceName,
+                sourceType: s.sourceType,
+                price: Math.round(s.price * (r.currentIndex / 108.8)),
+                weight: s.weight,
+                reliability: s.reliability
+              };
+            });
+          });
+          this.tableData = raw;
+        }
+      },
+      mounted() {
+        this.initData();
+        this.handleQuery();
+      }
+    });
+  </script>
+</body>
+</html>

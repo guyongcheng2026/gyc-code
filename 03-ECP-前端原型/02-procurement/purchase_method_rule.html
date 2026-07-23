@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>采购方式自动判定规则配置</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .rule-flow { display:flex; align-items:center; /* gap-removed */; margin:12px 0; flex-wrap:wrap; }
+    .rule-flow .flow-item { background:#E0F0EE; color:#0B7266; border-radius:4px; padding:6px 12px; font-size:13px; }
+    .rule-flow .flow-arrow { color:#909399; font-size:16px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">采购方式自动判定规则配置</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="规则名称"><el-input v-model="queryForm.ruleName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方式"><el-select v-model="queryForm.purchaseMethod" placeholder="请选择" clearable><el-option label="公开招标" value="公开招标"></el-option><el-option label="邀请招标" value="邀请招标"></el-option><el-option label="竞争性谈判" value="竞争性谈判"></el-option><el-option label="询比价" value="询比价"></el-option><el-option label="单一来源" value="单一来源"></el-option><el-option label="框架协议" value="框架协议"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="启用" value="启用"></el-option><el-option label="停用" value="停用"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button type="primary" @click="handleAdd" icon="el-icon-plus">新增规则</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开' : '收起'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span>采购方式判定规则列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条</span></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键字" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;">
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="ruleName" label="规则名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="purchaseMethod" label="采购方式" min-width="120" align="center"><template slot-scope="{row}"><el-tag size="small">{{ row.purchaseMethod }}</el-tag></template></el-table-column>
+                  <el-table-column prop="amountMin" label="金额下限(万)" min-width="120" align="right"></el-table-column>
+                  <el-table-column prop="amountMax" label="金额上限(万)" min-width="120" align="right"></el-table-column>
+                  <el-table-column prop="category" label="物资品类" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="priority" label="优先级" width="80" align="center"></el-table-column>
+                  <el-table-column prop="status" label="状态" width="80" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='启用'?'success':'info'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                  <el-table-column prop="updateTime" label="更新时间" min-width="150" align="center"></el-table-column>
+                  <el-table-column label="操作" width="180" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="primary" @click="handleEdit(row)">编辑</el-button>
+                      <el-button :type="row.status==='启用'?'danger':'success'" @click="toggleStatus(row)">{{ row.status==='启用'?'停用':'启用' }}</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+
+          <!-- 判定流程示意 -->
+          <div style="margin-top:16px;background:#fff;border:1px solid #EAECF0;border-radius:4px;padding:16px;">
+            <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-operation"></i> 采购方式自动判定流程</div>
+            <div class="rule-flow">
+              <div class="flow-item">需求提报</div><span class="flow-arrow">-></span>
+              <div class="flow-item">金额判定</div><span class="flow-arrow">-></span>
+              <div class="flow-item">品类匹配</div><span class="flow-arrow">-></span>
+              <div class="flow-item">规则优先级排序</div><span class="flow-arrow">-></span>
+              <div class="flow-item">自动推荐采购方式</div><span class="flow-arrow">-></span>
+              <div class="flow-item">人工确认/调整</div>
+            </div>
+            <div style="font-size:13px;color:#555;line-height:1.8;margin-top:8px;">
+              系统根据需求金额、物资品类、项目类型等条件，自动匹配采购方式判定规则，推荐最优采购方式。六种采购方式：公开招标（>=500万）、邀请招标（100-500万）、竞争性谈判（50-100万）、询比价（10-50万）、单一来源（特殊品类）、框架协议（重复采购）。
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 新增/编辑弹窗 -->
+    <el-dialog :lazy="true" :title="editForm.id?'编辑规则':'新增规则'" :visible.sync="editVisible" width="640px">
+      <el-form :model="editForm" label-width="120px" label-suffix="：">
+        <el-form-item label="规则名称"><el-input v-model="editForm.ruleName" placeholder="如：500万以上公开招标"></el-input></el-form-item>
+        <el-form-item label="采购方式"><el-select v-model="editForm.purchaseMethod" placeholder="请选择"><el-option label="公开招标" value="公开招标"></el-option><el-option label="邀请招标" value="邀请招标"></el-option><el-option label="竞争性谈判" value="竞争性谈判"></el-option><el-option label="询比价" value="询比价"></el-option><el-option label="单一来源" value="单一来源"></el-option><el-option label="框架协议" value="框架协议"></el-option></el-select></el-form-item>
+        <el-form-item label="金额下限(万)"><el-input-number v-model="editForm.amountMin" :min="0" :precision="2"></el-input-number></el-form-item>
+        <el-form-item label="金额上限(万)"><el-input-number v-model="editForm.amountMax" :min="0" :precision="2"></el-input-number></el-form-item>
+        <el-form-item label="物资品类"><el-input v-model="editForm.category" placeholder="如：变压器设备/办公用品"></el-input></el-form-item>
+        <el-form-item label="优先级"><el-input-number v-model="editForm.priority" :min="1" :max="99"></el-input-number></el-form-item>
+        <el-form-item label="状态"><el-switch v-model="editForm.status" active-text="启用" inactive-text="停用" active-value="启用" inactive-value="停用"></el-switch></el-form-item>
+      </el-form>
+      <div slot="footer"><el-button @click="editVisible=false">取消</el-button><el-button type="primary" @click="saveRule">保存</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">根据需求金额、物资品类等条件，系统自动判定并推荐采购方式（公开招标/邀请招标/竞争性谈判/询比价/单一来源/框架协议），减少人工判断，确保采购合规。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body"><ul><li>六种采购方式自动判定，覆盖全场景</li><li>金额阈值+品类匹配+优先级排序，判定精准</li><li>规则可配置可调整，灵活适应业务变化</li><li>减少人工判断失误，确保采购合规</li></ul></div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({el:'#app',data(){return{labelWidth:'100px',isSearchPanelCollapsed:false,queryForm:{ruleName:'',purchaseMethod:'',status:''},tableSearchText:'',tableData:[
+      {id:1,ruleName:'500万以上公开招标',purchaseMethod:'公开招标',amountMin:500,amountMax:'',category:'全部品类',priority:1,status:'启用',updateTime:'2026-01-15 10:00:00'},
+      {id:2,ruleName:'100-500万邀请招标',purchaseMethod:'邀请招标',amountMin:100,amountMax:500,category:'全部品类',priority:2,status:'启用',updateTime:'2026-01-15 10:05:00'},
+      {id:3,ruleName:'50-100万竞争性谈判',purchaseMethod:'竞争性谈判',amountMin:50,amountMax:100,category:'全部品类',priority:3,status:'启用',updateTime:'2026-01-15 10:10:00'},
+      {id:4,ruleName:'10-50万询比价',purchaseMethod:'询比价',amountMin:10,amountMax:50,category:'全部品类',priority:4,status:'启用',updateTime:'2026-01-15 10:15:00'},
+      {id:5,ruleName:'10万以下框架协议',purchaseMethod:'框架协议',amountMin:0,amountMax:10,category:'办公用品',priority:5,status:'启用',updateTime:'2026-01-15 10:20:00'},
+      {id:6,ruleName:'特种设备单一来源',purchaseMethod:'单一来源',amountMin:0,amountMax:'',category:'特种设备',priority:1,status:'启用',updateTime:'2026-01-15 10:25:00'},
+      {id:7,ruleName:'MRO物资询比价',purchaseMethod:'询比价',amountMin:5,amountMax:30,category:'MRO物资',priority:6,status:'启用',updateTime:'2026-02-01 09:00:00'},
+      {id:8,ruleName:'IT设备邀请招标',purchaseMethod:'邀请招标',amountMin:50,amountMax:300,category:'IT设备',priority:2,status:'停用',updateTime:'2026-02-10 14:00:00'},
+      {id:9,ruleName:'电力电缆公开招标',purchaseMethod:'公开招标',amountMin:300,amountMax:'',category:'电力电缆',priority:1,status:'启用',updateTime:'2026-03-01 09:00:00'},
+      {id:10,ruleName:'变压器邀请招标',purchaseMethod:'邀请招标',amountMin:200,amountMax:800,category:'变压器',priority:2,status:'启用',updateTime:'2026-03-05 10:00:00'},
+      {id:11,ruleName:'开关柜竞争性谈判',purchaseMethod:'竞争性谈判',amountMin:80,amountMax:200,category:'开关柜',priority:3,status:'启用',updateTime:'2026-03-10 11:00:00'},
+      {id:12,ruleName:'劳保用品框架协议',purchaseMethod:'框架协议',amountMin:0,amountMax:5,category:'劳保用品',priority:5,status:'启用',updateTime:'2026-03-15 14:00:00'},
+      {id:13,ruleName:'消防器材询比价',purchaseMethod:'询比价',amountMin:2,amountMax:15,category:'消防器材',priority:4,status:'启用',updateTime:'2026-03-20 09:30:00'},
+      {id:14,ruleName:'新能源设备单一来源',purchaseMethod:'单一来源',amountMin:0,amountMax:'',category:'新能源设备',priority:1,status:'启用',updateTime:'2026-04-01 10:00:00'},
+      {id:15,ruleName:'办公电脑询比价',purchaseMethod:'询比价',amountMin:1,amountMax:20,category:'IT设备',priority:4,status:'启用',updateTime:'2026-04-05 11:00:00'},
+      {id:16,ruleName:'基建材料公开招标',purchaseMethod:'公开招标',amountMin:200,amountMax:'',category:'基建材料',priority:1,status:'启用',updateTime:'2026-04-10 09:00:00'},
+      {id:17,ruleName:'运维工具框架协议',purchaseMethod:'框架协议',amountMin:0,amountMax:8,category:'MRO物资',priority:5,status:'启用',updateTime:'2026-04-15 14:00:00'},
+      {id:18,ruleName:'通信设备邀请招标',purchaseMethod:'邀请招标',amountMin:30,amountMax:150,category:'通信设备',priority:2,status:'启用',updateTime:'2026-04-20 10:00:00'},
+      {id:19,ruleName:'实验仪器竞争性谈判',purchaseMethod:'竞争性谈判',amountMin:20,amountMax:80,category:'实验仪器',priority:3,status:'启用',updateTime:'2026-05-01 09:00:00'},
+      {id:20,ruleName:'绿化养护单一来源',purchaseMethod:'单一来源',amountMin:0,amountMax:'',category:'物业服务',priority:1,status:'启用',updateTime:'2026-05-05 10:00:00'},
+      {id:21,ruleName:'安全监测设备公开招标',purchaseMethod:'公开招标',amountMin:150,amountMax:'',category:'安全设备',priority:1,status:'启用',updateTime:'2026-05-10 11:00:00'},
+      {id:22,ruleName:'电力金具询比价',purchaseMethod:'询比价',amountMin:3,amountMax:25,category:'电力金具',priority:4,status:'启用',updateTime:'2026-05-15 14:00:00'},
+      {id:23,ruleName:'绝缘材料框架协议',purchaseMethod:'框架协议',amountMin:0,amountMax:12,category:'绝缘材料',priority:5,status:'启用',updateTime:'2026-05-20 09:00:00'},
+      {id:24,ruleName:'GIS设备邀请招标',purchaseMethod:'邀请招标',amountMin:500,amountMax:2000,category:'开关柜',priority:2,status:'启用',updateTime:'2026-06-01 10:00:00'},
+      {id:25,ruleName:'光伏组件公开招标',purchaseMethod:'公开招标',amountMin:400,amountMax:'',category:'新能源设备',priority:1,status:'启用',updateTime:'2026-06-05 11:00:00'},
+      {id:26,ruleName:'电缆附件询比价',purchaseMethod:'询比价',amountMin:5,amountMax:30,category:'电力电缆',priority:4,status:'启用',updateTime:'2026-06-10 14:00:00'},
+      {id:27,ruleName:'办公家具框架协议',purchaseMethod:'框架协议',amountMin:0,amountMax:10,category:'办公用品',priority:5,status:'启用',updateTime:'2026-06-15 09:00:00'},
+      {id:28,ruleName:'继电保护装置竞争性谈判',purchaseMethod:'竞争性谈判',amountMin:100,amountMax:400,category:'继电保护',priority:3,status:'启用',updateTime:'2026-06-20 10:00:00'},
+      {id:29,ruleName:'环保设备单一来源',purchaseMethod:'单一来源',amountMin:0,amountMax:'',category:'环保设备',priority:1,status:'启用',updateTime:'2026-06-25 11:00:00'},
+      {id:30,ruleName:'风电设备公开招标',purchaseMethod:'公开招标',amountMin:800,amountMax:'',category:'新能源设备',priority:1,status:'启用',updateTime:'2026-07-01 09:00:00'}
+    ],pageSize:10,currentPage:1,editVisible:false,helpVisible:false,editForm:{id:0,ruleName:'',purchaseMethod:'',amountMin:0,amountMax:0,category:'',priority:1,status:'启用'}};},
+    computed:{filteredData(){return this.tableData.filter(r=>{if(this.queryForm.ruleName&&!r.ruleName.includes(this.queryForm.ruleName))return false;if(this.queryForm.purchaseMethod&&r.purchaseMethod!==this.queryForm.purchaseMethod)return false;if(this.queryForm.status&&r.status!==this.queryForm.status)return false;if(this.tableSearchText){const kw=this.tableSearchText.toLowerCase();const txt=(r.ruleName+r.purchaseMethod+r.category).toLowerCase();if(!txt.includes(kw))return false;}return true;});},
+      pagedData(){const s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize);},
+      queryConditionText(){const c=[];if(this.queryForm.ruleName)c.push('规则名称：'+this.queryForm.ruleName);if(this.queryForm.purchaseMethod)c.push('采购方式：'+this.queryForm.purchaseMethod);if(this.queryForm.status)c.push('状态：'+this.queryForm.status);return c.length?'查询条件('+c.length+')：'+c.join('，'):'暂无查询条件';}},
+    methods:{toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},handleQuery(){this.currentPage=1;this.$message.success('查询完成，共'+this.filteredData.length+'条');},handleReset(){this.queryForm={ruleName:'',purchaseMethod:'',status:''};this.tableSearchText='';this.currentPage=1;},handleAdd(){this.editForm={id:0,ruleName:'',purchaseMethod:'',amountMin:0,amountMax:0,category:'',priority:1,status:'启用'};this.editVisible=true;},handleEdit(row){this.editForm=Object.assign({},row);this.editVisible=true;},saveRule(){if(!this.editForm.ruleName){this.$message.warning('请输入规则名称');return;}if(this.editForm.id){const idx=this.tableData.findIndex(r=>r.id===this.editForm.id);if(idx>-1)this.tableData.splice(idx,1,Object.assign({},this.editForm,{updateTime:new Date().toLocaleString()}));}else{this.editForm.id=this.tableData.length+1;this.editForm.updateTime=new Date().toLocaleString();this.tableData.push(Object.assign({},this.editForm));}this.editVisible=false;this.$message.success('保存成功');},toggleStatus(row){row.status=row.status==='启用'?'停用':'启用';this.$message.success(row.status==='启用'?'已启用':'已停用');},handlePageChange(p){this.currentPage=p;},handleSizeChange(s){this.pageSize=s;this.currentPage=1;}},
+    mounted(){}});</script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

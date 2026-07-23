@@ -1,0 +1,571 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>订单管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+/* 主题色：行业深青绿 */
+    .app-scss { --ecp-primary: #0B7266; }
+    .tl-title__title { color: #1A2332; }
+    .el-button--primary { background-color: #0B7266; border-color: #0B7266; }
+    .el-button--primary:hover { background-color: #0a6358; border-color: #0a6358; }
+    .el-table th.el-table__cell { background: #F1F6F7; color: #1A2332; font-weight: 600; }
+    .el-table .el-table__cell { font-size: 13px; }
+    .el-tag--success { background-color: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+    .el-tag--warning { background-color: #fff8e1; border-color: #ffecb3; color: #f57c00; }
+    .el-tag--danger { background-color: #ffebee; border-color: #ffcdd2; color: #c62828; }
+    .el-tag--info { background-color: #eceff1; border-color: #cfd8dc; color: #455a64; }
+    .el-dialog__header { border-bottom: 1px solid #EAECF0; }
+    .el-dialog__footer { border-top: 1px solid #EAECF0; }
+    .order-progress { padding: 12px 0; }
+    .order-progress .el-step__title.is-process { color: #0B7266; font-weight: 600; }
+    .order-summary-row { display: flex; justify-content: space-between; padding: 8px 12px; background: #F5F7FA; border-radius: 4px; margin-top: 12px; }
+    .order-summary-row .total-line { font-size: 14px; font-weight: 700; color: #0B7266; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    /* 最大化样式 */
+    .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+    .table-maximized .yj-container-card__bar { padding: 8px 0; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <!-- 页面标题区 -->
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">订单管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+
+        <!-- 查询面板 -->
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header">
+              <span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span>
+            </div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="："
+                  class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="订单编号" title="订单编号">
+                    <el-input v-model="queryForm.orderNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商" title="供应商">
+                    <el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方" title="采购方">
+                    <el-input v-model="queryForm.buyer" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待发货" value="待发货"></el-option>
+                      <el-option label="已发货" value="已发货"></el-option>
+                      <el-option label="已收货" value="已收货"></el-option>
+                      <el-option label="已取消" value="已取消"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="下单日期" title="下单日期">
+                    <el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至"
+                      start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd">
+                    </el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon"
+                :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- 内容区 -->
+      <main class="el-main query-body">
+        <!-- 表格区 -->
+        <div area="query-body" class="query-grid-body">
+          <!-- 单表格模式 -->
+          
+            <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                      <span title="表格标题">订单列表</span>
+                    </div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                      <span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span>
+                    </div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width: 100%;">
+                          <el-button @click="handleBatchShip" :disabled="selection.length===0" type="success" icon="el-icon-truck">批量发货</el-button>
+                        </div>
+                      </div>
+                      <div class="yj-container-card__default-buttons">
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true">
+                          <i class="el-icon-setting"></i>
+                        </button>
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize">
+                          <i class="el-icon-full-screen"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger">
+                        <el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table" style="position: relative;">
+                  <el-table ref="table" :data="pagedData" border stripe style="width: 100%;"
+                    @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('orderNo')" prop="orderNo" label="订单编号" min-width="150" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('supplier')" prop="supplier" label="供应商" min-width="190" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('buyer')" prop="buyer" label="采购方" min-width="170" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('subject')" prop="subject" label="采购事项" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('method')" prop="method" label="采购方式" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('amount')" prop="amount" label="金额(元)" min-width="130" align="right">
+                      <template slot-scope="{row}">{{ row.amount.toLocaleString() }}</template>
+                    </el-table-column>
+                    <el-table-column v-if="isColumnVisible('status')" prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='已收货'?'success':row.status==='已发货'?'primary':row.status==='待发货'?'warning':'info'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column v-if="isColumnVisible('orderDate')" prop="orderDate" label="下单日期" min-width="120" align="center"></el-table-column>
+                    <el-table-column label="操作" width="260" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="success" v-if="row.status==='待发货'" @click="changeStatus(row,'已发货')">发货</el-button>
+                        <el-button type="warning" v-if="row.status==='已发货'" @click="changeStatus(row,'已收货')">确认收货</el-button>
+                        <el-button type="danger" v-if="row.status==='待发货'" @click="changeStatus(row,'已取消')">取消</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length"
+                    :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]"
+                    @size-change="handleSizeChange" @current-change="handlePageChange" background small>
+                  </el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="订单详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentOrder">
+        <!-- 订单进度 -->
+        <div class="order-progress">
+          <el-steps :active="activeStep" finish-status="success" align-center>
+            <el-step title="下单" :description="currentOrder.orderDate"></el-step>
+            <el-step title="发货" :description="currentOrder.shipDate || '—'"></el-step>
+            <el-step title="收货" :description="currentOrder.receiveDate || '—'"></el-step>
+          </el-steps>
+        </div>
+
+        <!-- 基本信息 -->
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;margin-top:8px;"><i class="el-icon-s-order" style="margin-right:6px;"></i>基本信息</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单编号">{{ currentOrder.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentOrder.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="采购方">{{ currentOrder.buyer }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="currentOrder.status==='已收货'?'success':currentOrder.status==='已发货'?'primary':currentOrder.status==='待发货'?'warning':'info'">{{ currentOrder.status }}</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 业务信息 -->
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;margin-top:20px;"><i class="el-icon-s-data" style="margin-right:6px;"></i>业务信息</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="采购事项">{{ currentOrder.subject }}</el-descriptions-item>
+          <el-descriptions-item label="采购方式">{{ currentOrder.method }}</el-descriptions-item>
+          <el-descriptions-item label="订单金额">{{ currentOrder.amount.toLocaleString() }} 元</el-descriptions-item>
+          <el-descriptions-item label="下单日期">{{ currentOrder.orderDate }}</el-descriptions-item>
+          <el-descriptions-item label="发货日期">{{ currentOrder.shipDate || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="收货日期">{{ currentOrder.receiveDate || '—' }}</el-descriptions-item>
+        </el-descriptions>
+
+        <!-- 操作记录 -->
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;margin-top:20px;"><i class="el-icon-document" style="margin-right:6px;"></i>操作记录</div>
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="订单进度">下单 → 发货 → 收货（当前：{{ currentOrder.status }}）</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="detailVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 发货确认弹窗 -->
+    <el-dialog :lazy="true" title="订单发货" :visible.sync="shipVisible" width="500px">
+      <el-form :model="shipForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item label="订单编号"><el-input v-model="shipForm.orderNo" disabled></el-input></el-form-item>
+        <el-form-item label="采购事项"><el-input v-model="shipForm.subject" disabled></el-input></el-form-item>
+        <el-form-item label="承运商">
+          <el-select v-model="shipForm.carrier" placeholder="请选择承运商">
+            <el-option label="顺丰速运" value="顺丰速运"></el-option>
+            <el-option label="京东物流" value="京东物流"></el-option>
+            <el-option label="德邦物流" value="德邦物流"></el-option>
+            <el-option label="自送" value="自送"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="物流单号">
+          <el-input v-model="shipForm.trackingNo" placeholder="请输入物流单号"></el-input>
+        </el-form-item>
+        <el-form-item label="发货备注">
+          <el-input type="textarea" v-model="shipForm.remark" :rows="2" placeholder="备注信息（选填）"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="shipVisible=false">取消</el-button>
+        <el-button type="success" @click="doShip">确认发货</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            采购申请审批通过后自动生成订单，或ERP端创建采购订单同步至商城。本页面用于管理采购订单的查询、状态流转、详情查看。本页面承接采购申请审批，输出可执行的采购订单。适用于采购员跟踪订单、部门经理掌握订单状态。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>订单全生命周期管理（待发货→已发货→已收货→已验收→已结算）</li>
+              <li>异常状态处理（取消/拒收/退货），状态机驱动流转</li>
+              <li>订单拆分合并记录可追溯（按供应商/仓库/交付日期/采购方式）</li>
+              <li>全流程时间节点记录，支撑履约评价</li>
+              <li>订单数据同步至ERP，业财一体</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询订单</b>：在查询面板输入订单编号/供应商，选择状态、下单日期范围，点击"查询"筛选</li>
+              <li><b>查看详情</b>：点击"详情"查看订单完整信息、物资明细、履约记录、物流轨迹</li>
+              <li><b>状态流转</b>：根据当前状态执行相应操作（发货/收货/验收/结算）</li>
+              <li><b>取消订单</b>：待发货状态可点击"取消"，填写取消原因</li>
+              <li><b>拒收/退货</b>：已发货状态可"拒收"，已收货状态可"退货"</li>
+              <li><b>导出数据</b>：点击"导出"导出订单清单</li>
+              <li><b>关键字搜索</b>：在表格搜索框输入关键字快速定位</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;/* gap-removed */;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '100px',
+          isSearchPanelCollapsed: false,
+          layoutMode: 'single',
+          // 查询表单
+          queryForm: {
+            orderNo: '',
+            supplier: '',
+            buyer: '',
+            status: '',
+            dateRange: ''
+          },
+          // 表格搜索
+          tableSearchText: '',
+          // 表格数据（真实业务风格）
+          tableData: [
+            { orderNo:'OD-2026-0001', supplier:'国电南瑞科技股份有限公司', buyer:'江苏省电力公司', subject:'10kV高压开关柜采购', method:'公开招标', amount:1280000, status:'已收货', orderDate:'2026-04-10', shipDate:'2026-04-15', receiveDate:'2026-04-25' },
+            { orderNo:'OD-2026-0002', supplier:'许继电气股份有限公司', buyer:'浙江省电力公司', subject:'三相电力变压器采购', method:'公开招标', amount:692000, status:'已收货', orderDate:'2026-04-12', shipDate:'2026-04-18', receiveDate:'2026-04-28' },
+            { orderNo:'OD-2026-0003', supplier:'威胜信息技术股份有限公司', buyer:'湖南省电力公司', subject:'智能电表批量采购', method:'询比价', amount:456000, status:'已发货', orderDate:'2026-04-15', shipDate:'2026-04-22', receiveDate:'' },
+            { orderNo:'OD-2026-0004', supplier:'联想集团有限公司', buyer:'信息通信分公司', subject:'办公电脑更新', method:'询比价', amount:174000, status:'已收货', orderDate:'2026-04-18', shipDate:'2026-04-25', receiveDate:'2026-05-02' },
+            { orderNo:'OD-2026-0005', supplier:'平高电气股份有限公司', buyer:'河南省电力公司', subject:'SF6断路器采购', method:'竞争性谈判', amount:284000, status:'待发货', orderDate:'2026-04-20', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0006', supplier:'思源电气股份有限公司', buyer:'安徽省电力公司', subject:'电流互感器采购', method:'询比价', amount:79950, status:'已发货', orderDate:'2026-04-22', shipDate:'2026-04-28', receiveDate:'' },
+            { orderNo:'OD-2026-0007', supplier:'代尔塔防护用品公司', buyer:'综合服务公司', subject:'安全防护用品采购', method:'框架协议', amount:86000, status:'已收货', orderDate:'2026-04-25', shipDate:'2026-05-02', receiveDate:'2026-05-08' },
+            { orderNo:'OD-2026-0008', supplier:'远东电缆有限公司', buyer:'湖北省电力公司', subject:'电力电缆采购', method:'公开招标', amount:2380000, status:'已发货', orderDate:'2026-04-28', shipDate:'2026-05-05', receiveDate:'' },
+            { orderNo:'OD-2026-0009', supplier:'中国惠普有限公司', buyer:'信息通信分公司', subject:'激光打印机采购', method:'询比价', amount:46000, status:'已取消', orderDate:'2026-05-02', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0010', supplier:'山特电子(深圳)有限公司', buyer:'信息通信分公司', subject:'UPS不间断电源采购', method:'询比价', amount:92500, status:'待发货', orderDate:'2026-05-05', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0011', supplier:'国电南瑞科技股份有限公司', buyer:'山东省电力公司', subject:'配电自动化终端采购', method:'竞争性谈判', amount:372000, status:'已收货', orderDate:'2026-05-08', shipDate:'2026-05-15', receiveDate:'2026-05-22' },
+            { orderNo:'OD-2026-0012', supplier:'威胜信息技术股份有限公司', buyer:'江苏省电力公司', subject:'集中器采购', method:'询比价', amount:358400, status:'已发货', orderDate:'2026-05-10', shipDate:'2026-05-18', receiveDate:'' },
+            { orderNo:'OD-2026-0013', supplier:'联想集团有限公司', buyer:'江苏省电力公司', subject:'办公电脑批量采购', method:'框架协议', amount:290000, status:'已收货', orderDate:'2026-05-12', shipDate:'2026-05-20', receiveDate:'2026-05-25' },
+            { orderNo:'OD-2026-0014', supplier:'许继电气股份有限公司', buyer:'浙江省电力公司', subject:'变压器追加采购', method:'询比价', amount:346000, status:'已收货', orderDate:'2026-05-15', shipDate:'2026-05-22', receiveDate:'2026-05-28' },
+            { orderNo:'OD-2026-0015', supplier:'平高电气股份有限公司', buyer:'河南省电力公司', subject:'断路器补充采购', method:'询比价', amount:142000, status:'待发货', orderDate:'2026-05-18', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0016', supplier:'思源电气股份有限公司', buyer:'安徽省电力公司', subject:'互感器采购', method:'询比价', amount:246000, status:'已收货', orderDate:'2026-05-20', shipDate:'2026-05-28', receiveDate:'2026-06-02' },
+            { orderNo:'OD-2026-0017', supplier:'代尔塔防护用品公司', buyer:'综合服务公司', subject:'劳保用品年度采购', method:'框架协议', amount:195000, status:'已收货', orderDate:'2026-05-22', shipDate:'2026-05-30', receiveDate:'2026-06-05' },
+            { orderNo:'OD-2026-0018', supplier:'远东电缆有限公司', buyer:'湖北省电力公司', subject:'电缆追加采购', method:'公开招标', amount:3360000, status:'已收货', orderDate:'2026-05-25', shipDate:'2026-06-02', receiveDate:'2026-06-08' },
+            { orderNo:'OD-2026-0019', supplier:'中国惠普有限公司', buyer:'信息通信分公司', subject:'打印机批量采购', method:'询比价', amount:69000, status:'已收货', orderDate:'2026-05-28', shipDate:'2026-06-05', receiveDate:'2026-06-10' },
+            { orderNo:'OD-2026-0020', supplier:'山特电子(深圳)有限公司', buyer:'信息通信分公司', subject:'UPS电源采购', method:'询比价', amount:185000, status:'已发货', orderDate:'2026-06-01', shipDate:'2026-06-08', receiveDate:'' },
+            { orderNo:'OD-2026-0021', supplier:'国电南瑞科技股份有限公司', buyer:'山东省电力公司', subject:'开关柜采购', method:'公开招标', amount:4500000, status:'已收货', orderDate:'2026-06-03', shipDate:'2026-06-10', receiveDate:'2026-06-18' },
+            { orderNo:'OD-2026-0022', supplier:'威胜信息技术股份有限公司', buyer:'江苏省电力公司', subject:'电表采购', method:'公开招标', amount:948700, status:'已发货', orderDate:'2026-06-05', shipDate:'2026-06-12', receiveDate:'' },
+            { orderNo:'OD-2026-0023', supplier:'联想集团有限公司', buyer:'江苏省电力公司', subject:'电脑更新', method:'框架协议', amount:174000, status:'已收货', orderDate:'2026-06-08', shipDate:'2026-06-15', receiveDate:'2026-06-20' },
+            { orderNo:'OD-2026-0024', supplier:'许继电气股份有限公司', buyer:'浙江省电力公司', subject:'变压器采购', method:'询比价', amount:346000, status:'已发货', orderDate:'2026-06-10', shipDate:'2026-06-18', receiveDate:'' },
+            { orderNo:'OD-2026-0025', supplier:'平高电气股份有限公司', buyer:'河南省电力公司', subject:'断路器采购', method:'询比价', amount:142000, status:'待发货', orderDate:'2026-06-12', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0026', supplier:'思源电气股份有限公司', buyer:'安徽省电力公司', subject:'互感器采购', method:'询比价', amount:123000, status:'已收货', orderDate:'2026-06-15', shipDate:'2026-06-22', receiveDate:'2026-06-27' },
+            { orderNo:'OD-2026-0027', supplier:'代尔塔防护用品公司', buyer:'综合服务公司', subject:'防护用品采购', method:'框架协议', amount:130000, status:'已收货', orderDate:'2026-06-18', shipDate:'2026-06-25', receiveDate:'' },
+            { orderNo:'OD-2026-0028', supplier:'远东电缆有限公司', buyer:'湖北省电力公司', subject:'电缆采购', method:'公开招标', amount:1400000, status:'待发货', orderDate:'2026-06-20', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0029', supplier:'中国惠普有限公司', buyer:'信息通信分公司', subject:'打印机采购', method:'询比价', amount:81700, status:'已取消', orderDate:'2026-06-22', shipDate:'', receiveDate:'' },
+            { orderNo:'OD-2026-0030', supplier:'山特电子(深圳)有限公司', buyer:'信息通信分公司', subject:'UPS采购', method:'询比价', amount:92500, status:'已发货', orderDate:'2026-06-25', shipDate:'2026-06-28', receiveDate:'' }
+          ],
+          // 分页
+          pageSize: 10,
+          currentPage: 1,
+          // 多选
+          selection: [],
+          // 弹窗
+          detailVisible: false,
+          shipVisible: false,
+          helpVisible: false,
+          currentOrder: null,
+          shipForm: { orderNo:'', subject:'', carrier:'顺丰速运', trackingNo:'', remark:'' },
+          // 显示设置
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          visibleColumns: ['orderNo','supplier','buyer','subject','method','amount','status','orderDate'],
+          columnSettings: [
+            {prop:'orderNo',label:'订单编号'},{prop:'supplier',label:'供应商'},{prop:'buyer',label:'采购方'},
+            {prop:'subject',label:'采购事项'},{prop:'method',label:'采购方式'},{prop:'amount',label:'金额(元)'},
+            {prop:'status',label:'状态'},{prop:'orderDate',label:'下单日期'}
+          ]
+        };
+      },
+      computed: {
+        // 过滤后的数据
+        filteredData() {
+          let list = this.tableData.filter(o => {
+            if (this.queryForm.orderNo && !o.orderNo.toLowerCase().includes(this.queryForm.orderNo.toLowerCase())) return false;
+            if (this.queryForm.supplier && !o.supplier.includes(this.queryForm.supplier)) return false;
+            if (this.queryForm.buyer && !o.buyer.includes(this.queryForm.buyer)) return false;
+            if (this.queryForm.status && o.status !== this.queryForm.status) return false;
+            if (this.queryForm.dateRange && this.queryForm.dateRange.length === 2) {
+              if (o.orderDate < this.queryForm.dateRange[0] || o.orderDate > this.queryForm.dateRange[1]) return false;
+            }
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = (o.orderNo + o.supplier + o.buyer + o.subject + o.status).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+          return list;
+        },
+        // 当前页数据
+        pagedData() {
+          const start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        // 查询条件摘要
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.orderNo)) conditions.push('订单编号：' + f.orderNo);
+          if (this.isNotEmpty(f.supplier)) conditions.push('供应商：' + f.supplier);
+          if (this.isNotEmpty(f.buyer)) conditions.push('采购方：' + f.buyer);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (f.dateRange && f.dateRange.length === 2) conditions.push('下单日期：' + f.dateRange[0] + ' 至 ' + f.dateRange[1]);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        // 详情弹窗中的进度步骤
+        activeStep() {
+          if (!this.currentOrder) return 0;
+          if (this.currentOrder.status === '已收货') return 3;
+          if (this.currentOrder.status === '已发货') return 2;
+          if (this.currentOrder.status === '待发货') return 1;
+          return 0; // 已取消
+        }
+      },
+      watch: {
+        'queryForm.orderNo'() { this.currentPage = 1; },
+        'queryForm.supplier'() { this.currentPage = 1; },
+        'queryForm.buyer'() { this.currentPage = 1; },
+        'queryForm.status'() { this.currentPage = 1; },
+        'queryForm.dateRange'() { this.currentPage = 1; },
+        tableSearchText() { this.currentPage = 1; }
+      },
+      methods: {
+        // 展开/收起查询面板
+        toggleSearchPanel() {
+          this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed;
+        },
+        // 判断非空
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        // 从后端加载订单数据（失败时保留本地 mockData）
+        async loadData() {
+          try {
+            const resp = await fetch('/api/orders');
+            if (resp.ok) {
+              const data = await resp.json();
+              if (Array.isArray(data) && data.length > 0) this.tableData = data;
+            }
+          } catch(e) { /* 失败时保留本地数据 */ }
+        },
+        // 查询
+        handleQuery() {
+          this.currentPage = 1;
+          this.$message.success('查询完成，共 ' + this.filteredData.length + ' 条记录');
+        },
+        // 重置
+        handleReset() {
+          this.queryForm = { orderNo:'', supplier:'', buyer:'', status:'', dateRange:'' };
+          this.tableSearchText = '';
+          this.currentPage = 1;
+        },
+        // 刷新
+        handleRefresh() {
+          this.$message.success('数据已刷新');
+        },
+        // 导出
+        handleExport() {
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        // 多选
+        handleSelectionChange(val) {
+          this.selection = val;
+        },
+        // 批量发货
+        handleBatchShip() {
+          if (this.selection.length === 0) {
+            this.$message.warning('请先选择待发货的订单');
+            return;
+          }
+          const pending = this.selection.filter(i => i.status === '待发货');
+          if (pending.length === 0) {
+            this.$message.warning('所选订单中没有待发货的记录');
+            return;
+          }
+          this.$confirm('确认批量发货 ' + pending.length + ' 个订单？', '提示', { type:'warning' }).then(() => {
+            const today = new Date().toISOString().split('T')[0];
+            pending.forEach(i => { i.status = '已发货'; i.shipDate = today; });
+            this.$message.success('已批量发货 ' + pending.length + ' 个订单');
+          }).catch(() => {});
+        },
+        // 详情
+        viewDetail(row) {
+          this.currentOrder = row;
+          this.detailVisible = true;
+        },
+        // 发货
+        openShipDialog(row) {
+          this.shipForm = { orderNo:row.orderNo, subject:row.subject, carrier:'顺丰速运', trackingNo:'', remark:'' };
+          this.shipVisible = true;
+        },
+        doShip() {
+          if (!this.shipForm.trackingNo.trim()) {
+            this.$message.error('请输入物流单号');
+            return;
+          }
+          const target = this.tableData.find(i => i.orderNo === this.shipForm.orderNo);
+          if (target) {
+            target.status = '已发货';
+            target.shipDate = new Date().toISOString().split('T')[0];
+          }
+          this.shipVisible = false;
+          this.$message.success('已发货，物流单号：' + this.shipForm.trackingNo);
+        },
+        // 状态变更（发货/确认收货/取消）
+        changeStatus(row, newStatus) {
+          const actionMap = { '已发货':'发货', '已收货':'确认收货', '已取消':'取消订单' };
+          const confirmMap = {
+            '已发货': '确认发货？发货后订单将进入"已发货"状态',
+            '已收货': '确认收货？收货后订单将完成结算',
+            '已取消': '确认取消该订单？取消后不可恢复'
+          };
+          this.$confirm(confirmMap[newStatus], '提示', { type: newStatus==='已取消' ? 'warning' : 'info' }).then(() => {
+            const target = this.tableData.find(i => i.orderNo === row.orderNo);
+            if (target) {
+              target.status = newStatus;
+              const today = new Date().toISOString().split('T')[0];
+              if (newStatus === '已发货') target.shipDate = today;
+              if (newStatus === '已收货') target.receiveDate = today;
+            }
+            this.$message.success(actionMap[newStatus] + '成功');
+          }).catch(() => {});
+        },
+        // 分页
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; },
+        // 显示设置
+        isColumnVisible(prop) { return this.visibleColumns.indexOf(prop) > -1; },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c){ return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; }
+      },
+      mounted() {
+        this.loadData();
+        this.handleQuery();
+        // 监听订单更新事件（来自商品页面结算后触发）
+        window.addEventListener('order-updated', this.loadData);
+      },
+      beforeDestroy() {
+        window.removeEventListener('order-updated', this.loadData);
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+
+</html>

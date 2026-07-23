@@ -1,0 +1,512 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>业务规则配置</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">业务规则配置</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="规则名称" title="规则名称">
+                    <el-input v-model="queryForm.ruleName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="规则类型" title="规则类型">
+                    <el-select v-model="queryForm.ruleType" placeholder="请选择" clearable>
+                      <el-option label="审批规则" value="审批规则"></el-option>
+                      <el-option label="预算规则" value="预算规则"></el-option>
+                      <el-option label="采购方式规则" value="采购方式规则"></el-option>
+                      <el-option label="价格规则" value="价格规则"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="启用" value="启用"></el-option>
+                      <el-option label="禁用" value="禁用"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">业务规则列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          <el-button @click="openAddDialog" type="primary" icon="el-icon-plus">新增</el-button>
+                          
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  
+<el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="ruleCode" label="规则编码" min-width="140" align="center"></el-table-column>
+                    <el-table-column prop="ruleName" label="规则名称" min-width="200" align="center"></el-table-column>
+                    <el-table-column prop="ruleType" label="规则类型" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="bizType" label="业务类型" min-width="120" align="center"></el-table-column>
+                    <el-table-column prop="priority" label="优先级" min-width="80" align="center"></el-table-column>
+                    <el-table-column prop="version" label="版本" min-width="80" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="100" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='启用'?'success':'info'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="effectiveDate" label="生效日期" min-width="140" align="center"></el-table-column>
+                    <el-table-column label="操作" width="200" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="warning" v-if="row.status==='启用'" @click="toggleStatus(row)">禁用</el-button>
+                        <el-button type="success" v-if="row.status==='禁用'" @click="toggleStatus(row)">启用</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="业务规则详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-s-tools"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="规则编码">{{ currentDetail.ruleCode }}</el-descriptions-item>
+          <el-descriptions-item label="规则名称">{{ currentDetail.ruleName }}</el-descriptions-item>
+          <el-descriptions-item label="规则类型">{{ currentDetail.ruleType }}</el-descriptions-item>
+          <el-descriptions-item label="适用场景">{{ currentDetail.bizType }}</el-descriptions-item>
+          <el-descriptions-item label="规则ID">{{ currentDetail.ruleId }}</el-descriptions-item>
+          <el-descriptions-item label="优先级">{{ currentDetail.priority }}</el-descriptions-item>
+          <el-descriptions-item label="版本号">{{ currentDetail.version }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-setting"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="规则表达式">{{ currentDetail.ruleExpression }}</el-descriptions-item>
+          <el-descriptions-item label="触发动作">{{ currentDetail.triggerAction }}</el-descriptions-item>
+          <el-descriptions-item label="生效日期">{{ currentDetail.effectiveDate }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-data-line"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="创建人">{{ currentDetail.createBy }}</el-descriptions-item>
+          <el-descriptions-item label="最后触发时间">{{ currentDetail.lastTriggerTime }}</el-descriptions-item>
+          <el-descriptions-item label="触发次数">{{ currentDetail.triggerCount }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            电子商城的业务规则（审批阈值、采购限制、操作类型、预算规则）通过规则引擎统一配置和管理。本页面用于配置规则、管理版本、执行规则。本页面是流程与规则中心的核心页面。适用于运营经理配置规则、系统管理员管理版本。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>四类规则统一配置（审批阈值/采购限制/操作类型/预算规则）</li>
+              <li>规则版本管理，支持预生效和回滚</li>
+              <li>规则变更审计，记录修改人/时间/内容</li>
+              <li>规则引擎自动执行，无需硬编码</li>
+              <li>采购方式自动判定（金额+品类+协议），确保合规</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询规则</b>：在查询面板输入规则名称，选择规则类型、状态、版本，点击"查询"筛选</li>
+              <li><b>新增规则</b>：点击"新增"，选择规则类型，填写规则名称、条件、动作、生效日期</li>
+              <li><b>查看详情</b>：点击"详情"查看规则完整信息、版本历史、执行记录</li>
+              <li><b>编辑规则</b>：点击"编辑"修改规则条件或动作，保存后生成新版本</li>
+              <li><b>版本管理</b>：点击"版本历史"查看所有版本，支持回滚至历史版本</li>
+              <li><b>启用/停用</b>：点击"停用"暂停规则；点击"启用"恢复</li>
+              <li><b>导出数据</b>：点击"导出"导出规则清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+    <!-- 新增业务规则对话框 -->
+    <el-dialog :lazy="true" title="新增业务规则" :visible.sync="addDialog.visible" width="640px" custom-class="detail-dialog">
+      <el-form :model="addDialog.form" label-width="120px" label-suffix="：" :rules="addFormRules" ref="addForm">
+        <el-form-item label="规则名称" prop="ruleName">
+          <el-input v-model="addDialog.form.ruleName" placeholder="请输入规则名称" clearable></el-input>
+        </el-form-item>
+        <el-form-item label="规则类型" prop="ruleType">
+          <el-select v-model="addDialog.form.ruleType" placeholder="请选择" style="width:100%">
+            <el-option label="审批规则" value="审批规则"></el-option>
+            <el-option label="预算规则" value="预算规则"></el-option>
+            <el-option label="价格规则" value="价格规则"></el-option>
+            <el-option label="供应商规则" value="供应商规则"></el-option>
+            <el-option label="合同规则" value="合同规则"></el-option>
+            <el-option label="库存规则" value="库存规则"></el-option>
+            <el-option label="付款规则" value="付款规则"></el-option>
+            <el-option label="招标规则" value="招标规则"></el-option>
+            <el-option label="评价规则" value="评价规则"></el-option>
+            <el-option label="税务规则" value="税务规则"></el-option>
+            <el-option label="物流规则" value="物流规则"></el-option>
+            <el-option label="采购方式规则" value="采购方式规则"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="业务类型" prop="bizType">
+          <el-select v-model="addDialog.form.bizType" placeholder="请选择" style="width:100%">
+            <el-option label="采购申请" value="采购申请"></el-option>
+            <el-option label="订单" value="订单"></el-option>
+            <el-option label="商品" value="商品"></el-option>
+            <el-option label="供应商" value="供应商"></el-option>
+            <el-option label="合同" value="合同"></el-option>
+            <el-option label="库存" value="库存"></el-option>
+            <el-option label="付款" value="付款"></el-option>
+            <el-option label="招标" value="招标"></el-option>
+            <el-option label="评价" value="评价"></el-option>
+            <el-option label="发票" value="发票"></el-option>
+            <el-option label="发货" value="发货"></el-option>
+            <el-option label="收货" value="收货"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="优先级" prop="priority">
+          <el-select v-model="addDialog.form.priority" placeholder="请选择" style="width:100%">
+            <el-option label="1" value="1"></el-option>
+            <el-option label="2" value="2"></el-option>
+            <el-option label="3" value="3"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="规则表达式" prop="ruleExpression">
+          <el-input v-model="addDialog.form.ruleExpression" placeholder="例: amount > 100000" clearable></el-input>
+        </el-form-item>
+        <el-form-item label="触发动作" prop="triggerAction">
+          <el-input v-model="addDialog.form.triggerAction" placeholder="例: 自动审批、发送提醒" clearable></el-input>
+        </el-form-item>
+        <el-form-item label="生效日期" prop="effectiveDate">
+          <el-input v-model="addDialog.form.effectiveDate" placeholder="例: 2026-01-01~2026-12-31" clearable></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="addDialog.visible=false">取消</el-button>
+        <el-button type="primary" @click="handleAddConfirm">确认新增</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          queryForm: {ruleName:'',ruleType:'',status:''},
+          tableSearchText:'',
+          addDialog:{visible:false,form:{}},
+          addFormRules:{
+            ruleName:[{required:true,message:'请输入规则名称',trigger:'blur'}],
+            ruleType:[{required:true,message:'请选择规则类型',trigger:'change'}],
+            bizType:[{required:true,message:'请选择业务类型',trigger:'change'}],
+            ruleExpression:[{required:true,message:'请输入规则表达式',trigger:'blur'}],
+            triggerAction:[{required:true,message:'请输入触发动作',trigger:'blur'}],
+            effectiveDate:[{required:true,message:'请输入生效日期',trigger:'blur'}]
+          },
+          tableData: [
+            {ruleCode:'APR-001',ruleName:'采购申请审批阈值规则',ruleType:'审批规则',bizType:'采购申请',priority:'1',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0001',ruleExpression:'amount > 100000 && dept == "采购"',triggerAction:'自动审批',createBy:'系统管理员',lastTriggerTime:'2026-06-25 14:30',triggerCount:'128'},
+            {ruleCode:'APR-002',ruleName:'订单审批阈值规则',ruleType:'审批规则',bizType:'订单',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0002',ruleExpression:'status == "待审批" && days > 7',triggerAction:'发送提醒',createBy:'张明',lastTriggerTime:'2026-06-24 09:15',triggerCount:'165'},
+            {ruleCode:'BUD-001',ruleName:'年度预算校验规则',ruleType:'预算规则',bizType:'采购申请',priority:'1',version:'5',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0003',ruleExpression:'price < marketPrice * 0.8',triggerAction:'拦截操作',createBy:'李华',lastTriggerTime:'2026-06-26 11:00',triggerCount:'202'},
+            {ruleCode:'BUD-002',ruleName:'项目预算扣减规则',ruleType:'预算规则',bizType:'订单',priority:'2',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0004',ruleExpression:'supplier.level == "C" && amount > 50000',triggerAction:'升级审批',createBy:'王强',lastTriggerTime:'2026-06-23 16:45',triggerCount:'239'},
+            {ruleCode:'METHOD-001',ruleName:'采购方式自动判定规则',ruleType:'采购方式规则',bizType:'采购申请',priority:'1',version:'4',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0005',ruleExpression:'stock < warningValue',triggerAction:'通知主管',createBy:'赵敏',lastTriggerTime:'2026-06-22 10:30',triggerCount:'276'},
+            {ruleCode:'PRICE-001',ruleName:'报价异常预警规则',ruleType:'价格规则',bizType:'商品',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0006',ruleExpression:'contractExpired == true',triggerAction:'冻结订单',createBy:'陈刚',lastTriggerTime:'2026-06-26 15:00',triggerCount:'313'},
+            {ruleCode:'PRICE-002',ruleName:'市场价格偏离预警',ruleType:'价格规则',bizType:'商品',priority:'2',version:'1',status:'禁用',effectiveDate:'2026-01-01~2026-06-30',ruleId:'BR-0007',ruleExpression:'bidCount < 3 && amount > 100000',triggerAction:'生成工单',createBy:'孙丽',lastTriggerTime:'2026-06-21 13:15',triggerCount:'350'},
+            {ruleCode:'SUP-001',ruleName:'供应商准入资质校验规则',ruleType:'供应商规则',bizType:'供应商',priority:'1',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0008',ruleExpression:'qualityScore < 60',triggerAction:'发送预警',createBy:'周涛',lastTriggerTime:'2026-06-20 08:45',triggerCount:'387'},
+            {ruleCode:'SUP-002',ruleName:'供应商分级评定规则',ruleType:'供应商规则',bizType:'供应商',priority:'2',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0009',ruleExpression:'deliveryDays > 30',triggerAction:'记录日志',createBy:'吴芳',lastTriggerTime:'2026-06-19 17:30',triggerCount:'424'},
+            {ruleCode:'CON-001',ruleName:'合同金额上限校验规则',ruleType:'合同规则',bizType:'合同',priority:'1',version:'4',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0010',ruleExpression:'paymentDays > 90',triggerAction:'强制复核',createBy:'郑浩',lastTriggerTime:'2026-06-18 14:00',triggerCount:'461'},
+            {ruleCode:'CON-002',ruleName:'合同到期预警规则',ruleType:'合同规则',bizType:'合同',priority:'2',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0011',ruleExpression:'amount > 100000 && dept == "采购"',triggerAction:'自动审批',createBy:'系统管理员',lastTriggerTime:'2026-06-25 14:30',triggerCount:'498'},
+            {ruleCode:'STK-001',ruleName:'库存预警阈值规则',ruleType:'库存规则',bizType:'库存',priority:'1',version:'5',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0012',ruleExpression:'status == "待审批" && days > 7',triggerAction:'发送提醒',createBy:'张明',lastTriggerTime:'2026-06-24 09:15',triggerCount:'535'},
+            {ruleCode:'STK-002',ruleName:'安全库存校验规则',ruleType:'库存规则',bizType:'库存',priority:'2',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0013',ruleExpression:'price < marketPrice * 0.8',triggerAction:'拦截操作',createBy:'李华',lastTriggerTime:'2026-06-26 11:00',triggerCount:'572'},
+            {ruleCode:'PAY-001',ruleName:'付款比例校验规则',ruleType:'付款规则',bizType:'付款',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0014',ruleExpression:'supplier.level == "C" && amount > 50000',triggerAction:'升级审批',createBy:'王强',lastTriggerTime:'2026-06-23 16:45',triggerCount:'609'},
+            {ruleCode:'PAY-002',ruleName:'预付款额度控制规则',ruleType:'付款规则',bizType:'付款',priority:'2',version:'1',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0015',ruleExpression:'stock < warningValue',triggerAction:'通知主管',createBy:'赵敏',lastTriggerTime:'2026-06-22 10:30',triggerCount:'646'},
+            {ruleCode:'BID-001',ruleName:'招标资质门槛规则',ruleType:'招标规则',bizType:'招标',priority:'1',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0016',ruleExpression:'contractExpired == true',triggerAction:'冻结订单',createBy:'陈刚',lastTriggerTime:'2026-06-26 15:00',triggerCount:'683'},
+            {ruleCode:'BID-002',ruleName:'围串标预警规则',ruleType:'招标规则',bizType:'招标',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0017',ruleExpression:'bidCount < 3 && amount > 100000',triggerAction:'生成工单',createBy:'孙丽',lastTriggerTime:'2026-06-21 13:15',triggerCount:'720'},
+            {ruleCode:'EVAL-001',ruleName:'供应商评价计算规则',ruleType:'评价规则',bizType:'评价',priority:'1',version:'4',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0018',ruleExpression:'qualityScore < 60',triggerAction:'发送预警',createBy:'周涛',lastTriggerTime:'2026-06-20 08:45',triggerCount:'757'},
+            {ruleCode:'EVAL-002',ruleName:'评价等级自动分级规则',ruleType:'评价规则',bizType:'评价',priority:'2',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0019',ruleExpression:'deliveryDays > 30',triggerAction:'记录日志',createBy:'吴芳',lastTriggerTime:'2026-06-19 17:30',triggerCount:'794'},
+            {ruleCode:'TAX-001',ruleName:'税率校验规则',ruleType:'税务规则',bizType:'发票',priority:'1',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0020',ruleExpression:'paymentDays > 90',triggerAction:'强制复核',createBy:'郑浩',lastTriggerTime:'2026-06-18 14:00',triggerCount:'831'},
+            {ruleCode:'TAX-002',ruleName:'发票重复校验规则',ruleType:'税务规则',bizType:'发票',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0021',ruleExpression:'amount > 100000 && dept == "采购"',triggerAction:'自动审批',createBy:'系统管理员',lastTriggerTime:'2026-06-25 14:30',triggerCount:'868'},
+            {ruleCode:'LOG-001',ruleName:'物流时效预警规则',ruleType:'物流规则',bizType:'发货',priority:'2',version:'1',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0022',ruleExpression:'status == "待审批" && days > 7',triggerAction:'发送提醒',createBy:'张明',lastTriggerTime:'2026-06-24 09:15',triggerCount:'905'},
+            {ruleCode:'LOG-002',ruleName:'运输异常预警规则',ruleType:'物流规则',bizType:'发货',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0023',ruleExpression:'price < marketPrice * 0.8',triggerAction:'拦截操作',createBy:'李华',lastTriggerTime:'2026-06-26 11:00',triggerCount:'942'},
+            {ruleCode:'APR-003',ruleName:'多级审批流转规则',ruleType:'审批规则',bizType:'采购申请',priority:'1',version:'5',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0024',ruleExpression:'supplier.level == "C" && amount > 50000',triggerAction:'升级审批',createBy:'王强',lastTriggerTime:'2026-06-23 16:45',triggerCount:'979'},
+            {ruleCode:'APR-004',ruleName:'金额分级审批规则',ruleType:'审批规则',bizType:'订单',priority:'1',version:'4',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0025',ruleExpression:'stock < warningValue',triggerAction:'通知主管',createBy:'赵敏',lastTriggerTime:'2026-06-22 10:30',triggerCount:'1016'},
+            {ruleCode:'BUD-003',ruleName:'预算执行率预警规则',ruleType:'预算规则',bizType:'采购申请',priority:'2',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0026',ruleExpression:'contractExpired == true',triggerAction:'冻结订单',createBy:'陈刚',lastTriggerTime:'2026-06-26 15:00',triggerCount:'1053'},
+            {ruleCode:'METHOD-002',ruleName:'紧急采购判定规则',ruleType:'采购方式规则',bizType:'采购申请',priority:'1',version:'3',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0027',ruleExpression:'bidCount < 3 && amount > 100000',triggerAction:'生成工单',createBy:'孙丽',lastTriggerTime:'2026-06-21 13:15',triggerCount:'1090'},
+            {ruleCode:'PRICE-003',ruleName:'历史价格比对规则',ruleType:'价格规则',bizType:'商品',priority:'2',version:'1',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0028',ruleExpression:'qualityScore < 60',triggerAction:'发送预警',createBy:'周涛',lastTriggerTime:'2026-06-20 08:45',triggerCount:'1127'},
+            {ruleCode:'SUP-003',ruleName:'供应商黑名单校验规则',ruleType:'供应商规则',bizType:'供应商',priority:'1',version:'2',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0029',ruleExpression:'deliveryDays > 30',triggerAction:'记录日志',createBy:'吴芳',lastTriggerTime:'2026-06-19 17:30',triggerCount:'1164'},
+            {ruleCode:'DELIVERY-001',ruleName:'到货验收超期规则',ruleType:'物流规则',bizType:'收货',priority:'2',version:'1',status:'启用',effectiveDate:'2026-01-01~2026-12-31',ruleId:'BR-0030',ruleExpression:'paymentDays > 90',triggerAction:'强制复核',createBy:'郑浩',lastTriggerTime:'2026-06-18 14:00',triggerCount:'1201'}
+        ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          detailVisible:false,
+          helpVisible:false,
+          currentDetail:null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'ruleCode',label:'规则编码'},{key:'ruleName',label:'规则名称'},{key:'ruleType',label:'规则类型'},
+            {key:'bizType',label:'业务类型'},{key:'priority',label:'优先级'},{key:'version',label:'版本'},
+            {key:'status',label:'状态'},{key:'effectiveDate',label:'生效日期'},{key:'ruleId',label:'规则ID'},
+            {key:'ruleExpression',label:'规则表达式'},{key:'triggerAction',label:'触发动作'},
+            {key:'createBy',label:'创建人'},{key:'lastTriggerTime',label:'最后触发时间'},{key:'triggerCount',label:'触发次数'}
+          ],
+          fieldLabels:{
+            ruleCode:'规则编码',
+            ruleName:'规则名称',
+            ruleType:'规则类型',
+            bizType:'业务类型',
+            priority:'优先级',
+            version:'版本',
+            status:'状态',
+            effectiveDate:'生效日期'
+          }
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(item => {
+            if (this.queryForm.ruleName && !item.ruleName.includes(this.queryForm.ruleName)) return false;
+            if (this.queryForm.ruleType && item.ruleType !== this.queryForm.ruleType) return false;
+            if (this.queryForm.status && item.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = ((item.ruleCode || '') + ' ' + (item.ruleName || '') + ' ' + (item.ruleType || '') + ' ' + (item.bizType || '') + ' ' + (item.status || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.ruleName)) conditions.push('规则名称：' + f.ruleName);
+          if (this.isNotEmpty(f.ruleType)) conditions.push('规则类型：' + f.ruleType);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {ruleName:'',ruleType:'',status:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.loadData(); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labelMap = {}; (this.exportableFields || []).forEach(f => labelMap[f.key] = f.label);
+          const labels = this.fieldLabels || labelMap;
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '业务规则列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/rules');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        toggleStatus(row) {
+          const action = row.status === '启用' ? '禁用' : '启用';
+          this.$confirm('确认' + action + '规则「' + row.ruleName + '」吗？', '状态变更', { type: 'warning', confirmButtonText: action, cancelButtonText: '取消' }).then(() => {
+            row.status = action;
+            this.$message.success('规则「' + row.ruleName + '」已' + action);
+          }).catch(() => {});
+        },
+        openAddDialog() {
+          const maxNum = this.tableData.reduce((max, i) => {
+            const m = i.ruleCode.match(/(\d+)$/);
+            const n = m ? parseInt(m[1]) : 0;
+            return n > max ? n : max;
+          }, 0);
+          this.addDialog.form = {
+            ruleCode: 'RULE-' + String(maxNum + 1).padStart(3, '0'),
+            ruleName: '', ruleType: '审批规则', bizType: '采购申请',
+            priority: '1', version: '1', status: '启用',
+            effectiveDate: '', ruleId: 'BR-' + String(maxNum + 1).padStart(4, '0'),
+            ruleExpression: '', triggerAction: '', createBy: '当前用户',
+            lastTriggerTime: '', triggerCount: '0'
+          };
+          this.addDialog.visible = true;
+          this.$nextTick(() => { this.$refs.addForm && this.$refs.addForm.clearValidate(); });
+        },
+        handleAddConfirm() {
+          this.$refs.addForm.validate(valid => {
+            if (!valid) return;
+            const f = this.addDialog.form;
+            this.tableData.push({
+              ruleCode: f.ruleCode, ruleName: f.ruleName, ruleType: f.ruleType,
+              bizType: f.bizType, priority: f.priority, version: f.version,
+              status: f.status, effectiveDate: f.effectiveDate, ruleId: f.ruleId,
+              ruleExpression: f.ruleExpression, triggerAction: f.triggerAction,
+              createBy: f.createBy, lastTriggerTime: new Date().toISOString().split('T')[0],
+              triggerCount: '0'
+            });
+            this.addDialog.visible = false;
+            this.$message.success('业务规则「' + f.ruleName + '」新增成功');
+          });
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

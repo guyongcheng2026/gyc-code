@@ -1,0 +1,599 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AI智能评标决策</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .ai-banner { background: linear-gradient(135deg, #0B7266 0%, #0a6358 100%); color: #fff; padding: 20px 24px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; } .ai-banner > * + * { margin-left:16px; }
+    .ai-banner .ai-icon { font-size: 36px; }
+    .ai-banner .ai-title { font-size: 18px; font-weight: 700; }
+    .ai-banner .ai-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .decision-card { background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; margin-bottom:12px; }
+    .decision-card__title { font-size:15px; font-weight:600; color:#1A2332; margin-bottom:10px; }
+    .score-bar { display:inline-block; height:8px; border-radius:4px; background:#E0F0EE; vertical-align:middle; }
+    .score-bar__fill { display:block; height:100%; border-radius:4px; background:#0B7266; }
+    .confidence-meter { display:flex; align-items:center; } .confidence-meter > * + * { margin-left:10px; }
+    .ai-suggestion { background:linear-gradient(135deg,#E0F0EE 0%,#F1F6F7 100%); border-left:4px solid #0B7266; padding:16px 20px; border-radius:4px; margin-top:12px; }
+    .ai-suggestion__title { font-size:15px; font-weight:700; color:#0B7266; margin-bottom:8px; }
+    .ai-suggestion__text { font-size:14px; color:#333; line-height:1.8; }
+    .tl-footer { text-align:center; }
+    .analysis-dialog .el-dialog__body { padding:16px 24px; max-height:65vh; overflow-y:auto; }
+    .analysis-summary { display:flex; /* gap-removed */; margin-bottom:16px; }
+    .analysis-summary__item { flex:1; background:#F1F6F7; border-radius:4px; padding:10px 14px; }
+    .analysis-summary__label { font-size:12px; color:#6B7280; margin-bottom:4px; }
+    .analysis-summary__value { font-size:20px; font-weight:700; color:#1A2332; }
+    .analysis-section { margin-bottom:20px; }
+    .analysis-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .analysis-section__title i { margin-right:6px; }
+    .compare-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .compare-table th, .compare-table td { padding:8px 12px; border:1px solid #EBEEF5; text-align:center; }
+    .compare-table th { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .compare-table .best { background:#e8f5e9; color:#2e7d32; font-weight:700; }
+    .deviation-row { display:flex; align-items:center; margin-bottom:8px; }
+    .deviation-row .dev-label { width:160px; font-size:12px; color:#333; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px; }
+    .deviation-row .dev-bar-area { flex:1; position:relative; height:20px; background:#f5f5f5; border-radius:4px; }
+    .deviation-row .dev-bar-area::before { content:''; position:absolute; left:50%; top:0; width:1px; height:100%; background:#ccc; }
+    .deviation-row .dev-bar { position:absolute; top:0; height:100%; border-radius:4px; }
+    .deviation-row .dev-value { width:60px; font-size:12px; font-weight:600; padding-left:8px; }
+    .risk-item { display:flex; align-items:center; padding:8px 12px; border-radius:4px; margin-bottom:6px; }
+    .risk-item--low { background:#e8f5e9; }
+    .risk-item--mid { background:#fff8e1; }
+    .risk-item--high { background:#ffebee; }
+    .risk-item .risk-name { flex:1; font-size:13px; font-weight:500; }
+    .risk-item .risk-factors { font-size:12px; color:#555; margin-right:8px; }
+    .consistency-row { display:flex; align-items:center; margin-bottom:8px; }
+    .consistency-row .con-label { width:160px; font-size:12px; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px; }
+    .analysis-loading { text-align:center; padding:40px 0; }
+    .analysis-loading .el-icon-loading { font-size:32px; color:#0B7266; }
+    .analysis-loading p { margin-top:12px; color:#6B7280; font-size:14px; }
+    .selection-hint { font-size:12px; color:#909399; margin-left:8px; }
+    .selection-hint b { color:#0B7266; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">AI智能评标决策</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="标段编号" title="标段编号">
+                    <el-input v-model="queryForm.bidNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方式" title="采购方式">
+                    <el-select v-model="queryForm.method" placeholder="请选择" clearable>
+                      <el-option label="公开招标" value="公开招标"></el-option>
+                      <el-option label="邀请招标" value="邀请招标"></el-option>
+                      <el-option label="竞争性谈判" value="竞争性谈判"></el-option>
+                      <el-option label="单一来源" value="单一来源"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">分析</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="投标方评分概览">投标方评分概览</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ bidData.length }} 家投标方</span><span class="selection-hint" v-if="selection.length > 0">已选 <b>{{ selection.length }}</b> 家</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleAnalysis" icon="el-icon-data-analysis">AI对比分析</el-button>
+                        <el-button type="primary" @click="handleGenerateDecision" icon="el-icon-magic-stick">生成决策建议</el-button>
+                        <el-button @click="handleExport" icon="el-icon-download">导出报告</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="bidNo" label="标段编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="bidder" label="投标方" min-width="180" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="techScore" label="技术分" width="100" align="center"></el-table-column>
+                  <el-table-column prop="businessScore" label="商务分" width="100" align="center"></el-table-column>
+                  <el-table-column prop="priceScore" label="价格分" width="100" align="center"></el-table-column>
+                  <el-table-column prop="totalScore" label="总分" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <b style="color:#0B7266;">{{ row.totalScore }}</b>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="priceDeviation" label="价格偏离度" width="120" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="getDeviationType(row.priceDeviation)" size="small">{{ row.priceDeviation }}%</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="consistency" label="专家一致性" width="120" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="row.consistency >= 90 ? 'success' : (row.consistency >= 75 ? 'warning' : 'danger')" size="small">{{ row.consistency }}%</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="riskLevel" label="风险等级" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="getRiskType(row.riskLevel)" size="small">{{ row.riskLevel }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="120" fixed="right" align="center">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="text-align:right;">
+                  <el-pagination background layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length" :current-page.sync="currentPage" :page-size="pageSize" :page-sizes="[10,20,30]" @size-change="handleSizeChange" @current-change="handleCurrentChange"></el-pagination>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-suggestion" v-if="decisionResult">
+            <div class="ai-suggestion__title"><i class="el-icon-magic-stick"></i> AI 决策建议</div>
+            <div class="ai-suggestion__text">
+              <p><b>推荐中标方：</b>{{ decisionResult.winner }}（总分 {{ decisionResult.winnerScore }} 分）</p>
+              <p><b>推荐理由：</b>{{ decisionResult.reason }}</p>
+              <p><b>风险提示：</b>{{ decisionResult.risk }}</p>
+              <div class="confidence-meter" style="margin-top:8px;">
+                <span style="font-size:13px;color:#6B7280;">置信度：</span>
+                <el-progress :percentage="decisionResult.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+                <el-tag :type="decisionResult.confidence >= 85 ? 'success' : 'warning'" size="small">{{ decisionResult.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    <!-- AI对比分析弹窗 -->
+    <el-dialog :lazy="true" title="AI投标方对比分析" :visible.sync="analysisVisible" width="900px" custom-class="analysis-dialog">
+      <!-- 加载中 -->
+      <div class="analysis-loading" v-if="analysisLoading">
+        <i class="el-icon-loading"></i>
+        <p>AI 正在分析 {{ analysisSelection.length }} 家投标方，请稍候…</p>
+      </div>
+      <!-- 分析结果 -->
+      <div v-if="!analysisLoading && analysisResult">
+        <!-- 概要 -->
+        <div class="analysis-summary">
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">参评投标方</div>
+            <div class="analysis-summary__value">{{ analysisResult.summary.count }} 家</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">最高总分</div>
+            <div class="analysis-summary__value">{{ analysisResult.summary.maxScore }} 分</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">平均总分</div>
+            <div class="analysis-summary__value">{{ analysisResult.summary.avgScore }} 分</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">分差</div>
+            <div class="analysis-summary__value">{{ analysisResult.summary.scoreGap }} 分</div>
+          </div>
+        </div>
+
+        <!-- 评分对比矩阵 -->
+        <div class="analysis-section">
+          <div class="analysis-section__title"><i class="el-icon-s-data"></i>评分对比矩阵</div>
+          <table class="compare-table">
+            <thead>
+              <tr>
+                <th>投标方</th>
+                <th>技术分<br/><small>满分40</small></th>
+                <th>商务分<br/><small>满分40</small></th>
+                <th>价格分<br/><small>满分10</small></th>
+                <th>总分<br/><small>满分90</small></th>
+                <th>排名</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, idx) in analysisResult.ranking" :key="item.bidder" :class="idx === 0 ? 'best' : ''">
+                <td>{{ item.bidder }}</td>
+                <td>{{ item.techScore }}</td>
+                <td>{{ item.businessScore }}</td>
+                <td>{{ item.priceScore }}</td>
+                <td><b>{{ item.totalScore }}</b></td>
+                <td>{{ idx + 1 }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 价格偏离度分析 -->
+        <div class="analysis-section">
+          <div class="analysis-section__title"><i class="el-icon-coin"></i>价格偏离度分析</div>
+          <div style="font-size:12px;color:#6B7280;margin-bottom:8px;">以行业基准价为零点，向左为低于基准（绿色），向右为高于基准（红色）。</div>
+          <div v-for="item in analysisResult.ranking" :key="'dev-'+item.bidder" class="deviation-row">
+            <div class="dev-label" :title="item.bidder">{{ item.bidder }}</div>
+            <div class="dev-bar-area">
+              <div class="dev-bar"
+                   :style="{
+                     left: item.priceDeviation < 0 ? (50 + item.priceDeviation * 2) + '%' : '50%',
+                     width: Math.abs(item.priceDeviation) * 2 + '%',
+                     background: Math.abs(item.priceDeviation) < 3 ? '#67C23A' : (Math.abs(item.priceDeviation) < 7 ? '#E6A23C' : '#F56C6C')
+                   }">
+              </div>
+            </div>
+            <div class="dev-value" :style="{ color: Math.abs(item.priceDeviation) < 3 ? '#67C23A' : (Math.abs(item.priceDeviation) < 7 ? '#E6A23C' : '#F56C6C') }">{{ item.priceDeviation }}%</div>
+          </div>
+        </div>
+
+        <!-- 风险评估 -->
+        <div class="analysis-section">
+          <div class="analysis-section__title"><i class="el-icon-warning-outline"></i>风险评估</div>
+          <div v-for="item in analysisResult.riskAssessment" :key="'risk-'+item.bidder" class="risk-item" :class="item.riskLevel === '低' ? 'risk-item--low' : (item.riskLevel === '中' ? 'risk-item--mid' : 'risk-item--high')">
+            <span class="risk-name">{{ item.bidder }}</span>
+            <span class="risk-factors">{{ item.riskFactors }}</span>
+            <el-tag :type="item.riskLevel === '低' ? 'success' : (item.riskLevel === '中' ? 'warning' : 'danger')" size="small">{{ item.riskLevel }}</el-tag>
+          </div>
+        </div>
+
+        <!-- 专家一致性分析 -->
+        <div class="analysis-section">
+          <div class="analysis-section__title"><i class="el-icon-user-solid"></i>专家评分一致性</div>
+          <div v-for="item in analysisResult.ranking" :key="'con-'+item.bidder" class="consistency-row">
+            <div class="con-label" :title="item.bidder">{{ item.bidder }}</div>
+            <el-progress :percentage="item.consistency" :color="item.consistency >= 90 ? '#67C23A' : (item.consistency >= 75 ? '#E6A23C' : '#F56C6C')" :stroke-width="14" :text-inside="true" style="flex:1;"></el-progress>
+          </div>
+        </div>
+
+        <!-- AI综合建议 -->
+        <div class="ai-suggestion" style="margin-top:0;">
+          <div class="ai-suggestion__title"><i class="el-icon-magic-stick"></i> AI 综合建议</div>
+          <div class="ai-suggestion__text">
+            <p><b>推荐中标方：</b>{{ analysisResult.recommendation.winner }}（总分 {{ analysisResult.recommendation.winnerScore }} 分）</p>
+            <p><b>推荐理由：</b>{{ analysisResult.recommendation.reason }}</p>
+            <p><b>风险提示：</b>{{ analysisResult.recommendation.risk }}</p>
+            <div class="confidence-meter" style="margin-top:8px;">
+              <span style="font-size:13px;color:#6B7280;">置信度：</span>
+              <el-progress :percentage="analysisResult.recommendation.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+              <el-tag :type="analysisResult.recommendation.confidence >= 85 ? 'success' : 'warning'" size="small">{{ analysisResult.recommendation.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="analysisVisible = false">关闭</el-button>
+        <el-button type="primary" @click="adoptAnalysis" v-if="!analysisLoading && analysisResult">采纳建议</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="评标详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <template v-if="currentDetail">
+        <el-descriptions title="基本信息" :column="2" border size="medium">
+          <el-descriptions-item label="标段编号">{{ currentDetail.bidNo }}</el-descriptions-item>
+          <el-descriptions-item label="投标方">{{ currentDetail.bidder }}</el-descriptions-item>
+          <el-descriptions-item label="总分">
+            <el-tag :type="currentDetail.totalScore >= 85 ? 'success' : (currentDetail.totalScore >= 75 ? 'warning' : 'danger')" size="small">{{ currentDetail.totalScore }} 分</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="风险等级">
+            <el-tag :type="getRiskType(currentDetail.riskLevel)" size="small">{{ currentDetail.riskLevel }}</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="评分明细" :column="2" border size="medium">
+          <el-descriptions-item label="技术分">{{ currentDetail.techScore }} / 40</el-descriptions-item>
+          <el-descriptions-item label="商务分">{{ currentDetail.businessScore }} / 40</el-descriptions-item>
+          <el-descriptions-item label="价格分">{{ currentDetail.priceScore }} / 10</el-descriptions-item>
+          <el-descriptions-item label="价格偏离度">
+            <el-tag :type="getDeviationType(currentDetail.priceDeviation)" size="small">{{ currentDetail.priceDeviation }}%</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="专家评估" :column="1" border size="medium">
+          <el-descriptions-item label="专家评分一致性">
+            <el-progress :percentage="currentDetail.consistency" :color="'#0B7266'" :stroke-width="14" :text-inside="true" style="width:300px;"></el-progress>
+          </el-descriptions-item>
+          <el-descriptions-item label="风险提示">
+            <span v-if="currentDetail.consistency < 85" style="color:#E6A23C;">专家评分一致性偏低，建议复核评分细则</span>
+            <span v-else style="color:#67C23A;">各项指标均达标，可按流程推进</span>
+          </el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i>业务场景</div>
+          <div class="help-section__body"><p>基于<b>控制论前馈控制</b>思想，在评标阶段提前预测偏差并调整。AI分析技术商务评分一致性、价格偏离度，推荐最优中标方。覆盖公开招标、邀请招标、竞争性谈判、单一来源四种采购方式的评标决策。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i>页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>投标方评分概览</b>：技术分、商务分、价格分、总分</li>
+              <li><b>AI偏差预警</b>：价格偏离行业均价百分比</li>
+              <li><b>专家评分一致性校验</b>：识别评分异常</li>
+              <li><b>决策建议卡</b>：推荐中标方+理由+置信度</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>评标专家管理</b>：AI辅助专家抽取回避，自动校验利益冲突，降低人为干预风险</li>
+              <li><b>评分一致性校验</b>：自动识别专家评分偏离度，一致性&lt;75%触发复核，保障评标公正性</li>
+              <li><b>价格偏离度预警</b>：实时比对行业均价，偏离≥7%自动标红，防止低价抢标或高价围标</li>
+              <li><b>中标结果确定</b>：AI推荐中标方+理由+风险提示，支撑定标决策可追溯</li>
+              <li><b>四种采购方式覆盖</b>：公开招标、邀请招标、竞争性谈判、单一来源，差异化评分权重</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询评标项目</b>：在查询面板输入投标编号，选择采购方式（公开招标/邀请招标/竞争性谈判/单一来源），点击"查询"筛选</li>
+              <li><b>查看评分概览</b>：列表展示各投标方的技术分、商务分、价格分、总分及排名</li>
+              <li><b>查看AI偏差预警</b>：价格偏离度列展示各投标方价格偏离行业均价的百分比，偏离≥7%自动标红</li>
+              <li><b>查看专家评分一致性</b>：点击"详情"查看专家评分一致性校验结果，一致性&lt;75%触发复核提示</li>
+              <li><b>查看决策建议</b>：决策建议卡展示AI推荐的中标方、推荐理由和置信度</li>
+              <li><b>查看风险提示</b>：详情弹窗中展示风险提示（评分一致性偏低或各项指标达标）</li>
+              <li><b>确认定标</b>：根据AI推荐和风险提示，确认最终中标方，决策过程全程留痕可追溯</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="helpVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          queryForm:{bidNo:'',method:''},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          decisionResult:null,
+          detailVisible:false,
+          currentDetail:null,
+          analysisVisible:false,
+          analysisLoading:false,
+          analysisSelection:[],
+          analysisResult:null,
+          bidData:[
+            {bidNo:'BID-2026-001',bidder:'许继电气股份有限公司',techScore:38.5,businessScore:36.0,priceScore:9.8,totalScore:84.3,priceDeviation:-2.1,consistency:92,riskLevel:'低'},
+            {bidNo:'BID-2026-001',bidder:'平高电气股份有限公司',techScore:37.0,businessScore:35.5,priceScore:9.5,totalScore:82.0,priceDeviation:-4.8,consistency:88,riskLevel:'低'},
+            {bidNo:'BID-2026-001',bidder:'思源电气股份有限公司',techScore:36.5,businessScore:35.0,priceScore:10.0,totalScore:81.5,priceDeviation:0.5,consistency:90,riskLevel:'低'},
+            {bidNo:'BID-2026-001',bidder:'特变电工衡阳变压器有限公司',techScore:35.0,businessScore:34.0,priceScore:9.2,totalScore:78.2,priceDeviation:-7.2,consistency:76,riskLevel:'中'},
+            {bidNo:'BID-2026-001',bidder:'山东泰开电气有限公司',techScore:34.5,businessScore:33.5,priceScore:9.6,totalScore:77.6,priceDeviation:-3.5,consistency:82,riskLevel:'中'},
+            {bidNo:'BID-2026-001',bidder:'北京华商三优新能源科技有限公司',techScore:33.0,businessScore:32.0,priceScore:8.8,totalScore:73.8,priceDeviation:-12.5,consistency:65,riskLevel:'高'},
+            {bidNo:'BID-2026-002',bidder:'国电南瑞科技股份有限公司',techScore:39.0,businessScore:37.0,priceScore:9.9,totalScore:85.9,priceDeviation:-1.5,consistency:95,riskLevel:'低'},
+            {bidNo:'BID-2026-002',bidder:'南京南瑞继保工程技术有限公司',techScore:38.0,businessScore:36.5,priceScore:9.7,totalScore:84.2,priceDeviation:-3.2,consistency:91,riskLevel:'低'},
+            {bidNo:'BID-2026-002',bidder:'北京四方继保自动化股份有限公司',techScore:37.5,businessScore:35.5,priceScore:9.4,totalScore:82.4,priceDeviation:-5.8,consistency:85,riskLevel:'低'},
+            {bidNo:'BID-2026-002',bidder:'许继电气股份有限公司',techScore:36.0,businessScore:35.0,priceScore:9.6,totalScore:80.6,priceDeviation:-3.8,consistency:87,riskLevel:'低'},
+            {bidNo:'BID-2026-003',bidder:'远东电缆有限公司',techScore:38.0,businessScore:36.5,priceScore:9.8,totalScore:84.3,priceDeviation:-2.5,consistency:93,riskLevel:'低'},
+            {bidNo:'BID-2026-003',bidder:'宝胜科技创新股份有限公司',techScore:37.0,businessScore:36.0,priceScore:9.5,totalScore:82.5,priceDeviation:-4.5,consistency:89,riskLevel:'低'},
+            {bidNo:'BID-2026-003',bidder:'江苏上上电缆集团有限公司',techScore:36.0,businessScore:35.0,priceScore:10.0,totalScore:81.0,priceDeviation:0.8,consistency:84,riskLevel:'低'},
+            {bidNo:'BID-2026-003',bidder:'青岛汉缆股份有限公司',techScore:35.5,businessScore:34.0,priceScore:9.3,totalScore:78.8,priceDeviation:-6.5,consistency:78,riskLevel:'中'},
+            {bidNo:'BID-2026-004',bidder:'ABB(中国)有限公司',techScore:39.5,businessScore:37.5,priceScore:9.7,totalScore:86.7,priceDeviation:-2.8,consistency:94,riskLevel:'低'},
+            {bidNo:'BID-2026-004',bidder:'施耐德电气(中国)有限公司',techScore:38.5,businessScore:37.0,priceScore:9.5,totalScore:85.0,priceDeviation:-4.2,consistency:90,riskLevel:'低'},
+            {bidNo:'BID-2026-004',bidder:'上海人民电器厂',techScore:34.0,businessScore:33.0,priceScore:9.0,totalScore:76.0,priceDeviation:-9.5,consistency:70,riskLevel:'中'}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){
+          const c=[];
+          if(this.queryForm.bidNo) c.push('标段编号：'+this.queryForm.bidNo);
+          if(this.queryForm.method) c.push('采购方式：'+this.queryForm.method);
+          return c.length ? '查询条件('+c.length+')：'+c.join('，') : '';
+        },
+        filteredData(){
+          let d=this.bidData;
+          if(this.queryForm.bidNo) d=d.filter(r=>r.bidNo.indexOf(this.queryForm.bidNo)!==-1);
+          if(this.tableSearchText) d=d.filter(r=>r.bidder.indexOf(this.tableSearchText)!==-1);
+          return d;
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        }
+      },
+      watch:{
+        filteredData(){ this.currentPage=1; }
+      },
+      methods:{
+        toggleSearchPanel(){ this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery(){
+          this.currentPage=1;
+          if(this.selection.length >= 2){
+            this.handleAnalysis();
+          } else {
+            this.$message.success('查询完成，共 '+this.filteredData.length+' 家投标方。勾选 2 家以上可进行 AI 对比分析。');
+          }
+        },
+        handleReset(){ this.queryForm={bidNo:'',method:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh(){ this.$message.success('数据已刷新'); },
+        handleExport(){
+          const data = this.selection.length > 0 ? this.selection : this.filteredData;
+          if(data.length === 0){ this.$message.warning('没有可导出的数据'); return; }
+          const keys = Object.keys(data[0]);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + keys.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = '评标决策报告_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出评标决策报告（共 ' + data.length + ' 条记录）');
+        },
+        handleSelectionChange(s){ this.selection=s; },
+        handleSizeChange(v){ this.pageSize=v; },
+        handleCurrentChange(v){ this.currentPage=v; },
+        handleAnalysis(){
+          if(this.selection.length < 2){
+            this.$message.warning('请至少勾选 2 家投标方进行对比分析');
+            return;
+          }
+          this.analysisSelection = this.selection.slice();
+          this.analysisVisible = true;
+          this.analysisLoading = true;
+          this.analysisResult = null;
+          this.performAnalysis();
+        },
+        performAnalysis(){
+          var self = this;
+          var selected = this.analysisSelection;
+
+          // 本地模拟 AI 分析逻辑
+          var ranking = selected.slice().sort(function(a, b){ return b.totalScore - a.totalScore; });
+
+          // 概要统计
+          var scores = ranking.map(function(r){ return r.totalScore; });
+          var maxScore = Math.max.apply(null, scores);
+          var minScore = Math.min.apply(null, scores);
+          var avgScore = (scores.reduce(function(s, v){ return s + v; }, 0) / scores.length).toFixed(1);
+          var scoreGap = (maxScore - minScore).toFixed(1);
+
+          // 风险评估
+          var riskAssessment = ranking.map(function(r){
+            var factors = [];
+            if(Math.abs(r.priceDeviation) >= 7) factors.push('价格偏离度异常');
+            if(r.consistency < 75) factors.push('专家评分一致性偏低');
+            if(r.totalScore < 75) factors.push('综合评分偏低');
+            if(factors.length === 0) factors.push('各项指标正常');
+            return { bidder: r.bidder, riskLevel: r.riskLevel, riskFactors: factors.join('；') };
+          });
+
+          // AI 推荐建议
+          var best = ranking[0];
+          var worst = ranking[ranking.length - 1];
+          var confidence = Math.min(98, Math.round(best.totalScore + best.consistency / 5));
+
+          var reason = '综合技术、商务、价格三维评分最高（' + best.totalScore + ' 分），'
+            + '价格偏离度 ' + best.priceDeviation + '% 处于合理区间，'
+            + '专家评分一致性 ' + best.consistency + '%，'
+            + '风险等级为"' + best.riskLevel + '"。'
+            + '与末位投标方分差 ' + scoreGap + ' 分，优势明显。';
+
+          var risk = '推荐方各项指标达标。';
+          if(worst.consistency < 75) risk += '注意：' + worst.bidder + ' 专家评分一致性仅 ' + worst.consistency + '%，建议复核其评分细则。';
+          if(Math.abs(worst.priceDeviation) >= 7) risk += '注意：' + worst.bidder + ' 价格偏离度 ' + worst.priceDeviation + '%，存在低价抢标或高价围标风险。';
+
+          var result = {
+            summary: { count: selected.length, maxScore: maxScore, avgScore: avgScore, scoreGap: scoreGap },
+            ranking: ranking,
+            riskAssessment: riskAssessment,
+            recommendation: { winner: best.bidder, winnerScore: best.totalScore, reason: reason, risk: risk, confidence: confidence }
+          };
+
+          // 模拟网络延迟
+          setTimeout(function(){
+            self.analysisLoading = false;
+            self.analysisResult = result;
+          }, 1200);
+        },
+        adoptAnalysis(){
+          if(!this.analysisResult) return;
+          var rec = this.analysisResult.recommendation;
+          this.decisionResult = {
+            winner: rec.winner,
+            winnerScore: rec.winnerScore,
+            reason: rec.reason,
+            risk: rec.risk,
+            confidence: rec.confidence
+          };
+          this.analysisVisible = false;
+          this.$message.success('已采纳 AI 对比分析建议，决策建议已更新');
+        },
+        handleGenerateDecision(){
+          if(this.filteredData.length===0){ this.$message.warning('暂无数据'); return; }
+          const best=this.filteredData.reduce((a,b)=>a.totalScore>b.totalScore?a:b);
+          this.decisionResult={
+            winner:best.bidder,
+            winnerScore:best.totalScore,
+            reason:'综合技术、商务、价格三维评分最高，价格偏离度 '+best.priceDeviation+'% 处于合理区间，专家评分一致性 '+best.consistency+'%，风险等级为"'+best.riskLevel+'"。',
+            risk:best.consistency < 85 ? '专家评分一致性偏低，建议复核评分细则' : '各项指标均达标，可按流程推进',
+            confidence:Math.min(98, Math.round(best.totalScore + best.consistency/5))
+          };
+          this.$message.success('AI决策建议已生成');
+        },
+        viewDetail(row){ this.currentDetail=row; this.detailVisible=true; },
+        getDeviationType(d){ const v=Math.abs(d); return v<3?'success':(v<7?'warning':'danger'); },
+        getRiskType(r){ return r==='低'?'success':(r==='中'?'warning':'danger'); }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

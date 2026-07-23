@@ -1,0 +1,343 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>商品对比</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .compare-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .compare-table { width: 100%; border-collapse: collapse; }
+    .compare-table th, .compare-table td { border: 1px solid #EBEEF5; padding: 10px 12px; text-align: center; font-size: 13px; }
+    .compare-table th { background: #F1F6F7; color: #1A2332; font-weight: 600; }
+    .compare-table .attr-col { text-align: right; font-weight: 600; color: #555; width: 120px; background: #fafafa; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">商品对比</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="商品名称" title="商品名称">
+                    <el-input v-model="queryForm.productName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="品牌" title="品牌">
+                    <el-input v-model="queryForm.brand" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="类目" title="类目">
+                    <el-select v-model="queryForm.category" placeholder="请选择" clearable>
+                      <el-option label="电工器材" value="电工器材"></el-option>
+                      <el-option label="五金工具" value="五金工具"></el-option>
+                      <el-option label="办公用品" value="办公用品"></el-option>
+                      <el-option label="劳保用品" value="劳保用品"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">商品对比列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录，已选 {{ selection.length }} 件</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" icon="el-icon-share" @click="showCompare" :disabled="selection.length < 2">对比({{ selection.length }})</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center" :selectable="canSelect"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="productCode" label="商品编码" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="productName" label="商品名称" min-width="180" align="center"></el-table-column>
+                  <el-table-column prop="brand" label="品牌" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="spec" label="规格型号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="category" label="类目" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="unit" label="单位" min-width="80" align="center"></el-table-column>
+                  <el-table-column prop="price" label="单价(元)" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="rating" label="评分" min-width="80" align="center">
+                    <template slot-scope="{row}">
+                      <span style="color:#f57c00;font-weight:600;">{{ row.rating }}</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="商品对比（最多4件）" :visible.sync="compareVisible" width="900px" custom-class="compare-dialog">
+      <table class="compare-table" v-if="selection.length >= 2">
+        <thead>
+          <tr>
+            <th class="attr-col">对比项</th>
+            <th v-for="item in selection" :key="item.productCode">{{ item.productName }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="attr-col">商品编码</td><td v-for="item in selection">{{ item.productCode }}</td></tr>
+          <tr><td class="attr-col">品牌</td><td v-for="item in selection">{{ item.brand }}</td></tr>
+          <tr><td class="attr-col">规格型号</td><td v-for="item in selection">{{ item.spec }}</td></tr>
+          <tr><td class="attr-col">类目</td><td v-for="item in selection">{{ item.category }}</td></tr>
+          <tr><td class="attr-col">单位</td><td v-for="item in selection">{{ item.unit }}</td></tr>
+          <tr><td class="attr-col">单价(元)</td><td v-for="item in selection" :style="{color: item.price === minPrice ? '#2e7d32' : '', fontWeight: item.price === minPrice ? 600 : 400}">{{ item.price }}</td></tr>
+          <tr><td class="attr-col">供应商</td><td v-for="item in selection">{{ item.supplier }}</td></tr>
+          <tr><td class="attr-col">评分</td><td v-for="item in selection" :style="{color: item.rating === maxRating ? '#f57c00' : '', fontWeight: item.rating === maxRating ? 600 : 400}">{{ item.rating }}</td></tr>
+          <tr><td class="attr-col">质保期</td><td v-for="item in selection">{{ item.warranty }}</td></tr>
+          <tr><td class="attr-col">交货期</td><td v-for="item in selection">{{ item.deliveryDays }}天</td></tr>
+        </tbody>
+      </table>
+      <div v-else style="text-align:center;padding:40px;color:#909399;">请至少选择2件商品进行对比</div>
+      <div v-if="selection.length>=2" style="margin-top:20px;">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-search"></i> 价格自动稽查</div>
+        <el-table :data="priceAuditData" border style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="productCode" label="商品编码" min-width="120" align="center"></el-table-column>
+          <el-table-column prop="supplier" label="供应商" min-width="180"></el-table-column>
+          <el-table-column prop="price" label="报价(元)" width="100" align="right"></el-table-column>
+          <el-table-column prop="marketAvg" label="市场均价(元)" width="120" align="right"></el-table-column>
+          <el-table-column label="偏离率" width="100" align="center">
+            <template slot-scope="{row}">
+              <el-tag size="small" :type="row.deviation > 5 ? 'danger' : row.deviation < -5 ? 'success' : 'info'">{{ row.deviation > 0 ? '+' : '' }}{{ row.deviation }}%</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="稽查结果" width="120" align="center">
+            <template slot-scope="{row}">
+              <el-tag size="small" :type="row.auditResult === '正常' ? 'success' : 'danger'">{{ row.auditResult }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+        <el-alert v-if="priceAuditAlert" :title="priceAuditAlert" type="warning" :closable="false" show-icon style="margin-bottom:16px;"></el-alert>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-files"></i> 同参比价（相同规格参数对比）</div>
+        <el-table :data="paramCompareData" border style="width:100%;">
+          <el-table-column prop="paramName" label="参数项" width="120"></el-table-column>
+          <el-table-column v-for="(item,idx) in selection" :key="idx" :label="item.productCode" min-width="160" align="center">
+            <template slot-scope="{row}">
+              <span :style="{color: row.bestIdx === idx ? '#2e7d32' : '', fontWeight: row.bestIdx === idx ? 600 : 400}">{{ row.values[idx] }}</span>
+              <i v-if="row.bestIdx === idx" class="el-icon-check" style="color:#2e7d32;margin-left:4px;"></i>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="compareVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">采购员在选购商品时，可多选同类商品进行参数、价格、供应商、评分等维度的横向对比，辅助采购决策。适用于采购员在同类商品中比较不同品牌的价格差异、规格参数、供应商评级和交货周期，选择性价比最优的商品。支持最多4件商品同时对比，价格最低和评分最高自动高亮标识。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>多维度横向对比，降低选型难度</li>
+              <li>价格最低、评分最高自动高亮</li>
+              <li>支持最多4件商品同时对比</li>
+              <li>辅助采购员做出最优采购决策</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询商品</b>：输入商品名称、品牌、类目，点击"查询"筛选候选商品</li>
+              <li><b>选择对比商品</b>：勾选表格前的复选框（最多4件），系统自动限制选择数量</li>
+              <li><b>发起对比</b>：点击"对比"按钮，弹出对比表格展示所选商品的参数、价格、供应商、评分等维度</li>
+              <li><b>查看差异高亮</b>：对比表中价格最低自动标绿，评分最高自动标橙，直观识别最优项</li>
+              <li><b>查看规格参数</b>：对比表逐行展示各商品的规格型号、单位、保修期、交货天数等参数</li>
+              <li><b>查看供应商信息</b>：对比表展示各商品的供应商名称和评级，辅助评估供应商可靠性</li>
+              <li><b>加入购物车</b>：在对比结果中选择最优商品，直接加入购物车进入采购流程</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          queryForm: {productName:'',brand:'',category:''},
+          tableSearchText:'',
+          tableData: [
+            {productCode:'P2026-0001',productName:'10kV电力电缆',brand:'远东',spec:'YJV22-3*400',category:'电工器材',unit:'米',price:125.50,supplier:'远东电缆股份',rating:4.8,warranty:'2年',deliveryDays:7},
+            {productCode:'P2026-0002',productName:'10kV电力电缆',brand:'上缆',spec:'YJV22-3*400',category:'电工器材',unit:'米',price:118.80,supplier:'上海电缆厂',rating:4.5,warranty:'2年',deliveryDays:10},
+            {productCode:'P2026-0003',productName:'10kV电力电缆',brand:'宝胜',spec:'YJV22-3*400',category:'电工器材',unit:'米',price:132.00,supplier:'宝胜科技',rating:4.7,warranty:'3年',deliveryDays:5},
+            {productCode:'P2026-0004',productName:'配电箱(不锈钢)',brand:'正泰',spec:'XL-21 800A',category:'电工器材',unit:'台',price:3800.00,supplier:'正泰电器',rating:4.6,warranty:'3年',deliveryDays:15},
+            {productCode:'P2026-0005',productName:'配电箱(不锈钢)',brand:'德力西',spec:'XL-21 800A',category:'电工器材',unit:'台',price:3650.00,supplier:'德力西电气',rating:4.4,warranty:'3年',deliveryDays:12},
+            {productCode:'P2026-0006',productName:'配电箱(不锈钢)',brand:'施耐德',spec:'XL-21 800A',category:'电工器材',unit:'台',price:5200.00,supplier:'施耐德电气',rating:4.9,warranty:'5年',deliveryDays:20},
+            {productCode:'P2026-0007',productName:'绝缘手套(高压)',brand:'霍尼韦尔',spec:'35kV',category:'劳保用品',unit:'副',price:285.00,supplier:'霍尼韦尔中国',rating:4.7,warranty:'1年',deliveryDays:7},
+            {productCode:'P2026-0008',productName:'绝缘手套(高压)',brand:'代尔塔',spec:'35kV',category:'劳保用品',unit:'副',price:220.00,supplier:'代尔塔防护',rating:4.3,warranty:'1年',deliveryDays:5},
+            {productCode:'P2026-0009',productName:'安全帽(ABS)',brand:'3M',spec:'V型',category:'劳保用品',unit:'顶',price:45.00,supplier:'3M中国',rating:4.8,warranty:'2年',deliveryDays:3},
+            {productCode:'P2026-0010',productName:'安全帽(ABS)',brand:'华安',spec:'V型',category:'劳保用品',unit:'顶',price:32.00,supplier:'华安劳保',rating:4.2,warranty:'2年',deliveryDays:3},
+            {productCode:'P2026-0011',productName:'万用表(数字)',brand:'福禄克',spec:'Fluke 117',category:'五金工具',unit:'块',price:1280.00,supplier:'福禄克中国',rating:4.9,warranty:'3年',deliveryDays:10},
+            {productCode:'P2026-0012',productName:'万用表(数字)',brand:'优利德',spec:'UT39C+',category:'五金工具',unit:'块',price:280.00,supplier:'优利德科技',rating:4.5,warranty:'2年',deliveryDays:7},
+            {productCode:'P2026-0013',productName:'万用表(数字)',brand:'胜利',spec:'VC97',category:'五金工具',unit:'块',price:195.00,supplier:'胜利仪器',rating:4.3,warranty:'2年',deliveryDays:5},
+            {productCode:'P2026-0014',productName:'A4打印纸',brand:'得力',spec:'80g 500张',category:'办公用品',unit:'箱',price:145.00,supplier:'得力集团',rating:4.6,warranty:'-',deliveryDays:3},
+            {productCode:'P2026-0015',productName:'A4打印纸',brand:'晨光',spec:'80g 500张',category:'办公用品',unit:'箱',price:138.00,supplier:'晨光文具',rating:4.5,warranty:'-',deliveryDays:3},
+            {productCode:'P2026-0016',productName:'A4打印纸',brand:'Double A',spec:'80g 500张',category:'办公用品',unit:'箱',price:168.00,supplier:'达伯埃',rating:4.8,warranty:'-',deliveryDays:5},
+            {productCode:'P2026-0017',productName:'电力变压器',brand:'特变电工',spec:'S11-630kVA/10kV',category:'电工器材',unit:'台',price:85000.00,supplier:'特变电工',rating:4.8,warranty:'5年',deliveryDays:30},
+            {productCode:'P2026-0018',productName:'电力变压器',brand:'西门子',spec:'S11-630kVA/10kV',category:'电工器材',unit:'台',price:120000.00,supplier:'西门子中国',rating:4.9,warranty:'5年',deliveryDays:45},
+            {productCode:'P2026-0019',productName:'电力变压器',brand:'ABB',spec:'S11-630kVA/10kV',category:'电工器材',unit:'台',price:115000.00,supplier:'ABB中国',rating:4.9,warranty:'5年',deliveryDays:40},
+            {productCode:'P2026-0020',productName:'电流互感器',brand:'天正',spec:'LZZBJ9-10',category:'电工器材',unit:'台',price:1850.00,supplier:'天正集团',rating:4.4,warranty:'3年',deliveryDays:15},
+            {productCode:'P2026-0021',productName:'电流互感器',brand:'许继',spec:'LZZBJ9-10',category:'电工器材',unit:'台',price:2100.00,supplier:'许继电气',rating:4.6,warranty:'3年',deliveryDays:12},
+            {productCode:'P2026-0022',productName:'断路器(真空)',brand:'常熟',spec:'VS1-12 630A',category:'电工器材',unit:'台',price:6800.00,supplier:'常熟开关',rating:4.5,warranty:'3年',deliveryDays:15},
+            {productCode:'P2026-0023',productName:'断路器(真空)',brand:'施耐德',spec:'VS1-12 630A',category:'电工器材',unit:'台',price:9500.00,supplier:'施耐德电气',rating:4.8,warranty:'5年',deliveryDays:20},
+            {productCode:'P2026-0024',productName:'电缆接头',brand:'3M',spec:'10kV 冷缩',category:'电工器材',unit:'套',price:380.00,supplier:'3M中国',rating:4.7,warranty:'2年',deliveryDays:7},
+            {productCode:'P2026-0025',productName:'电缆接头',brand:'普睿司曼',spec:'10kV 冷缩',category:'电工器材',unit:'套',price:420.00,supplier:'普睿司曼',rating:4.6,warranty:'2年',deliveryDays:10},
+            {productCode:'P2026-0026',productName:'接地线(便携式)',brand:'华仪',spec:'10kV 三相四线',category:'电工器材',unit:'组',price:580.00,supplier:'华仪电气',rating:4.3,warranty:'1年',deliveryDays:5},
+            {productCode:'P2026-0027',productName:'接地线(便携式)',brand:'诺雅克',spec:'10kV 三相四线',category:'电工器材',unit:'组',price:650.00,supplier:'诺雅克电气',rating:4.5,warranty:'1年',deliveryDays:7},
+            {productCode:'P2026-0028',productName:'绝缘胶垫',brand:'双虎',spec:'6mm 1m*10m',category:'劳保用品',unit:'卷',price:880.00,supplier:'双虎集团',rating:4.2,warranty:'1年',deliveryDays:7},
+            {productCode:'P2026-0029',productName:'绝缘胶垫',brand:'江海',spec:'6mm 1m*10m',category:'劳保用品',unit:'卷',price:750.00,supplier:'江海制品',rating:4.0,warranty:'1年',deliveryDays:5},
+            {productCode:'P2026-0030',productName:'激光测距仪',brand:'徕卡',spec:'D2 100m',category:'五金工具',unit:'台',price:890.00,supplier:'徕卡测量',rating:4.8,warranty:'2年',deliveryDays:10}
+          ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          compareVisible:false,
+          helpVisible:false,
+          fieldLabels:{},
+          priceAuditData:[
+            {productCode:'PR-001',supplier:'国电南瑞',price:128000,marketAvg:125000,deviation:2.4,auditResult:'正常'},
+            {productCode:'PR-002',supplier:'许继电气',price:132000,marketAvg:125000,deviation:5.6,auditResult:'价格偏高'},
+            {productCode:'PR-003',supplier:'平高电气',price:118000,marketAvg:125000,deviation:-5.6,auditResult:'正常'}
+          ],
+          priceAuditAlert:'检测到 PR-002 报价偏离市场均价 5.6%，建议核实价格合理性',
+          paramCompareData:[
+            {paramName:'额定电压',values:['12kV','12kV','12kV'],bestIdx:0},
+            {paramName:'额定电流',values:['3150A','3150A','2500A'],bestIdx:0},
+            {paramName:'防护等级',values:['IP4X','IP4X','IP4X'],bestIdx:0},
+            {paramName:'质保期',values:['36个月','24个月','36个月'],bestIdx:0},
+            {paramName:'交货期',values:['15天','20天','10天'],bestIdx:2},
+            {paramName:'供应商评级',values:['AAA','AA','AAA'],bestIdx:0}
+          ]
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(item => {
+            if (this.queryForm.productName && !item.productName.includes(this.queryForm.productName)) return false;
+            if (this.queryForm.brand && !item.brand.includes(this.queryForm.brand)) return false;
+            if (this.queryForm.category && item.category !== this.queryForm.category) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = ((item.productCode || '') + ' ' + (item.productName || '') + ' ' + (item.brand || '') + ' ' + (item.supplier || '') + ' ' + (item.category || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.productName)) conditions.push('商品名称：' + f.productName);
+          if (this.isNotEmpty(f.brand)) conditions.push('品牌：' + f.brand);
+          if (this.isNotEmpty(f.category)) conditions.push('类目：' + f.category);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        minPrice() { return this.selection.length ? Math.min.apply(null, this.selection.map(function(i) { return i.price; })) : 0; },
+        maxRating() { return this.selection.length ? Math.max.apply(null, this.selection.map(function(i) { return i.rating; })) : 0; }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {productName:'',brand:'',category:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.$message.success('数据已刷新'); },
+        handleSelectionChange(val) { this.selection = val; },
+        canSelect() { return this.selection.length < 4; },
+        showCompare() {
+          if (this.selection.length < 2) { this.$message.warning('请至少选择2件商品进行对比'); return; }
+          this.compareVisible = true;
+        },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        handleSizeChange(val) { this.pageSize = val; this.currentPage = 1; },
+        handlePageChange(val) { this.currentPage = val; }
+      },
+      mounted() {}
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

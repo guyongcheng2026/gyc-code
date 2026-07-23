@@ -1,0 +1,304 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>安全审计</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-toggle{text-align:center;margin-bottom:12px}.stat-toggle .el-button{font-size:13px;color:#0B7266}
+.stat-cards { display:flex; /* gap-removed */; margin-bottom:16px; }
+    .stat-card { flex:1; background:#F1F6F7; border:1px solid #E0F0EE; border-radius:8px; padding:16px; text-align:center; }
+    .stat-card__value { font-size:28px; font-weight:700; color:#0B7266; }
+    .stat-card__label { font-size:13px; color:#909399; margin-top:4px; }
+    .stat-card--danger .stat-card__value { color:#c62828; }
+    .stat-card--warning .stat-card__value { color:#f57c00; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">安全审计</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="审计编号"><el-input v-model="queryForm.auditNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="审计类型"><el-select v-model="queryForm.auditType" placeholder="请选择" clearable><el-option label="操作审计" value="操作审计"></el-option><el-option label="数据审计" value="数据审计"></el-option><el-option label="权限审计" value="权限审计"></el-option><el-option label="接口审计" value="接口审计"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="风险等级"><el-select v-model="queryForm.riskLevel" placeholder="请选择" clearable><el-option label="高" value="high"></el-option><el-option label="中" value="medium"></el-option><el-option label="低" value="low"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="处理状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="待处理" value="pending"></el-option><el-option label="处理中" value="processing"></el-option><el-option label="已处理" value="resolved"></el-option><el-option label="已忽略" value="ignored"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="安全审计日志">安全审计日志</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button><el-button icon="el-icon-download" @click="handleExport">导出</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__table">
+              <div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+<div class="stat-cards" v-show="!statCollapsed">
+                <div class="stat-card"><div class="stat-card__value">{{ statData.totalCount }}</div><div class="stat-card__label">审计记录总数</div></div>
+                <div class="stat-card stat-card--danger"><div class="stat-card__value">{{ statData.highRiskCount }}</div><div class="stat-card__label">高风险事件</div></div>
+                <div class="stat-card stat-card--warning"><div class="stat-card__value">{{ statData.pendingCount }}</div><div class="stat-card__label">待处理</div></div>
+                <div class="stat-card"><div class="stat-card__value">{{ statData.resolvedCount }}</div><div class="stat-card__label">已处理</div></div>
+              </div>
+              <el-table :data="pagedData" border style="width:100%" @selection-change="handleSelectionChange">
+                <el-table-column type="selection" width="40" align="center"></el-table-column>
+                <el-table-column prop="auditNo" label="审计编号" width="140" align="center"></el-table-column>
+                <el-table-column prop="auditType" label="审计类型" width="100" align="center"></el-table-column>
+                <el-table-column prop="userName" label="操作用户" width="110" align="center"></el-table-column>
+                <el-table-column prop="action" label="操作行为" min-width="160" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="resource" label="访问资源" min-width="140" show-overflow-tooltip></el-table-column>
+                <el-table-column prop="ipAddress" label="IP地址" width="130" align="center"></el-table-column>
+                <el-table-column label="风险等级" width="80" align="center">
+                  <template slot-scope="{row}">
+                    <el-tag size="small" :type="row.riskLevel === 'high' ? 'danger' : row.riskLevel === 'medium' ? 'warning' : 'info'">{{ row.riskLevelText }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="处理状态" width="90" align="center">
+                  <template slot-scope="{row}">
+                    <el-tag size="small" :type="row.status === 'resolved' ? 'success' : row.status === 'processing' ? 'warning' : row.status === 'ignored' ? 'info' : 'danger'">{{ row.statusText }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="auditTime" label="审计时间" width="160" align="center"></el-table-column>
+                <el-table-column label="操作" width="100" align="center" fixed="right">
+                  <template slot-scope="{row}">
+                    <el-button type="text" @click="handleDetail(row)">详情</el-button>
+                    <el-button type="text" @click="handleProcess(row)" v-if="row.status === 'pending'">处理</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small style="margin-top:12px;text-align:right;"></el-pagination>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="审计详情" :visible.sync="detailVisible" width="760px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 审计基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="审计编号">{{ currentDetail.auditNo }}</el-descriptions-item>
+          <el-descriptions-item label="审计类型">{{ currentDetail.auditType }}</el-descriptions-item>
+          <el-descriptions-item label="操作用户">{{ currentDetail.userName }}</el-descriptions-item>
+          <el-descriptions-item label="用户角色">{{ currentDetail.userRole }}</el-descriptions-item>
+          <el-descriptions-item label="操作行为">{{ currentDetail.action }}</el-descriptions-item>
+          <el-descriptions-item label="访问资源">{{ currentDetail.resource }}</el-descriptions-item>
+          <el-descriptions-item label="IP地址">{{ currentDetail.ipAddress }}</el-descriptions-item>
+          <el-descriptions-item label="风险等级">
+            <el-tag size="small" :type="currentDetail.riskLevel === 'high' ? 'danger' : currentDetail.riskLevel === 'medium' ? 'warning' : 'info'">{{ currentDetail.riskLevelText }}</el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="审计时间">{{ currentDetail.auditTime }}</el-descriptions-item>
+          <el-descriptions-item label="处理状态">
+            <el-tag size="small" :type="currentDetail.status === 'resolved' ? 'success' : currentDetail.status === 'processing' ? 'warning' : currentDetail.status === 'ignored' ? 'info' : 'danger'">{{ currentDetail.statusText }}</el-tag>
+          </el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-warning-outline"></i> 风险分析</div>
+        <el-descriptions :column="1" border style="margin-bottom:16px;">
+          <el-descriptions-item label="风险描述">{{ currentDetail.riskDesc }}</el-descriptions-item>
+          <el-descriptions-item label="影响范围">{{ currentDetail.impactScope }}</el-descriptions-item>
+          <el-descriptions-item label="建议措施">{{ currentDetail.suggestion }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div v-if="currentDetail.riskLevel === 'high'">
+          <el-alert title="高风险事件：请立即处理！" type="error" show-icon :closable="false" style="margin-bottom:16px;"></el-alert>
+        </div>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-time"></i> 操作轨迹</div>
+        <el-steps direction="vertical" :active="currentDetail.trail.length" finish-status="success" style="margin-bottom:16px;">
+          <el-step v-for="(step, idx) in currentDetail.trail" :key="idx" :title="step.time" :description="step.event"></el-step>
+        </el-steps>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i> 功能说明</div>
+          <div class="help-section__body">
+            <p>安全审计页面用于记录和监控电子商城系统中的所有操作行为，识别安全风险并支持追溯审计。</p>
+            <ul>
+              <li><b>操作审计</b>：记录用户登录、数据修改、审批操作等行为日志</li>
+              <li><b>数据审计</b>：监控敏感数据的访问、导出、修改行为</li>
+              <li><b>权限审计</b>：检测越权访问、角色变更、权限分配等行为</li>
+              <li><b>接口审计</b>：记录API调用、异常请求、高频访问等行为</li>
+              <li><b>风险分级</b>：自动评估风险等级（高/中/低），高风险实时告警</li>
+              <li><b>操作轨迹</b>：完整记录操作前后的行为链路，支持追溯</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-warning-outline"></i> 风险等级说明</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>高风险</b>：越权操作、数据泄露、恶意攻击等，需立即处理</li>
+              <li><b>中风险</b>：异常操作、频繁失败、敏感数据访问等，需关注</li>
+              <li><b>低风险</b>：常规操作记录，用于审计追溯</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '90px',
+          statCollapsed: true,
+          isSearchPanelCollapsed: false,
+          queryForm: { auditNo: '', auditType: '', riskLevel: '', status: '' },
+          tableSearchText: '',
+          pageSize: 10,
+          currentPage: 1,
+          selection: [],
+          detailVisible: false,
+          helpVisible: false,
+          currentDetail: null,
+          statData: { totalCount: 156, highRiskCount: 3, pendingCount: 8, resolvedCount: 140 },
+          tableData: [
+            { auditNo:'AUD-2026-001', auditType:'权限审计', userName:'张明', userRole:'采购员', action:'尝试访问供应商合同管理模块', resource:'supplier/contract/list', ipAddress:'10.20.30.101', riskLevel:'high', riskLevelText:'高', status:'pending', statusText:'待处理', auditTime:'2026-07-08 14:32:15', riskDesc:'用户角色为采购员，尝试访问仅限合同管理员可见的供应商合同模块', impactScope:'可能涉及合同数据泄露', suggestion:'1.核查用户权限配置 2.检查是否有数据被访问 3.加强权限管控', trail:[
+              {time:'14:31:50', event:'用户登录系统'},
+              {time:'14:32:15', event:'尝试访问/supplier/contract/list'},
+              {time:'14:32:16', event:'系统拦截，权限不足'},
+              {time:'14:32:20', event:'用户重试3次均被拦截'}
+            ]},
+            { auditNo:'AUD-2026-002', auditType:'数据审计', userName:'李华', userRole:'管理员', action:'批量导出供应商联系方式', resource:'supplier/export', ipAddress:'10.20.30.105', riskLevel:'medium', riskLevelText:'中', status:'processing', statusText:'处理中', auditTime:'2026-07-08 10:15:30', riskDesc:'管理员批量导出200+条供应商联系方式数据', impactScope:'供应商隐私数据', suggestion:'1.确认导出用途 2.记录数据去向 3.建议增加审批流程', trail:[
+              {time:'10:14:00', event:'用户登录系统'},
+              {time:'10:15:30', event:'执行供应商数据导出操作'},
+              {time:'10:15:35', event:'导出200条记录成功'}
+            ]},
+            { auditNo:'AUD-2026-003', auditType:'接口审计', userName:'系统', userRole:'API', action:'异常高频API调用', resource:'/api/product/search', ipAddress:'192.168.1.55', riskLevel:'high', riskLevelText:'高', status:'pending', statusText:'待处理', auditTime:'2026-07-08 03:22:00', riskDesc:'凌晨3点检测到500+次/分钟的API调用，疑似爬虫或攻击', impactScope:'系统稳定性、数据安全', suggestion:'1.封禁IP 2.增加限流策略 3.排查调用来源', trail:[
+              {time:'03:20:00', event:'API调用量开始异常增长'},
+              {time:'03:22:00', event:'触发频率告警阈值'},
+              {time:'03:22:30', event:'自动限流策略启动'}
+            ]},
+            { auditNo:'AUD-2026-004', auditType:'操作审计', userName:'王芳', userRole:'审核员', action:'修改订单审批状态', resource:'order/approve', ipAddress:'10.20.30.108', riskLevel:'low', riskLevelText:'低', status:'resolved', statusText:'已处理', auditTime:'2026-07-07 16:45:00', riskDesc:'审核员正常修改订单审批状态，操作记录留痕', impactScope:'无', suggestion:'常规操作，无需处理', trail:[
+              {time:'16:44:30', event:'用户登录系统'},
+              {time:'16:45:00', event:'修改订单OD-2026-0035审批状态为通过'}
+            ]},
+            { auditNo:'AUD-2026-005', auditType:'权限审计', userName:'赵刚', userRole:'财务', action:'尝试修改供应商银行账户信息', resource:'supplier/bank/edit', ipAddress:'10.20.30.112', riskLevel:'medium', riskLevelText:'中', status:'resolved', statusText:'已处理', auditTime:'2026-07-07 11:20:00', riskDesc:'财务人员尝试修改供应商银行账户，需确认是否有授权', impactScope:'供应商资金安全', suggestion:'已确认经供应商管理部授权，正常操作', trail:[
+              {time:'11:18:00', event:'用户登录系统'},
+              {time:'11:20:00', event:'修改供应商SUP-001银行账户'},
+              {time:'11:20:30', event:'操作完成，已记录留痕'}
+            ]},
+            { auditNo:'AUD-2026-006', auditType:'数据审计', userName:'钱伟', userRole:'采购员', action:'查看价格指数数据', resource:'price/index/view', ipAddress:'10.20.30.115', riskLevel:'low', riskLevelText:'低', status:'resolved', statusText:'已处理', auditTime:'2026-07-06 09:30:00', riskDesc:'采购员查看价格指数看板数据，正常操作', impactScope:'无', suggestion:'常规操作，无需处理', trail:[
+              {time:'09:28:00', event:'用户登录系统'},
+              {time:'09:30:00', event:'查看价格指数看板'}
+            ]}
+          ]
+        };
+      },
+      computed: {
+        queryConditionText() {
+          const parts = [];
+          if (this.queryForm.auditNo) parts.push('编号:' + this.queryForm.auditNo);
+          if (this.queryForm.auditType) parts.push('类型:' + this.queryForm.auditType);
+          if (this.queryForm.riskLevel) parts.push('风险:' + this.queryForm.riskLevel);
+          if (this.queryForm.status) parts.push('状态:' + this.queryForm.status);
+          return parts.length ? parts.join(' | ') : '全部条件';
+        },
+        filteredData() {
+          return this.tableData.filter(row => {
+            let match = true;
+            if (this.queryForm.auditNo && !row.auditNo.includes(this.queryForm.auditNo)) match = false;
+            if (this.queryForm.auditType && row.auditType !== this.queryForm.auditType) match = false;
+            if (this.queryForm.riskLevel && row.riskLevel !== this.queryForm.riskLevel) match = false;
+            if (this.queryForm.status && row.status !== this.queryForm.status) match = false;
+            if (this.tableSearchText) {
+              const text = this.tableSearchText.toLowerCase();
+              const rowText = (row.auditNo + row.userName + row.action + row.resource).toLowerCase();
+              if (!rowText.includes(text)) match = false;
+            }
+            return match;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage = 1; },
+        handleReset() { this.queryForm = { auditNo: '', auditType: '', riskLevel: '', status: '' }; this.currentPage = 1; },
+        handleRefresh() { this.$message.success('数据已刷新'); },
+        handleExport() { this.$message.success('审计日志导出成功'); },
+        handleSelectionChange(val) { this.selection = val; },
+        handleSizeChange(val) { this.pageSize = val; this.currentPage = 1; },
+        handlePageChange(val) { this.currentPage = val; },
+        handleDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        handleProcess(row) { this.$confirm('确认处理审计事件"' + row.auditNo + '"？', '提示', { type: 'warning' }).then(() => { this.$message.success('已标记为处理中'); }).catch(() => {}); }
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

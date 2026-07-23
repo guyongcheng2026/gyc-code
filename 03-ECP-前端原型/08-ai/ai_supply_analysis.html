@@ -1,0 +1,777 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AI供应链智能分析</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .ai-banner { background: linear-gradient(135deg, #0B7266 0%, #0a6358 100%); color: #fff; padding: 20px 24px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; } .ai-banner > * + * { margin-left:16px; }
+    .ai-banner .ai-icon { font-size: 36px; }
+    .ai-banner .ai-title { font-size: 18px; font-weight: 700; }
+    .ai-banner .ai-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .decision-card { background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; margin-bottom:12px; }
+    .decision-card__title { font-size:15px; font-weight:600; color:#1A2332; margin-bottom:10px; }
+    .score-bar { display:inline-block; height:8px; border-radius:4px; background:#E0F0EE; vertical-align:middle; }
+    .score-bar__fill { display:block; height:100%; border-radius:4px; background:#0B7266; }
+    .confidence-meter { display:flex; align-items:center; } .confidence-meter > * + * { margin-left:10px; }
+    .ai-suggestion { background:linear-gradient(135deg,#E0F0EE 0%,#F1F6F7 100%); border-left:4px solid #0B7266; padding:16px 20px; border-radius:4px; margin-top:12px; }
+    .ai-suggestion__title { font-size:15px; font-weight:700; color:#0B7266; margin-bottom:8px; }
+    .ai-suggestion__text { font-size:14px; color:#333; line-height:1.8; }
+    .entropy-meter { display:inline-block; height:6px; width:80px; border-radius:3px; background:#E0F0EE; vertical-align:middle; }
+    .entropy-meter__fill { display:block; height:100%; border-radius:3px; background:#0B7266; }
+    .health-dot { display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:middle; margin-right:4px; }
+    .health-dot.high { background:#2e7d32; }
+    .health-dot.mid { background:#f57c00; }
+    .health-dot.low { background:#c62828; }
+    .tl-footer { text-align:center; }
+    /* 分析弹窗 */
+    .analysis-dialog .el-dialog__body { padding:16px 24px; max-height:70vh; overflow-y:auto; }
+    .analysis-loading { text-align:center; padding:48px 0; }
+    .analysis-loading .el-icon-loading { font-size:36px; color:#0B7266; }
+    .analysis-loading p { margin-top:12px; color:#6B7280; font-size:14px; }
+    .analysis-loading .loading-steps { margin-top:16px; text-align:left; max-width:360px; margin-left:auto; margin-right:auto; }
+    .analysis-loading .loading-step { display:flex; align-items:center; padding:6px 0; font-size:13px; color:#909399; }
+    .analysis-loading .loading-step .el-icon { margin-right:8px; }
+    .analysis-loading .loading-step.done { color:#2e7d32; }
+    .analysis-loading .loading-step.active { color:#0B7266; font-weight:600; }
+    /* 供应商分布表 */
+    .supplier-dist-table { width:100%; border-collapse:collapse; font-size:12px; margin-bottom:12px; }
+    .supplier-dist-table th { background:#F1F6F7; color:#1A2332; font-weight:600; padding:8px 10px; text-align:left; border:1px solid #EBEEF5; }
+    .supplier-dist-table td { padding:8px 10px; border:1px solid #EBEEF5; color:#555; vertical-align:top; }
+    .supplier-dist-table .dist-share { font-weight:700; }
+    .supplier-dist-table .dist-share.high { color:#c62828; }
+    .supplier-dist-table .dist-share.mid { color:#f57c00; }
+    .supplier-dist-table .dist-share.low { color:#2e7d32; }
+    /* 摘要卡片 */
+    .analysis-summary { display:flex; /* gap-removed */; margin-bottom:16px; flex-wrap:wrap; }
+    .analysis-summary__item { flex:1; min-width:110px; background:#F1F6F7; border-radius:4px; padding:10px 14px; text-align:center; }
+    .analysis-summary__label { font-size:12px; color:#6B7280; margin-bottom:4px; }
+    .analysis-summary__value { font-size:22px; font-weight:700; color:#1A2332; }
+    .analysis-summary__value.danger { color:#c62828; }
+    .analysis-summary__value.warning { color:#f57c00; }
+    .analysis-summary__value.success { color:#2e7d32; }
+    /* 集中度分布 */
+    .concentration-dist { margin-bottom:16px; }
+    .concentration-dist__title { font-size:14px; font-weight:600; color:#1A2332; margin-bottom:8px; }
+    .concentration-dist__bar { display:flex; height:24px; border-radius:4px; overflow:hidden; }
+    .concentration-dist__segment { display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; font-weight:600; }
+    .concentration-dist__legend { display:flex; /* gap-removed */; margin-top:8px; font-size:12px; color:#6B7280; }
+    .concentration-dist__legend span { display:inline-flex; align-items:center; }
+    .concentration-dist__legend .dot { width:10px; height:10px; border-radius:50%; margin-right:4px; }
+    /* 选择提示 */
+    .selection-hint { font-size:12px; color:#909399; margin-left:8px; }
+    .selection-hint b { color:#0B7266; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">AI供应链智能分析</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="分析维度" title="分析维度">
+                    <el-select v-model="queryForm.dimension" placeholder="请选择" clearable>
+                      <el-option label="品类" value="品类"></el-option>
+                      <el-option label="供应商" value="供应商"></el-option>
+                      <el-option label="地区" value="地区"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="时间范围" title="时间范围">
+                    <el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleAnalyze" icon="el-icon-s-check">分析</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="供应链多维分析">供应链多维分析</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ analysisData.length }} 个分析单元</span><span class="selection-hint" v-if="selection.length > 0">已选 <b>{{ selection.length }}</b> 个</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleGenerateAdvice" icon="el-icon-magic-stick">生成优化建议</el-button>
+                        <el-button @click="handleExport" icon="el-icon-download">导出分析报告</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="category" label="品类" min-width="140" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag type="info" size="small">{{ row.category }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="amount" label="支出金额（万元）" width="150" align="right">
+                    <template slot-scope="{row}">
+                      <b style="color:#0B7266;">{{ row.amount.toLocaleString() }}</b>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="yoyChange" label="同比变化" width="110" align="center">
+                    <template slot-scope="{row}">
+                      <span :style="{color: row.yoyChange > 0 ? '#c62828' : '#2e7d32', fontWeight:600}">{{ row.yoyChange > 0 ? '+' : '' }}{{ row.yoyChange }}%</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="proportion" label="占比" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <span>{{ row.proportion }}%</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="supplierCount" label="供应商数" width="110" align="center"></el-table-column>
+                  <el-table-column prop="entropy" label="集中度熵值" width="170" align="center">
+                    <template slot-scope="{row}">
+                      <span style="display:inline-block;width:36px;text-align:right;">{{ row.entropy }}</span>
+                      <span class="entropy-meter" style="margin-left:6px;"><span class="entropy-meter__fill" :style="{width: row.entropyPercent + '%'}"></span></span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="riskLevel" label="风险等级" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="row.riskLevel==='高'?'danger':(row.riskLevel==='中'?'warning':'success')" size="small">{{ row.riskLevel }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="top3" label="Top3供应商" min-width="280" show-overflow-tooltip>
+                    <template slot-scope="{row}">
+                      <span style="font-size:12px;color:#6B7280;">{{ row.top3 }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="health" label="健康度" width="120" align="center">
+                    <template slot-scope="{row}">
+                      <span class="health-dot" :class="getHealthClass(row.health)"></span>
+                      <span :style="{color: row.health==='优'?'#2e7d32':(row.health==='良'?'#f57c00':'#c62828')}">{{ row.health }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="advice" label="优化建议" min-width="240" show-overflow-tooltip>
+                    <template slot-scope="{row}">
+                      <span style="font-size:12px;color:#6B7280;">{{ row.advice }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="160" fixed="right" align="center">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                      <el-button type="text" @click="viewSupplierDist(row)" v-if="row.supplierDist && row.supplierDist.length > 0">供应商分布</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="text-align:right;">
+                  <el-pagination background layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length" :current-page.sync="currentPage" :page-size="pageSize" :page-sizes="[10,20,30]" @size-change="handleSizeChange" @current-change="handleCurrentChange"></el-pagination>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-suggestion" v-if="adviceResult">
+            <div class="ai-suggestion__title"><i class="el-icon-pie-chart"></i> AI 优化建议</div>
+            <div class="ai-suggestion__text">
+              <p><b>整体支出：</b>{{ adviceResult.totalAmount }} 万元，覆盖 {{ adviceResult.totalCategories }} 个品类</p>
+              <p><b>集中度分析：</b>{{ adviceResult.concentration }}</p>
+              <p><b>健康度分布：</b>{{ adviceResult.healthDist }}</p>
+              <p><b>核心建议：</b>{{ adviceResult.coreAdvice }}</p>
+              <div class="confidence-meter" style="margin-top:8px;">
+                <span style="font-size:13px;color:#6B7280;">分析置信度：</span>
+                <el-progress :percentage="adviceResult.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+                <el-tag :type="adviceResult.confidence >= 85 ? 'success' : 'warning'" size="small">{{ adviceResult.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="供应链分析详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <template v-if="currentDetail">
+        <el-descriptions title="类别信息" :column="2" border size="medium">
+          <el-descriptions-item label="类别">{{ currentDetail.category }}</el-descriptions-item>
+          <el-descriptions-item label="采购金额(万元)">{{ currentDetail.amount }}</el-descriptions-item>
+          <el-descriptions-item label="同比变化"><span :style="{color: currentDetail.yoyChange > 0 ? '#c62828' : '#2e7d32', fontWeight:600}">{{ currentDetail.yoyChange > 0 ? '+' : '' }}{{ currentDetail.yoyChange }}%</span></el-descriptions-item>
+          <el-descriptions-item label="占比"><el-progress :percentage="currentDetail.proportion" :color="'#0B7266'" :stroke-width="14" :text-inside="true" style="width:300px;"></el-progress></el-descriptions-item>
+          <el-descriptions-item label="供应商数量">{{ currentDetail.supplierCount }}</el-descriptions-item>
+          <el-descriptions-item label="风险等级"><el-tag :type="currentDetail.riskLevel==='高'?'danger':(currentDetail.riskLevel==='中'?'warning':'success')" size="small">{{ currentDetail.riskLevel }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="健康度"><el-tag :type="currentDetail.health==='优'?'success':(currentDetail.health==='良'?'warning':'danger')" size="small">{{ currentDetail.health }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="信息熵">{{ currentDetail.entropy }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="分析评估" :column="1" border size="medium">
+          <el-descriptions-item label="前三供应商">{{ currentDetail.top3 }}</el-descriptions-item>
+          <el-descriptions-item label="建议">{{ currentDetail.advice }}</el-descriptions-item>
+        </el-descriptions>
+        <div v-if="currentDetail.supplierDist && currentDetail.supplierDist.length > 0">
+          <div style="font-size:14px;font-weight:bold;color:#0B7266;margin-bottom:8px;border-bottom:2px solid #E0F0EE;padding-bottom:6px;">供应商分布明细</div>
+          <table class="supplier-dist-table">
+            <thead>
+              <tr><th style="width:200px;">供应商名称</th><th style="width:100px;">份额占比</th><th style="width:100px;">评分</th><th>分析说明</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="dist in currentDetail.supplierDist" :key="dist.name">
+                <td>{{ dist.name }}</td>
+                <td><span :class="['dist-share', dist.share>=40?'high':(dist.share>=20?'mid':'low')]">{{ dist.share }}%</span></td>
+                <td><span :style="{fontWeight:700, color:dist.score>=80?'#2e7d32':(dist.score>=60?'#f57c00':'#c62828')}">{{ dist.score }}</span></td>
+                <td>{{ dist.analysis }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- AI分析弹窗 -->
+    <el-dialog :lazy="true" :title="analysisDialogTitle" :visible.sync="analysisDialog.visible" width="940px" custom-class="analysis-dialog" :close-on-click-modal="false">
+      <div v-if="analysisDialog.loading" class="analysis-loading">
+        <i class="el-icon-loading"></i>
+        <p>AI 正在进行供应链多维度深度分析……</p>
+        <div class="loading-steps"></div>
+      </div>
+      <div v-else>
+        <div class="analysis-summary">
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">分析品类数</div>
+            <div class="analysis-summary__value">{{ analysisDialog.summary.total }}</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">总支出(万元)</div>
+            <div class="analysis-summary__value">{{ analysisDialog.summary.totalAmount }}</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">高风险品类</div>
+            <div class="analysis-summary__value danger">{{ analysisDialog.summary.highRisk }}</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">中风险品类</div>
+            <div class="analysis-summary__value warning">{{ analysisDialog.summary.midRisk }}</div>
+          </div>
+          <div class="analysis-summary__item">
+            <div class="analysis-summary__label">平均熵值</div>
+            <div class="analysis-summary__value">{{ analysisDialog.summary.avgEntropy }}</div>
+          </div>
+        </div>
+
+        <div class="concentration-dist">
+          <div class="concentration-dist__title">集中度风险分布</div>
+          <div class="concentration-dist__bar">
+            <div class="concentration-dist__segment" v-if="analysisDialog.summary.highRisk > 0" :style="{flex:analysisDialog.summary.highRisk,background:'#c62828'}">高 {{ analysisDialog.summary.highRisk }}</div>
+            <div class="concentration-dist__segment" v-if="analysisDialog.summary.midRisk > 0" :style="{flex:analysisDialog.summary.midRisk,background:'#f57c00'}">中 {{ analysisDialog.summary.midRisk }}</div>
+            <div class="concentration-dist__segment" v-if="analysisDialog.summary.lowRisk > 0" :style="{flex:analysisDialog.summary.lowRisk,background:'#2e7d32'}">低 {{ analysisDialog.summary.lowRisk }}</div>
+          </div>
+          <div class="concentration-dist__legend">
+            <span><span class="dot" style="background:#c62828;"></span>高风险（熵值&lt;0.5）</span>
+            <span><span class="dot" style="background:#f57c00;"></span>中风险（熵值0.5-0.7）</span>
+            <span><span class="dot" style="background:#2e7d32;"></span>低风险（熵值≥0.7）</span>
+          </div>
+        </div>
+
+        <div v-for="result in analysisDialog.results" :key="result.category" style="margin-bottom:16px;border:1px solid #EBEEF5;border-radius:4px;padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div>
+              <span style="font-size:14px;font-weight:600;color:#1A2332;">{{ result.category }}</span>
+              <el-tag :type="result.riskLevel==='高'?'danger':(result.riskLevel==='中'?'warning':'success')" size="small" style="margin-left:8px;">{{ result.riskLevel }}</el-tag>
+              <el-tag :type="result.health==='优'?'success':(result.health==='良'?'warning':'danger')" size="small" style="margin-left:4px;">{{ result.health }}</el-tag>
+            </div>
+            <div>
+              <span style="font-size:13px;color:#6B7280;">熵值 </span>
+              <span :style="{fontWeight:700,fontSize:16,color:result.entropy<0.5?'#c62828':(result.entropy<0.7?'#f57c00':'#2e7d32')}">{{ result.entropy }}</span>
+            </div>
+          </div>
+          <table class="supplier-dist-table" v-if="result.supplierDist && result.supplierDist.length > 0">
+            <thead>
+              <tr><th style="width:200px;">供应商名称</th><th style="width:90px;">份额占比</th><th style="width:90px;">评分</th><th>分析说明</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="dist in result.supplierDist" :key="dist.name">
+                <td>{{ dist.name }}</td>
+                <td><span :class="['dist-share', dist.share>=40?'high':(dist.share>=20?'mid':'low')]">{{ dist.share }}%</span></td>
+                <td><span :style="{fontWeight:700,color:dist.score>=80?'#2e7d32':(dist.score>=60?'#f57c00':'#c62828')}">{{ dist.score }}</span></td>
+                <td>{{ dist.analysis }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="font-size:12px;color:#6B7280;margin-top:4px;" v-if="result.optimizationPlan">
+            <span style="color:#0B7266;font-weight:600;">优化方案：</span>{{ result.optimizationPlan }}
+          </div>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer" v-if="!analysisDialog.loading">
+        <el-button @click="analysisDialog.visible = false">关闭</el-button>
+        <el-button type="primary" @click="handleExportFromAnalysis">导出分析报告</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i>业务场景</div>
+          <div class="help-section__body"><p>基于<b>系统论整体性/层次性</b>与<b>信息论信息熵</b>思想，多维度透视供应链。整体性：跨品类跨供应商综合视图；层次性：品类→供应商→订单下钻；信息熵：识别集中度风险。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i>页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>分析维度</b>：品类/供应商/地区三视角切换</li>
+              <li><b>集中度熵值</b>：值越低集中度越高，风险越大</li>
+              <li><b>Top3 供应商</b>：占比最高的前三家</li>
+              <li><b>健康度</b>：优/良/差，综合熵值与供应商数</li>
+              <li><b>优化建议</b>：AI 给出品类级策略</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>自动画像生成</b>：基于采购/质量/交期/财务数据自动生成供应商画像，无需人工填报</li>
+              <li><b>画像应用</b>：画像结果驱动供应商准入、分级、推荐、预警四大业务场景</li>
+              <li><b>集中度风险识别</b>：信息熵&lt;0.5的品类自动标红，提示引入新供应商降低集中度</li>
+              <li><b>多租户/行业模板</b>：支持按企业/行业配置差异化分析维度与阈值模板</li>
+              <li><b>品类级优化策略</b>：针对"差"级品类输出多元化计划，针对过度分散品类输出集采整合建议</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>选择分析维度</b>：在查询面板切换分析视角（品类/供应商/地区），设置日期范围</li>
+              <li><b>查看集中度熵值</b>：列表展示各品类/供应商的集中度熵值，值越低表示集中度越高、风险越大</li>
+              <li><b>查看Top3供应商</b>：点击"详情"查看占比最高的前三家供应商及其采购金额占比</li>
+              <li><b>查看健康度</b>：健康度列展示优/良/差评级，综合熵值与供应商数量评估</li>
+              <li><b>查看优化建议</b>：点击"分析"查看AI给出的品类级优化策略（多元化计划或集采整合建议）</li>
+              <li><b>识别集中度风险</b>：信息熵&lt;0.5的品类自动标红，提示引入新供应商降低集中度</li>
+              <li><b>导出分析报告</b>：点击"导出"将当前分析数据导出为报告文件</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="helpVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          queryForm:{dimension:'品类',dateRange:[]},
+          tableSearchText:'',
+          currentPage:1,
+          detailVisible:false,
+          currentDetail:null,
+          pageSize: 10,
+          selection:[],
+          adviceResult:null,
+          analysisDialogTitle:'AI供应链智能分析',
+          analysisDialog:{
+            visible:false,
+            loading:false,
+            step:0,
+            categoryCount:0,
+            categoryNames:'',
+            results:[],
+            summary:{total:0,totalAmount:0,highRisk:0,midRisk:0,lowRisk:0,avgEntropy:0}
+          },
+          analysisData:[
+            {category:'电气设备',amount:12860,proportion:28.5,yoyChange:5.2,supplierCount:12,entropy:0.72,entropyPercent:72,top3:'国电南瑞、许继电气、平高电气',health:'优',riskLevel:'低',advice:'供应商结构合理，保持现状',supplierDist:[]},
+            {category:'智能终端',amount:8640,proportion:19.1,yoyChange:-3.1,supplierCount:8,entropy:0.68,entropyPercent:68,top3:'威胜集团、宁波三星、海兴电力',health:'优',riskLevel:'低',advice:'供应商分布均衡，可引入1家冗余',supplierDist:[]},
+            {category:'电缆',amount:6920,proportion:15.3,yoyChange:8.5,supplierCount:6,entropy:0.58,entropyPercent:58,top3:'远东电缆、宝胜科技、上上电缆',health:'良',riskLevel:'中',advice:'集中度偏高，建议增加第4供应商',supplierDist:[]},
+            {category:'变压器',amount:5480,proportion:12.1,yoyChange:2.3,supplierCount:5,entropy:0.52,entropyPercent:52,top3:'特变电工、山东泰开、ABB',health:'良',riskLevel:'中',advice:'特变占比超40%，建议分散订单',supplierDist:[]},
+            {category:'开关柜',amount:4360,proportion:9.6,yoyChange:-1.8,supplierCount:7,entropy:0.66,entropyPercent:66,top3:'平高电气、思源电气、施耐德',health:'优',riskLevel:'低',advice:'结构合理，关注进口件交期',supplierDist:[]},
+            {category:'继电保护',amount:3280,proportion:7.3,yoyChange:12.6,supplierCount:4,entropy:0.42,entropyPercent:42,top3:'南瑞继保、四方继保、国电南瑞',health:'差',riskLevel:'高',advice:'集中度过高，亟需引入新供应商',supplierDist:[]},
+            {category:'办公设备',amount:1820,proportion:4.0,yoyChange:-5.2,supplierCount:15,entropy:0.85,entropyPercent:85,top3:'联想、戴尔、惠普',health:'优',riskLevel:'低',advice:'供应商分散，可框架集采降本',supplierDist:[]},
+            {category:'劳保用品',amount:980,proportion:2.2,yoyChange:1.5,supplierCount:18,entropy:0.88,entropyPercent:88,top3:'3M、霍尼韦尔、代尔塔',health:'优',riskLevel:'低',advice:'供应商充足，关注质量一致性',supplierDist:[]},
+            {category:'办公用品',amount:520,proportion:1.2,yoyChange:-8.3,supplierCount:22,entropy:0.91,entropyPercent:91,top3:'晨光、得力、真彩',health:'优',riskLevel:'低',advice:'过度分散，建议整合至5家内',supplierDist:[]},
+            {category:'智能电表',amount:4120,proportion:9.1,yoyChange:6.8,supplierCount:6,entropy:0.62,entropyPercent:62,top3:'威胜集团、宁波三星、海兴电力',health:'良',riskLevel:'中',advice:'集中度适中，维持框架协议',supplierDist:[]},
+            {category:'低压电器',amount:2240,proportion:5.0,yoyChange:3.2,supplierCount:9,entropy:0.74,entropyPercent:74,top3:'施耐德、ABB、正泰电器',health:'优',riskLevel:'低',advice:'进口品牌占比高，可评估国产替代',supplierDist:[]},
+            {category:'自动化系统',amount:2860,proportion:6.3,yoyChange:9.5,supplierCount:3,entropy:0.35,entropyPercent:35,top3:'国电南瑞、南瑞继保、四方继保',health:'差',riskLevel:'高',advice:'供应商寡头，建议培养第4家',supplierDist:[]},
+            {category:'通信设备',amount:1640,proportion:3.6,yoyChange:-2.1,supplierCount:7,entropy:0.71,entropyPercent:71,top3:'华为、中兴、烽火通信',health:'优',riskLevel:'低',advice:'结构健康，关注技术迭代风险',supplierDist:[]},
+            {category:'检测设备',amount:1180,proportion:2.6,yoyChange:4.0,supplierCount:5,entropy:0.64,entropyPercent:64,top3:'海康威视、大华、科大讯飞',health:'良',riskLevel:'中',advice:'可引入竞争降低采购价',supplierDist:[]},
+            {category:'工器具',amount:680,proportion:1.5,yoyChange:-1.2,supplierCount:14,entropy:0.83,entropyPercent:83,top3:'史丹利、博世、牧田',health:'优',riskLevel:'低',advice:'供应商充足，可框架协议',supplierDist:[]},
+            {category:'消防器材',amount:420,proportion:0.9,yoyChange:0.8,supplierCount:10,entropy:0.79,entropyPercent:79,top3:'天广中茂、海力消防、赋安科技',health:'优',riskLevel:'低',advice:'结构合理，定期复核资质',supplierDist:[]}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){
+          const c=[];
+          if(this.queryForm.dimension) c.push('分析维度：'+this.queryForm.dimension);
+          if(this.queryForm.dateRange && this.queryForm.dateRange.length===2) c.push('时间范围：'+this.queryForm.dateRange[0]+' 至 '+this.queryForm.dateRange[1]);
+          return c.length ? '查询条件('+c.length+')：'+c.join('，') : '';
+        },
+        filteredData(){
+          let d=this.analysisData;
+          if(this.tableSearchText) d=d.filter(r=>(r.category+r.top3).indexOf(this.tableSearchText)!==-1);
+          return d;
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        }
+      },
+      watch:{
+        filteredData(){ this.currentPage=1; }
+      },
+      methods:{
+        toggleSearchPanel(){ this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery(){ this.currentPage=1; },
+        handleReset(){ this.queryForm={dimension:'品类',dateRange:[]}; this.tableSearchText=''; this.currentPage=1; },
+        handleSelectionChange(s){ this.selection=s; },
+        handleSizeChange(v){ this.pageSize=v; },
+        handleCurrentChange(v){ this.currentPage=v; },
+
+        /* ========== AI 供应链智能分析 ========== */
+        handleAnalyze(){
+          var targets = this.selection.length > 0
+            ? this.selection
+            : this.filteredData;
+          if(targets.length === 0){
+            this.$message.warning('暂无可分析的数据');
+            return;
+          }
+          this.analysisDialog.categoryCount = targets.length;
+          this.analysisDialog.categoryNames = targets.length <= 3
+            ? targets.map(function(r){ return r.category; }).join('、')
+            : targets.slice(0,3).map(function(r){ return r.category; }).join('、') + ' 等' + targets.length + ' 个品类';
+          this.analysisDialog.visible = true;
+          this.analysisDialog.loading = true;
+          this.analysisDialog.step = 0;
+          this.analysisDialog.results = [];
+          this.analysisDialog.summary = {total:0,totalAmount:0,highRisk:0,midRisk:0,lowRisk:0,avgEntropy:0};
+
+          var self = this;
+          var steps = [
+            '正在拉取各品类采购支出与供应商数据……',
+            '正在计算信息熵与集中度风险指标……',
+            '正在分解供应商份额与评分……',
+            '正在生成品类级优化策略……',
+            '正在汇总分析摘要与建议……'
+          ];
+          var stepIdx = 0;
+          function nextStep(){
+            if(stepIdx >= steps.length){
+              self.finishAnalysis(targets);
+              return;
+            }
+            self.analysisDialog.step = stepIdx + 1;
+            self.$nextTick(function(){
+              var loadingEl = document.querySelector('.analysis-loading .loading-steps');
+              if(loadingEl){
+                loadingEl.innerHTML = steps.slice(0, stepIdx + 1).map(function(s, i){
+                  var cls = i < stepIdx ? 'done' : 'active';
+                  var icon = i < stepIdx ? 'el-icon-circle-check' : 'el-icon-loading';
+                  return '<div class="loading-step ' + cls + '"><i class="el-icon ' + icon + '"></i>' + s + '</div>';
+                }).join('');
+              }
+            });
+            stepIdx++;
+            setTimeout(nextStep, 500);
+          }
+          nextStep();
+        },
+
+        generateSupplierDist(row){
+          var top3Names = row.top3.split('、');
+          var dist = [];
+          var remainingShare = 100;
+          for(var i = 0; i < top3Names.length; i++){
+            var share = i === 0 ? Math.round(remainingShare * (row.entropy < 0.5 ? 0.45 : (row.entropy < 0.7 ? 0.35 : 0.25))) : Math.round(remainingShare * 0.4);
+            if(i === top3Names.length - 1) share = remainingShare;
+            remainingShare -= share;
+            var score = 0;
+            var analysis = '';
+            if(row.riskLevel === '高'){
+              score = share >= 40 ? 45 : (share >= 20 ? 55 : 65);
+              analysis = share >= 40 ? '份额过高，存在依赖风险，建议分散订单至其他供应商' : (share >= 20 ? '份额中等，需关注交付能力与质量稳定性' : '份额较低，可作为备选维持');
+            } else if(row.riskLevel === '中'){
+              score = share >= 40 ? 55 : (share >= 20 ? 68 : 75);
+              analysis = share >= 40 ? '份额偏高，建议引入竞争降低集中度' : (share >= 20 ? '份额合理，维持框架协议' : '份额较低，可适度增加');
+            } else {
+              score = share >= 40 ? 70 : (share >= 20 ? 80 : 85);
+              analysis = share >= 40 ? '份额合理，结构健康' : (share >= 20 ? '份额适中，保持现状' : '份额较低，供应商分散');
+            }
+            dist.push({name: top3Names[i], share: share, score: score, analysis: analysis});
+          }
+          if(row.supplierCount > 3){
+            var otherShare = remainingShare > 0 ? remainingShare : Math.round(100 * 0.15);
+            dist.push({name: '其他' + (row.supplierCount - 3) + '家', share: otherShare, score: 82, analysis: '长尾供应商合计份额' + otherShare + '%，分散度' + (row.entropy >= 0.8 ? '高，建议整合集采' : '适中')});
+          }
+          return dist;
+        },
+
+        finishAnalysis(targets){
+          var self = this;
+          var results = [];
+          var highRisk = 0, midRisk = 0, lowRisk = 0, totalAmount = 0, totalEntropy = 0;
+          targets.forEach(function(row){
+            var dist = self.generateSupplierDist(row);
+            row.supplierDist = dist;
+            if(row.riskLevel === '高') highRisk++;
+            else if(row.riskLevel === '中') midRisk++;
+            else lowRisk++;
+            totalAmount += row.amount;
+            totalEntropy += row.entropy;
+            var optimizationPlan = '';
+            if(row.riskLevel === '高'){
+              optimizationPlan = '6个月内引入至少1家新供应商，将Top1份额降至30%以下；同步启动备选供应商资质审核，建立多元化采购计划';
+            } else if(row.riskLevel === '中'){
+              optimizationPlan = '加强冗余备选管理，将Top1份额控制在35%以内；对框架协议供应商增加季度考核，确保交付与质量稳定';
+            } else if(row.entropy >= 0.85){
+              optimizationPlan = '供应商过度分散，建议整合至5家框架供应商以内，通过集采争取量价优势，预计降本5-8%';
+            } else {
+              optimizationPlan = '结构健康，维持现状。建议定期复核供应商资质，关注技术迭代与市场变化';
+            }
+            results.push({
+              category: row.category,
+              riskLevel: row.riskLevel,
+              health: row.health,
+              entropy: row.entropy,
+              supplierDist: dist,
+              optimizationPlan: optimizationPlan
+            });
+          });
+          this.analysisDialog.results = results;
+          this.analysisDialog.summary = {
+            total: results.length,
+            totalAmount: totalAmount.toLocaleString(),
+            highRisk: highRisk,
+            midRisk: midRisk,
+            lowRisk: lowRisk,
+            avgEntropy: results.length > 0 ? (Math.round(totalEntropy / results.length * 100) / 100) : 0
+          };
+          this.analysisDialog.loading = false;
+        },
+
+        viewSupplierDist(row){
+          if(!row.supplierDist || row.supplierDist.length === 0){
+            row.supplierDist = this.generateSupplierDist(row);
+          }
+          this.currentDetail = row;
+          this.detailVisible = true;
+        },
+
+        /* ========== 生成优化建议（增强版） ========== */
+        handleGenerateAdvice(){
+          if(this.filteredData.length === 0){
+            this.$message.warning('暂无数据');
+            return;
+          }
+          var data = this.filteredData;
+          var total = data.reduce(function(s,r){ return s + r.amount; }, 0);
+          var highConcentration = data.filter(function(r){ return r.entropy < 0.5; });
+          var midConcentration = data.filter(function(r){ return r.entropy >= 0.5 && r.entropy < 0.7; });
+          var overDispersed = data.filter(function(r){ return r.entropy >= 0.85; });
+          var healthDist = {优:0, 良:0, 差:0};
+          data.forEach(function(r){ healthDist[r.health]++; });
+          var yoyIncrease = data.filter(function(r){ return r.yoyChange > 5; });
+          var yoyDecrease = data.filter(function(r){ return r.yoyChange < -5; });
+          var avgEntropy = Math.round(data.reduce(function(s,r){ return s + r.entropy; }, 0) / data.length * 100) / 100;
+          var typeCount = {高:0, 中:0, 低:0};
+          data.forEach(function(r){ typeCount[r.riskLevel]++; });
+          var coreAdvice = '';
+          if(highConcentration.length > 0){
+            coreAdvice = '1) 对"差"级品类（' + highConcentration.map(function(r){ return r.category; }).join('、') + '）启动供应商多元化计划，6个月内引入至少1家新供应商，将Top1份额降至30%以下；';
+          }
+          if(midConcentration.length > 0){
+            coreAdvice += '2) 对"良"级品类（' + midConcentration.map(function(r){ return r.category; }).join('、') + '）加强冗余备选管理，将Top1份额控制在35%以内；';
+          }
+          if(overDispersed.length > 0){
+            coreAdvice += '3) 对过度分散品类（' + overDispersed.map(function(r){ return r.category; }).join('、') + '）整合集采，预计降本5-8%；';
+          }
+          if(yoyIncrease.length > 0){
+            coreAdvice += '4) ' + yoyIncrease.length + '个品类支出同比增幅超5%，建议核查需求合理性与替代方案；';
+          }
+          if(yoyDecrease.length > 0){
+            coreAdvice += '5) ' + yoyDecrease.length + '个品类支出同比下降超5%，关注供应商稳定性与产能保障；';
+          }
+          if(!coreAdvice){
+            coreAdvice = '供应链整体结构健康，维持现状。建议定期复核供应商资质，关注技术迭代与市场变化。';
+          }
+          this.adviceResult = {
+            totalAmount: total.toLocaleString(),
+            totalCategories: data.length,
+            avgEntropy: avgEntropy,
+            riskDist: '高' + typeCount['高'] + ' / 中' + typeCount['中'] + ' / 低' + typeCount['低'],
+            concentration: '熵值<0.5（高风险）' + highConcentration.length + '个，0.5-0.7（中风险）' + midConcentration.length + '个，≥0.85（过度分散）' + overDispersed.length + '个，平均熵值' + avgEntropy,
+            healthDist: '优 ' + healthDist['优'] + ' / 良 ' + healthDist['良'] + ' / 差 ' + healthDist['差'],
+            yoyAnalysis: '同比增幅>5%：' + yoyIncrease.length + '个，同比降幅>5%：' + yoyDecrease.length + '个',
+            coreAdvice: coreAdvice,
+            confidence: Math.min(95, Math.round(80 + data.length))
+          };
+          this.$message.success('AI优化建议已生成，平均熵值 ' + avgEntropy);
+        },
+
+        /* ========== 导出分析报告 ========== */
+        handleExport(){
+          var targets = this.selection.length > 0
+            ? this.selection
+            : this.filteredData;
+          if(targets.length === 0){
+            this.$message.warning('暂无可导出的数据');
+            return;
+          }
+          this.exportAnalysisReport(targets);
+        },
+
+        handleExportFromAnalysis(){
+          var targets = this.analysisDialog.results;
+          if(targets.length === 0){
+            this.$message.warning('暂无分析结果可导出');
+            return;
+          }
+          this.exportAnalysisReport(targets, true);
+        },
+
+        exportAnalysisReport(targets, fromAnalysis){
+          var BOM = '\uFEFF';
+          var lines = [];
+          lines.push('AI供应链智能分析报告');
+          lines.push('生成时间：' + new Date().toLocaleString('zh-CN'));
+          lines.push('分析品类数：' + targets.length);
+          lines.push('');
+          lines.push('一、品类分析摘要');
+          lines.push('品类,支出金额(万元),同比变化(%),占比(%),供应商数,信息熵,风险等级,健康度,Top3供应商,优化建议');
+          var self = this;
+          targets.forEach(function(row){
+            lines.push([
+              '"' + (row.category || '') + '"',
+              row.amount || 0,
+              row.yoyChange || 0,
+              row.proportion || 0,
+              row.supplierCount || 0,
+              row.entropy || 0,
+              '"' + (row.riskLevel || '') + '"',
+              '"' + (row.health || '') + '"',
+              '"' + (row.top3 || '') + '"',
+              '"' + (row.advice || '') + '"'
+            ].join(','));
+          });
+          lines.push('');
+          lines.push('二、供应商分布明细');
+          lines.push('品类,供应商名称,份额占比(%),评分,分析说明');
+          targets.forEach(function(row){
+            var dist = fromAnalysis ? row.supplierDist : (row.supplierDist && row.supplierDist.length > 0 ? row.supplierDist : self.generateSupplierDist(row));
+            if(dist && dist.length > 0){
+              dist.forEach(function(d){
+                lines.push([
+                  '"' + (row.category || '') + '"',
+                  '"' + (d.name || '') + '"',
+                  d.share || 0,
+                  d.score || 0,
+                  '"' + (d.analysis || '') + '"'
+                ].join(','));
+              });
+            }
+          });
+          lines.push('');
+          lines.push('三、集中度风险分布');
+          lines.push('风险等级,品类数量,占比,品类列表');
+          var highList = targets.filter(function(r){ return r.riskLevel === '高'; });
+          var midList = targets.filter(function(r){ return r.riskLevel === '中'; });
+          var lowList = targets.filter(function(r){ return r.riskLevel === '低'; });
+          lines.push('"高",' + highList.length + ',' + Math.round(highList.length / targets.length * 100) + '%,"' + highList.map(function(r){ return r.category; }).join('、') + '"');
+          lines.push('"中",' + midList.length + ',' + Math.round(midList.length / targets.length * 100) + '%,"' + midList.map(function(r){ return r.category; }).join('、') + '"');
+          lines.push('"低",' + lowList.length + ',' + Math.round(lowList.length / targets.length * 100) + '%,"' + lowList.map(function(r){ return r.category; }).join('、') + '"');
+          lines.push('');
+          lines.push('四、优化策略说明');
+          lines.push('策略类型,适用场景,具体措施,预期效果');
+          lines.push('"供应商多元化","高风险品类（熵值<0.5）","6个月内引入至少1家新供应商，Top1份额降至30%以下","降低集中度风险，提升供应链韧性"');
+          lines.push('"冗余备选管理","中风险品类（熵值0.5-0.7）","加强备选供应商资质审核，Top1份额控制在35%以内","保障供应连续性，防范突发风险"');
+          lines.push('"集采整合","过度分散品类（熵值≥0.85）","整合至5家框架供应商以内，统一议价","预计降本5-8%，提升管理效率"');
+          lines.push('"国产替代","进口品牌占比高品类","评估国产品牌技术能力，逐步替代进口","降低采购成本，减少进口依赖"');
+          lines.push('"框架协议","供应商充足品类","签订长期框架协议，锁定价格与产能","稳定供应价格，简化采购流程"');
+          var csv = BOM + lines.join('\n');
+          var blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'AI供应链智能分析报告_' + new Date().toISOString().slice(0,10) + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          this.$message.success('分析报告已导出（CSV格式），共 ' + targets.length + ' 个品类');
+        },
+
+        viewDetail(row){
+          if(!row.supplierDist || row.supplierDist.length === 0){
+            row.supplierDist = this.generateSupplierDist(row);
+          }
+          this.currentDetail = row;
+          this.detailVisible = true;
+        },
+        getHealthClass(h){ return h==='优'?'high':(h==='良'?'mid':'low'); }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,433 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>售后工单详情</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary: #0B7266; }
+    .tl-title__title { color: #1A2332; }
+    .el-button--primary { background-color: #0B7266; border-color: #0B7266; }
+    .el-button--primary:hover { background-color: #0a6358; border-color: #0a6358; }
+    .el-table th.el-table__cell { background: #F1F6F7; color: #1A2332; font-weight: 600; }
+    .el-table .el-table__cell { font-size: 13px; }
+    .el-tag--success { background-color: #e8f5e9; border-color: #c8e6c9; color: #2e7d32; }
+    .el-tag--warning { background-color: #fff8e1; border-color: #ffecb3; color: #f57c00; }
+    .el-tag--danger { background-color: #ffebee; border-color: #ffcdd2; color: #c62828; }
+    .el-tag--info { background-color: #eceff1; border-color: #cfd8dc; color: #455a64; }
+    .el-dialog__header { border-bottom: 1px solid #EAECF0; }
+    .el-dialog__footer { border-top: 1px solid #EAECF0; }
+    .bill-title-text span { margin-right:20px; color:#6B7280; }
+    .tl-section--title { font-weight:600; color:#1A2332; padding:8px 0; display:flex; align-items:center; justify-content:space-between; }
+    .tl-footer { text-align:center; padding:20px; color:#909399; font-size:12px; border-top:1px solid #EBEEF5; margin-top:20px; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    html, body, #app { min-height: 100vh; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <div class="bill-page ywdj-page">
+      <div class="tl-title bill-title" area="title">
+        <div class="tl-title__title">售后工单详情</div>
+        <div class="tl-title__slot">
+          <div class="bill-title-text">
+            <span>工单编号：{{ billForm.ticketNo }}</span>
+            <span>制单日期：{{ billForm.billDate }}</span>
+            <span>状态：<el-tag :type="getStatusType(billForm.status)" size="small">{{ billForm.status }}</el-tag></span>
+          </div>
+          <div class="yj-button-list">
+            <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+            <el-button @click="handlePrint" icon="el-icon-printer">打印</el-button>
+            <el-button type="primary" @click="handleSave">保存</el-button>
+          </div>
+        </div>
+      </div>
+      <div class="bill-body">
+        <div class="bill-main">
+          <!-- 基本信息 -->
+          <div class="yj-panel bill-form" area="form" id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">基本信息</div>
+                    <i :class="sectionStates.basic ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.basic = !sectionStates.basic" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.basic">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" label-width="120px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item label="工单编号" prop="ticketNo">
+                          <el-input v-model="billForm.ticketNo" readonly style="width:200px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="工单类型" prop="ticketType">
+                          <el-select v-model="billForm.ticketType" placeholder="请选择" style="width:160px;">
+                            <el-option label="退货退款" value="退货退款"></el-option>
+                            <el-option label="仅退款" value="仅退款"></el-option>
+                            <el-option label="换货" value="换货"></el-option>
+                            <el-option label="维修" value="维修"></el-option>
+                            <el-option label="补发" value="补发"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="制单日期" prop="billDate">
+                          <el-date-picker v-model="billForm.billDate" type="date" value-format="yyyy-MM-dd" style="width:180px;"></el-date-picker>
+                        </el-form-item>
+                        <el-form-item label="状态" prop="status">
+                          <el-select v-model="billForm.status" placeholder="请选择" style="width:140px;">
+                            <el-option label="待处理" value="待处理"></el-option>
+                            <el-option label="处理中" value="处理中"></el-option>
+                            <el-option label="待买家退货" value="待买家退货"></el-option>
+                            <el-option label="待卖家收货" value="待卖家收货"></el-option>
+                            <el-option label="已完成" value="已完成"></el-option>
+                            <el-option label="已取消" value="已取消"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="优先级" prop="priority">
+                          <el-select v-model="billForm.priority" placeholder="请选择" style="width:120px;">
+                            <el-option label="紧急" value="紧急"></el-option>
+                            <el-option label="高" value="高"></el-option>
+                            <el-option label="中" value="中"></el-option>
+                            <el-option label="低" value="低"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="处理人" prop="handler">
+                          <el-input v-model="billForm.handler" style="width:140px;"></el-input>
+                        </el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+                <!-- 订单与商品信息 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">订单与商品信息</div>
+                    <i :class="sectionStates.order ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.order = !sectionStates.order" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.order">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" label-width="120px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item label="订单编号" prop="orderNo">
+                          <el-input v-model="billForm.orderNo" readonly style="width:200px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="供应商" prop="supplierName">
+                          <el-input v-model="billForm.supplierName" readonly style="width:200px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="采购方" prop="buyerName">
+                          <el-input v-model="billForm.buyerName" readonly style="width:200px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="商品名称" prop="productName">
+                          <el-input v-model="billForm.productName" readonly style="width:220px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="商品编码" prop="productCode">
+                          <el-input v-model="billForm.productCode" readonly style="width:180px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="规格型号" prop="spec">
+                          <el-input v-model="billForm.spec" readonly style="width:180px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="涉及数量" prop="qty">
+                          <el-input-number v-model="billForm.qty" :min="1" :max="999" style="width:120px;"></el-input-number>
+                        </el-form-item>
+                        <el-form-item label="涉及金额" prop="amount">
+                          <el-input v-model="billForm.amount" readonly style="width:140px;">
+                            <template slot="prepend">¥</template>
+                          </el-input>
+                        </el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+                <!-- 问题描述 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">问题描述</div>
+                    <i :class="sectionStates.problem ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.problem = !sectionStates.problem" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.problem">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" label-width="120px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item label="问题类型" prop="problemType">
+                          <el-select v-model="billForm.problemType" placeholder="请选择" style="width:160px;">
+                            <el-option label="质量问题" value="质量问题"></el-option>
+                            <el-option label="描述不符" value="描述不符"></el-option>
+                            <el-option label="物流损坏" value="物流损坏"></el-option>
+                            <el-option label="发错货" value="发错货"></el-option>
+                            <el-option label="少发漏发" value="少发漏发"></el-option>
+                            <el-option label="其他" value="其他"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="问题描述" prop="description">
+                          <el-input v-model="billForm.description" type="textarea" :rows="4" placeholder="请输入详细问题描述" style="width:500px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="附件" prop="attachments">
+                          <el-upload action="#" :auto-upload="false" :limit="5" :file-list="billForm.attachments">
+                            <el-button icon="el-icon-upload2">上传凭证</el-button>
+                            <div slot="tip" class="el-upload__tip" style="color:#909399;font-size:12px;">支持jpg/png/pdf，单文件≤5MB</div>
+                          </el-upload>
+                        </el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+                <!-- 处理记录 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">处理记录</div>
+                    <i :class="sectionStates.records ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.records = !sectionStates.records" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.records">
+                    <div class="yj-container-card__table">
+                      <el-table :data="processRecords" border stripe style="width:100%;">
+                        <el-table-column type="index" label="#" width="50" align="center"></el-table-column>
+                        <el-table-column prop="time" label="处理时间" width="160" align="center"></el-table-column>
+                        <el-table-column prop="operator" label="操作人" width="100" align="center"></el-table-column>
+                        <el-table-column prop="role" label="角色" width="100" align="center">
+                          <template slot-scope="scope">
+                            <el-tag :type="scope.row.role === '买家' ? 'info' : 'success'" size="mini">{{ scope.row.role }}</el-tag>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="action" label="操作" width="120" align="center" fixed="right">
+                          <template slot-scope="scope">
+                            <el-tag size="mini" :type="getActionType(scope.row.action)">{{ scope.row.action }}</el-tag>
+                          </template>
+                        </el-table-column>
+                        <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip></el-table-column>
+                      </el-table>
+                    </div>
+                  </div>
+                </div>
+                <!-- 退款/退货信息 -->
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">退款/退货信息</div>
+                    <i :class="sectionStates.refund ? 'el-icon-arrow-up' : 'el-icon-arrow-down'" @click="sectionStates.refund = !sectionStates.refund" style="cursor:pointer;"></i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.refund">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="billForm" label-width="120px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item label="退款金额" prop="refundAmount">
+                          <el-input v-model="billForm.refundAmount" style="width:140px;">
+                            <template slot="prepend">¥</template>
+                          </el-input>
+                        </el-form-item>
+                        <el-form-item label="退款方式" prop="refundMethod">
+                          <el-select v-model="billForm.refundMethod" placeholder="请选择" style="width:140px;">
+                            <el-option label="原路退回" value="原路退回"></el-option>
+                            <el-option label="余额账户" value="余额账户"></el-option>
+                            <el-option label="银行转账" value="银行转账"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item label="退货物流单号" prop="returnTrackingNo">
+                          <el-input v-model="billForm.returnTrackingNo" style="width:200px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="退货承运商" prop="returnCarrier">
+                          <el-input v-model="billForm.returnCarrier" style="width:140px;"></el-input>
+                        </el-form-item>
+                        <el-form-item label="收货状态" prop="receiveStatus">
+                          <el-tag :type="getReceiveStatusType(billForm.receiveStatus)" size="small">{{ billForm.receiveStatus }}</el-tag>
+                        </el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            <p>售后工单详情页用于查看和处理采购方提交的售后服务请求。覆盖<b>退货退款、仅退款、换货、维修、补发</b>五种工单类型，支持全流程跟踪与退款/退货管理。</p>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i> 页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>基本信息</b>：工单编号、类型、状态、优先级、处理人</li>
+              <li><b>订单与商品信息</b>：关联订单、供应商、采购方、商品明细</li>
+              <li><b>问题描述</b>：问题类型分类、文字描述、附件凭证上传</li>
+              <li><b>处理记录</b>：时间线展示所有处理操作，含操作人、角色、动作、备注</li>
+              <li><b>退款/退货信息</b>：退款金额、方式、退货物流单号、收货状态</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>售后全流程线上化，缩短处理周期，提升采购方满意度</li>
+              <li>处理记录可追溯，支持审计与责任界定</li>
+              <li>退款退货信息结构化管理，自动关联财务对账</li>
+              <li>多角色协同（买家、卖家、运营、系统），降低沟通成本</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li>查看工单基本信息和订单商品关联信息</li>
+              <li>阅读问题描述，查看买家上传的凭证附件</li>
+              <li>在"处理记录"区域查看历史处理时间线</li>
+              <li>根据工单类型填写退款金额、退款方式</li>
+              <li>如为退货工单，填写退货物流单号和承运商</li>
+              <li>点击"保存"提交处理结果</li>
+              <li>点击"导出"可导出工单详情数据</li>
+            </ol>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-warning-outline"></i> 注意事项</div>
+          <div class="help-section__body">
+            <ul>
+              <li>退款金额不可超过订单实付金额</li>
+              <li>退货承运商和物流单号需在买家发货后填写</li>
+              <li>工单状态为"已完成"或"已取消"后不可再修改</li>
+              <li>处理记录由系统自动记录，不可手动编辑</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="helpVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          helpVisible: false,
+          sectionStates: {
+            basic: true,
+            order: true,
+            problem: true,
+            records: true,
+            refund: true
+          },
+          billForm: {
+            ticketNo: 'AS20260628001',
+            ticketType: '退货退款',
+            billDate: '2026-06-28',
+            status: '处理中',
+            priority: '高',
+            handler: '李慧敏',
+            orderNo: 'PO202606200015',
+            supplierName: '南京电力器材有限公司',
+            buyerName: '某电力集团江苏省电力有限公司',
+            productName: '10kV环氧树脂绝缘子（复合）',
+            productCode: 'INS-10KV-ER-001',
+            spec: '10kV / 复合材料 / 额定电流630A',
+            qty: 50,
+            amount: '12,500.00',
+            problemType: '质量问题',
+            description: '到货后发现绝缘子表面存在裂纹，疑似运输过程挤压导致。经现场检验，50只中有12只存在不同程度的裂纹，无法投入使用，申请退货退款。',
+            attachments: [{ name: '绝缘子裂纹照片.jpg', url: '#' }, { name: '检验报告.pdf', url: '#' }],
+            refundAmount: '3,000.00',
+            refundMethod: '原路退回',
+            returnTrackingNo: 'SF1029384756',
+            returnCarrier: '顺丰速运',
+            receiveStatus: '待卖家收货'
+          },
+          processRecords: [
+            { time: '2026-06-28 09:15', operator: '张明华', role: '买家', action: '提交工单', remark: '提交退货退款申请，附裂纹照片和检验报告' },
+            { time: '2026-06-28 10:32', operator: '系统', role: '系统', action: '自动分配', remark: '工单自动分配给供应商——南京电力器材有限公司' },
+            { time: '2026-06-28 14:05', operator: '王建国', role: '卖家', action: '确认受理', remark: '确认收到售后申请，同意退货退款流程' },
+            { time: '2026-06-29 08:40', operator: '张明华', role: '买家', action: '填写物流', remark: '已通过顺丰速运寄回退货商品，运单号SF1029384756' },
+            { time: '2026-06-29 16:20', operator: '李慧敏', role: '运营', action: '跟进处理', remark: '联系供应商确认收货地址，催促尽快签收退货包裹' }
+          ]
+        };
+      },
+      methods: {
+        handleSave() {
+          this.$message.success('售后工单保存成功');
+        },
+        handleExport() {
+          const detail = this.billForm || {};
+          const rows = [
+            ['工单编号', detail.ticketNo || ''],
+            ['订单编号', detail.orderNo || ''],
+            ['工单类型', detail.ticketType || ''],
+            ['工单状态', detail.status || ''],
+            ['申请时间', detail.applyTime || ''],
+            ['买家', detail.buyer || ''],
+            ['供应商', detail.supplier || ''],
+            ['商品名称', detail.productName || ''],
+            ['退款金额', detail.refundAmount || ''],
+            ['问题描述', detail.issueDesc || ''],
+            ['处理人', detail.handler || ''],
+            ['处理意见', detail.handleOpinion || '']
+          ];
+          const csv = '\uFEFF' + rows.map(r => '"' + String(r[1]).replace(/"/g, '""') + '"').join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = '售后工单_' + (detail.ticketNo || '') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出工单详情');
+        },
+        handlePrint() {
+          this.$message.info('打印工单详情');
+        },
+        getStatusType(status) {
+          const map = {
+            '待处理': 'warning',
+            '处理中': 'info',
+            '待买家退货': 'warning',
+            '待卖家收货': 'warning',
+            '已完成': 'success',
+            '已取消': 'info'
+          };
+          return map[status] || 'info';
+        },
+        getActionType(action) {
+          const map = {
+            '提交工单': 'info',
+            '自动分配': 'info',
+            '确认受理': 'success',
+            '填写物流': 'warning',
+            '跟进处理': 'warning',
+            '完成退款': 'success',
+            '拒绝申请': 'danger',
+            '取消工单': 'info'
+          };
+          return map[action] || 'info';
+        },
+        getReceiveStatusType(status) {
+          const map = {
+            '待买家退货': 'warning',
+            '待卖家收货': 'warning',
+            '已收货': 'success',
+            '已拒收': 'danger',
+            '不适用': 'info'
+          };
+          return map[status] || 'info';
+        }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

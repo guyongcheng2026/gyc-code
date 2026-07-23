@@ -1,0 +1,607 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>领用出库单</title>
+  <link rel="stylesheet" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    /* 表单分组标题 */
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    /* 弹窗底部按钮居中 */
+    .tl-footer { text-align:center; }
+    /* 弹窗内容区滚动 */
+    .detail-dialog { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    /* 自动计算字段只读样式 */
+    .auto-display { font-size:16px; font-weight:600; color:#0B7266; }
+    /* 最大化样式 */
+    .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+    .table-maximized .yj-container-card__bar { padding: 8px 0; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <div class="bill-page ywdj-page">
+      <!-- 页面标题区 -->
+      <div class="tl-title bill-title" area="title">
+        <div class="tl-title__title">领用出库单</div>
+        <div class="tl-title__slot">
+          <div class="bill-title-text">
+            <span>编号：RO-20260627-005</span>
+            <span>制单日期：2026-06-27</span>
+          </div>
+          <div class="yj-button-list">
+            <el-button>返回</el-button>
+            <el-button>打印</el-button>
+            <el-button>暂存草稿</el-button>
+            <el-button type="primary">提交审批</el-button>
+            <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 内容区 -->
+      <div class="bill-body">
+        <div class="bill-main">
+          <!-- 基本信息 -->
+          <div class="yj-panel bill-form" area="form" id="main_area" data-id="main_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">出库信息<span class="bill-main-area-title"></span></div>
+                    <i :class="sectionStates.main ? 'el-icon-arrow-up' : 'el-icon-arrow-down'"
+                      @click="sectionStates.main = !sectionStates.main" style="cursor: pointer;">
+                    </i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.main">
+                    <div class="yj-container query-form" area="query-form">
+                      <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="："
+                        class="tl-form auto-width el-form--label-right multi-line">
+                        <el-form-item class="tl-form-item" label="出库单号" title="出库单号">
+                          <el-input v-model="queryForm.billNo" disabled></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="领用单位" title="领用单位">
+                          <el-input v-model="queryForm.unit" placeholder="请输入领用单位"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="仓库名称" title="仓库名称">
+                          <el-select v-model="queryForm.warehouse" placeholder="请选择">
+                            <el-option label="中央仓-华东分仓" value="1"></el-option>
+                            <el-option label="南区仓" value="2"></el-option>
+                            <el-option label="北区仓" value="3"></el-option>
+                          </el-select>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="出库类型" title="出库类型">
+                          <el-radio-group v-model="queryForm.outType">
+                            <el-radio label="1">项目领用</el-radio>
+                            <el-radio label="2">应急领用</el-radio>
+                            <el-radio label="3">调拨出库</el-radio>
+                          </el-radio-group>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="项目名称" title="项目名称">
+                          <el-input v-model="queryForm.project" placeholder="请输入项目名称"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="出库日期" title="出库日期">
+                          <el-date-picker v-model="queryForm.outDate" type="date" placeholder="选择出库日期"
+                            value-format="yyyy-MM-dd">
+                          </el-date-picker>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="领用人" title="领用人">
+                          <el-input v-model="queryForm.receiver" placeholder="请输入领用人"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="联系电话" title="联系电话">
+                          <el-input v-model="queryForm.phone" placeholder="请输入联系电话"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="送货地址" title="送货地址">
+                          <el-input v-model="queryForm.address" placeholder="请输入送货地址"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="预计到货" title="预计到货">
+                          <el-input v-model="queryForm.arrivalDate" placeholder="预计到货日期"></el-input>
+                        </el-form-item>
+                        <el-form-item class="tl-form-item" label="备注" title="备注">
+                          <el-input v-model="queryForm.remark" type="textarea" :rows="2"
+                            placeholder="出库备注信息（选填）"></el-input>
+                        </el-form-item>
+                      </el-form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 领用物资明细 -->
+          <div class="yj-panel bill-info" id="info" area="info">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">
+                      <div class="title">
+                        <div class="title-text">领用物资</div>
+                      </div>
+                    </div>
+                    <i :class="sectionStates.subTable ? 'el-icon-arrow-up' : 'el-icon-arrow-down'"
+                      @click="sectionStates.subTable = !sectionStates.subTable" style="cursor: pointer;">
+                    </i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.subTable">
+                    <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+                      <div class="yj-container-card__bar">
+                        <div class="yj-container-card__toolbar">
+                          <div class="tl-table-tools">
+                            <div class="tl-table-tools__title tl-table-tools__title-area is-part">
+                              <span title="领用物资">领用物资（共 8 项）</span>
+                            </div>
+                            <div class="tl-table-tools__content tl-table-tools__contentexplain-area">
+                              共 {{ tableData.length }} 条数据
+                            </div>
+                            <div class="tl-table-tools__button tl-table-tools__button-area">
+                              <div area="table-tools" class="query-toolbar">
+                                <div class="yj-button-list" style="width: 100%;">
+                                  <el-button type="primary" @click="handleAddMaterial">添加物资</el-button>
+                                  <el-button @click="handleImport">批量导入</el-button>
+                                </div>
+                              </div>
+                              <div class="yj-container-card__default-buttons">
+                                <button type="button"
+                                  class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置"
+                                  @click="displaySettingVisible = true">
+                                  <i class="el-icon-setting"></i>
+                                </button>
+                                <button type="button"
+                                  class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize">
+                                  <i class="el-icon-full-screen"></i>
+                                </button>
+                              </div>
+                            </div>
+                            <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                              <div class="tl-search is-trigger">
+                                <el-input v-model="tableSearchText" placeholder="物资编码/名称搜索" clearable>
+                                </el-input>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="yj-container-card__body">
+                        <div class="yj-container-card__table" style="position: relative;">
+                          <el-table ref="table" :data="tableData" border stripe style="width: 100%;">
+                            <el-table-column type="selection" width="45"></el-table-column>
+                            <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('code')" prop="code" label="物资编码" min-width="120"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('name')" prop="name" label="物资名称" min-width="150"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('spec')" prop="spec" label="规格型号" min-width="120"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('stockQty')" prop="stockQty" label="库存数量" min-width="90" align="center"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('reqQty')" prop="reqQty" label="申请数量" min-width="90" align="center"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('unit')" prop="unit" label="单位" min-width="55" align="center"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('price')" prop="price" label="含税单价" min-width="100" align="right"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('subtotal')" prop="subtotal" label="小计" min-width="100" align="right"></el-table-column>
+                            <el-table-column v-if="isColumnVisible('location')" prop="location" label="货位" min-width="100"></el-table-column>
+                            <el-table-column label="操作" width="80" align="center" fixed="right">
+                              <template slot-scope="scope">
+                                <el-button type="text" @click="handleDelete(scope.row)">删除</el-button>
+                              </template>
+                            </el-table-column>
+                          </el-table>
+                          <el-pagination layout="total, prev, pager, next, jumper" :total="tableData.length"
+                            :page-size="pageSize" :current-page="currentPage"
+                            @current-change="handlePageChange" background>
+                          </el-pagination>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 审批轨迹 -->
+          <div class="yj-panel bill-workflow" area="workflow" id="workflow_area" data-id="workflow_area">
+            <div class="tl-card is-never-shadow">
+              <div class="tl-card__body">
+                <div class="tl-section">
+                  <div class="tl-section--title">
+                    <div class="yj-panel-slot">审批流程</div>
+                    <i :class="sectionStates.workflow ? 'el-icon-arrow-up' : 'el-icon-arrow-down'"
+                      @click="sectionStates.workflow = !sectionStates.workflow" style="cursor: pointer;">
+                    </i>
+                  </div>
+                  <div class="tl-section__detail" v-show="sectionStates.workflow">
+                    <div class="dj-workflow-area">
+                      <div class="workflow">
+                        <div class="his-title">
+                          <span>操作类型</span><span>完成时间</span><span>组织名称</span><span>操作角色</span><span>操作用户</span><span>操作意见</span><span>停留时长</span>
+                        </div>
+                        <div class="his-item">
+                          <span class="wait-icon"><i class="el-icon-timer"></i></span>
+                          <span>待处理</span>
+                          <span>-</span>
+                          <span>华东电力设计院</span>
+                          <span>部门负责人</span>
+                          <span>-</span>
+                          <span>-</span>
+                          <span>停留1天</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 页面操作区 -->
+      <div class="tl-toolbar bill-footer">
+        <div class="yj-button-list">
+          <el-button @click="handleCancel">取消</el-button>
+          <el-button type="primary" @click="handleSave">保存</el-button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            物资入库后，业务部门在本页面发起领用出库申请，经审批后从仓库领用物资出库。本页面承接采购入库，输出出库记录驱动库存扣减。适用于各业务部门的领用人、部门经理审批、仓储管理人员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>领用申请在线化，替代传统纸质领料单</li>
+              <li>审批流自动触发，领用申请规范可控</li>
+              <li>出库时库存实时扣减，库存数据准确</li>
+              <li>领用记录完整留痕，支持物资使用追溯</li>
+              <li>出库数据同步ERP，业财数据一致</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询出库单</b>：在查询面板输入出库单号/领用人，选择部门、状态、日期范围，点击"查询"筛选</li>
+              <li><b>发起领用</b>：点击"新增领用"，选择物资、填写领用数量、用途说明</li>
+              <li><b>查看详情</b>：点击"详情"查看出库单完整信息、物资明细、审批记录</li>
+              <li><b>提交审批</b>：草稿状态点击"提交"，触发部门经理审批</li>
+              <li><b>审批处理</b>：部门经理对待审批领用点击"通过"或"驳回"</li>
+              <li><b>出库操作</b>：审批通过后，仓储人员点击"出库"，扣减库存</li>
+              <li><b>导出数据</b>：点击"导出"导出出库清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 添加领用物资弹窗 -->
+    <el-dialog :lazy="true" title="添加领用物资" :visible.sync="addDialog.visible" width="720px"
+      :close-on-click-modal="false" custom-class="detail-dialog" @closed="handleAddCancel">
+      <el-form ref="addForm" :model="addDialog.form" :rules="addDialog.rules"
+        :label-width="'110px'" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <div class="form-section-title">物资信息</div>
+        <el-form-item class="tl-form-item" label="物资编码" prop="code">
+          <el-input v-model="addDialog.form.code" placeholder="请输入物资编码，如 WZ-001-240"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="物资名称" prop="name">
+          <el-input v-model="addDialog.form.name" placeholder="请输入物资名称"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="规格型号" prop="spec">
+          <el-input v-model="addDialog.form.spec" placeholder="请输入规格型号"></el-input>
+        </el-form-item>
+        <div class="form-section-title">数量与价格</div>
+        <el-form-item class="tl-form-item" label="库存数量" prop="stockQty">
+          <el-input-number v-model="addDialog.form.stockQty" :min="0" :precision="0" :step="1"
+            controls-position="right" style="width:180px;" disabled></el-input-number>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="申请数量" prop="reqQty">
+          <el-input-number v-model="addDialog.form.reqQty" :min="1" :precision="0" :step="1"
+            controls-position="right" style="width:180px;" @change="computeSubtotal"></el-input-number>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="单位" prop="unit">
+          <el-select v-model="addDialog.form.unit" placeholder="请选择单位" style="width:120px;">
+            <el-option label="台" value="台"></el-option>
+            <el-option label="套" value="套"></el-option>
+            <el-option label="只" value="只"></el-option>
+            <el-option label="个" value="个"></el-option>
+            <el-option label="根" value="根"></el-option>
+            <el-option label="米" value="米"></el-option>
+            <el-option label="卷" value="卷"></el-option>
+            <el-option label="包" value="包"></el-option>
+            <el-option label="组" value="组"></el-option>
+            <el-option label="面" value="面"></el-option>
+            <el-option label="片" value="片"></el-option>
+            <el-option label="双" value="双"></el-option>
+            <el-option label="条" value="条"></el-option>
+            <el-option label="支" value="支"></el-option>
+            <el-option label="具" value="具"></el-option>
+            <el-option label="顶" value="顶"></el-option>
+            <el-option label="块" value="块"></el-option>
+            <el-option label="桶" value="桶"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="含税单价(元)" prop="price">
+          <el-input v-model="addDialog.form.price" placeholder="请输入含税单价"
+            @input="computeSubtotal"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="小计(元)">
+          <span class="auto-display">{{ addDialog.form.subtotal || '0.00' }}</span>
+        </el-form-item>
+        <div class="form-section-title">仓储信息</div>
+        <el-form-item class="tl-form-item" label="货位" prop="location">
+          <el-input v-model="addDialog.form.location" placeholder="请输入货位，如 A区-03-12"></el-input>
+        </el-form-item>
+        <el-form-item class="tl-form-item" label="备注" prop="remark">
+          <el-input v-model="addDialog.form.remark" type="textarea" :rows="2"
+            placeholder="物资备注信息（选填）"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="tl-footer">
+        <el-button @click="handleAddCancel">取 消</el-button>
+        <el-button type="primary" :loading="addDialog.loading"
+          @click="handleAddConfirm">确 定</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;/* gap-removed */;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer">
+        <el-button @click="displaySettingVisible = false">关闭</el-button>
+        <el-button type="primary" @click="resetColumnSetting">恢复默认</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '100px',
+          resizeTimer: null,
+          tableSearchText: '',
+          sectionStates: {
+            main: true,
+            subTable: true,
+            workflow: true
+          },
+          queryForm: {
+            billNo: 'RO-20260627-005',
+            unit: '华东电力设计院-项目一部',
+            warehouse: '1',
+            outType: '1',
+            project: '合肥电网改造项目',
+            outDate: '2026-06-27',
+            receiver: '刘建国',
+            phone: '139-1234-5678',
+            address: '合肥市蜀山区梅山路88号',
+            arrivalDate: '',
+            remark: ''
+          },
+          tableData: [
+            { code: 'WZ-001-005', name: '电力电缆', spec: 'YJV-3×70mm²', stockQty: 500, reqQty: 50, unit: '米', price: '85.00', subtotal: '4,250.00', location: 'A区-03-12' },
+            { code: 'WZ-001-012', name: '绝缘子', spec: 'XP-70C', stockQty: 200, reqQty: 20, unit: '片', price: '45.00', subtotal: '900.00', location: 'B区-02' },
+            { code: 'WZ-001-028', name: '铜铝过渡端子', spec: 'DTL-70', stockQty: 150, reqQty: 30, unit: '个', price: '22.00', subtotal: '660.00', location: 'C区-01-08' },
+            { code: 'WZ-001-035', name: '接地扁钢', spec: '40×4热锌', stockQty: 300, reqQty: 10, unit: '米', price: '35.00', subtotal: '350.00', location: 'A区-05-02' },
+            { code: 'WZ-001-041', name: '变压器油', spec: '25号', stockQty: 8, reqQty: 2, unit: '桶', price: '1,800.00', subtotal: '3,600.00', location: '危化品区-01' },
+            { code: 'WZ-001-056', name: '安全带', spec: '五点式', stockQty: 50, reqQty: 5, unit: '条', price: '280.00', subtotal: '1,400.00', location: 'D区-03-01' },
+            { code: 'WZ-001-062', name: '验电器', spec: '10KV', stockQty: 30, reqQty: 3, unit: '支', price: '320.00', subtotal: '960.00', location: 'D区-03-05' },
+            { code: 'WZ-001-078', name: '绝缘手套', spec: '35KV级', stockQty: 100, reqQty: 10, unit: '双', price: '185.00', subtotal: '1,850.00', location: 'D区-03-08' },
+            { code: 'WZ-001-085', name: '配电箱', spec: 'PZ30-30', stockQty: 25, reqQty: 8, unit: '台', price: '1,850.00', subtotal: '14,800.00', location: 'A区-02-05' },
+            { code: 'WZ-001-091', name: '继电保护装置', spec: 'NSR-312', stockQty: 12, reqQty: 4, unit: '套', price: '15,000.00', subtotal: '60,000.00', location: 'B区-04-01' },
+            { code: 'WZ-001-098', name: '通信光缆', spec: 'GYTA-24B1', stockQty: 3000, reqQty: 2000, unit: '米', price: '3.50', subtotal: '7,000.00', location: 'A区-06-03' },
+            { code: 'WZ-001-105', name: '蓄电池组', spec: 'GFM-200', stockQty: 200, reqQty: 120, unit: '只', price: '850.00', subtotal: '102,000.00', location: 'C区-02-01' },
+            { code: 'WZ-001-112', name: '直流屏', spec: 'GZDW-100', stockQty: 5, reqQty: 2, unit: '面', price: '28,000.00', subtotal: '56,000.00', location: 'B区-01-04' },
+            { code: 'WZ-001-118', name: '变频器', spec: 'ATV630-30', stockQty: 8, reqQty: 3, unit: '台', price: '12,500.00', subtotal: '37,500.00', location: 'B区-04-06' },
+            { code: 'WZ-001-125', name: '干式变压器', spec: 'SCB10-800', stockQty: 4, reqQty: 2, unit: '台', price: '95,000.00', subtotal: '190,000.00', location: 'A区-01-01' },
+            { code: 'WZ-001-132', name: '高压开关柜', spec: 'KYN28-12', stockQty: 10, reqQty: 6, unit: '面', price: '45,000.00', subtotal: '270,000.00', location: 'A区-01-02' },
+            { code: 'WZ-001-138', name: '低压配电柜', spec: 'GGD-800', stockQty: 12, reqQty: 8, unit: '面', price: '18,000.00', subtotal: '144,000.00', location: 'A区-01-03' },
+            { code: 'WZ-001-145', name: '电流互感器', spec: 'LZZBJ9-12', stockQty: 50, reqQty: 20, unit: '只', price: '680.00', subtotal: '13,600.00', location: 'C区-01-02' },
+            { code: 'WZ-001-152', name: '电压互感器', spec: 'JDZX9-12', stockQty: 30, reqQty: 12, unit: '只', price: '1,200.00', subtotal: '14,400.00', location: 'C区-01-03' },
+            { code: 'WZ-001-158', name: '避雷器', spec: 'HY5WZ-17', stockQty: 60, reqQty: 30, unit: '只', price: '320.00', subtotal: '9,600.00', location: 'C区-01-05' },
+            { code: 'WZ-001-165', name: '隔离开关', spec: 'GN30-12', stockQty: 20, reqQty: 10, unit: '组', price: '2,800.00', subtotal: '28,000.00', location: 'B区-02-03' },
+            { code: 'WZ-001-172', name: '真空断路器', spec: 'VS1-12', stockQty: 12, reqQty: 6, unit: '台', price: '8,500.00', subtotal: '51,000.00', location: 'B区-02-04' },
+            { code: 'WZ-001-185', name: '控制电缆', spec: 'KVV-7×1.5', stockQty: 2000, reqQty: 1500, unit: '米', price: '8.50', subtotal: '12,750.00', location: 'A区-06-04' },
+            { code: 'WZ-001-192', name: '铜铝过渡端子', spec: 'DTL-95', stockQty: 100, reqQty: 25, unit: '个', price: '35.00', subtotal: '875.00', location: 'C区-01-09' },
+            { code: 'WZ-001-198', name: '接地线', spec: 'JDX-35KV', stockQty: 15, reqQty: 3, unit: '组', price: '1,200.00', subtotal: '3,600.00', location: 'D区-03-02' },
+            { code: 'WZ-001-205', name: '安全帽', spec: 'ABS/带电报警', stockQty: 200, reqQty: 30, unit: '顶', price: '65.00', subtotal: '1,950.00', location: 'D区-03-03' },
+            { code: 'WZ-001-212', name: '绝缘靴', spec: '35KV级', stockQty: 40, reqQty: 8, unit: '双', price: '320.00', subtotal: '2,560.00', location: 'D区-03-04' },
+            { code: 'WZ-001-218', name: '灭火器', spec: 'MFZ/ABC4', stockQty: 60, reqQty: 40, unit: '具', price: '85.00', subtotal: '3,400.00', location: 'D区-04-01' },
+            { code: 'WZ-001-225', name: '消防水带', spec: 'Φ65×20m', stockQty: 30, reqQty: 20, unit: '卷', price: '220.00', subtotal: '4,400.00', location: 'D区-04-02' },
+            { code: 'WZ-001-232', name: '万用表', spec: 'Fluke 117', stockQty: 25, reqQty: 5, unit: '块', price: '1,800.00', subtotal: '9,000.00', location: 'D区-05-01' }
+          ],
+          addDialog: {
+            visible: false,
+            loading: false,
+            form: {
+              code: '', name: '', spec: '',
+              stockQty: 0, reqQty: 1, unit: '',
+              price: '', subtotal: '0.00',
+              location: '', remark: ''
+            },
+            rules: {
+              code: [
+                { required: true, message: '请输入物资编码', trigger: 'blur' },
+                { pattern: /^WZ-\d+-\d+$/, message: '编码格式：WZ-数字-数字，如 WZ-001-240', trigger: 'blur' }
+              ],
+              name: [
+                { required: true, message: '请输入物资名称', trigger: 'blur' },
+                { min: 2, max: 50, message: '名称长度 2~50 个字符', trigger: 'blur' }
+              ],
+              spec: [
+                { required: true, message: '请输入规格型号', trigger: 'blur' }
+              ],
+              reqQty: [
+                { required: true, message: '请输入申请数量', trigger: 'blur', type: 'number' },
+                { type: 'number', min: 1, message: '数量至少为 1', trigger: 'blur' }
+              ],
+              unit: [
+                { required: true, message: '请选择单位', trigger: 'change' }
+              ],
+              price: [
+                { required: true, message: '请输入含税单价', trigger: 'blur' },
+                { pattern: /^\d+(\.\d{1,2})?$/, message: '单价为正数，最多两位小数', trigger: 'blur' }
+              ],
+              location: [
+                { required: true, message: '请输入货位', trigger: 'blur' }
+              ]
+            }
+          },
+          pageSize: 10,
+          currentPage: 1,
+          helpVisible: false,
+          fieldLabels: {
+            code: '物资编码', name: '物资名称', spec: '规格型号',
+            stockQty: '库存数量', reqQty: '申请数量', unit: '单位',
+            price: '含税单价', subtotal: '小计', location: '货位',
+            remark: '备注'
+          },
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          visibleColumns: ['code','name','spec','stockQty','reqQty','unit','price','subtotal','location'],
+          columnSettings: [
+            {prop:'code',label:'物资编码'},{prop:'name',label:'物资名称'},{prop:'spec',label:'规格型号'},
+            {prop:'stockQty',label:'库存数量'},{prop:'reqQty',label:'申请数量'},{prop:'unit',label:'单位'},
+            {prop:'price',label:'含税单价'},{prop:'subtotal',label:'小计'},{prop:'location',label:'货位'}
+          ]
+        };
+      },
+      methods: {
+        handleAddMaterial() {
+          this.addDialog.visible = true;
+          this.$nextTick(() => {
+            if (this.$refs.addForm) {
+              this.$refs.addForm.clearValidate();
+            }
+          });
+        },
+        computeSubtotal() {
+          const reqQty = this.addDialog.form.reqQty || 0;
+          const priceStr = this.addDialog.form.price || '0';
+          const price = parseFloat(priceStr) || 0;
+          const subtotal = (reqQty * price).toFixed(2);
+          this.addDialog.form.subtotal = this.formatMoney(subtotal);
+        },
+        formatMoney(num) {
+          const n = parseFloat(num);
+          if (isNaN(n)) return '0.00';
+          return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+        async handleAddConfirm() {
+          this.$refs.addForm.validate(async (valid) => {
+            if (!valid) return;
+            if (this.addDialog.form.reqQty > this.addDialog.form.stockQty && this.addDialog.form.stockQty > 0) {
+              this.$message.warning('申请数量不能超过库存数量');
+              return;
+            }
+            this.addDialog.loading = true;
+            const form = this.addDialog.form;
+            const payload = {
+              code: form.code,
+              name: form.name,
+              spec: form.spec,
+              stockQty: form.stockQty,
+              reqQty: form.reqQty,
+              unit: form.unit,
+              price: this.formatMoney(form.price),
+              subtotal: form.subtotal,
+              location: form.location,
+              remark: form.remark || ''
+            };
+            try {
+              const resp = await fetch('/api/requisition-out/materials', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                this.tableData.push(data);
+                this.$message.success('物资添加成功');
+              } else {
+                payload.name = payload.name + '(本地)';
+                this.tableData.push(payload);
+                this.$message.warning('服务端未响应，已本地添加');
+              }
+            } catch(e) {
+              payload.name = payload.name + '(本地)';
+              this.tableData.push(payload);
+              this.$message.warning('网络异常，已本地添加');
+            } finally {
+              this.addDialog.loading = false;
+              this.addDialog.visible = false;
+            }
+          });
+        },
+        handleAddCancel() {
+          if (this.$refs.addForm) {
+            this.$refs.addForm.resetFields();
+          }
+          this.addDialog.form.subtotal = '0.00';
+          this.addDialog.visible = false;
+        },
+        handleImport() { this.$message.info('请选择要导入的文件'); },
+        handleDelete(row) {
+          this.$confirm('确认删除物资「' + row.name + '」吗？', '删除确认', { type: 'warning' }).then(() => {
+            const idx = this.tableData.findIndex(i => i === row);
+            if (idx > -1) this.tableData.splice(idx, 1);
+            this.$message.success('已删除物资「' + row.name + '」');
+          }).catch(() => {});
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleCancel() { this.$router && this.$router.back ? this.$router.back() : window.history.back(); },
+        handleSave() { this.$message.success('保存成功'); },
+        isColumnVisible(prop) { return this.visibleColumns.indexOf(prop) > -1; },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c){ return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; }
+      },
+      mounted() {
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+
+</html>

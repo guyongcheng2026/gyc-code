@@ -1,0 +1,278 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AI智能推荐</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .ai-banner { background: linear-gradient(135deg, #0B7266 0%, #0a6358 100%); color: #fff; padding: 20px 24px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; } .ai-banner > * + * { margin-left:16px; }
+    .ai-banner .ai-icon { font-size: 36px; }
+    .ai-banner .ai-title { font-size: 18px; font-weight: 700; }
+    .ai-banner .ai-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .tl-footer { text-align:center; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">AI智能推荐</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="商品名称" title="商品名称">
+                    <el-input v-model="queryForm.productName" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="推荐类型" title="推荐类型">
+                    <el-select v-model="queryForm.recommendType" placeholder="请选择" clearable>
+                      <el-option label="历史采购推荐" value="历史采购推荐"></el-option>
+                      <el-option label="同类商品推荐" value="同类商品推荐"></el-option>
+                      <el-option label="预算优化推荐" value="预算优化推荐"></el-option>
+                      <el-option label="供应商评级推荐" value="供应商评级推荐"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="最低匹配度" title="最低匹配度">
+                    <el-input-number v-model="queryForm.minScore" :min="0" :max="100" :step="5"></el-input-number>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">AI推荐结果</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条推荐</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;"></div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="productCode" label="商品编码" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="productName" label="商品名称" min-width="160"></el-table-column>
+                  <el-table-column prop="brand" label="品牌" min-width="100"></el-table-column>
+                  <el-table-column prop="price" label="单价(元)" min-width="100" align="right"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="130"></el-table-column>
+                  <el-table-column prop="recommendType" label="推荐类型" min-width="120" align="center">
+                    <template slot-scope="{row}"><el-tag type="info">{{ row.recommendType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="matchScore" label="匹配度" min-width="180" align="center">
+                    <template slot-scope="{row}">
+                      <el-progress :percentage="row.matchScore" :color="row.matchScore >= 80 ? '#0B7266' : row.matchScore >= 60 ? '#f57c00' : '#c62828'" :text-inside="true" :stroke-width="18"></el-progress>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="reason" label="推荐理由" min-width="200"></el-table-column>
+                  <el-table-column label="操作" width="140" align="center" fixed="right">
+                    <template slot-scope="{row}"><el-button type="text" @click="addToCart(row)">加入购物车</el-button></template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body"><p><b>AI智能采购推荐引擎</b></p><p>基于历史采购数据、预算约束、供应商评级、交货时效等多维度智能匹配，为采购员推荐最优商品，降低选型难度，提升采购效率。同时对接智能任务推送，根据采购员待办事项主动推送推荐清单；联动预算实时校验，推荐时自动检查预算可用额度。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i> 页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>推荐类型</b>：历史采购推荐/供应商评级推荐/预算优化推荐/同类商品推荐</li>
+              <li><b>匹配度</b>：0-100分，进度条可视化展示推荐质量</li>
+              <li><b>推荐理由</b>：透明化展示AI决策依据</li>
+              <li><b>预算校验</b>：推荐时自动检查预算可用额度</li>
+              <li><b>任务推送</b>：根据采购员待办事项主动推送推荐清单</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>AI匹配度可视化（进度条），直观展示推荐质量</li>
+              <li>4种推荐策略：历史采购、同类商品、预算优化、供应商评级</li>
+              <li>推荐理由透明化，采购员可理解AI决策依据</li>
+              <li>一键加入购物车，无缝衔接采购流程</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>筛选推荐</b>：选择推荐类型，设置最低匹配度，点击"查询"</li>
+              <li><b>查看匹配度</b>：进度条绿色≥80分（高匹配），橙色≥60分（中匹配），红色&lt;60分（低匹配）</li>
+              <li><b>查看推荐理由</b>：理解AI推荐依据</li>
+              <li><b>加入购物车</b>：点击"加入购物车"将推荐商品加入采购流程</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data: function() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          queryForm: {productName:'',recommendType:'',minScore:0},
+          tableSearchText:'',
+          tableData: [
+            {productCode:'P2026-0001',productName:'10kV电力电缆',brand:'远东',price:125.50,supplier:'远东电缆股份',recommendType:'历史采购推荐',matchScore:95,reason:'近12个月采购6次，供应商A级，交货准时率98%'},
+            {productCode:'P2026-0003',productName:'10kV电力电缆',brand:'宝胜',price:132.00,supplier:'宝胜科技',recommendType:'供应商评级推荐',matchScore:88,reason:'A级供应商，质保3年，交货5天最快'},
+            {productCode:'P2026-0002',productName:'10kV电力电缆',brand:'上缆',price:118.80,supplier:'上海电缆厂',recommendType:'预算优化推荐',matchScore:82,reason:'价格低于均价5.4%，预算充足'},
+            {productCode:'P2026-0004',productName:'配电箱(不锈钢)',brand:'正泰',price:3800.00,supplier:'正泰电器',recommendType:'历史采购推荐',matchScore:92,reason:'近6个月采购3次，产品稳定'},
+            {productCode:'P2026-0005',productName:'配电箱(不锈钢)',brand:'德力西',price:3650.00,supplier:'德力西电气',recommendType:'预算优化推荐',matchScore:78,reason:'价格低于均价3.9%'},
+            {productCode:'P2026-0006',productName:'配电箱(不锈钢)',brand:'施耐德',price:5200.00,supplier:'施耐德电气',recommendType:'供应商评级推荐',matchScore:90,reason:'S级供应商，质保5年'},
+            {productCode:'P2026-0007',productName:'绝缘手套(高压)',brand:'霍尼韦尔',price:285.00,supplier:'霍尼韦尔中国',recommendType:'同类商品推荐',matchScore:85,reason:'品牌质量可靠'},
+            {productCode:'P2026-0008',productName:'绝缘手套(高压)',brand:'代尔塔',price:220.00,supplier:'代尔塔防护',recommendType:'预算优化推荐',matchScore:72,reason:'价格低23%'},
+            {productCode:'P2026-0009',productName:'安全帽(ABS)',brand:'3M',price:45.00,supplier:'3M中国',recommendType:'历史采购推荐',matchScore:94,reason:'常采商品，好评4.8'},
+            {productCode:'P2026-0010',productName:'安全帽(ABS)',brand:'华安',price:32.00,supplier:'华安劳保',recommendType:'预算优化推荐',matchScore:68,reason:'价格低29%'},
+            {productCode:'P2026-0011',productName:'万用表(数字)',brand:'福禄克',price:1280.00,supplier:'福禄克中国',recommendType:'供应商评级推荐',matchScore:96,reason:'行业标杆，精度最高'},
+            {productCode:'P2026-0012',productName:'万用表(数字)',brand:'优利德',price:280.00,supplier:'优利德科技',recommendType:'预算优化推荐',matchScore:75,reason:'性价比高'},
+            {productCode:'P2026-0013',productName:'万用表(数字)',brand:'胜利',price:195.00,supplier:'胜利仪器',recommendType:'预算优化推荐',matchScore:65,reason:'价格最低'},
+            {productCode:'P2026-0014',productName:'A4打印纸',brand:'得力',price:145.00,supplier:'得力集团',recommendType:'历史采购推荐',matchScore:91,reason:'月度采购，品牌稳定'},
+            {productCode:'P2026-0015',productName:'A4打印纸',brand:'晨光',price:138.00,supplier:'晨光文具',recommendType:'同类商品推荐',matchScore:80,reason:'同类品牌，价格略低'},
+            {productCode:'P2026-0016',productName:'A4打印纸',brand:'Double A',price:168.00,supplier:'达伯埃',recommendType:'供应商评级推荐',matchScore:86,reason:'品质最优，不卡纸'},
+            {productCode:'P2026-0017',productName:'电力变压器',brand:'特变电工',price:85000.00,supplier:'特变电工',recommendType:'历史采购推荐',matchScore:89,reason:'历史采购2次，运行稳定'},
+            {productCode:'P2026-0018',productName:'电力变压器',brand:'西门子',price:120000.00,supplier:'西门子中国',recommendType:'供应商评级推荐',matchScore:93,reason:'国际一线，能效最高'},
+            {productCode:'P2026-0019',productName:'电力变压器',brand:'ABB',price:115000.00,supplier:'ABB中国',recommendType:'同类商品推荐',matchScore:87,reason:'与西门子同级，价格低5%'},
+            {productCode:'P2026-0020',productName:'电流互感器',brand:'天正',price:1850.00,supplier:'天正集团',recommendType:'预算优化推荐',matchScore:70,reason:'价格低于均价12%'},
+            {productCode:'P2026-0021',productName:'电流互感器',brand:'许继',price:2100.00,supplier:'许继电气',recommendType:'历史采购推荐',matchScore:84,reason:'历史采购4次'},
+            {productCode:'P2026-0022',productName:'断路器(真空)',brand:'常熟',price:6800.00,supplier:'常熟开关',recommendType:'同类商品推荐',matchScore:76,reason:'国产一线，性价比适中'},
+            {productCode:'P2026-0023',productName:'断路器(真空)',brand:'施耐德',price:9500.00,supplier:'施耐德电气',recommendType:'供应商评级推荐',matchScore:92,reason:'S级供应商，质保5年'},
+            {productCode:'P2026-0024',productName:'电缆接头',brand:'3M',price:380.00,supplier:'3M中国',recommendType:'历史采购推荐',matchScore:88,reason:'历史采购8次，故障率低'},
+            {productCode:'P2026-0025',productName:'电缆接头',brand:'普睿司曼',price:420.00,supplier:'普睿司曼',recommendType:'同类商品推荐',matchScore:74,reason:'国际品牌'},
+            {productCode:'P2026-0026',productName:'接地线(便携式)',brand:'华仪',price:580.00,supplier:'华仪电气',recommendType:'预算优化推荐',matchScore:66,reason:'价格适中'},
+            {productCode:'P2026-0027',productName:'接地线(便携式)',brand:'诺雅克',price:650.00,supplier:'诺雅克电气',recommendType:'同类商品推荐',matchScore:79,reason:'工艺更优'},
+            {productCode:'P2026-0028',productName:'绝缘胶垫',brand:'双虎',price:880.00,supplier:'双虎集团',recommendType:'历史采购推荐',matchScore:71,reason:'历史采购3次'},
+            {productCode:'P2026-0029',productName:'绝缘胶垫',brand:'江海',price:750.00,supplier:'江海制品',recommendType:'预算优化推荐',matchScore:62,reason:'价格低15%'},
+            {productCode:'P2026-0030',productName:'激光测距仪',brand:'徕卡',price:890.00,supplier:'徕卡测量',recommendType:'供应商评级推荐',matchScore:91,reason:'标杆品牌，精度±1.5mm'}
+          ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          helpVisible:false
+        };
+      },
+      computed: {
+        filteredData: function() {
+          var self = this;
+          return this.tableData.filter(function(item) {
+            if (self.queryForm.productName && !item.productName.includes(self.queryForm.productName)) return false;
+            if (self.queryForm.recommendType && item.recommendType !== self.queryForm.recommendType) return false;
+            if (self.queryForm.minScore && item.matchScore < self.queryForm.minScore) return false;
+            if (self.tableSearchText) {
+              var kw = self.tableSearchText.toLowerCase();
+              var text = ((item.productCode || '') + ' ' + (item.productName || '') + ' ' + (item.brand || '') + ' ' + (item.supplier || '') + ' ' + (item.recommendType || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData: function() {
+          var start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText: function() {
+          var conditions = [];
+          var f = this.queryForm;
+          if (this.isNotEmpty(f.productName)) conditions.push('商品名称：' + f.productName);
+          if (this.isNotEmpty(f.recommendType)) conditions.push('推荐类型：' + f.recommendType);
+          if (f.minScore > 0) conditions.push('最低匹配度：' + f.minScore);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        }
+      },
+      methods: {
+        toggleSearchPanel: function() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery: function() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条推荐'); },
+        handleReset: function() { this.queryForm = {productName:'',recommendType:'',minScore:0}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh: function() { this.$message.success('AI推荐数据已刷新'); },
+        handleSelectionChange: function(val) { this.selection = val; },
+        addToCart: function(row) { this.$message.success('已将「' + row.productName + '（' + row.brand + '）」加入购物车'); },
+        isNotEmpty: function(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        handleSizeChange: function(val) { this.pageSize = val; this.currentPage = 1; },
+        handlePageChange: function(val) { this.currentPage = val; }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,553 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>采购申请审批</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .stat-cards { display:flex; margin-bottom:16px; }
+    .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .stat-card.stat-warning .stat-value { color:#f57c00; }
+    .stat-card.stat-danger .stat-value { color:#c62828; }
+    .stat-card.stat-success .stat-value { color:#2e7d32; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .table-maximized { position: fixed !important; top: 0; left: 0; right: 0; bottom: 0; z-index: 2000; background: #fff; padding: 16px; overflow: auto; }
+    .table-maximized .yj-container-card__bar { padding: 8px 0; }
+    .approval-flow-title { font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .budget-check-title { font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">采购申请审批</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header">
+              <span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span>
+            </div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="申请编号" title="申请编号"><el-input v-model="queryForm.reqNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="申请人" title="申请人"><el-input v-model="queryForm.applicant" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="申请部门" title="申请部门"><el-input v-model="queryForm.dept" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待审批" value="待审批"></el-option><el-option label="已审批" value="已审批"></el-option><el-option label="已拒绝" value="已拒绝"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="采购方式" title="采购方式">
+                    <el-select v-model="queryForm.method" placeholder="请选择" clearable>
+                      <el-option label="公开招标" value="公开招标"></el-option><el-option label="邀请招标" value="邀请招标"></el-option><el-option label="竞争性谈判" value="竞争性谈判"></el-option><el-option label="单一来源" value="单一来源"></el-option><el-option label="询价采购" value="询价采购"></el-option><el-option label="框架协议" value="框架协议"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="金额区间" title="金额区间">
+                    <el-select v-model="queryForm.amountRange" placeholder="请选择" clearable>
+                      <el-option label="1万以下" value="0-10000"></el-option><el-option label="1万~10万" value="10000-100000"></el-option><el-option label="10万~100万" value="100000-1000000"></el-option><el-option label="100万以上" value="1000000-99999999"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="申请日期" title="申请日期">
+                    <el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="stat-cards">
+            <div class="stat-card stat-warning"><div class="stat-label">待审批</div><div class="stat-value">{{ statData.pending }}<span class="stat-unit">笔</span></div></div>
+            <div class="stat-card stat-success"><div class="stat-label">已审批</div><div class="stat-value">{{ statData.approved }}<span class="stat-unit">笔</span></div></div>
+            <div class="stat-card stat-danger"><div class="stat-label">已拒绝</div><div class="stat-value">{{ statData.rejected }}<span class="stat-unit">笔</span></div></div>
+            <div class="stat-card"><div class="stat-label">待审批总金额</div><div class="stat-value">{{ formatAmount(statData.pendingAmount) }}<span class="stat-unit">元</span></div></div>
+            <div class="stat-card"><div class="stat-label">超期预警</div><div class="stat-value" style="color:#F56C6C;">{{ statData.overdue }}<span class="stat-unit">笔</span></div></div>
+          </div>
+
+            <div class="yj-container-card" area="grid" id="queryGrid" :class="{'table-maximized': isTableMaximized}">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="采购申请列表">采购申请列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area">共 {{ filteredData.length }} 条记录</div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width: 100%;">
+                          <el-button type="success" icon="el-icon-check" @click="handleBatchApprove" :disabled="selection.length===0">批量审批</el-button>
+                        </div>
+                      </div>
+                      <div class="yj-container-card__default-buttons">
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" title="显示设置" @click="displaySettingVisible = true"><i class="el-icon-setting"></i></button>
+                        <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isTableMaximized ? '还原' : '最大化'" @click="toggleMaximize"><i class="el-icon-full-screen"></i></button>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table" style="position: relative;">
+                  <el-table ref="table" :data="pagedData" border stripe style="width: 100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="45" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('reqNo')" prop="reqNo" label="申请编号" min-width="140" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('applicant')" prop="applicant" label="申请人" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('dept')" prop="dept" label="申请部门" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('subject')" prop="subject" label="采购事项" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column v-if="isColumnVisible('method')" prop="method" label="采购方式" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('amount')" prop="amount" label="金额(元)" min-width="120" align="right"><template slot-scope="scope">{{ scope.row.amount.toLocaleString() }}</template></el-table-column>
+                    <el-table-column v-if="isColumnVisible('approvalLevel')" prop="approvalLevel" label="审批层级" min-width="100" align="center"><template slot-scope="scope">{{ scope.row.approvalLevel }}级</template></el-table-column>
+                    <el-table-column v-if="isColumnVisible('currentApprover')" prop="currentApprover" label="当前审批人" min-width="100" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('status')" prop="status" label="状态" min-width="100" align="center"><template slot-scope="scope"><el-tag :type="scope.row.status==='已审批'?'success':scope.row.status==='待审批'?'warning':'danger'">{{ scope.row.status }}</el-tag></template></el-table-column>
+                    <el-table-column v-if="isColumnVisible('applyDate')" prop="applyDate" label="申请日期" min-width="120" align="center"></el-table-column>
+                    <el-table-column v-if="isColumnVisible('deadline')" prop="deadline" label="审批截止" min-width="120" align="center"><template slot-scope="scope"><span :style="{color: scope.row.isOverdue ? '#F56C6C' : '#909399'}">{{ scope.row.deadline }}</span><el-tag v-if="scope.row.isOverdue" type="danger" size="mini" style="margin-left:4px;">超期</el-tag></template></el-table-column>
+                    <el-table-column label="操作" width="240" align="center" fixed="right">
+                      <template slot-scope="scope">
+                        <el-button type="text" @click="viewDetail(scope.row)">详情</el-button>
+                        <el-button type="text" v-if="scope.row.status==='待审批'" @click="openApproveDialog(scope.row)">审批通过</el-button>
+                        <el-button type="text" v-if="scope.row.status==='待审批'" @click="openRejectDialog(scope.row)">驳回</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background></el-pagination>
+                </div>
+              </div>
+            </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="采购申请详情" :visible.sync="detailVisible" width="780px">
+      <el-descriptions :column="2" border v-if="currentReq">
+        <el-descriptions-item label="申请编号">{{ currentReq.reqNo }}</el-descriptions-item>
+        <el-descriptions-item label="申请人">{{ currentReq.applicant }}</el-descriptions-item>
+        <el-descriptions-item label="申请部门">{{ currentReq.dept }}</el-descriptions-item>
+        <el-descriptions-item label="采购方式">{{ currentReq.method }}</el-descriptions-item>
+        <el-descriptions-item label="采购事项" :span="2">{{ currentReq.subject }}</el-descriptions-item>
+        <el-descriptions-item label="采购金额"><span style="color:#F56C6C;font-weight:600;">{{ currentReq.amount.toLocaleString() }} 元</span></el-descriptions-item>
+        <el-descriptions-item label="审批层级">{{ currentReq.approvalLevel }}级（{{ getApprovalLevelText(currentReq.approvalLevel) }}）</el-descriptions-item>
+        <el-descriptions-item label="用途说明" :span="2">{{ currentReq.purpose }}</el-descriptions-item>
+        <el-descriptions-item label="状态"><el-tag :type="currentReq.status==='已审批'?'success':currentReq.status==='待审批'?'warning':'danger'">{{ currentReq.status }}</el-tag></el-descriptions-item>
+        <el-descriptions-item label="申请日期">{{ currentReq.applyDate }}</el-descriptions-item>
+        <el-descriptions-item label="审批截止" :span="2"><span :style="{color: currentReq.isOverdue ? '#F56C6C' : '#909399'}">{{ currentReq.deadline }}</span><el-tag v-if="currentReq.isOverdue" type="danger" size="small" style="margin-left:8px;">已超期</el-tag></el-descriptions-item>
+        <el-descriptions-item label="审批意见" :span="2" v-if="currentReq.approveOpinion">{{ currentReq.approveOpinion }}</el-descriptions-item>
+      </el-descriptions>
+      <div style="margin-top:16px;" v-if="currentReq && currentReq.items && currentReq.items.length > 0">
+        <div class="approval-flow-title"><i class="el-icon-goods"></i> 采购物资明细（{{ currentReq.items.length }} 项）</div>
+        <el-table :data="currentReq.items" border stripe size="small" style="width:100%;">
+          <el-table-column type="index" label="序号" width="55" align="center"></el-table-column>
+          <el-table-column prop="productCode" label="商品编号" min-width="120" align="center"></el-table-column>
+          <el-table-column prop="productName" label="商品名称" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="spec" label="规格型号" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column prop="unit" label="单位" width="80" align="center"></el-table-column>
+          <el-table-column prop="quantity" label="数量" width="80" align="center"></el-table-column>
+          <el-table-column label="单价" width="110" align="right"><template slot-scope="scope">{{ scope.row.unitPrice.toLocaleString() }}</template></el-table-column>
+          <el-table-column label="金额小计" width="120" align="right"><template slot-scope="scope">{{ (scope.row.quantity * scope.row.unitPrice).toLocaleString() }}</template></el-table-column>
+        </el-table>
+        <div style="margin-top:8px;text-align:right;font-size:14px;"><span style="font-weight:700;color:#0B7266;">合计金额：{{ currentReq.amount.toLocaleString() }} 元</span></div>
+      </div>
+      <div style="margin-top:16px;" v-if="currentReq">
+        <div class="approval-flow-title"><i class="el-icon-s-check"></i> 审批流程（{{ approvalFlow.length }}级）</div>
+        <el-steps :active="currentApprovalStep" finish-status="success" direction="vertical" style="padding:8px 0 8px 20px;">
+          <el-step v-for="(step, idx) in approvalFlow" :key="idx" :title="step.role + ' - ' + step.approver" :description="step.status === '已通过' ? step.opinion + '（' + step.date + '）' : step.status === '审批中' ? '待审批...' : '等待中'" :status="step.status === '已通过' ? 'success' : step.status === '审批中' ? 'process' : step.status === '已拒绝' ? 'error' : 'wait'"></el-step>
+        </el-steps>
+      </div>
+      <div style="margin-top:12px;" v-if="currentReq">
+        <div class="budget-check-title"><i class="el-icon-coin"></i> 预算校验</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="部门预算余额"><span style="color:#0B7266;font-weight:600;">{{ (currentReq.budgetTotal || 500000).toLocaleString() }} 元</span></el-descriptions-item>
+          <el-descriptions-item label="本次申请金额"><span style="color:#F56C6C;font-weight:600;">{{ currentReq.amount.toLocaleString() }} 元</span></el-descriptions-item>
+          <el-descriptions-item label="预算使用率"><el-progress :percentage="Math.min(100, Math.round(currentReq.amount / (currentReq.budgetTotal || 500000) * 100))" :color="currentReq.amount / (currentReq.budgetTotal || 500000) > 0.9 ? '#F56C6C' : '#0B7266'" :show-text="true" :stroke-width="14" style="width:200px;"></el-progress></el-descriptions-item>
+          <el-descriptions-item label="校验结果"><el-tag :type="currentReq.amount > (currentReq.budgetTotal || 500000) ? 'danger' : 'success'" size="small">{{ currentReq.amount > (currentReq.budgetTotal || 500000) ? '超出预算' : '预算内' }}</el-tag></el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 审批通过弹窗 -->
+    <el-dialog :lazy="true" title="审批通过" :visible.sync="approveVisible" width="480px">
+      <div class="yj-container">
+        <el-form :model="approveForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+          <el-form-item class="tl-form-item" label="申请编号" title="申请编号"><el-input v-model="approveForm.reqNo" disabled></el-input></el-form-item>
+          <el-form-item class="tl-form-item" label="采购事项" title="采购事项"><el-input v-model="approveForm.subject" disabled></el-input></el-form-item>
+          <el-form-item class="tl-form-item" label="审批节点" title="审批节点"><el-input v-model="approveForm.nodeText" disabled></el-input></el-form-item>
+          <el-form-item class="tl-form-item" label="审批意见" title="审批意见"><el-input type="textarea" v-model="approveForm.opinion" :rows="3" placeholder="请填写审批意见"></el-input></el-form-item>
+        </el-form>
+      </div>
+      <div slot="footer"><el-button @click="approveVisible=false">取消</el-button><el-button type="success" @click="doApprove">确认通过</el-button></div>
+    </el-dialog>
+
+    <!-- 驳回弹窗 -->
+    <el-dialog :lazy="true" title="驳回申请" :visible.sync="rejectVisible" width="480px">
+      <div class="yj-container">
+        <el-form :model="rejectForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+          <el-form-item class="tl-form-item" label="申请编号" title="申请编号"><el-input v-model="rejectForm.reqNo" disabled></el-input></el-form-item>
+          <el-form-item class="tl-form-item" label="采购事项" title="采购事项"><el-input v-model="rejectForm.subject" disabled></el-input></el-form-item>
+          <el-form-item class="tl-form-item" label="驳回原因" title="驳回原因"><el-input type="textarea" v-model="rejectForm.reason" :rows="3" placeholder="请填写驳回原因"></el-input></el-form-item>
+        </el-form>
+      </div>
+      <div slot="footer"><el-button @click="rejectVisible=false">取消</el-button><el-button type="danger" @click="doReject">确认驳回</el-button></div>
+    </el-dialog>
+
+    <!-- 批量审批弹窗 -->
+    <el-dialog :lazy="true" title="批量审批" :visible.sync="batchApproveVisible" width="560px">
+      <div class="yj-container">
+        <el-alert title="批量审批将一次性通过所选的待审批申请，请确认后操作。" type="warning" :closable="false" show-icon style="margin-bottom:16px;"></el-alert>
+        <el-table :data="selection" border stripe size="small" style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="reqNo" label="申请编号" min-width="140" align="center"></el-table-column>
+          <el-table-column prop="subject" label="采购事项" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+          <el-table-column label="金额" min-width="120" align="right"><template slot-scope="scope">{{ scope.row.amount.toLocaleString() }} 元</template></el-table-column>
+        </el-table>
+        <el-form :model="batchApproveForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+          <el-form-item class="tl-form-item" label="审批意见" title="审批意见"><el-input type="textarea" v-model="batchApproveForm.opinion" :rows="3" placeholder="请填写批量审批意见"></el-input></el-form-item>
+        </el-form>
+      </div>
+      <div slot="footer"><el-button @click="batchApproveVisible=false">取消</el-button><el-button type="success" @click="doBatchApprove">确认批量通过</el-button></div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div><div class="help-section__body">采购申请提交后，需经多级审批方可生成订单。本页面专用于审批人对采购申请进行审批通过或驳回操作。审批层级根据金额自动判定：1万以下1级（部门经理）、1万~10万2级（部门经理→采购经理）、10万~100万3级（部门经理→采购经理→分管副总）、100万以上4级（部门经理→采购经理→分管副总→总经理）。审批时效为3个工作日，超期自动删单。</div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div><div class="help-section__body"><ul><li>待办任务集中展示，审批人一屏掌握待处理事项</li><li>多级审批流自动路由，按金额区间匹配审批层级</li><li>预算校验结果前置展示，辅助审批决策</li><li>批量审批提升效率，支持一次审批多条申请</li><li>审批时效监控，超期自动提醒或删单</li><li>采购物资明细结构化展示，支撑审批决策</li></ul></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div><div class="help-section__body"><ol><li><b>查询待办</b>：在查询面板输入申请编号/事项，选择申请人、部门、金额区间、日期范围，点击"查询"筛选待审批申请</li><li><b>查看统计</b>：页面顶部统计卡片展示待审批/已审批/已拒绝笔数、待审批总金额、超期预警</li><li><b>查看详情</b>：点击"详情"查看申请完整信息、物资明细、预算余额、审批流程</li><li><b>审批通过</b>：对待审批申请点击"审批通过"，填写审批意见，自动流转至下一节点或生成订单</li><li><b>驳回申请</b>：点击"驳回"，填写驳回原因，申请退回申请人修改</li><li><b>批量审批</b>：勾选多条待审批申请，点击"批量审批"一次性审批</li><li><b>超期关注</b>：关注"审批截止"列标红的超期申请，及时处理避免自动删单</li><li><b>导出数据</b>：点击"导出"导出审批清单</li></ol></div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-connection"></i> 上下业务环节</div><div class="help-section__body"><ul><li><b>上游</b>：采购申请单（purchase_request_bill.html）— 申请人填写采购申请并提交</li><li><b>上游</b>：采购申请列表（purchase_request_list.html）— 查看所有采购申请，支持新增</li><li><b>本页</b>：采购申请审批 — 审批人对申请进行通过/驳回</li><li><b>下游</b>：采购订单（purchase_order.html）— 审批通过后自动生成采购订单</li><li><b>下游</b>：合同管理（contract_list.html）— 需签订合同的采购进入合同流程</li></ul></div></div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <!-- 显示设置弹窗 -->
+    <el-dialog :lazy="true" title="显示设置 — 列显示配置" :visible.sync="displaySettingVisible" width="480px">
+      <div style="margin-bottom:12px;color:#909399;font-size:13px;">勾选需要显示的列，取消勾选可隐藏对应列</div>
+      <el-checkbox-group v-model="visibleColumns" style="display:flex;flex-wrap:wrap;">
+        <el-checkbox v-for="col in columnSettings" :key="col.prop" :label="col.prop">{{ col.label }}</el-checkbox>
+      </el-checkbox-group>
+      <div slot="footer"><el-button @click="displaySettingVisible = false">关闭</el-button><el-button type="primary" @click="resetColumnSetting">恢复默认</el-button></div>
+    </el-dialog>
+
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          labelWidth: '120px',
+          isSearchPanelCollapsed: false,
+          layoutMode: 'single',
+          queryForm: { reqNo:'', applicant:'', dept:'', status:'', method:'', amountRange:'', dateRange:[] },
+          tableSearchText: '',
+          selection: [],
+          tableData: [],
+          pageSize: 10,
+          currentPage: 1,
+          detailVisible: false,
+          currentReq: null,
+          approvalFlowData: [
+            { role: '部门经理', approver: '张明', status: '已通过', opinion: '同意采购', date: '2026-06-19' },
+            { role: '采购经理', approver: '李伟', status: '已通过', opinion: '采购方式合理', date: '2026-06-20' },
+            { role: '分管副总', approver: '王强', status: '审批中', opinion: '', date: '' },
+            { role: '总经理', approver: '刘总', status: '等待中', opinion: '', date: '' }
+          ],
+          approveVisible: false,
+          rejectVisible: false,
+          batchApproveVisible: false,
+          helpVisible: false,
+          approveForm: { reqNo:'', subject:'', opinion:'', nodeText:'' },
+          rejectForm: { reqNo:'', subject:'', reason:'' },
+          batchApproveForm: { opinion:'' },
+          fieldLabels:{},
+          displaySettingVisible: false,
+          isTableMaximized: false,
+          visibleColumns: ['reqNo','applicant','dept','subject','method','amount','approvalLevel','currentApprover','status','applyDate','deadline'],
+          columnSettings: [
+            {prop:'reqNo',label:'申请编号'},{prop:'applicant',label:'申请人'},{prop:'dept',label:'申请部门'},
+            {prop:'subject',label:'采购事项'},{prop:'method',label:'采购方式'},{prop:'amount',label:'金额(元)'},
+            {prop:'approvalLevel',label:'审批层级'},{prop:'currentApprover',label:'当前审批人'},
+            {prop:'status',label:'状态'},{prop:'applyDate',label:'申请日期'},{prop:'deadline',label:'审批截止'}
+          ]
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(function(r) {
+            if (this.queryForm.reqNo && !r.reqNo.includes(this.queryForm.reqNo)) return false;
+            if (this.queryForm.applicant && !r.applicant.includes(this.queryForm.applicant)) return false;
+            if (this.queryForm.dept && !r.dept.includes(this.queryForm.dept)) return false;
+            if (this.queryForm.status && r.status !== this.queryForm.status) return false;
+            if (this.queryForm.method && r.method !== this.queryForm.method) return false;
+            if (this.queryForm.amountRange) {
+              var parts = this.queryForm.amountRange.split('-');
+              var min = parseInt(parts[0], 10);
+              var max = parseInt(parts[1], 10);
+              if (r.amount < min || r.amount > max) return false;
+            }
+            if (this.queryForm.dateRange && this.queryForm.dateRange.length === 2) {
+              if (r.applyDate < this.queryForm.dateRange[0] || r.applyDate > this.queryForm.dateRange[1]) return false;
+            }
+            if (this.tableSearchText) {
+              var kw = this.tableSearchText.toLowerCase();
+              var text = (r.reqNo + r.applicant + r.dept + r.subject + r.method + r.status + r.currentApprover).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          }.bind(this));
+        },
+        pagedData() {
+          var start = (this.currentPage - 1) * this.pageSize;
+          return this.filteredData.slice(start, start + this.pageSize);
+        },
+        statData() {
+          var pending = 0, approved = 0, rejected = 0, pendingAmount = 0, overdue = 0;
+          this.tableData.forEach(function(r) {
+            if (r.status === '待审批') { pending++; pendingAmount += r.amount; if (r.isOverdue) overdue++; }
+            else if (r.status === '已审批') approved++;
+            else if (r.status === '已拒绝') rejected++;
+          });
+          return { pending: pending, approved: approved, rejected: rejected, pendingAmount: pendingAmount, overdue: overdue };
+        },
+        approvalFlow() {
+          if (!this.currentReq) return [];
+          return this.approvalFlowData;
+        },
+        currentApprovalStep() {
+          var idx = this.approvalFlowData.findIndex(function(s) { return s.status === '审批中'; });
+          if (idx >= 0) return idx;
+          return this.approvalFlowData.filter(function(s) { return s.status === '已通过'; }).length;
+        },
+        queryConditionText() {
+          var conditions = [];
+          var f = this.queryForm;
+          if (this.isNotEmpty(f.reqNo)) conditions.push('申请编号：' + f.reqNo);
+          if (this.isNotEmpty(f.applicant)) conditions.push('申请人：' + f.applicant);
+          if (this.isNotEmpty(f.dept)) conditions.push('申请部门：' + f.dept);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (this.isNotEmpty(f.method)) conditions.push('采购方式：' + f.method);
+          if (this.isNotEmpty(f.amountRange)) conditions.push('金额区间：' + f.amountRange);
+          if (f.dateRange && f.dateRange.length === 2) conditions.push('日期：' + f.dateRange[0] + '至' + f.dateRange[1]);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        }
+      },
+      watch: {
+        'queryForm.reqNo'() { this.currentPage = 1; },
+        'queryForm.applicant'() { this.currentPage = 1; },
+        'queryForm.dept'() { this.currentPage = 1; },
+        'queryForm.status'() { this.currentPage = 1; },
+        'queryForm.method'() { this.currentPage = 1; },
+        'queryForm.amountRange'() { this.currentPage = 1; },
+        'queryForm.dateRange'() { this.currentPage = 1; },
+        tableSearchText() { this.currentPage = 1; }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        formatAmount(val) {
+          return val.toLocaleString();
+        },
+        getApprovalLevelText(level) {
+          var map = { 1: '部门经理', 2: '部门经理→采购经理', 3: '部门经理→采购经理→分管副总', 4: '部门经理→采购经理→分管副总→总经理' };
+          return map[level] || '';
+        },
+        getApprovalLevel(amount) {
+          if (amount >= 1000000) return 4;
+          if (amount >= 100000) return 3;
+          if (amount >= 10000) return 2;
+          return 1;
+        },
+        getCurrentApprover(level) {
+          var map = { 1: '部门经理', 2: '采购经理', 3: '分管副总', 4: '总经理' };
+          return map[level] || '';
+        },
+        handleQuery() { this.currentPage = 1; this.$message.success('查询完成，共 ' + this.filteredData.length + ' 条记录'); },
+        handleReset() {
+          this.queryForm = { reqNo:'', applicant:'', dept:'', status:'', method:'', amountRange:'', dateRange:[] };
+          this.tableSearchText = '';
+          this.currentPage = 1;
+        },
+        handleExport() { this.exportCSV(); },
+        handleRefresh() { this.$message.success('数据已刷新'); },
+        exportCSV() {
+          if (this.filteredData.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          var labels = this.fieldLabels || {};
+          var keys = Object.keys(this.filteredData[0]);
+          var headers = keys.map(function(k) { return labels[k] || k; });
+          var rows = this.filteredData.map(function(item) {
+            return keys.map(function(k) {
+              var v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+              return '"' + v.replace(/"/g, '""') + '"';
+            }).join(',');
+          });
+          var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          var link = document.createElement('a');
+          var title = document.title || '导出数据';
+          link.href = URL.createObjectURL(blob);
+          link.download = title + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentReq = row; this.detailVisible = true; },
+        openApproveDialog(row) {
+          var levelText = row.approvalLevel + '级（' + this.getApprovalLevelText(row.approvalLevel) + '）';
+          this.approveForm = { reqNo: row.reqNo, subject: row.subject, opinion: '', nodeText: levelText };
+          this.approveVisible = true;
+        },
+        doApprove() {
+          if (!this.approveForm.opinion) { this.$message.error('请填写审批意见'); return; }
+          var target = this.tableData.find(function(i) { return i.reqNo === this.approveForm.reqNo; }.bind(this));
+          if (target) {
+            target.status = '已审批';
+            target.approveOpinion = this.approveForm.opinion;
+          }
+          this.approveVisible = false;
+          this.$message.success('审批通过');
+        },
+        openRejectDialog(row) {
+          this.rejectForm = { reqNo: row.reqNo, subject: row.subject, reason: '' };
+          this.rejectVisible = true;
+        },
+        doReject() {
+          if (!this.rejectForm.reason) { this.$message.error('请填写驳回原因'); return; }
+          var target = this.tableData.find(function(i) { return i.reqNo === this.rejectForm.reqNo; }.bind(this));
+          if (target) {
+            target.status = '已拒绝';
+            target.approveOpinion = this.rejectForm.reason;
+          }
+          this.rejectVisible = false;
+          this.$message.success('已驳回');
+        },
+        handleBatchApprove() {
+          if (this.selection.length === 0) { this.$message.warning('请先勾选待审批申请'); return; }
+          var hasNonPending = this.selection.some(function(r) { return r.status !== '待审批'; });
+          if (hasNonPending) { this.$message.warning('只能批量审批待审批状态的申请'); return; }
+          this.batchApproveForm = { opinion: '' };
+          this.batchApproveVisible = true;
+        },
+        doBatchApprove() {
+          if (!this.batchApproveForm.opinion) { this.$message.error('请填写批量审批意见'); return; }
+          var self = this;
+          this.selection.forEach(function(row) {
+            var target = self.tableData.find(function(i) { return i.reqNo === row.reqNo; });
+            if (target) {
+              target.status = '已审批';
+              target.approveOpinion = self.batchApproveForm.opinion;
+            }
+          });
+          this.batchApproveVisible = false;
+          this.$message.success('已批量审批 ' + this.selection.length + ' 条申请');
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; },
+        isColumnVisible(prop) { return this.visibleColumns.indexOf(prop) > -1; },
+        resetColumnSetting() { this.visibleColumns = this.columnSettings.map(function(c) { return c.prop; }); },
+        toggleMaximize() { this.isTableMaximized = !this.isTableMaximized; },
+        initData() {
+          var raw = [
+            { reqNo:'PR-2026-0001', applicant:'张明', dept:'物资采购部', subject:'10kV高压开关柜采购', method:'公开招标', amount:1280000, purpose:'城网改造工程用，计划于2026年7月交付', status:'已审批', applyDate:'2026-05-10', deadline:'2026-05-13', approvalLevel:4, currentApprover:'刘总', budgetTotal:5000000, approveOpinion:'符合采购计划，同意', items:[{productCode:'PR-001',productName:'10kV高压开关柜',spec:'KYN28-12',unit:'台',quantity:2,unitPrice:640000}] },
+            { reqNo:'PR-2026-0002', applicant:'李华', dept:'运维检修部', subject:'智能电表批量采购', method:'框架协议', amount:456000, purpose:'老旧小区电表更换项目，数量1200只', status:'已审批', applyDate:'2026-05-12', deadline:'2026-05-15', approvalLevel:3, currentApprover:'王副总', budgetTotal:1000000, approveOpinion:'框架协议内，同意', items:[{productCode:'PR-003',productName:'智能电表',spec:'DDZ986-Z',unit:'只',quantity:1200,unitPrice:380}] },
+            { reqNo:'PR-2026-0003', applicant:'王强', dept:'信息通信部', subject:'办公电脑更新', method:'询价采购', amount:174000, purpose:'部门办公电脑老化更换，30台', status:'待审批', applyDate:'2026-05-15', deadline:'2026-05-18', approvalLevel:3, currentApprover:'王副总', budgetTotal:500000, approveOpinion:'', items:[{productCode:'PR-007',productName:'办公电脑',spec:'联想启天M415',unit:'台',quantity:30,unitPrice:5800}] },
+            { reqNo:'PR-2026-0004', applicant:'赵敏', dept:'综合管理部', subject:'安全防护用品采购', method:'询价采购', amount:86000, purpose:'年度劳保用品采购，含安全帽、绝缘手套等', status:'待审批', applyDate:'2026-05-18', deadline:'2026-05-21', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-010',productName:'安全帽',spec:'ABS绝缘 V级',unit:'顶',quantity:50,unitPrice:65},{productCode:'PR-011',productName:'绝缘手套',spec:'12kV 双色',unit:'双',quantity:200,unitPrice:38}] },
+            { reqNo:'PR-2026-0005', applicant:'刘伟', dept:'物资采购部', subject:'三相电力变压器采购', method:'公开招标', amount:692000, purpose:'变电站扩建工程，8台变压器', status:'已审批', applyDate:'2026-05-20', deadline:'2026-05-23', approvalLevel:4, currentApprover:'刘总', budgetTotal:3000000, approveOpinion:'预算充足，同意', items:[{productCode:'PR-002',productName:'三相电力变压器',spec:'S11-M-800/10',unit:'台',quantity:8,unitPrice:86500}] },
+            { reqNo:'PR-2026-0006', applicant:'陈刚', dept:'运维检修部', subject:'SF6断路器采购', method:'单一来源', amount:284000, purpose:'原厂设备替换，5台', status:'待审批', applyDate:'2026-05-22', deadline:'2026-05-25', approvalLevel:3, currentApprover:'王副总', budgetTotal:800000, approveOpinion:'', items:[{productCode:'PR-005',productName:'SF6断路器',spec:'LW36-40.5',unit:'台',quantity:5,unitPrice:56800}] },
+            { reqNo:'PR-2026-0007', applicant:'孙丽', dept:'信息通信部', subject:'激光打印机采购', method:'询价采购', amount:46000, purpose:'部门文档输出需要，20台', status:'已拒绝', applyDate:'2026-05-24', deadline:'2026-05-27', approvalLevel:2, currentApprover:'李经理', budgetTotal:100000, approveOpinion:'超出本年度办公设备预算，建议明年再报', items:[{productCode:'PR-008',productName:'激光打印机',spec:'HP M404',unit:'台',quantity:20,unitPrice:2300}] },
+            { reqNo:'PR-2026-0008', applicant:'周涛', dept:'物资采购部', subject:'电力电缆采购', method:'公开招标', amount:2380000, purpose:'配网建设工程，8500米', status:'已审批', applyDate:'2026-05-26', deadline:'2026-05-29', approvalLevel:4, currentApprover:'刘总', budgetTotal:5000000, approveOpinion:'重点工程，同意', items:[{productCode:'PR-015',productName:'电力电缆',spec:'YJV22-8.7/15kV 3*400',unit:'米',quantity:8500,unitPrice:280}] },
+            { reqNo:'PR-2026-0009', applicant:'吴芳', dept:'综合管理部', subject:'UPS不间断电源采购', method:'询价采购', amount:92500, purpose:'机房扩容需要，5台', status:'待审批', applyDate:'2026-05-28', deadline:'2026-05-31', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-016',productName:'UPS不间断电源',spec:'UPS-10KVA',unit:'台',quantity:5,unitPrice:18500}] },
+            { reqNo:'PR-2026-0010', applicant:'郑浩', dept:'运维检修部', subject:'配电自动化终端采购', method:'框架协议', amount:372000, purpose:'配网自动化改造，20台DTU', status:'已审批', applyDate:'2026-05-30', deadline:'2026-06-02', approvalLevel:3, currentApprover:'王副总', budgetTotal:1000000, approveOpinion:'框架协议内，同意', items:[{productCode:'PR-012',productName:'配电自动化终端',spec:'DTU-3000',unit:'台',quantity:20,unitPrice:18600}] },
+            { reqNo:'PR-2026-0011', applicant:'黄磊', dept:'物资采购部', subject:'电流互感器采购', method:'询价采购', amount:79950, purpose:'变电站设备更换，65台', status:'待审批', applyDate:'2026-06-02', deadline:'2026-06-05', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-006',productName:'电流互感器',spec:'LB-110',unit:'台',quantity:65,unitPrice:1230}] },
+            { reqNo:'PR-2026-0012', applicant:'林燕', dept:'信息通信部', subject:'集中器采购', method:'框架协议', amount:358400, purpose:'用电信息采集系统建设，280台', status:'已审批', applyDate:'2026-06-05', deadline:'2026-06-08', approvalLevel:3, currentApprover:'王副总', budgetTotal:1000000, approveOpinion:'框架协议内，同意', items:[{productCode:'PR-004',productName:'集中器',spec:'DJGZ23-Z',unit:'台',quantity:280,unitPrice:1280}] },
+            { reqNo:'PR-2026-0013', applicant:'张明', dept:'物资采购部', subject:'开关柜采购', method:'公开招标', amount:4500000, purpose:'城网改造工程，15面', status:'待审批', applyDate:'2026-06-08', deadline:'2026-06-11', approvalLevel:4, currentApprover:'刘总', budgetTotal:8000000, approveOpinion:'', items:[{productCode:'PR-001',productName:'10kV高压开关柜',spec:'KYN28-12',unit:'面',quantity:15,unitPrice:300000}] },
+            { reqNo:'PR-2026-0014', applicant:'李华', dept:'运维检修部', subject:'电表采购', method:'框架协议', amount:948700, purpose:'老旧小区改造，2500只', status:'待审批', applyDate:'2026-06-10', deadline:'2026-06-13', approvalLevel:3, currentApprover:'王副总', budgetTotal:2000000, approveOpinion:'', items:[{productCode:'PR-003',productName:'智能电表',spec:'DDZ986-Z',unit:'只',quantity:2500,unitPrice:379}] },
+            { reqNo:'PR-2026-0015', applicant:'王强', dept:'信息通信部', subject:'电脑更新', method:'询价采购', amount:174000, purpose:'部门电脑更换，30台', status:'待审批', applyDate:'2026-06-12', deadline:'2026-06-15', approvalLevel:3, currentApprover:'王副总', budgetTotal:500000, approveOpinion:'', items:[{productCode:'PR-007',productName:'办公电脑',spec:'联想启天M415',unit:'台',quantity:30,unitPrice:5800}] },
+            { reqNo:'PR-2026-0016', applicant:'赵敏', dept:'综合管理部', subject:'防护用品采购', method:'询价采购', amount:130000, purpose:'年度劳保用品', status:'待审批', applyDate:'2026-06-15', deadline:'2026-06-18', approvalLevel:2, currentApprover:'李经理', budgetTotal:300000, approveOpinion:'', items:[{productCode:'PR-010',productName:'安全帽',spec:'ABS绝缘 V级',unit:'顶',quantity:100,unitPrice:65},{productCode:'PR-011',productName:'绝缘手套',spec:'12kV 双色',unit:'双',quantity:300,unitPrice:38}] },
+            { reqNo:'PR-2026-0017', applicant:'刘伟', dept:'物资采购部', subject:'电缆采购', method:'公开招标', amount:1400000, purpose:'配网建设，5000米', status:'待审批', applyDate:'2026-06-18', deadline:'2026-06-21', approvalLevel:4, currentApprover:'刘总', budgetTotal:5000000, approveOpinion:'', items:[{productCode:'PR-015',productName:'电力电缆',spec:'YJV22-8.7/15kV 3*400',unit:'米',quantity:5000,unitPrice:280}] },
+            { reqNo:'PR-2026-0018', applicant:'陈刚', dept:'运维检修部', subject:'断路器采购', method:'单一来源', amount:142000, purpose:'原厂替换，5台', status:'待审批', applyDate:'2026-06-20', deadline:'2026-06-23', approvalLevel:3, currentApprover:'王副总', budgetTotal:500000, approveOpinion:'', items:[{productCode:'PR-005',productName:'SF6断路器',spec:'LW36-40.5',unit:'台',quantity:5,unitPrice:28400}] },
+            { reqNo:'PR-2026-0019', applicant:'孙丽', dept:'信息通信部', subject:'打印机采购', method:'询价采购', amount:81700, purpose:'部门文档输出，35台', status:'待审批', applyDate:'2026-06-22', deadline:'2026-06-25', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-008',productName:'激光打印机',spec:'HP M404',unit:'台',quantity:35,unitPrice:2334}] },
+            { reqNo:'PR-2026-0020', applicant:'周涛', dept:'物资采购部', subject:'UPS采购', method:'询价采购', amount:92500, purpose:'机房扩容，5台', status:'待审批', applyDate:'2026-06-25', deadline:'2026-06-28', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-016',productName:'UPS不间断电源',spec:'UPS-10KVA',unit:'台',quantity:5,unitPrice:18500}] },
+            { reqNo:'PR-2026-0021', applicant:'吴芳', dept:'综合管理部', subject:'消防器材采购', method:'询价采购', amount:52000, purpose:'消防设施更新', status:'待审批', applyDate:'2026-06-27', deadline:'2026-06-30', approvalLevel:2, currentApprover:'李经理', budgetTotal:150000, approveOpinion:'', items:[{productCode:'PR-025',productName:'灭火器',spec:'MFZ-4',unit:'只',quantity:100,unitPrice:85},{productCode:'PR-026',productName:'消防水带',spec:'65mm-20m',unit:'条',quantity:50,unitPrice:120}] },
+            { reqNo:'PR-2026-0022', applicant:'郑浩', dept:'运维检修部', subject:'互感器采购', method:'询价采购', amount:123000, purpose:'变电站设备更换，100台', status:'待审批', applyDate:'2026-06-28', deadline:'2026-07-01', approvalLevel:2, currentApprover:'李经理', budgetTotal:300000, approveOpinion:'', items:[{productCode:'PR-006',productName:'电流互感器',spec:'LB-110',unit:'台',quantity:100,unitPrice:1230}] },
+            { reqNo:'PR-2026-0023', applicant:'黄磊', dept:'物资采购部', subject:'继保装置采购', method:'公开招标', amount:420000, purpose:'变电站改造，10套', status:'待审批', applyDate:'2026-06-29', deadline:'2026-07-02', approvalLevel:3, currentApprover:'王副总', budgetTotal:1000000, approveOpinion:'', items:[{productCode:'PR-018',productName:'继电保护装置',spec:'RCS-941',unit:'套',quantity:10,unitPrice:42000}] },
+            { reqNo:'PR-2026-0024', applicant:'林燕', dept:'信息通信部', subject:'通信设备采购', method:'公开招标', amount:300000, purpose:'通信网络升级', status:'待审批', applyDate:'2026-06-29', deadline:'2026-07-02', approvalLevel:3, currentApprover:'王副总', budgetTotal:800000, approveOpinion:'', items:[{productCode:'PR-020',productName:'通信光缆',spec:'GYTA-24B1',unit:'米',quantity:15000,unitPrice:12},{productCode:'PR-021',productName:'蓄电池组',spec:'GFM-300',unit:'组',quantity:50,unitPrice:2800}] },
+            { reqNo:'PR-2026-0025', applicant:'张明', dept:'物资采购部', subject:'监控后台采购', method:'公开招标', amount:560000, purpose:'监控中心建设', status:'待审批', applyDate:'2026-06-28', deadline:'2026-07-01', approvalLevel:3, currentApprover:'王副总', budgetTotal:1500000, approveOpinion:'', items:[{productCode:'PR-019',productName:'监控后台系统',spec:'SYS-8000',unit:'套',quantity:1,unitPrice:156000},{productCode:'PR-022',productName:'直流屏',spec:'GZDW-100',unit:'面',quantity:1,unitPrice:38000}] },
+            { reqNo:'PR-2026-0026', applicant:'李华', dept:'运维检修部', subject:'通信光缆采购', method:'询价采购', amount:180000, purpose:'光缆线路改造，15000米', status:'待审批', applyDate:'2026-06-27', deadline:'2026-06-30', approvalLevel:3, currentApprover:'王副总', budgetTotal:500000, approveOpinion:'', items:[{productCode:'PR-020',productName:'通信光缆',spec:'GYTA-24B1',unit:'米',quantity:15000,unitPrice:12}] },
+            { reqNo:'PR-2026-0027', applicant:'王强', dept:'信息通信部', subject:'蓄电池组采购', method:'询价采购', amount:95000, purpose:'机房UPS配套，50组', status:'待审批', applyDate:'2026-06-25', deadline:'2026-06-28', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-021',productName:'蓄电池组',spec:'GFM-300',unit:'组',quantity:50,unitPrice:1900}] },
+            { reqNo:'PR-2026-0028', applicant:'赵敏', dept:'综合管理部', subject:'直流屏采购', method:'公开招标', amount:320000, purpose:'变电站直流系统改造', status:'待审批', applyDate:'2026-06-22', deadline:'2026-06-25', approvalLevel:3, currentApprover:'王副总', budgetTotal:800000, approveOpinion:'', items:[{productCode:'PR-022',productName:'直流屏',spec:'GZDW-100',unit:'面',quantity:8,unitPrice:40000}] },
+            { reqNo:'PR-2026-0029', applicant:'刘伟', dept:'物资采购部', subject:'变频器采购', method:'询价采购', amount:78000, purpose:'风机改造，6台', status:'待审批', applyDate:'2026-06-20', deadline:'2026-06-23', approvalLevel:2, currentApprover:'李经理', budgetTotal:200000, approveOpinion:'', items:[{productCode:'PR-023',productName:'变频器',spec:'ACS-580',unit:'台',quantity:6,unitPrice:13000}] },
+            { reqNo:'PR-2026-0030', applicant:'陈刚', dept:'运维检修部', subject:'发电机采购', method:'公开招标', amount:1200000, purpose:'应急电源配置，1台', status:'待审批', applyDate:'2026-06-18', deadline:'2026-06-21', approvalLevel:4, currentApprover:'刘总', budgetTotal:3000000, approveOpinion:'', items:[{productCode:'PR-024',productName:'发电机',spec:'C-550',unit:'台',quantity:1,unitPrice:1200000}] }
+          ];
+          var today = '2026-07-10';
+          raw.forEach(function(r) {
+            r.isOverdue = r.status === '待审批' && r.deadline < today;
+          });
+          this.tableData = raw;
+        }
+      },
+      mounted() {
+        this.initData();
+        this.handleQuery();
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

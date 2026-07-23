@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>商城部署模式管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-toggle{text-align:center;margin-bottom:12px}.stat-toggle .el-button{font-size:13px;color:#0B7266}
+    .stat-cards { display:flex; margin-bottom:16px; } .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">商城部署模式管理</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button type="primary" icon="el-icon-plus" @click="handleAdd">新增租户</el-button>
+              <el-button icon="el-icon-download" @click="handleExport">导出</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="租户名称"><el-input v-model="queryForm.tenantName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="部署模式"><el-select v-model="queryForm.deployMode" placeholder="请选择" clearable><el-option label="SaaS托管" value="SaaS托管"></el-option><el-option label="本地化部署" value="本地化部署"></el-option><el-option label="信创部署" value="信创部署"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="租户状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="运行中" value="运行中"></el-option><el-option label="待开通" value="待开通"></el-option><el-option label="已停用" value="已停用"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="stat-toggle">
+            <el-button type="text" @click="statCollapsed = !statCollapsed">
+              <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              {{ statCollapsed ? '展开统计' : '收起统计' }}
+            </el-button>
+          </div>
+          <div class="stat-cards" v-show="!statCollapsed">
+            <div class="stat-card"><div class="stat-label">租户总数</div><div class="stat-value">12<span class="stat-unit">个</span></div></div>
+            <div class="stat-card"><div class="stat-label">SaaS租户</div><div class="stat-value" style="color:#0B7266;">5<span class="stat-unit">个</span></div></div>
+            <div class="stat-card"><div class="stat-label">本地化部署</div><div class="stat-value" style="color:#f57c00;">4<span class="stat-unit">个</span></div></div>
+            <div class="stat-card"><div class="stat-label">信创部署</div><div class="stat-value" style="color:#2e7d32;">3<span class="stat-unit">个</span></div></div>
+            <div class="stat-card"><div class="stat-label">月度服务费</div><div class="stat-value">58<span class="stat-unit">万元</span></div></div>
+          </div>
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="租户列表">租户列表（多租户管理）</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="tenantId" label="租户ID" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="tenantName" label="租户名称" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="deployMode" label="部署模式" width="120" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.deployMode==='SaaS托管'?'success':row.deployMode==='信创部署'?'warning':'info'" size="small">{{ row.deployMode }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="version" label="系统版本" width="100" align="center"></el-table-column>
+                  <el-table-column prop="userCount" label="用户数" width="80" align="center"></el-table-column>
+                  <el-table-column prop="monthlyFee" label="月服务费" width="110" align="right">
+                    <template slot-scope="{row}"><span style="font-weight:600;">¥{{ row.monthlyFee.toLocaleString() }}</span></template>
+                  </el-table-column>
+                  <el-table-column prop="createDate" label="开通日期" width="110" align="center"></el-table-column>
+                  <el-table-column prop="expireDate" label="到期日期" width="110" align="center"></el-table-column>
+                  <el-table-column prop="status" label="租户状态" width="100" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.status==='运行中'?'success':row.status==='待开通'?'warning':'danger'" size="small">{{ row.status }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="160" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="handleDetail(row)">详情</el-button>
+                      <el-button type="text" @click="handleConfig(row)">配置</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="租户详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="租户ID">{{ currentDetail.tenantId }}</el-descriptions-item>
+          <el-descriptions-item label="部署模式"><el-tag size="small">{{ currentDetail.deployMode }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="租户名称">{{ currentDetail.tenantName }}</el-descriptions-item>
+          <el-descriptions-item label="系统版本">{{ currentDetail.version }}</el-descriptions-item>
+          <el-descriptions-item label="用户数">{{ currentDetail.userCount }}</el-descriptions-item>
+          <el-descriptions-item label="租户状态"><el-tag :type="currentDetail.status==='运行中'?'success':'warning'">{{ currentDetail.status }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="月服务费">¥{{ currentDetail.monthlyFee.toLocaleString() }}</el-descriptions-item>
+          <el-descriptions-item label="合同期限">{{ currentDetail.createDate }} 至 {{ currentDetail.expireDate }}</el-descriptions-item>
+        </el-descriptions>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-setting"></i> 资源配置</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="CPU配额">{{ currentDetail.cpuQuota || '4核' }}</el-descriptions-item>
+          <el-descriptions-item label="内存配额">{{ currentDetail.memQuota || '16GB' }}</el-descriptions-item>
+          <el-descriptions-item label="存储配额">{{ currentDetail.storageQuota || '200GB' }}</el-descriptions-item>
+          <el-descriptions-item label="API调用限额">{{ currentDetail.apiLimit || '10万次/月' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">本页面管理对外输出的三种商城部署模式：SaaS托管（多租户共享云资源）、本地化部署（私有化独立部署）、信创部署（国产化替代）。支持多集团客户的租户隔离、权限管理、资源配额配置和计费管理。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>三种部署模式灵活选择，满足不同客户需求</li>
+              <li>多租户完全隔离，数据安全有保障</li>
+              <li>资源配额可视化，精细化运营管理</li>
+              <li>SaaS月费模式，稳定的服务收入</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>新增租户</b>：点击"新增租户"，选择部署模式，填写租户信息</li>
+              <li><b>配置资源</b>：设置CPU/内存/存储/API配额</li>
+              <li><b>初始化部署</b>：系统自动完成环境初始化和配置</li>
+              <li><b>查看详情</b>：点击"详情"查看租户信息和资源配置</li>
+              <li><b>到期管理</b>：系统提前30天提醒续费</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          statCollapsed: true,
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          currentDetail:null,
+          queryForm:{tenantName:'',deployMode:'',status:''},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          tableData:[
+            {tenantId:'T001',tenantName:'中国一重集团有限公司',deployMode:'本地化部署',version:'V3.2.1',userCount:280,monthlyFee:0,createDate:'2025-01-15',expireDate:'2027-01-14',status:'运行中',cpuQuota:'16核',memQuota:'64GB',storageQuota:'1TB',apiLimit:'无限制'},
+            {tenantId:'T002',tenantName:'东方电气股份有限公司',deployMode:'本地化部署',version:'V3.2.1',userCount:150,monthlyFee:0,createDate:'2025-06-01',expireDate:'2026-06-30',status:'运行中',cpuQuota:'8核',memQuota:'32GB',storageQuota:'500GB',apiLimit:'无限制'},
+            {tenantId:'T003',tenantName:'中国通号研究设计院',deployMode:'信创部署',version:'V3.2.1-XC',userCount:120,monthlyFee:0,createDate:'2025-09-01',expireDate:'2026-09-30',status:'运行中',cpuQuota:'8核',memQuota:'32GB',storageQuota:'500GB',apiLimit:'无限制'},
+            {tenantId:'T004',tenantName:'河钢集团有限公司',deployMode:'SaaS托管',version:'V3.2.1',userCount:85,monthlyFee:80000,createDate:'2025-03-01',expireDate:'2026-03-31',status:'运行中',cpuQuota:'4核',memQuota:'16GB',storageQuota:'200GB',apiLimit:'10万次/月'},
+            {tenantId:'T005',tenantName:'四川能源发展集团',deployMode:'本地化部署',version:'V3.2.1',userCount:200,monthlyFee:0,createDate:'2025-10-01',expireDate:'2026-10-31',status:'运行中',cpuQuota:'8核',memQuota:'32GB',storageQuota:'500GB',apiLimit:'无限制'},
+            {tenantId:'T006',tenantName:'蒙西电力集团',deployMode:'信创部署',version:'V3.2.1-XC',userCount:95,monthlyFee:0,createDate:'2026-01-01',expireDate:'2026-12-31',status:'运行中',cpuQuota:'4核',memQuota:'16GB',storageQuota:'200GB',apiLimit:'无限制'},
+            {tenantId:'T007',tenantName:'深圳能源集团',deployMode:'SaaS托管',version:'V3.2.1',userCount:60,monthlyFee:50000,createDate:'2026-04-01',expireDate:'2027-04-30',status:'运行中',cpuQuota:'4核',memQuota:'16GB',storageQuota:'200GB',apiLimit:'8万次/月'},
+            {tenantId:'T008',tenantName:'内蒙古电力集团',deployMode:'信创部署',version:'V3.2.1-XC',userCount:110,monthlyFee:0,createDate:'2026-06-01',expireDate:'2027-06-30',status:'运行中',cpuQuota:'4核',memQuota:'16GB',storageQuota:'200GB',apiLimit:'无限制'},
+            {tenantId:'T009',tenantName:'山西焦化集团',deployMode:'SaaS托管',version:'V3.2.1',userCount:45,monthlyFee:35000,createDate:'2026-07-01',expireDate:'2027-07-31',status:'待开通',cpuQuota:'2核',memQuota:'8GB',storageQuota:'100GB',apiLimit:'5万次/月'},
+            {tenantId:'T010',tenantName:'中铝物资公司',deployMode:'SaaS托管',version:'V3.2.1',userCount:55,monthlyFee:45000,createDate:'2026-06-15',expireDate:'2027-06-30',status:'运行中',cpuQuota:'4核',memQuota:'16GB',storageQuota:'200GB',apiLimit:'6万次/月'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){var q=this.queryForm,text=this.tableSearchText.toLowerCase();var f=this.tableData.filter(function(p){if(q.tenantName&&p.tenantName.indexOf(q.tenantName)===-1)return false;if(q.deployMode&&p.deployMode!==q.deployMode)return false;if(q.status&&p.status!==q.status)return false;if(text){var t=(p.tenantId+p.tenantName+p.deployMode+p.status).toLowerCase();if(t.indexOf(text)===-1)return false}return true});this.total=f.length;return f},
+        pagedData(){var s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+        queryConditionText(){var f=this.queryForm;var parts=[];if(f.tenantName)parts.push('租户：'+f.tenantName);if(f.deployMode)parts.push('模式：'+f.deployMode);if(f.status)parts.push('状态：'+f.status);return parts.length>0?parts.join(' | '):'全部'}
+      },
+      watch:{'queryForm'( ){this.currentPage=1},tableSearchText(){this.currentPage=1}},
+      methods:{
+        handleQuery(){this.currentPage=1;this.$message.success('查询成功');},
+        handleReset(){this.queryForm={tenantName:'',deployMode:'',status:''};this.currentPage=1;},
+        handleRefresh(){this.$message.success('刷新成功');},
+        handleAdd(){this.$message.info('新增租户（演示）');},
+        handlePageChange(p){this.currentPage=p;},
+        handleSizeChange(s){this.pageSize=s;this.currentPage=1;},
+        handleSelectionChange(v){this.selection=v;},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        handleConfig(row){this.$message.info('配置租户 '+row.tenantName+'（演示）');},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleExport(){this.$message.success('导出租户列表');}
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

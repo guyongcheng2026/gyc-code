@@ -1,0 +1,248 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>质量监督分析模型</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-card { background:#fff; border-radius:8px; padding:16px 20px; box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+    .stat-label { font-size:13px; color:#909399; margin-bottom:6px; }
+    .stat-value { font-size:28px; font-weight:700; color:#1A2332; }
+    .stat-sub { font-size:12px; color:#909399; margin-top:4px; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">质量监督分析模型</div>
+          <div class="tl-title__slot">
+            <div class="yj-button-list">
+              <el-button icon="el-icon-download" @click="handleExport">导出报告</el-button>
+              <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+            </div>
+          </div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="抽检单号"><el-input v-model="queryForm.inspectionNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="抽检类型"><el-select v-model="queryForm.type" placeholder="请选择" clearable><el-option label="常规抽检" value="常规抽检"></el-option><el-option label="专项抽检" value="专项抽检"></el-option><el-option label="飞行检查" value="飞行检查"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="抽检结果"><el-select v-model="queryForm.result" placeholder="请选择" clearable><el-option label="合格" value="合格"></el-option><el-option label="不合格" value="不合格"></el-option><el-option label="待复检" value="待复检"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="抽检日期"><el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd" style="width:240px;"></el-date-picker></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);/* gap-removed */;margin-bottom:16px;">
+            <div class="stat-card"><div class="stat-label">抽检总数</div><div class="stat-value">1,280</div><div class="stat-sub">本季度累计</div></div>
+            <div class="stat-card"><div class="stat-label">合格率</div><div class="stat-value" style="color:#2e7d32;">99.2%</div><div class="stat-sub">较上季度+0.3%</div></div>
+            <div class="stat-card"><div class="stat-label">不合格批次</div><div class="stat-value" style="color:#c62828;">10</div><div class="stat-sub">已触发整改</div></div>
+            <div class="stat-card"><div class="stat-label">质量问题供应商</div><div class="stat-value" style="color:#f57c00;">8</div><div class="stat-sub">需重点监控</div></div>
+            <div class="stat-card"><div class="stat-label">质量预警</div><div class="stat-value" style="color:#c62828;">3</div><div class="stat-sub">橙色/红色预警</div></div>
+          </div>
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="质量抽检记录">质量抽检记录</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-plus" type="primary" @click="handleAdd">新建抽检</el-button><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="inspectionNo" label="抽检单号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="productName" label="抽检商品" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="inspectionType" label="抽检类型" width="100" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.inspectionType==='飞行检查'?'danger':row.inspectionType==='专项抽检'?'warning':'info'" size="small">{{ row.inspectionType }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="sampleQty" label="抽样数量" width="90" align="center"></el-table-column>
+                  <el-table-column prop="defectQty" label="不合格数" width="90" align="center">
+                    <template slot-scope="{row}"><span :style="{color: row.defectQty > 0 ? '#c62828' : '#2e7d32', fontWeight: row.defectQty > 0 ? 600 : 400}">{{ row.defectQty }}</span></template>
+                  </el-table-column>
+                  <el-table-column prop="passRate" label="合格率" width="90" align="center">
+                    <template slot-scope="{row}"><span :style="{color: row.passRate < 95 ? '#c62828' : '#2e7d32'}">{{ row.passRate }}%</span></template>
+                  </el-table-column>
+                  <el-table-column prop="result" label="抽检结果" width="90" align="center">
+                    <template slot-scope="{row}"><el-tag :type="row.result==='合格'?'success':row.result==='不合格'?'danger':'warning'" size="small">{{ row.result }}</el-tag></template>
+                  </el-table-column>
+                  <el-table-column prop="inspector" label="抽检员" width="90" align="center"></el-table-column>
+                  <el-table-column prop="inspectionDate" label="抽检日期" width="110" align="center"></el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">详情</el-button></template></el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="抽检详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="抽检单号">{{ currentDetail.inspectionNo }}</el-descriptions-item>
+          <el-descriptions-item label="抽检类型"><el-tag size="small">{{ currentDetail.inspectionType }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="抽检员">{{ currentDetail.inspector }}</el-descriptions-item>
+          <el-descriptions-item label="抽检日期">{{ currentDetail.inspectionDate }}</el-descriptions-item>
+          <el-descriptions-item label="抽检结果"><el-tag :type="currentDetail.result==='合格'?'success':'danger'">{{ currentDetail.result }}</el-tag></el-descriptions-item>
+        </el-descriptions>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-warning"></i> 质量问题分析</div>
+        <el-table :data="currentDetail.defectItems || []" border style="width:100%;margin-bottom:16px;">
+          <el-table-column prop="itemName" label="检测项目" min-width="140" align="center"></el-table-column>
+          <el-table-column prop="standard" label="标准值" width="100" align="center"></el-table-column>
+          <el-table-column prop="actual" label="实际值" width="100" align="center"></el-table-column>
+          <el-table-column prop="deviation" label="偏离率" width="90" align="center">
+            <template slot-scope="{row}"><el-tag size="small" :type="row.deviation > 10 ? 'danger' : 'warning'">{{ row.deviation }}%</el-tag></template>
+          </el-table-column>
+          <el-table-column prop="verdict" label="判定" width="80" align="center"><template slot-scope="{row}"><el-tag size="small" :type="row.verdict==='合格'?'success':'danger'">{{ row.verdict }}</el-tag></template></el-table-column>
+        </el-table>
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-setting"></i> 整改措施</div>
+        <el-descriptions :column="1" border>
+          <el-descriptions-item label="整改要求">{{ currentDetail.rectify || '要求供应商7日内提交整改报告，并暂停相关商品上架，待复检合格后恢复。' }}</el-descriptions-item>
+          <el-descriptions-item label="整改期限">{{ currentDetail.rectifyDeadline || '2026-07-15' }}</el-descriptions-item>
+          <el-descriptions-item label="复检状态"><el-tag size="small" type="warning">待复检</el-tag></el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">本页面对入库商品进行质量抽检数据分析，包括常规抽检、专项抽检和飞行检查三种模式。通过质量合格率、不合格批次分布、供应商质量问题排名等指标，构建质量监督分析模型，支撑供应商考核和采购决策。</div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>质量抽检数据全量记录，支撑质量追溯</li>
+              <li>不合格商品及时拦截，保障采购质量</li>
+              <li>供应商质量问题可视化，支持考核扣分</li>
+              <li>质量预警自动触发，提前防控质量风险</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查看统计看板</b>：页面顶部展示抽检总数、合格率、不合格批次等关键指标</li>
+              <li><b>查询抽检记录</b>：输入抽检单号/供应商/类型/结果，筛选目标记录</li>
+              <li><b>新建抽检</b>：点击"新建抽检"，填写抽检信息，关联商品和供应商</li>
+              <li><b>查看详情</b>：点击"详情"查看检测项目明细、偏离情况、整改措施</li>
+              <li><b>导出报告</b>：点击"导出报告"导出质量抽检报表</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          detailVisible:false,
+          currentDetail:null,
+          queryForm:{inspectionNo:'',supplier:'',type:'',result:'',dateRange:[]},
+          tableSearchText:'',
+          currentPage:1,
+          pageSize: 10,
+          selection:[],
+          tableData:[
+            {inspectionNo:'QI-2026-0001',supplier:'远东电缆股份有限公司',productName:'10kV高压开关柜',inspectionType:'常规抽检',sampleQty:20,defectQty:0,passRate:100,result:'合格',inspector:'张工',inspectionDate:'2026-04-10'},
+            {inspectionNo:'QI-2026-0002',supplier:'特变电工股份有限公司',productName:'三相电力变压器',inspectionType:'专项抽检',sampleQty:15,defectQty:1,passRate:93.3,result:'不合格',inspector:'李工',inspectionDate:'2026-04-15',defectItems:[{itemName:'绝缘电阻',standard:'≥100MΩ',actual:'85MΩ',deviation:15,verdict:'不合格'},{itemName:'耐压试验',standard:'通过',actual:'通过',deviation:0,verdict:'合格'},{itemName:'温升试验',standard:'≤65K',actual:'58K',deviation:0,verdict:'合格'}],rectify:'要求供应商更换绝缘材料，重新送检',rectifyDeadline:'2026-07-15'},
+            {inspectionNo:'QI-2026-0003',supplier:'国电南瑞科技股份有限公司',productName:'智能电表',inspectionType:'飞行检查',sampleQty:30,defectQty:0,passRate:100,result:'合格',inspector:'王工',inspectionDate:'2026-04-20'},
+            {inspectionNo:'QI-2026-0004',supplier:'许继电气股份有限公司',productName:'高压断路器',inspectionType:'常规抽检',sampleQty:10,defectQty:2,passRate:80,result:'不合格',inspector:'赵工',inspectionDate:'2026-05-05',defectItems:[{itemName:'机械寿命',standard:'≥3000次',actual:'2200次',deviation:26.7,verdict:'不合格'},{itemName:'电气寿命',standard:'≥1000次',actual:'980次',deviation:2,verdict:'合格'}],rectify:'要求供应商更换触点材料，提交整改报告',rectifyDeadline:'2026-07-20'},
+            {inspectionNo:'QI-2026-0005',supplier:'平高电气股份有限公司',productName:'高压隔离开关',inspectionType:'常规抽检',sampleQty:12,defectQty:0,passRate:100,result:'合格',inspector:'张工',inspectionDate:'2026-05-12'},
+            {inspectionNo:'QI-2026-0006',supplier:'正泰电气股份有限公司',productName:'低压配电柜',inspectionType:'专项抽检',sampleQty:8,defectQty:0,passRate:100,result:'合格',inspector:'李工',inspectionDate:'2026-05-18'},
+            {inspectionNo:'QI-2026-0007',supplier:'西门子电气有限公司',productName:'PLC控制器',inspectionType:'飞行检查',sampleQty:25,defectQty:0,passRate:100,result:'合格',inspector:'王工',inspectionDate:'2026-05-25'},
+            {inspectionNo:'QI-2026-0008',supplier:'ABB电气股份有限公司',productName:'继电保护装置',inspectionType:'常规抽检',sampleQty:18,defectQty:0,passRate:100,result:'合格',inspector:'赵工',inspectionDate:'2026-06-01'},
+            {inspectionNo:'QI-2026-0009',supplier:'德力西电气有限公司',productName:'接触器',inspectionType:'专项抽检',sampleQty:50,defectQty:3,passRate:94,result:'不合格',inspector:'张工',inspectionDate:'2026-06-10',defectItems:[{itemName:'触点电阻',standard:'≤50mΩ',actual:'65mΩ',deviation:30,verdict:'不合格'},{itemName:'吸合电压',standard:'85%~110%Un',actual:'92%Un',deviation:0,verdict:'合格'}],rectify:'要求更换触点材质，提交质量保证函',rectifyDeadline:'2026-07-25'},
+            {inspectionNo:'QI-2026-0010',supplier:'施耐德电气有限公司',productName:'变频器',inspectionType:'飞行检查',sampleQty:10,defectQty:0,passRate:100,result:'合格',inspector:'李工',inspectionDate:'2026-06-15'}
+          ]
+        };
+      },
+      computed:{
+        filteredData(){var q=this.queryForm,text=this.tableSearchText.toLowerCase();var f=this.tableData.filter(function(p){if(q.inspectionNo&&p.inspectionNo.indexOf(q.inspectionNo)===-1)return false;if(q.supplier&&p.supplier.indexOf(q.supplier)===-1)return false;if(q.type&&p.inspectionType!==q.type)return false;if(q.result&&p.result!==q.result)return false;if(text){var t=(p.inspectionNo+p.supplier+p.productName+p.result+p.inspector).toLowerCase();if(t.indexOf(text)===-1)return false}return true});this.total=f.length;return f},
+        pagedData(){var s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize)},
+        queryConditionText(){var f=this.queryForm;var parts=[];if(f.inspectionNo)parts.push('抽检单号：'+f.inspectionNo);if(f.supplier)parts.push('供应商：'+f.supplier);if(f.type)parts.push('类型：'+f.type);if(f.result)parts.push('结果：'+f.result);return parts.length>0?parts.join(' | '):'全部'}
+      },
+      watch:{
+        'queryForm'( ){this.currentPage=1},tableSearchText(){this.currentPage=1}
+      },
+      methods:{
+        handleQuery(){this.currentPage=1;this.$message.success('查询成功');},
+        handleReset(){this.queryForm={inspectionNo:'',supplier:'',type:'',result:'',dateRange:[]};this.currentPage=1;},
+        handleRefresh(){this.$message.success('刷新成功');},
+        handleAdd(){this.$message.info('新建抽检（演示）');},
+        handlePageChange(p){this.currentPage=p;},
+        handleSizeChange(s){this.pageSize=s;this.currentPage=1;},
+        handleSelectionChange(v){this.selection=v;},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleExport(){this.$message.success('导出质量抽检报告');}
+      }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

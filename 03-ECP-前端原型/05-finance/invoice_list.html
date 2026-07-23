@@ -1,0 +1,438 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>发票管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  .tl-footer { text-align:center; }
+    .stat-cards { display:flex; margin-bottom:16px; } .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .stat-toggle { text-align:center; margin-bottom:12px; }
+    .stat-toggle .el-button { font-size:13px; color:#0B7266; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">发票管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="发票号码" title="发票号码">
+                    <el-input v-model="queryForm.invoiceNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="发票类型" title="发票类型">
+                    <el-select v-model="queryForm.invoiceType" placeholder="请选择" clearable>
+                      <el-option label="增值税专票" value="增值税专票"></el-option>
+                      <el-option label="增值税普票" value="增值税普票"></el-option>
+                      <el-option label="电子发票" value="电子发票"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待开具" value="待开具"></el-option>
+                      <el-option label="已开具" value="已开具"></el-option>
+                      <el-option label="已验真" value="已验真"></el-option>
+                      <el-option label="作废" value="作废"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">发票列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  <div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+                  <div class="stat-cards" v-show="!statCollapsed">
+                    <div class="stat-card"><div class="stat-label">开票总额(元)</div><div class="stat-value">{{ statTotalAmount }}</div></div>
+                    <div class="stat-card"><div class="stat-label">已验真(张)</div><div class="stat-value" style="color:#2e7d32;">{{ statVerifiedCount }}</div></div>
+                    <div class="stat-card"><div class="stat-label">待开具(张)</div><div class="stat-value" style="color:#f57c00;">{{ statPendingCount }}</div></div>
+                    <div class="stat-card"><div class="stat-label">税额合计(元)</div><div class="stat-value" style="color:#1565C0;">{{ statTaxAmount }}</div></div>
+                  </div>
+                  <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="invoiceNo" label="发票号码" min-width="140" align="center"></el-table-column>
+                    <el-table-column prop="orderNo" label="订单编号" min-width="130" align="center"></el-table-column>
+                    <el-table-column prop="supplier" label="供应商" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="invoiceType" label="发票类型" min-width="100" align="center"></el-table-column>
+                    <el-table-column prop="invoiceAmount" label="开票金额(元)" min-width="120" align="right"></el-table-column>
+                    <el-table-column prop="taxRate" label="税率" min-width="80" align="center"></el-table-column>
+                    <el-table-column prop="taxAmount" label="税额(元)" min-width="110" align="right"></el-table-column>
+                    <el-table-column prop="buyerName" label="购方名称" min-width="150" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="90" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='已验真'?'success':row.status==='已开具'?'primary':row.status==='待开具'?'warning':'danger'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="invoiceDate" label="开票日期" min-width="110" align="center"></el-table-column>
+                    <el-table-column label="操作" width="200" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="success" v-if="row.status==='待开具'" @click="issueInvoice(row)">开具</el-button>
+                        <el-button type="warning" v-if="row.status==='已开具'" @click="verifyInvoice(row)">验真</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="发票详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="发票代码">{{ currentDetail.invoiceCode }}</el-descriptions-item>
+          <el-descriptions-item label="发票号码">{{ currentDetail.invoiceNo }}</el-descriptions-item>
+          <el-descriptions-item label="发票类型">{{ currentDetail.invoiceType }}</el-descriptions-item>
+          <el-descriptions-item label="发票ID">{{ currentDetail.invoiceId }}</el-descriptions-item>
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-coin"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="金额">{{ currentDetail.invoiceAmount }}</el-descriptions-item>
+          <el-descriptions-item label="税率">{{ currentDetail.taxRate }}</el-descriptions-item>
+          <el-descriptions-item label="税额">{{ currentDetail.taxAmount }}</el-descriptions-item>
+          <el-descriptions-item label="价税合计">{{ currentDetail.totalAmount }}</el-descriptions-item>
+          <el-descriptions-item label="购方">{{ currentDetail.buyerName }}</el-descriptions-item>
+          <el-descriptions-item label="销方">{{ currentDetail.supplier }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="开票日期">{{ currentDetail.invoiceDate }}</el-descriptions-item>
+          <el-descriptions-item label="收款人">{{ currentDetail.payee }}</el-descriptions-item>
+          <el-descriptions-item label="复核人">{{ currentDetail.reviewer }}</el-descriptions-item>
+          <el-descriptions-item label="开票人">{{ currentDetail.drawer }}</el-descriptions-item>
+          <el-descriptions-item label="发票备注">{{ currentDetail.invoiceRemark }}</el-descriptions-item>
+          <el-descriptions-item label="邮寄地址">{{ currentDetail.mailAddress }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            支付完成后，采购方申请开票，供应商开具发票，系统调用税局接口验真。本页面管理发票申请、开具、验真、进项税抵扣。本页面承接支付环节，输出验真发票驱动ERP入账。适用于财务专员申请开票、发票验真。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>支持增值税专用发票/普通发票/电子发票三种类型</li>
+              <li>发票在线申请和开具，替代传统邮寄</li>
+              <li>税局接口验真，杜绝假发票</li>
+              <li>进项税自动抵扣，同步至ERP财务模块</li>
+              <li>发票状态全程跟踪（待开具/已开具/已验真/已抵扣）</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询发票</b>：在查询面板输入发票号/订单号，选择发票类型、状态、开票日期范围，点击"查询"筛选</li>
+              <li><b>申请开票</b>：支付完成后点击"申请开票"，选择发票类型，填写发票抬头、收票信息</li>
+              <li><b>查看详情</b>：点击"详情"查看发票完整信息、关联订单、验真记录</li>
+              <li><b>供应商开票</b>：供应商待开具发票点击"开具"，录入发票号、发票代码</li>
+              <li><b>发票验真</b>：已开具发票点击"验真"，系统调用税局接口验证</li>
+              <li><b>进项税抵扣</b>：验真通过后点击"抵扣"，同步至ERP财务模块</li>
+              <li><b>导出数据</b>：点击"导出"导出发票清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          isSearchPanelCollapsed: false,
+          statCollapsed: true,
+          labelWidth: '90px',
+          tableSearchText: '',
+          queryForm: { invoiceNo:'', invoiceType:'', status:'' },
+          tableData: [
+            { invoiceNo:'INV-2026-0001', invoiceCode:'031001900111', orderNo:'OD-2026-0001', supplier:'国电南瑞科技股份有限公司', invoiceType:'增值税专票', invoiceAmount:385000, taxRate:'13%', taxAmount:44307, buyerName:'江苏省电力公司', status:'已验真', invoiceDate:'2026-01-15', invoiceId:'50001234', totalAmount:429307, payee:'李会计', reviewer:'王复核', drawer:'张开票', invoiceRemark:'变电站设备', mailAddress:'南京市鼓楼区' },
+            { invoiceNo:'INV-2026-0002', invoiceCode:'031001900112', orderNo:'OD-2026-0002', supplier:'许继电气股份有限公司', invoiceType:'增值税专票', invoiceAmount:156000, taxRate:'13%', taxAmount:17967, buyerName:'浙江省电力公司', status:'已验真', invoiceDate:'2026-01-20', invoiceId:'50001235', totalAmount:173967, payee:'赵会计', reviewer:'钱复核', drawer:'孙开票', invoiceRemark:'继保装置', mailAddress:'杭州市西湖区' },
+            { invoiceNo:'INV-2026-0003', invoiceCode:'031001900113', orderNo:'OD-2026-0005', supplier:'正泰电器股份有限公司', invoiceType:'增值税专票', invoiceAmount:89000, taxRate:'13%', taxAmount:10270, buyerName:'河南省电力公司', status:'已验真', invoiceDate:'2026-02-10', invoiceId:'50001236', totalAmount:99270, payee:'周会计', reviewer:'吴复核', drawer:'郑开票', invoiceRemark:'断路器采购', mailAddress:'郑州市金水区' },
+            { invoiceNo:'INV-2026-0004', invoiceCode:'031001900114', orderNo:'OD-2026-0008', supplier:'远东电缆有限公司', invoiceType:'增值税专票', invoiceAmount:1400000, taxRate:'13%', taxAmount:161500, buyerName:'湖北省电力公司', status:'已验真', invoiceDate:'2026-02-25', invoiceId:'50001237', totalAmount:1561500, payee:'李会计', reviewer:'王复核', drawer:'张开票', invoiceRemark:'电缆采购', mailAddress:'武汉市武昌区' },
+            { invoiceNo:'INV-2026-0005', invoiceCode:'031001900115', orderNo:'OD-2026-0010', supplier:'中国惠普有限公司', invoiceType:'增值税普票', invoiceAmount:81700, taxRate:'13%', taxAmount:9421, buyerName:'信息通信分公司', status:'已验真', invoiceDate:'2026-03-05', invoiceId:'50001238', totalAmount:91121, payee:'赵会计', reviewer:'钱复核', drawer:'孙开票', invoiceRemark:'打印机采购', mailAddress:'北京市西城区' },
+            { invoiceNo:'INV-2026-0006', invoiceCode:'031001900116', orderNo:'OD-2026-0012', supplier:'联想集团有限公司', invoiceType:'增值税专票', invoiceAmount:174000, taxRate:'13%', taxAmount:20070, buyerName:'江苏省电力公司', status:'已验真', invoiceDate:'2026-03-18', invoiceId:'50001239', totalAmount:194070, payee:'周会计', reviewer:'吴复核', drawer:'郑开票', invoiceRemark:'电脑更新', mailAddress:'南京市鼓楼区' },
+            { invoiceNo:'INV-2026-0007', invoiceCode:'031001900117', orderNo:'OD-2026-0015', supplier:'山特电子(深圳)有限公司', invoiceType:'增值税专票', invoiceAmount:92500, taxRate:'13%', taxAmount:10675, buyerName:'信息通信分公司', status:'已开具', invoiceDate:'2026-04-02', invoiceId:'50001240', totalAmount:103175, payee:'李会计', reviewer:'王复核', drawer:'张开票', invoiceRemark:'UPS采购', mailAddress:'北京市西城区' },
+            { invoiceNo:'INV-2026-0008', invoiceCode:'031001900118', orderNo:'OD-2026-0018', supplier:'平高电气股份有限公司', invoiceType:'增值税专票', invoiceAmount:142000, taxRate:'13%', taxAmount:16390, buyerName:'河南省电力公司', status:'已开具', invoiceDate:'2026-04-15', invoiceId:'50001241', totalAmount:158390, payee:'赵会计', reviewer:'钱复核', drawer:'孙开票', invoiceRemark:'断路器采购', mailAddress:'郑州市金水区' },
+            { invoiceNo:'INV-2026-0009', invoiceCode:'031001900119', orderNo:'OD-2026-0020', supplier:'思源电气股份有限公司', invoiceType:'增值税专票', invoiceAmount:123000, taxRate:'13%', taxAmount:14190, buyerName:'安徽省电力公司', status:'已开具', invoiceDate:'2026-05-08', invoiceId:'50001242', totalAmount:137190, payee:'周会计', reviewer:'吴复核', drawer:'郑开票', invoiceRemark:'互感器采购', mailAddress:'合肥市蜀山区' },
+            { invoiceNo:'INV-2026-0010', invoiceCode:'031001900120', orderNo:'OD-2026-0022', supplier:'代尔塔防护用品公司', invoiceType:'增值税普票', invoiceAmount:130000, taxRate:'3%', taxAmount:3900, buyerName:'综合服务公司', status:'已开具', invoiceDate:'2026-05-20', invoiceId:'50001243', totalAmount:133900, payee:'李会计', reviewer:'王复核', drawer:'张开票', invoiceRemark:'防护用品', mailAddress:'北京市朝阳区' },
+            { invoiceNo:'INV-2026-0011', invoiceCode:'031001900121', orderNo:'OD-2026-0025', supplier:'威胜信息技术股份有限公司', invoiceType:'电子发票', invoiceAmount:185000, taxRate:'13%', taxAmount:21350, buyerName:'综合服务公司', status:'待开具', invoiceDate:'', invoiceId:'', totalAmount:206350, payee:'', reviewer:'', drawer:'', invoiceRemark:'发电机采购', mailAddress:'北京市朝阳区' },
+            { invoiceNo:'INV-2026-0012', invoiceCode:'031001900122', orderNo:'OD-2026-0028', supplier:'远东电缆有限公司', invoiceType:'增值税专票', invoiceAmount:1400000, taxRate:'13%', taxAmount:161500, buyerName:'湖北省电力公司', status:'待开具', invoiceDate:'', invoiceId:'', totalAmount:1561500, payee:'', reviewer:'', drawer:'', invoiceRemark:'电缆采购', mailAddress:'武汉市武昌区' }
+          ],
+          pageSize: 10,
+          currentPage: 1,
+          selection: [],
+          detailVisible: false,
+          currentDetail: null,
+          exportVisible: false,
+          exportForm: { range:'all', format:'excel', fields:[] },
+          exportableFields: [
+            { key:'invoiceNo', label:'发票号码' },
+            { key:'invoiceCode', label:'发票代码' },
+            { key:'orderNo', label:'订单编号' },
+            { key:'supplier', label:'供应商' },
+            { key:'invoiceType', label:'发票类型' },
+            { key:'invoiceAmount', label:'开票金额' },
+            { key:'taxRate', label:'税率' },
+            { key:'taxAmount', label:'税额' },
+            { key:'buyerName', label:'购方名称' },
+            { key:'status', label:'状态' },
+            { key:'invoiceDate', label:'开票日期' }
+          ],
+          helpVisible: false,
+          fieldLabels: {
+            invoiceNo:'发票号码', invoiceCode:'发票代码', orderNo:'订单编号', supplier:'供应商',
+            invoiceType:'发票类型', invoiceAmount:'开票金额', taxRate:'税率', taxAmount:'税额',
+            buyerName:'购方名称', status:'状态', invoiceDate:'开票日期'
+          }
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(r => {
+            if (this.queryForm.invoiceNo && !r.invoiceNo.includes(this.queryForm.invoiceNo)) return false;
+            if (this.queryForm.invoiceType && r.invoiceType !== this.queryForm.invoiceType) return false;
+            if (this.queryForm.status && r.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = (r.invoiceNo + r.orderNo + r.supplier + r.invoiceType + r.status).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.invoiceNo)) conditions.push('发票号码：' + f.invoiceNo);
+          if (this.isNotEmpty(f.invoiceType)) conditions.push('发票类型：' + f.invoiceType);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        },
+        statTotalAmount() {
+          return this.filteredData.reduce(function(s,i){ return s + (i.invoiceAmount || 0); },0).toLocaleString();
+        },
+        statVerifiedCount() {
+          return this.filteredData.filter(function(i){ return i.status === '已验真'; }).length;
+        },
+        statPendingCount() {
+          return this.filteredData.filter(function(i){ return i.status === '待开具'; }).length;
+        },
+        statTaxAmount() {
+          return this.filteredData.reduce(function(s,i){ return s + (i.taxAmount || 0); },0).toLocaleString();
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {invoiceNo:'',invoiceType:'',status:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.loadData(); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '发票列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/invoices');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        issueInvoice(row) {
+          this.$confirm('确认开具发票「' + row.invoiceNo + '」吗？', '开具确认', { type: 'warning', confirmButtonText: '开具', cancelButtonText: '取消' }).then(() => {
+            row.status = '已开具';
+            row.invoiceDate = new Date().toISOString().slice(0,10);
+            this.$message.success('发票「' + row.invoiceNo + '」已开具');
+          }).catch(() => {});
+        },
+        verifyInvoice(row) {
+          this.$confirm('确认对发票「' + row.invoiceNo + '」进行验真吗？', '验真确认', { type: 'warning', confirmButtonText: '验真', cancelButtonText: '取消' }).then(() => {
+            row.status = '已验真';
+            this.$message.success('发票「' + row.invoiceNo + '」验真通过');
+          }).catch(() => {});
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+
+    <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

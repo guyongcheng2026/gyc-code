@@ -1,0 +1,421 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>发货管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+        .tl-description{margin:12px 0;font-size:14px;color:#555;}
+.app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">发货管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="发货单号" title="发货单号">
+                    <el-input v-model="queryForm.shipmentNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="订单编号" title="订单编号">
+                    <el-input v-model="queryForm.orderNo" placeholder="请输入" clearable></el-input>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="状态" title="状态">
+                    <el-select v-model="queryForm.status" placeholder="请选择" clearable>
+                      <el-option label="待发货" value="待发货"></el-option>
+                      <el-option label="已发货" value="已发货"></el-option>
+                      <el-option label="已送达" value="已送达"></el-option>
+                      <el-option label="已拒收" value="已拒收"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                    <el-button @click="handleRefresh" icon="el-icon-refresh">刷新</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          
+            <div class="yj-container-card" area="grid" id="queryGrid">
+              <div class="yj-container-card__bar">
+                <div class="yj-container-card__toolbar">
+                  <div class="tl-table-tools">
+                    <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="表格标题">发货单列表</span></div>
+                    <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                    <div class="tl-table-tools__button tl-table-tools__button-area">
+                      <div area="table-tools" class="query-toolbar">
+                        <div class="yj-button-list" style="width:100%;">
+                          
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                      <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="yj-container-card__body">
+                <div class="yj-container-card__table">
+                  
+<el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="shipmentNo" label="发货单号" min-width="130" align="center"></el-table-column>
+                    <el-table-column prop="orderNo" label="订单编号" min-width="130" align="center"></el-table-column>
+                    <el-table-column prop="supplier" label="供应商" min-width="160" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="buyer" label="采购方" min-width="140" align="center" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="carrier" label="承运商" min-width="100" align="center"></el-table-column>
+                    <el-table-column prop="trackingNo" label="物流单号" min-width="130" align="center"></el-table-column>
+                    <el-table-column prop="totalQty" label="数量" min-width="80" align="center"></el-table-column>
+                    <el-table-column prop="status" label="状态" min-width="90" align="center">
+                      <template slot-scope="{row}">
+                        <el-tag :type="row.status==='已送达'?'success':row.status==='已发货'?'primary':row.status==='待发货'?'warning':'danger'">{{ row.status }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="shipDate" label="发货日期" min-width="110" align="center"></el-table-column>
+                    <el-table-column prop="receiveDate" label="收货日期" min-width="110" align="center"></el-table-column>
+                    <el-table-column label="操作" width="200" align="center" fixed="right">
+                      <template slot-scope="{row}">
+                        <el-button type="primary" @click="viewDetail(row)">详情</el-button>
+                        <el-button type="success" v-if="row.status==='待发货'" @click="shipItem(row)">发货</el-button>
+                        <el-button type="warning" v-if="row.status==='已发货'" @click="confirmReceive(row)">确认收货</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-pagination layout="total,sizes,prev,pager,next,jumper" :total="filteredData.length" :page-size="pageSize" :current-page="currentPage" :page-sizes="[10,20,50]" @size-change="handleSizeChange" @current-change="handlePageChange" background small></el-pagination>
+                </div>
+              </div>
+            </div>
+          
+        </div>
+      </main>
+    </section>
+        <el-dialog :lazy="true" title="发货详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-box"></i> 基本信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="发货单号">{{ currentDetail.shipmentNo }}</el-descriptions-item>
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="发货ID">{{ currentDetail.shipId }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-truck"></i> 业务信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="采购方">{{ currentDetail.buyer }}</el-descriptions-item>
+          <el-descriptions-item label="物流单号">{{ currentDetail.trackingNo }}</el-descriptions-item>
+          <el-descriptions-item label="承运商">{{ currentDetail.carrier }}</el-descriptions-item>
+          <el-descriptions-item label="发货仓库">{{ currentDetail.warehouse }}</el-descriptions-item>
+          <el-descriptions-item label="物流类型">{{ currentDetail.logisticsType }}</el-descriptions-item>
+          <el-descriptions-item label="运输方式">{{ currentDetail.transportMode }}</el-descriptions-item>
+          <el-descriptions-item label="包装方式">{{ currentDetail.packageMode }}</el-descriptions-item>
+          <el-descriptions-item label="总数量">{{ currentDetail.totalQty }}</el-descriptions-item>
+        </el-descriptions>
+
+        <div style="font-weight:600;color:#0B7266;font-size:15px;margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid #E0F0EE;"><i class="el-icon-document"></i> 操作记录</div>
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="发货日期">{{ currentDetail.shipDate }}</el-descriptions-item>
+          <el-descriptions-item label="预计到货">{{ currentDetail.receiveDate }}</el-descriptions-item>
+          <el-descriptions-item label="发货人">{{ currentDetail.sender }}</el-descriptions-item>
+          <el-descriptions-item label="签收人">{{ currentDetail.receiver }}</el-descriptions-item>
+          <el-descriptions-item label="收货地址">{{ currentDetail.receiveAddress }}</el-descriptions-item>
+          <el-descriptions-item label="备注">{{ currentDetail.remark }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="导出配置" :visible.sync="exportVisible" width="560px">
+      <el-form :model="exportForm" label-width="100px" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+        <el-form-item label="导出范围">
+          <el-radio-group v-model="exportForm.range">
+            <el-radio label="all">全部数据（{{ filteredData.length }} 条）</el-radio>
+            <el-radio label="selected">选中数据（{{ selection.length }} 条）</el-radio>
+            <el-radio label="page">当前页（{{ pagedData.length }} 条）</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出格式">
+          <el-radio-group v-model="exportForm.format">
+            <el-radio label="excel">Excel (.xlsx)</el-radio>
+            <el-radio label="csv">CSV (.csv)</el-radio>
+            <el-radio label="pdf">PDF (.pdf)</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="导出字段">
+          <div style="margin-bottom:8px;">
+            <el-button type="text" @click="selectAllExportFields">全选</el-button>
+            <el-button type="text" @click="invertExportFields">反选</el-button>
+          </div>
+          <el-checkbox-group v-model="exportForm.fields">
+            <el-checkbox v-for="f in exportableFields" :key="f.key" :label="f.key">{{ f.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="exportVisible=false">取消</el-button>
+        <el-button type="primary" @click="confirmExport">确认导出</el-button>
+      </div>
+    </el-dialog>
+    <!-- 帮助弹窗 -->
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            采购订单确认后，供应商在本页面创建发货单，录入承运商、物流单号、发货数量，采购方实时监控发货状态和物流轨迹。本页面承接订单管理，输出发货单驱动收货验收。适用于供应商发货操作员、采购方物流跟踪人员。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>发货指令在线下达，替代传统电话/邮件通知</li>
+              <li>物流单号录入后实时同步至采购方，在途状态透明</li>
+              <li>发货数量与订单数量校验，防止超发或少发</li>
+              <li>发货状态全程监控（待发货→已发货→已签收）</li>
+              <li>发货数据同步ERP，业财数据一致</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询发货单</b>：在查询面板输入发货单号/订单号，选择供应商、承运商、状态、发货日期范围，点击"查询"筛选</li>
+              <li><b>创建发货单</b>：供应商对待发货订单点击"发货"，选择承运商，录入物流单号、发货数量</li>
+              <li><b>查看详情</b>：点击"详情"查看发货单完整信息、物资明细、物流轨迹</li>
+              <li><b>物流跟踪</b>：点击"物流轨迹"查看实时物流信息</li>
+              <li><b>修改发货</b>：已发货未签收状态可修改物流单号</li>
+              <li><b>导出数据</b>：点击"导出"导出发货清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data() {
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          layoutMode:'single',
+          queryForm: {shipmentNo:'',orderNo:'',status:''},
+          tableSearchText:'',
+          tableData: [
+            {shipmentNo:'SHP-2026-0001',orderNo:'OD-2026-0001',supplier:'国电南瑞科技股份有限公司',buyer:'江苏省电力公司',carrier:'顺丰速运',trackingNo:'SF1234567890',totalQty:'45台',status:'已送达',shipDate:'2026-04-15',receiveDate:'2026-04-25',shipId:'SH-0001',warehouse:'南京中心仓',logisticsType:'快递',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'北京市海淀区XX路1号',receiver:'刘伟',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0002',orderNo:'OD-2026-0002',supplier:'许继电气股份有限公司',buyer:'浙江省电力公司',carrier:'京东物流',trackingNo:'JD9876543210',totalQty:'8台',status:'已送达',shipDate:'2026-04-18',receiveDate:'2026-04-28',shipId:'SH-0002',warehouse:'北京中心仓',logisticsType:'零担',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'南京市鼓楼区XX路3号',receiver:'陈刚',remark:'加急发货'},
+            {shipmentNo:'SHP-2026-0003',orderNo:'OD-2026-0003',supplier:'威胜信息技术股份有限公司',buyer:'湖南省电力公司',carrier:'德邦物流',trackingNo:'DB5678901234',totalQty:'1200只',status:'已发货',shipDate:'2026-04-22',receiveDate:'',shipId:'SH-0003',warehouse:'上海中心仓',logisticsType:'整车',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'杭州市西湖区XX路5号',receiver:'孙丽',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0004',orderNo:'OD-2026-0004',supplier:'联想集团有限公司',buyer:'信息通信分公司',carrier:'顺丰速运',trackingNo:'SF2345678901',totalQty:'30台',status:'已送达',shipDate:'2026-04-25',receiveDate:'2026-05-03',shipId:'SH-0004',warehouse:'广州中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'上海市浦东新区XX路7号',receiver:'周涛',remark:'分批发货'},
+            {shipmentNo:'SHP-2026-0005',orderNo:'OD-2026-0006',supplier:'思源电气股份有限公司',buyer:'安徽省电力公司',carrier:'京东物流',trackingNo:'JD8765432109',totalQty:'65台',status:'已发货',shipDate:'2026-04-28',receiveDate:'',shipId:'SH-0005',warehouse:'武汉中心仓',logisticsType:'冷链',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'广州市天河区XX路9号',receiver:'吴芳',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0006',orderNo:'OD-2026-0007',supplier:'代尔塔防护用品公司',buyer:'综合服务公司',carrier:'德邦物流',trackingNo:'DB6789012345',totalQty:'2000顶',status:'已送达',shipDate:'2026-05-02',receiveDate:'2026-05-09',shipId:'SH-0006',warehouse:'成都中心仓',logisticsType:'快递',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'青岛市市南区XX路11号',receiver:'郑浩',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0007',orderNo:'OD-2026-0008',supplier:'远东电缆有限公司',buyer:'湖北省电力公司',carrier:'自送',trackingNo:'-',totalQty:'8500米',status:'已发货',shipDate:'2026-05-05',receiveDate:'',shipId:'SH-0007',warehouse:'济南中心仓',logisticsType:'零担',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'济南市历下区XX路13号',receiver:'黄磊',remark:'延期发货'},
+            {shipmentNo:'SHP-2026-0008',orderNo:'OD-2026-0010',supplier:'山特电子(深圳)有限公司',buyer:'信息通信分公司',carrier:'顺丰速运',trackingNo:'SF3456789012',totalQty:'5台',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0008',warehouse:'杭州中心仓',logisticsType:'整车',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'武汉市武昌区XX路15号',receiver:'林燕',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0009',orderNo:'OD-2026-0011',supplier:'国电南瑞科技股份有限公司',buyer:'山东省电力公司',carrier:'京东物流',trackingNo:'JD7654321098',totalQty:'20台',status:'已送达',shipDate:'2026-05-15',receiveDate:'2026-05-23',shipId:'SH-0009',warehouse:'青岛中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'成都市武侯区XX路17号',receiver:'张明',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0010',orderNo:'OD-2026-0012',supplier:'威胜信息技术股份有限公司',buyer:'江苏省电力公司',carrier:'德邦物流',trackingNo:'DB7890123456',totalQty:'280台',status:'已发货',shipDate:'2026-05-18',receiveDate:'',shipId:'SH-0010',warehouse:'郑州中心仓',logisticsType:'冷链',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'郑州市金水区XX路19号',receiver:'李华',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0011',orderNo:'OD-2026-0013',supplier:'联想集团有限公司',buyer:'江苏省电力公司',carrier:'顺丰速运',trackingNo:'SF4567890123',totalQty:'50台',status:'已送达',shipDate:'2026-05-20',receiveDate:'2026-05-28',shipId:'SH-0011',warehouse:'南京中心仓',logisticsType:'快递',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'北京市海淀区XX路1号',receiver:'刘伟',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0012',orderNo:'OD-2026-0014',supplier:'许继电气股份有限公司',buyer:'浙江省电力公司',carrier:'京东物流',trackingNo:'JD6543210987',totalQty:'12台',status:'已发货',shipDate:'2026-05-22',receiveDate:'',shipId:'SH-0012',warehouse:'北京中心仓',logisticsType:'零担',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'南京市鼓楼区XX路3号',receiver:'陈刚',remark:'加急发货'},
+            {shipmentNo:'SHP-2026-0013',orderNo:'OD-2026-0015',supplier:'平高电气股份有限公司',buyer:'河南省电力公司',carrier:'德邦物流',trackingNo:'DB8901234567',totalQty:'8台',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0013',warehouse:'上海中心仓',logisticsType:'整车',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'杭州市西湖区XX路5号',receiver:'孙丽',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0014',orderNo:'OD-2026-0016',supplier:'思源电气股份有限公司',buyer:'安徽省电力公司',carrier:'顺丰速运',trackingNo:'SF5678901234',totalQty:'120台',status:'已送达',shipDate:'2026-05-25',receiveDate:'2026-06-02',shipId:'SH-0014',warehouse:'广州中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'上海市浦东新区XX路7号',receiver:'周涛',remark:'分批发货'},
+            {shipmentNo:'SHP-2026-0015',orderNo:'OD-2026-0017',supplier:'代尔塔防护用品公司',buyer:'综合服务公司',carrier:'自送',trackingNo:'-',totalQty:'5000双',status:'已发货',shipDate:'2026-05-28',receiveDate:'',shipId:'SH-0015',warehouse:'武汉中心仓',logisticsType:'冷链',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'广州市天河区XX路9号',receiver:'吴芳',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0016',orderNo:'OD-2026-0018',supplier:'远东电缆有限公司',buyer:'湖北省电力公司',carrier:'德邦物流',trackingNo:'DB9012345678',totalQty:'12000米',status:'已送达',shipDate:'2026-06-02',receiveDate:'2026-06-10',shipId:'SH-0016',warehouse:'成都中心仓',logisticsType:'快递',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'青岛市市南区XX路11号',receiver:'郑浩',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0017',orderNo:'OD-2026-0019',supplier:'中国惠普有限公司',buyer:'信息通信分公司',carrier:'京东物流',trackingNo:'JD5432109876',totalQty:'30台',status:'已发货',shipDate:'2026-06-05',receiveDate:'',shipId:'SH-0017',warehouse:'济南中心仓',logisticsType:'零担',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'济南市历下区XX路13号',receiver:'黄磊',remark:'延期发货'},
+            {shipmentNo:'SHP-2026-0018',orderNo:'OD-2026-0020',supplier:'山特电子(深圳)有限公司',buyer:'信息通信分公司',carrier:'顺丰速运',trackingNo:'SF6789012345',totalQty:'10台',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0018',warehouse:'杭州中心仓',logisticsType:'整车',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'武汉市武昌区XX路15号',receiver:'林燕',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0019',orderNo:'OD-2026-0021',supplier:'国电南瑞科技股份有限公司',buyer:'山东省电力公司',carrier:'京东物流',trackingNo:'JD4321098765',totalQty:'15面',status:'已送达',shipDate:'2026-06-10',receiveDate:'2026-06-18',shipId:'SH-0019',warehouse:'青岛中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'成都市武侯区XX路17号',receiver:'张明',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0020',orderNo:'OD-2026-0022',supplier:'威胜信息技术股份有限公司',buyer:'江苏省电力公司',carrier:'德邦物流',trackingNo:'DB0123456789',totalQty:'600只',status:'已发货',shipDate:'2026-06-12',receiveDate:'',shipId:'SH-0020',warehouse:'郑州中心仓',logisticsType:'冷链',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'郑州市金水区XX路19号',receiver:'李华',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0021',orderNo:'OD-2026-0023',supplier:'联想集团有限公司',buyer:'江苏省电力公司',carrier:'顺丰速运',trackingNo:'SF7890123456',totalQty:'80台',status:'已送达',shipDate:'2026-06-15',receiveDate:'2026-06-22',shipId:'SH-0021',warehouse:'南京中心仓',logisticsType:'快递',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'北京市海淀区XX路1号',receiver:'刘伟',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0022',orderNo:'OD-2026-0024',supplier:'许继电气股份有限公司',buyer:'浙江省电力公司',carrier:'自送',trackingNo:'-',totalQty:'6台',status:'已发货',shipDate:'2026-06-18',receiveDate:'',shipId:'SH-0022',warehouse:'北京中心仓',logisticsType:'零担',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'南京市鼓楼区XX路3号',receiver:'陈刚',remark:'加急发货'},
+            {shipmentNo:'SHP-2026-0023',orderNo:'OD-2026-0025',supplier:'平高电气股份有限公司',buyer:'河南省电力公司',carrier:'德邦物流',trackingNo:'DB1234567890',totalQty:'15台',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0023',warehouse:'上海中心仓',logisticsType:'整车',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'杭州市西湖区XX路5号',receiver:'孙丽',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0024',orderNo:'OD-2026-0026',supplier:'思源电气股份有限公司',buyer:'安徽省电力公司',carrier:'京东物流',trackingNo:'JD3210987654',totalQty:'200只',status:'已送达',shipDate:'2026-06-22',receiveDate:'2026-06-29',shipId:'SH-0024',warehouse:'广州中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'上海市浦东新区XX路7号',receiver:'周涛',remark:'分批发货'},
+            {shipmentNo:'SHP-2026-0025',orderNo:'OD-2026-0027',supplier:'代尔塔防护用品公司',buyer:'综合服务公司',carrier:'顺丰速运',trackingNo:'SF8901234567',totalQty:'3000顶',status:'已发货',shipDate:'2026-06-25',receiveDate:'',shipId:'SH-0025',warehouse:'武汉中心仓',logisticsType:'冷链',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'广州市天河区XX路9号',receiver:'吴芳',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0026',orderNo:'OD-2026-0028',supplier:'远东电缆有限公司',buyer:'湖北省电力公司',carrier:'德邦物流',trackingNo:'DB2345678901',totalQty:'5000米',status:'已送达',shipDate:'2026-06-27',receiveDate:'2026-06-30',shipId:'SH-0026',warehouse:'成都中心仓',logisticsType:'快递',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'青岛市市南区XX路11号',receiver:'郑浩',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0027',orderNo:'OD-2026-0029',supplier:'中国惠普有限公司',buyer:'信息通信分公司',carrier:'京东物流',trackingNo:'JD2109876543',totalQty:'15台',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0027',warehouse:'济南中心仓',logisticsType:'零担',transportMode:'航空',packageMode:'托盘',sender:'仓管员甲',receiveAddress:'济南市历下区XX路13号',receiver:'黄磊',remark:'延期发货'},
+            {shipmentNo:'SHP-2026-0028',orderNo:'OD-2026-0030',supplier:'山特电子(深圳)有限公司',buyer:'信息通信分公司',carrier:'顺丰速运',trackingNo:'SF9012345678',totalQty:'8台',status:'已发货',shipDate:'2026-06-28',receiveDate:'',shipId:'SH-0028',warehouse:'杭州中心仓',logisticsType:'整车',transportMode:'公路',packageMode:'铁框',sender:'仓管员乙',receiveAddress:'武汉市武昌区XX路15号',receiver:'林燕',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0029',orderNo:'OD-2026-0031',supplier:'国电南瑞科技股份有限公司',buyer:'山东省电力公司',carrier:'德邦物流',trackingNo:'DB3456789012',totalQty:'25面',status:'已送达',shipDate:'2026-06-29',receiveDate:'2026-06-30',shipId:'SH-0029',warehouse:'青岛中心仓',logisticsType:'专线',transportMode:'公路',packageMode:'木箱',sender:'仓管员甲',receiveAddress:'成都市武侯区XX路17号',receiver:'张明',remark:'正常发货'},
+            {shipmentNo:'SHP-2026-0030',orderNo:'OD-2026-0032',supplier:'威胜信息技术股份有限公司',buyer:'江苏省电力公司',carrier:'京东物流',trackingNo:'JD1098765432',totalQty:'400只',status:'待发货',shipDate:'',receiveDate:'',shipId:'SH-0030',warehouse:'郑州中心仓',logisticsType:'冷链',transportMode:'铁路',packageMode:'纸箱',sender:'仓管员乙',receiveAddress:'郑州市金水区XX路19号',receiver:'李华',remark:'正常发货'}
+        ],
+          pageSize: 10,
+          currentPage:1,
+          selection:[],
+          detailVisible:false,
+          helpVisible:false,
+          currentDetail:null,
+          exportVisible:false,
+          exportForm:{range:'all',format:'excel',fields:[]},
+          exportableFields:[
+            {key:'shipmentNo',label:'发货单号'},{key:'orderNo',label:'订单编号'},{key:'supplier',label:'供应商'},
+            {key:'buyer',label:'采购方'},{key:'carrier',label:'承运商'},{key:'trackingNo',label:'物流单号'},
+            {key:'totalQty',label:'数量'},{key:'status',label:'状态'},{key:'shipDate',label:'发货日期'},
+            {key:'receiveDate',label:'收货日期'},{key:'shipId',label:'发货ID'},{key:'warehouse',label:'发货仓库'},
+            {key:'logisticsType',label:'物流类型'},{key:'transportMode',label:'运输方式'},{key:'packageMode',label:'包装方式'},
+            {key:'sender',label:'发货人'},{key:'receiver',label:'签收人'},{key:'receiveAddress',label:'收货地址'},{key:'remark',label:'备注'}
+          ],
+          fieldLabels:{
+            shipmentNo:'发货单号',
+            orderNo:'订单编号',
+            supplier:'供应商',
+            buyer:'采购方',
+            carrier:'承运商',
+            trackingNo:'物流单号',
+            totalQty:'数量',
+            status:'状态',
+            shipDate:'发货日期',
+            receiveDate:'收货日期'
+          }
+        };
+      },
+      computed: {
+        filteredData() {
+          return this.tableData.filter(item => {
+            if (this.queryForm.shipmentNo && !item.shipmentNo.includes(this.queryForm.shipmentNo)) return false;
+            if (this.queryForm.orderNo && !item.orderNo.includes(this.queryForm.orderNo)) return false;
+            if (this.queryForm.status && item.status !== this.queryForm.status) return false;
+            if (this.tableSearchText) {
+              const kw = this.tableSearchText.toLowerCase();
+              const text = ((item.shipmentNo || '') + ' ' + (item.orderNo || '') + ' ' + (item.supplier || '') + ' ' + (item.buyer || '') + ' ' + (item.status || '')).toLowerCase();
+              if (!text.includes(kw)) return false;
+            }
+            return true;
+          });
+        },
+        pagedData() {
+          const start = (this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start, start+this.pageSize);
+        },
+        queryConditionText() {
+          const conditions = [];
+          const f = this.queryForm;
+          if (this.isNotEmpty(f.shipmentNo)) conditions.push('发货单号：' + f.shipmentNo);
+          if (this.isNotEmpty(f.orderNo)) conditions.push('订单编号：' + f.orderNo);
+          if (this.isNotEmpty(f.status)) conditions.push('状态：' + f.status);
+          if (conditions.length === 0) return '暂无查询条件';
+          return '查询条件(' + conditions.length + ')：' + conditions.join('，');
+        }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed = !this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; this.$message.success('查询完成，共 '+this.filteredData.length+' 条记录'); },
+        handleReset() { this.queryForm = {shipmentNo:'',orderNo:'',status:''}; this.tableSearchText=''; this.currentPage=1; },
+        handleRefresh() { this.loadData(); },
+        handleExport() { this.exportForm.fields = this.exportableFields.map(f => f.key); this.exportVisible = true; },
+        selectAllExportFields() { this.exportForm.fields = this.exportableFields.map(f => f.key); },
+        invertExportFields() {
+          const all = this.exportableFields.map(f => f.key);
+          this.exportForm.fields = all.filter(k => !this.exportForm.fields.includes(k));
+        },
+        confirmExport() {
+          if (this.exportForm.fields.length === 0) { this.$message.warning('请至少选择一个导出字段'); return; }
+          let data = [];
+          if (this.exportForm.range === 'all') data = this.filteredData;
+          else if (this.exportForm.range === 'selected') data = this.selection;
+          else data = this.pagedData;
+          if (data.length === 0) { this.$message.warning('暂无可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = this.exportForm.fields;
+          const headers = keys.map(k => labels[k] || k);
+          const rows = data.map(item => keys.map(k => { const v = item[k] === null || item[k] === undefined ? '' : String(item[k]); return '"' + v.replace(/"/g, '""') + '"'; }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = (document.title || '发货列表') + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + data.length + ' 条记录，' + this.exportForm.fields.length + ' 个字段');
+          this.exportVisible = false;
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/shipments');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+        handleSelectionChange(val) { this.selection = val; },
+        viewDetail(row) { this.currentDetail = row; this.detailVisible = true; },
+        isNotEmpty(value) {
+          if (value === null || value === undefined) return false;
+          if (typeof value === 'string') return value.trim() !== '';
+          if (Array.isArray(value)) return value.length > 0;
+          return true;
+        },
+        shipItem(row) {
+          this.$confirm('确认对发货单「' + row.shipmentNo + '」执行发货吗？', '发货确认', { type: 'warning', confirmButtonText: '发货', cancelButtonText: '取消' }).then(() => {
+            row.status = '已发货';
+            row.shipDate = new Date().toISOString().slice(0,10);
+            this.$message.success('发货单「' + row.shipmentNo + '」已发货');
+          }).catch(() => {});
+        },
+        confirmReceive(row) {
+          this.$confirm('确认收货发货单「' + row.shipmentNo + '」吗？', '收货确认', { type: 'warning', confirmButtonText: '收货', cancelButtonText: '取消' }).then(() => {
+            row.status = '已送达';
+            row.receiveDate = new Date().toISOString().slice(0,10);
+            this.$message.success('发货单「' + row.shipmentNo + '」已确认收货');
+          }).catch(() => {});
+        },
+        handlePageChange(page) { this.currentPage = page; },
+        handleSizeChange(size) { this.pageSize = size; this.currentPage = 1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

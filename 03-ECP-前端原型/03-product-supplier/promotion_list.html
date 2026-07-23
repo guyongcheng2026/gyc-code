@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>促销活动管理</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+      /* 帮助弹窗样式 */
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .tl-footer { text-align:center; }
+
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">促销活动管理</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="活动编号"><el-input v-model="queryForm.promoNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="活动名称"><el-input v-model="queryForm.promoName" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="促销类型"><el-select v-model="queryForm.promoType" placeholder="请选择" clearable><el-option label="满减优惠" value="满减优惠"></el-option><el-option label="阶梯报价" value="阶梯报价"></el-option><el-option label="框架协议价" value="框架协议价"></el-option><el-option label="新品推广" value="新品推广"></el-option><el-option label="限时折扣" value="限时折扣"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="适用范围"><el-select v-model="queryForm.scope" placeholder="请选择" clearable><el-option label="全平台" value="全平台"></el-option><el-option label="指定类目" value="指定类目"></el-option><el-option label="指定供应商" value="指定供应商"></el-option><el-option label="指定商品" value="指定商品"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="活动状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="草拟中" value="草拟中"></el-option><el-option label="待审批" value="待审批"></el-option><el-option label="待开始" value="待开始"></el-option><el-option label="进行中" value="进行中"></el-option><el-option label="已结束" value="已结束"></el-option><el-option label="已终止" value="已终止"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="促销活动列表">促销活动列表</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" icon="el-icon-plus" @click="handleAdd">创建活动</el-button>
+                        <el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table :data="pagedData" border stripe style="width:100%;">
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="promoNo" label="活动编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="promoName" label="活动名称" min-width="200" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="promoType" label="促销类型" min-width="100" align="center"><template slot-scope="{row}"><el-tag size="small" :type="row.promoType==='满减优惠'?'danger':row.promoType==='阶梯报价'?'success':row.promoType==='框架协议价'?'warning':row.promoType==='新品推广'?'info':'success'">{{ row.promoType }}</el-tag></template></el-table-column>
+                  <el-table-column prop="scope" label="适用范围" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="scopeDetail" label="范围说明" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="discountRule" label="优惠规则" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="startDate" label="开始日期" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="endDate" label="结束日期" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="orderCount" label="成交订单数" width="110" align="center"></el-table-column>
+                  <el-table-column prop="orderAmount" label="成交金额(元)" min-width="140" align="right"><template slot-scope="{row}">{{ row.orderAmount.toLocaleString() }}</template></el-table-column>
+                  <el-table-column prop="discountAmount" label="优惠金额(元)" min-width="140" align="right"><template slot-scope="{row}">{{ row.discountAmount.toLocaleString() }}</template></el-table-column>
+                  <el-table-column prop="creator" label="创建人" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="status" label="活动状态" min-width="90" align="center"><template slot-scope="{row}"><el-tag size="small" :type="row.status==='进行中'?'success':row.status==='待开始'?'warning':row.status==='已终止'?'danger':row.status==='待审批'?'warning':'info'">{{ row.status }}</el-tag></template></el-table-column>
+                  <el-table-column label="操作" width="240" align="center" fixed="right">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="handleDetail(row)">详情</el-button>
+                      <el-button type="text" @click="handleEdit(row)" v-if="row.status==='草拟中'">编辑</el-button>
+                      <el-button type="text" @click="handleSubmit(row)" v-if="row.status==='草拟中'" style="color:#0B7266">提交审批</el-button>
+                      <el-button type="text" @click="handleStart(row)" v-if="row.status==='待开始'" style="color:#2e7d32">启动</el-button>
+                      <el-button type="text" @click="handleTerminate(row)" v-if="row.status==='进行中'||row.status==='待开始'" style="color:#c62828">终止</el-button>
+                      <el-button type="text" @click="handleAnalysis(row)" v-if="row.status==='已结束'" style="color:#455a64">效果分析</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+              </div>
+              <div style="margin-top:12px;text-align:right;">
+                <el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="促销活动详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <template v-if="currentDetail">
+        <el-descriptions title="基本信息" :column="2" border size="medium">
+          <el-descriptions-item label="活动编号">{{ currentDetail.promoNo }}</el-descriptions-item>
+          <el-descriptions-item label="活动名称">{{ currentDetail.promoName }}</el-descriptions-item>
+          <el-descriptions-item label="活动类型">{{ currentDetail.promoType }}</el-descriptions-item>
+          <el-descriptions-item label="适用范围">{{ currentDetail.scope }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="活动规则" :column="1" border size="medium">
+          <el-descriptions-item label="优惠规则">{{ currentDetail.discountRule }}</el-descriptions-item>
+          <el-descriptions-item label="开始日期">{{ currentDetail.startDate }}</el-descriptions-item>
+          <el-descriptions-item label="结束日期">{{ currentDetail.endDate }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="效果统计" :column="2" border size="medium">
+          <el-descriptions-item label="订单数">{{ currentDetail.orderCount }}</el-descriptions-item>
+          <el-descriptions-item label="优惠金额(元)">{{ currentDetail.discountAmount }}</el-descriptions-item>
+          <el-descriptions-item label="状态"><el-tag :type="(currentDetail.status==='进行中'||currentDetail.status==='已结束')?'success':(currentDetail.status==='待开始'||currentDetail.status==='待审批')?'warning':'danger'" size="small">{{ currentDetail.status }}</el-tag></el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="操作记录" :column="2" border size="medium">
+          <el-descriptions-item label="创建人">{{ currentDetail.creator || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ currentDetail.createTime || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="审核人">{{ currentDetail.auditBy || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="审核时间">{{ currentDetail.auditTime || '—' }}</el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div>
+          <div class="help-section__body">
+            平台运营方或供应商创建B2B采购促销活动，通过满减优惠、阶梯报价、框架协议价、新品推广、限时折扣五种促销类型，覆盖全平台/指定类目/指定供应商/指定商品四种适用范围，吸引采购方下单。本页面用于促销活动的创建、审批、执行监控及效果分析。适用于运营专员、运营经理。
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li>五种促销类型灵活组合，适配不同营销场景</li>
+              <li>四种适用范围精准定向，避免无效促销</li>
+              <li>活动审批流确保促销合规，防止错误优惠</li>
+              <li>执行监控实时展示活动参与度、优惠金额、订单增量</li>
+              <li>效果分析支撑促销策略优化，提升ROI</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>查询活动</b>：在查询面板输入活动名称，选择促销类型、适用范围、状态、活动日期范围，点击"查询"筛选</li>
+              <li><b>创建活动</b>：点击"新增"，选择促销类型（满减/阶梯/协议价/新品/限时折扣），填写活动名称、适用范围、优惠规则、活动时间</li>
+              <li><b>查看详情</b>：点击"详情"查看活动完整信息、适用商品、参与记录、效果数据</li>
+              <li><b>提交审批</b>：草稿活动点击"提交"，触发运营经理审批</li>
+              <li><b>审批处理</b>：运营经理对待审批活动点击"通过"或"驳回"</li>
+              <li><b>执行监控</b>：进行中活动可查看实时参与度、优惠金额、订单增量</li>
+              <li><b>效果分析</b>：结束后点击"效果分析"查看ROI、订单转化率、复购率</li>
+              <li><b>导出数据</b>：点击"导出"导出活动清单</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button type="primary" @click="helpVisible=false">关闭</el-button>
+      </div>
+    </el-dialog>
+    <!-- 创建促销活动对话框 -->
+    <el-dialog :lazy="true" title="创建促销活动" :visible.sync="addDialog.visible" width="720px" custom-class="detail-dialog" :close-on-click-modal="false">
+      <el-form :model="addDialog.form" label-width="120px" label-suffix="：" :rules="addFormRules" ref="addForm" class="tl-form auto-width el-form--label-right multi-line">
+        <div class="form-section-title">基本信息</div>
+        <el-form-item class="tl-form-item" label="活动编号" prop="promoNo"><el-input v-model="addDialog.form.promoNo" placeholder="系统自动生成" readonly></el-input></el-form-item>
+        <el-form-item class="tl-form-item" label="活动名称" prop="promoName"><el-input v-model="addDialog.form.promoName" placeholder="请输入活动名称" clearable maxlength="50" show-word-limit></el-input></el-form-item>
+        <el-form-item class="tl-form-item" label="促销类型" prop="promoType"><el-select v-model="addDialog.form.promoType" placeholder="请选择促销类型" style="width:100%" clearable><el-option label="满减优惠" value="满减优惠"></el-option><el-option label="阶梯报价" value="阶梯报价"></el-option><el-option label="框架协议价" value="框架协议价"></el-option><el-option label="新品推广" value="新品推广"></el-option><el-option label="限时折扣" value="限时折扣"></el-option></el-select></el-form-item>
+        <el-form-item class="tl-form-item" label="创建人" prop="creator"><el-input v-model="addDialog.form.creator" placeholder="请输入创建人" clearable maxlength="20"></el-input></el-form-item>
+
+        <div class="form-section-title">活动规则</div>
+        <el-form-item class="tl-form-item" label="适用范围" prop="scope"><el-select v-model="addDialog.form.scope" placeholder="请选择适用范围" style="width:100%" clearable @change="handleScopeChange"><el-option label="全平台" value="全平台"></el-option><el-option label="指定类目" value="指定类目"></el-option><el-option label="指定供应商" value="指定供应商"></el-option><el-option label="指定商品" value="指定商品"></el-option></el-select></el-form-item>
+        <el-form-item class="tl-form-item" label="范围说明" prop="scopeDetail"><el-input v-model="addDialog.form.scopeDetail" placeholder="请输入范围说明，如类目名称/供应商名称/商品名称" clearable maxlength="100" show-word-limit></el-input></el-form-item>
+        <el-form-item class="tl-form-item" label="优惠规则" prop="discountRule"><el-input type="textarea" v-model="addDialog.form.discountRule" placeholder="请输入优惠规则，如：满10万减5000，满20万减12000" :rows="3" maxlength="200" show-word-limit></el-input></el-form-item>
+
+        <div class="form-section-title">时间与状态</div>
+        <el-form-item class="tl-form-item" label="开始日期" prop="startDate"><el-date-picker v-model="addDialog.form.startDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择开始日期" style="width:100%" :picker-options="startDateOptions"></el-date-picker></el-form-item>
+        <el-form-item class="tl-form-item" label="结束日期" prop="endDate"><el-date-picker v-model="addDialog.form.endDate" type="date" value-format="yyyy-MM-dd" placeholder="请选择结束日期" style="width:100%" :picker-options="endDateOptions"></el-date-picker></el-form-item>
+        <el-form-item class="tl-form-item" label="活动状态" prop="status"><el-radio-group v-model="addDialog.form.status"><el-radio label="草拟中">草拟中</el-radio><el-radio label="待审批">待审批</el-radio></el-radio-group></el-form-item>
+      </el-form>
+      <div slot="footer" class="tl-footer">
+        <el-button @click="handleAddCancel">取消</el-button>
+        <el-button type="primary" :loading="addDialog.submitting" @click="handleAddConfirm">确认创建</el-button>
+      </div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    function isNotEmpty(v){return v!==null&&v!==undefined&&String(v).trim()!==''&&!(Array.isArray(v)&&v.length===0);}
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          tableSearchText:'',
+          addDialog:{visible:false,submitting:false,form:{
+            promoNo:'',promoName:'',promoType:'',creator:'',
+            scope:'',scopeDetail:'',discountRule:'',
+            startDate:'',endDate:'',status:'草拟中'
+          }},
+          startDateOptions:{
+            disabledDate:(time)=>{const e=this.addDialog.form.endDate;return e?time.getTime()>new Date(e).getTime():false;}
+          },
+          endDateOptions:{
+            disabledDate:(time)=>{const s=this.addDialog.form.startDate;return s?time.getTime()<new Date(s).getTime()-86400000:false;}
+          },
+          addFormRules:{
+            promoName:[
+              {required:true,message:'请输入活动名称',trigger:'blur'},
+              {min:2,max:50,message:'长度在2到50个字符',trigger:'blur'}
+            ],
+            promoType:[{required:true,message:'请选择促销类型',trigger:'change'}],
+            creator:[
+              {required:true,message:'请输入创建人',trigger:'blur'},
+              {min:2,max:20,message:'长度在2到20个字符',trigger:'blur'}
+            ],
+            scope:[{required:true,message:'请选择适用范围',trigger:'change'}],
+            scopeDetail:[
+              {required:true,message:'请输入范围说明',trigger:'blur'},
+              {max:100,message:'不能超过100个字符',trigger:'blur'}
+            ],
+            discountRule:[
+              {required:true,message:'请输入优惠规则',trigger:'blur'},
+              {max:200,message:'不能超过200个字符',trigger:'blur'}
+            ],
+            startDate:[{required:true,message:'请选择开始日期',trigger:'change'}],
+            endDate:[{required:true,message:'请选择结束日期',trigger:'change'}],
+            status:[{required:true,message:'请选择活动状态',trigger:'change'}],
+          },
+          queryForm:{promoNo:'',promoName:'',promoType:'',scope:'',status:''},
+          currentPage:1,
+          detailVisible:false,
+          currentDetail:null,
+          pageSize: 10,
+          tableData:[
+            {promoNo:'PROMO-2026-001',promoName:'年度大额采购满减活动',promoType:'满减优惠',scope:'全平台',scopeDetail:'全平台所有商品',discountRule:'满10万减5000，满20万减12000',startDate:'2026-01-01',endDate:'2026-12-31',orderCount:156,orderAmount:18900000,discountAmount:890000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-002',promoName:'变压器批量采购阶梯报价',promoType:'阶梯报价',scope:'指定类目',scopeDetail:'电气设备-变压器类',discountRule:'10台以下原价，10-50台95折，50台以上9折',startDate:'2026-02-01',endDate:'2026-06-30',orderCount:28,orderAmount:8950000,discountAmount:447500,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-003',promoName:'联想电脑框架协议价',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'联想（北京）有限公司',discountRule:'协议期内享协议价（市场价85折）',startDate:'2026-01-15',endDate:'2027-01-14',orderCount:89,orderAmount:5680000,discountAmount:852000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-004',promoName:'新型智能电表新品推广',promoType:'新品推广',scope:'指定商品',scopeDetail:'威胜智能电表DSZ1088',discountRule:'新品上市限时88折',startDate:'2026-03-01',endDate:'2026-04-30',orderCount:45,orderAmount:1280000,discountAmount:153600,creator:'运营管理员',status:'已结束'},
+            {promoNo:'PROMO-2026-005',promoName:'618办公设备限时折扣',promoType:'限时折扣',scope:'指定类目',scopeDetail:'办公设备-电脑/打印机',discountRule:'限时7折起',startDate:'2026-06-01',endDate:'2026-06-18',orderCount:67,orderAmount:3250000,discountAmount:975000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-006',promoName:'电缆批量采购阶梯价',promoType:'阶梯报价',scope:'指定类目',scopeDetail:'电气设备-电力电缆',discountRule:'1000米以下原价，1000-5000米97折，5000米以上95折',startDate:'2026-02-15',endDate:'2026-08-15',orderCount:34,orderAmount:6780000,discountAmount:237300,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-007',promoName:'华为服务器框架协议价',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'华为技术有限公司',discountRule:'协议价（市场价88折）',startDate:'2026-03-01',endDate:'2027-02-28',orderCount:23,orderAmount:4560000,discountAmount:547200,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-008',promoName:'劳保用品春季满减',promoType:'满减优惠',scope:'指定类目',scopeDetail:'劳保用品',discountRule:'满5万减2000，满10万减5000',startDate:'2026-03-01',endDate:'2026-04-30',orderCount:52,orderAmount:1890000,discountAmount:95000,creator:'运营管理员',status:'已结束'},
+            {promoNo:'PROMO-2026-009',promoName:'办公用品开学季促销',promoType:'限时折扣',scope:'指定类目',scopeDetail:'办公用品',discountRule:'限时85折',startDate:'2026-08-15',endDate:'2026-09-15',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'待开始'},
+            {promoNo:'PROMO-2026-010',promoName:'安防设备新品推广',promoType:'新品推广',scope:'指定商品',scopeDetail:'海康威视智能球机DS-2DC4',discountRule:'新品上市限时9折',startDate:'2026-04-01',endDate:'2026-05-31',orderCount:38,orderAmount:890000,discountAmount:89000,creator:'运营管理员',status:'已结束'},
+            {promoNo:'PROMO-2026-011',promoName:'UPS电源批量阶梯价',promoType:'阶梯报价',scope:'指定类目',scopeDetail:'办公设备-UPS电源',discountRule:'5台以下原价，5-20台95折，20台以上9折',startDate:'2026-03-15',endDate:'2026-09-15',orderCount:19,orderAmount:1280000,discountAmount:89600,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-012',promoName:'施耐德电气框架协议价',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'施耐德电气（中国）有限公司',discountRule:'协议价（市场价87折）',startDate:'2026-02-01',endDate:'2027-01-31',orderCount:31,orderAmount:3890000,discountAmount:506000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-013',promoName:'夏季办公耗材满减',promoType:'满减优惠',scope:'指定类目',scopeDetail:'办公用品-耗材',discountRule:'满1万减500，满3万减2000',startDate:'2026-06-01',endDate:'2026-08-31',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'待开始'},
+            {promoNo:'PROMO-2026-014',promoName:'ABB电气设备框架协议',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'ABB（中国）有限公司',discountRule:'协议价（市场价86折）',startDate:'2026-03-10',endDate:'2027-03-09',orderCount:18,orderAmount:3250000,discountAmount:455000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-015',promoName:'双十一全平台满减',promoType:'满减优惠',scope:'全平台',scopeDetail:'全平台所有商品',discountRule:'满5万减2000，满10万减5000，满20万减15000',startDate:'2026-11-01',endDate:'2026-11-11',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'待开始'},
+            {promoNo:'PROMO-2026-016',promoName:'正泰电器新品推广',promoType:'新品推广',scope:'指定商品',scopeDetail:'正泰新型断路器NM3-125',discountRule:'新品上市限时88折',startDate:'2026-04-15',endDate:'2026-06-15',orderCount:22,orderAmount:560000,discountAmount:67200,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-017',promoName:'晨光文具开学季折扣',promoType:'限时折扣',scope:'指定供应商',scopeDetail:'上海晨光文具股份有限公司',discountRule:'限时8折',startDate:'2026-08-20',endDate:'2026-09-20',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'待开始'},
+            {promoNo:'PROMO-2026-018',promoName:'大华监控设备阶梯价',promoType:'阶梯报价',scope:'指定类目',scopeDetail:'智能终端-监控设备',discountRule:'10台以下原价，10-50台95折，50台以上92折',startDate:'2026-03-20',endDate:'2026-09-20',orderCount:15,orderAmount:980000,discountAmount:58800,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-019',promoName:'得力办公满减活动',promoType:'满减优惠',scope:'指定供应商',scopeDetail:'得力集团有限公司',discountRule:'满2万减1000，满5万减3000',startDate:'2026-04-01',endDate:'2026-06-30',orderCount:42,orderAmount:1230000,discountAmount:62000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-020',promoName:'远东电缆框架协议价',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'远东电缆有限公司',discountRule:'协议价（市场价88折）',startDate:'2026-02-10',endDate:'2027-02-09',orderCount:27,orderAmount:4560000,discountAmount:547200,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-021',promoName:'3M劳保用品新品推广',promoType:'新品推广',scope:'指定商品',scopeDetail:'3M新型防护口罩9501+',discountRule:'新品上市限时85折',startDate:'2026-05-01',endDate:'2026-07-01',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'待审批'},
+            {promoNo:'PROMO-2026-022',promoName:'美的空调批量阶梯价',promoType:'阶梯报价',scope:'指定类目',scopeDetail:'办公设备-空调',discountRule:'5台以下原价，5-20台95折，20台以上9折',startDate:'2026-04-10',endDate:'2026-10-10',orderCount:12,orderAmount:680000,discountAmount:47600,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-023',promoName:'齐心办公满减活动',promoType:'满减优惠',scope:'指定供应商',scopeDetail:'深圳齐心集团股份有限公司',discountRule:'满1万减500，满3万减1500',startDate:'2026-03-15',endDate:'2026-05-15',orderCount:35,orderAmount:890000,discountAmount:35000,creator:'运营管理员',status:'已结束'},
+            {promoNo:'PROMO-2026-024',promoName:'南瑞继保设备框架协议',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'南京南瑞继保电气有限公司',discountRule:'协议价（市场价85折）',startDate:'2026-03-25',endDate:'2027-03-24',orderCount:8,orderAmount:2180000,discountAmount:327000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-025',promoName:'双11办公设备限时折扣',promoType:'限时折扣',scope:'指定类目',scopeDetail:'办公设备',discountRule:'限时75折起',startDate:'2026-11-01',endDate:'2026-11-11',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'草拟中'},
+            {promoNo:'PROMO-2026-026',promoName:'许继电气框架协议价',promoType:'框架协议价',scope:'指定供应商',scopeDetail:'许继电气股份有限公司',discountRule:'协议价（市场价87折）',startDate:'2026-02-20',endDate:'2027-02-19',orderCount:14,orderAmount:3890000,discountAmount:506000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-027',promoName:'平高电气阶梯报价',promoType:'阶梯报价',scope:'指定供应商',scopeDetail:'河南平高电气股份有限公司',discountRule:'5台以下原价，5-10台97折，10台以上95折',startDate:'2026-03-05',endDate:'2026-09-05',orderCount:6,orderAmount:3450000,discountAmount:172500,creator:'采购经理',status:'进行中'},
+            {promoNo:'PROMO-2026-028',promoName:'思源电气满减活动',promoType:'满减优惠',scope:'指定供应商',scopeDetail:'思源电气股份有限公司',discountRule:'满50万减2万，满100万减5万',startDate:'2026-04-01',endDate:'2026-06-30',orderCount:5,orderAmount:2890000,discountAmount:120000,creator:'运营管理员',status:'进行中'},
+            {promoNo:'PROMO-2026-029',promoName:'威胜集团新品推广',promoType:'新品推广',scope:'指定商品',scopeDetail:'威胜新型智能终端DSSD',discountRule:'新品上市限时9折',startDate:'2026-05-15',endDate:'2026-07-15',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'草拟中'},
+            {promoNo:'PROMO-2026-030',promoName:'年度终大促满减',promoType:'满减优惠',scope:'全平台',scopeDetail:'全平台所有商品',discountRule:'满3万减1500，满10万减6000，满30万减20000',startDate:'2026-12-01',endDate:'2026-12-31',orderCount:0,orderAmount:0,discountAmount:0,creator:'运营管理员',status:'草拟中'}
+          ],
+          fieldLabels:{
+            promoNo:'活动编号',promoName:'活动名称',promoType:'促销类型',scope:'适用范围',
+            scopeDetail:'范围说明',discountRule:'优惠规则',startDate:'开始日期',endDate:'结束日期',
+            orderCount:'成交订单数',orderAmount:'成交金额',discountAmount:'优惠金额',creator:'创建人',status:'活动状态'
+          }
+        };
+      },
+      computed:{
+        filteredData(){
+          let d=this.tableData;
+          if(isNotEmpty(this.queryForm.promoNo)) d=d.filter(i=>i.promoNo.indexOf(this.queryForm.promoNo)>-1);
+          if(isNotEmpty(this.queryForm.promoName)) d=d.filter(i=>i.promoName.indexOf(this.queryForm.promoName)>-1);
+          if(isNotEmpty(this.queryForm.promoType)) d=d.filter(i=>i.promoType===this.queryForm.promoType);
+          if(isNotEmpty(this.queryForm.scope)) d=d.filter(i=>i.scope===this.queryForm.scope);
+          if(isNotEmpty(this.queryForm.status)) d=d.filter(i=>i.status===this.queryForm.status);
+          if(isNotEmpty(this.tableSearchText)){
+            const t=this.tableSearchText.toLowerCase();
+            d=d.filter(i=>i.promoNo.toLowerCase().indexOf(t)>-1||i.promoName.toLowerCase().indexOf(t)>-1||i.scopeDetail.toLowerCase().indexOf(t)>-1);
+          }
+          return d;
+        },
+        total(){return this.filteredData.length;},
+        pagedData(){const s=(this.currentPage-1)*this.pageSize;return this.filteredData.slice(s,s+this.pageSize);},
+        queryConditionText(){
+          let p=[];
+          if(isNotEmpty(this.queryForm.promoNo)) p.push('活动编号：'+this.queryForm.promoNo);
+          if(isNotEmpty(this.queryForm.promoName)) p.push('活动名称：'+this.queryForm.promoName);
+          if(isNotEmpty(this.queryForm.promoType)) p.push('促销类型：'+this.queryForm.promoType);
+          if(isNotEmpty(this.queryForm.scope)) p.push('适用范围：'+this.queryForm.scope);
+          if(isNotEmpty(this.queryForm.status)) p.push('活动状态：'+this.queryForm.status);
+          return p.length? p.join('，'):'全部';
+        }
+      },
+      methods:{
+        toggleSearchPanel(){this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed;},
+        handleQuery(){this.currentPage=1;},
+        handleReset(){this.queryForm={promoNo:'',promoName:'',promoType:'',scope:'',status:''};this.tableSearchText='';},
+        handleExport(){this.exportCSV();},
+        handleAdd(){this.openAddDialog();},
+        handleRefresh(){this.loadData();},
+        handleDetail(row){this.currentDetail=row;this.detailVisible=true;},
+        handleEdit(row){this.$confirm('确认编辑活动「'+row.promoName+'」？','编辑确认',{type:'info'}).then(()=>{this.currentDetail=row;this.detailVisible=true;}).catch(()=>{});},
+        handleSubmit(row){this.$confirm('确认提交活动「'+row.promoName+'」审批？','提交确认',{type:'info'}).then(()=>{row.status='待审批';this.$message.success('活动已提交审批');}).catch(()=>{});},
+        handleStart(row){this.$confirm('确认启动活动「'+row.promoName+'」？','启动确认',{type:'success'}).then(()=>{row.status='进行中';this.$message.success('活动已启动');}).catch(()=>{});},
+        handleTerminate(row){this.$confirm('确认终止活动「'+row.promoName+'」？','终止确认',{type:'error'}).then(()=>{row.status='已终止';this.$message.error('活动已终止');}).catch(()=>{});},
+        handleAnalysis(row){this.currentDetail=row;this.detailVisible=true;this.$message.success('已加载活动「'+row.promoName+'」的效果分析数据');},
+        handlePageChange(v){this.currentPage=v;},
+        handleSizeChange(v){this.pageSize=v;this.currentPage=1;},
+        exportCSV() {
+          if (this.filteredData.length === 0) { this.$message.warning('没有可导出的数据'); return; }
+          const labels = this.fieldLabels || {};
+          const keys = Object.keys(this.filteredData[0]);
+          const headers = keys.map(k => labels[k] || k);
+          const rows = this.filteredData.map(item => keys.map(k => {
+            const v = item[k] === null || item[k] === undefined ? '' : String(item[k]);
+            return '"' + v.replace(/"/g, '""') + '"';
+          }).join(','));
+          const csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const title = document.title || '导出数据';
+          link.href = URL.createObjectURL(blob);
+          link.download = title + '_' + new Date().toISOString().split('T')[0] + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('已导出 ' + this.filteredData.length + ' 条记录');
+        },
+        async loadData() {
+          try {
+            const resp = await fetch('/api/promotions');
+            if (resp.ok) { this.tableData = await resp.json(); this.$message.success('数据已刷新'); }
+            else { this.$message.success('数据已刷新'); }
+          } catch(e) { this.$message.success('数据已刷新'); }
+        },
+                openAddDialog() {
+          const maxNum = this.tableData.reduce((max, i) => {
+            const m = i.promoNo.match(/(\d+)$/);
+            const n = m ? parseInt(m[1]) : 0;
+            return n > max ? n : max;
+          }, 0);
+          this.addDialog.form = {
+            promoNo: 'PROMO-2026-' + String(maxNum + 1).padStart(3, '0'),
+            promoName: '', promoType: '', creator: '',
+            scope: '', scopeDetail: '', discountRule: '',
+            startDate: '', endDate: '', status: '草拟中'
+          };
+          this.addDialog.submitting = false;
+          this.addDialog.visible = true;
+          this.$nextTick(() => { this.$refs.addForm && this.$refs.addForm.clearValidate(); });
+        },
+        handleScopeChange(val) {
+          if (val === '全平台') {
+            this.addDialog.form.scopeDetail = '全平台所有商品';
+          } else {
+            this.addDialog.form.scopeDetail = '';
+          }
+        },
+        handleAddCancel() {
+          this.$refs.addForm && this.$refs.addForm.resetFields();
+          this.addDialog.visible = false;
+        },
+        handleAddConfirm() {
+          this.$refs.addForm.validate(valid => {
+            if (!valid) return;
+            this.addDialog.submitting = true;
+            const f = Object.assign({}, this.addDialog.form, {
+              orderCount: 0, orderAmount: 0, discountAmount: 0
+            });
+            fetch('/api/promotions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(f)
+            }).then(resp => {
+              if (resp.ok) return resp.json();
+              throw new Error('请求失败');
+            }).then(data => {
+              this.tableData.push(Object.assign({}, f, data));
+              this.addDialog.visible = false;
+              this.addDialog.submitting = false;
+              this.$message.success('促销活动「' + f.promoName + '」创建成功');
+            }).catch(() => {
+              this.tableData.push(Object.assign({}, f, { status: f.status || '草拟中' }));
+              this.addDialog.visible = false;
+              this.addDialog.submitting = false;
+              this.$message.success('促销活动「' + f.promoName + '」创建成功(本地)');
+            });
+          });
+        }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>

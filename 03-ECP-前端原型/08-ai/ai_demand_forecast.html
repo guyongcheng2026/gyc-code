@@ -1,0 +1,809 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>AI采购需求预测</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .tl-description{margin:12px 0;font-size:14px;color:#555;}
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .help-dialog .el-dialog__body { padding: 16px 24px; max-height: 60vh; overflow-y: auto; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .detail-dialog .el-descriptions { margin-bottom:16px; }
+    .detail-dialog .el-descriptions__title { font-size:14px; font-weight:bold; color:#0B7266; }
+
+    .help-content { font-size: 14px; color: #333; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section__title { font-size: 15px; font-weight: 600; color: #0B7266; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #E0F0EE; }
+    .help-section__title i { margin-right: 6px; }
+    .help-section__body { line-height: 1.8; color: #555; }
+    .help-section__body ul, .help-section__body ol { margin: 0; padding-left: 20px; }
+    .help-section__body li { margin-bottom: 6px; }
+    .help-section__body li b { color: #1A2332; }
+    .ai-banner { background: linear-gradient(135deg, #0B7266 0%, #0a6358 100%); color: #fff; padding: 20px 24px; border-radius: 4px; margin-bottom: 16px; display: flex; align-items: center; } .ai-banner > * + * { margin-left:16px; }
+    .ai-banner .ai-icon { font-size: 36px; }
+    .ai-banner .ai-title { font-size: 18px; font-weight: 700; }
+    .ai-banner .ai-desc { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+    .decision-card { background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; margin-bottom:12px; }
+    .decision-card__title { font-size:15px; font-weight:600; color:#1A2332; margin-bottom:10px; }
+    .score-bar { display:inline-block; height:8px; border-radius:4px; background:#E0F0EE; vertical-align:middle; }
+    .score-bar__fill { display:block; height:100%; border-radius:4px; background:#0B7266; }
+    .confidence-meter { display:flex; align-items:center; } .confidence-meter > * + * { margin-left:10px; }
+    .ai-suggestion { background:linear-gradient(135deg,#E0F0EE 0%,#F1F6F7 100%); border-left:4px solid #0B7266; padding:16px 20px; border-radius:4px; margin-top:12px; }
+    .ai-suggestion__title { font-size:15px; font-weight:700; color:#0B7266; margin-bottom:8px; }
+    .ai-suggestion__text { font-size:14px; color:#333; line-height:1.8; }
+    .trend-up { color:#c62828; }
+    .trend-down { color:#2e7d32; }
+    .trend-flat { color:#f57c00; }
+    .entropy-meter { display:inline-block; height:6px; width:80px; border-radius:3px; background:#E0F0EE; vertical-align:middle; }
+    .entropy-meter__fill { display:block; height:100%; border-radius:3px; background:#0B7266; }
+    .tl-footer { text-align:center; }
+    .forecast-dialog .el-dialog__body { padding:16px 24px; max-height:65vh; overflow-y:auto; }
+    .fc-summary { display:flex; /* gap-removed */; margin-bottom:16px; }
+    .fc-summary__item { flex:1; background:#F1F6F7; border-radius:4px; padding:10px 14px; }
+    .fc-summary__label { font-size:12px; color:#6B7280; margin-bottom:4px; }
+    .fc-summary__value { font-size:20px; font-weight:700; color:#1A2332; }
+    .fc-section { margin-bottom:20px; }
+    .fc-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .fc-section__title i { margin-right:6px; }
+    .fc-trend-row { display:flex; align-items:center; margin-bottom:8px; }
+    .fc-trend-row .trend-label { width:80px; font-size:13px; font-weight:500; }
+    .fc-trend-row .trend-bar-area { flex:1; height:24px; background:#f5f5f5; border-radius:4px; overflow:hidden; }
+    .fc-trend-row .trend-bar { height:100%; border-radius:4px; display:flex; align-items:center; justify-content:flex-end; padding-right:8px; font-size:12px; color:#fff; font-weight:600; }
+    .fc-cat-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .fc-cat-table th, .fc-cat-table td { padding:8px 12px; border:1px solid #EBEEF5; text-align:center; }
+    .fc-cat-table th { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .fc-entropy-item { display:flex; align-items:center; padding:8px 12px; background:#fff8e1; border-radius:4px; margin-bottom:6px; }
+    .fc-entropy-item .ent-name { flex:1; font-size:13px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .fc-entropy-item .ent-val { font-size:12px; color:#f57c00; font-weight:600; margin:0 8px; }
+    .fc-compare-row { display:flex; align-items:center; margin-bottom:6px; }
+    .fc-compare-row .cmp-label { width:200px; font-size:12px; text-align:right; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-right:8px; }
+    .fc-compare-row .cmp-bars { flex:1; display:flex; flex-direction:column; /* gap-removed */; }
+    .fc-compare-row .cmp-bar { height:12px; border-radius:3px; display:flex; align-items:center; padding:0 6px; font-size:11px; color:#fff; }
+    .fc-loading { text-align:center; padding:40px 0; }
+    .fc-loading .el-icon-loading { font-size:32px; color:#0B7266; }
+    .fc-loading p { margin-top:12px; color:#6B7280; font-size:14px; }
+    .selection-hint { font-size:12px; color:#909399; margin-left:8px; }
+    .selection-hint b { color:#0B7266; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">AI采购需求预测</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="物料类别" title="物料类别">
+                    <el-select v-model="queryForm.category" placeholder="请选择" clearable>
+                      <el-option label="10kV电缆" value="10kV电缆"></el-option>
+                      <el-option label="变压器" value="变压器"></el-option>
+                      <el-option label="开关柜" value="开关柜"></el-option>
+                      <el-option label="智能电表" value="智能电表"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="时间范围" title="时间范围">
+                    <el-date-picker v-model="queryForm.dateRange" type="daterange" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" value-format="yyyy-MM-dd"></el-date-picker>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item" label="预测周期" title="预测周期">
+                    <el-select v-model="queryForm.cycle" placeholder="请选择" clearable>
+                      <el-option label="1个月" value="1个月"></el-option>
+                      <el-option label="3个月" value="3个月"></el-option>
+                      <el-option label="6个月" value="6个月"></el-option>
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">预测</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel">
+                <i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="采购需求预测结果">采购需求预测结果</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ forecastData.length }} 条物料</span><span class="selection-hint" v-if="selection.length > 0">已选 <b>{{ selection.length }}</b> 条</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area">
+                    <div area="table-tools" class="query-toolbar">
+                      <div class="yj-button-list" style="width:100%;">
+                        <el-button type="primary" @click="handleForecast" icon="el-icon-data-line">AI深度预测</el-button>
+                        <el-button type="primary" @click="handleGenerateForecast" :loading="generateLoading" icon="el-icon-magic-stick">生成预测结论</el-button>
+                        <el-button @click="handleExport" icon="el-icon-download">导出预测报告</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last">
+                    <div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="输入关键字" clearable></el-input></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <el-table :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="materialCode" label="物料编码" min-width="130" align="center"></el-table-column>
+                  <el-table-column prop="materialName" label="物料名称" min-width="200" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="category" label="类别" width="110" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag type="info" size="small">{{ row.category }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="histUsage" label="近12月用量" width="120" align="right"></el-table-column>
+                  <el-table-column prop="forecastUsage" label="预测下月用量" width="130" align="center">
+                    <template slot-scope="{row}">
+                      <b style="color:#0B7266;">{{ row.forecastUsage }}</b>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="trend" label="趋势" width="100" align="center">
+                    <template slot-scope="{row}">
+                      <span :class="getTrendClass(row.trend)"><i :class="getTrendIcon(row.trend)"></i> {{ row.trend }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="entropy" label="熵值" width="160" align="center">
+                    <template slot-scope="{row}">
+                      <span style="display:inline-block;width:40px;text-align:right;">{{ row.entropy }}</span>
+                      <span class="entropy-meter" style="margin-left:8px;"><span class="entropy-meter__fill" :style="{width: row.entropyPercent + '%'}"></span></span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="recommendQty" label="推荐采购量" width="120" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag type="success" size="small">{{ row.recommendQty }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="safetyStock" label="安全库存" width="100" align="center"></el-table-column>
+                  <el-table-column prop="confidence" label="置信度" width="120" align="center">
+                    <template slot-scope="{row}">
+                      <el-tag :type="row.confidence >= 85 ? 'success' : (row.confidence >= 70 ? 'warning' : 'danger')" size="small">{{ row.confidence }}%</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100" fixed="right" align="center">
+                    <template slot-scope="{row}">
+                      <el-button type="text" @click="viewDetail(row)">详情</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div style="text-align:right;">
+                  <el-pagination background layout="total, sizes, prev, pager, next, jumper" :total="filteredData.length" :current-page.sync="currentPage" :page-size="pageSize" :page-sizes="[10,20,30]" @size-change="handleSizeChange" @current-change="handleCurrentChange"></el-pagination>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ai-suggestion" v-if="forecastResult">
+            <div class="ai-suggestion__title"><i class="el-icon-data-line"></i> AI 预测结论</div>
+            <div class="ai-suggestion__text">
+              <p><b>预测周期：</b>{{ forecastResult.cycle }}</p>
+              <p><b>总预测采购量：</b>{{ forecastResult.totalQty }} 件 / 台 / 米</p>
+              <p><b>关键发现：</b>{{ forecastResult.finding }}</p>
+              <p><b>备货建议：</b>{{ forecastResult.advice }}</p>
+              <div v-if="forecastResult.upwardItems && forecastResult.upwardItems.length > 0" style="margin-top:8px;">
+                <p><b>上升趋势品类（{{ forecastResult.upwardItems.length }} 个）：</b>{{ forecastResult.upwardItems.join('、') }}</p>
+              </div>
+              <div v-if="forecastResult.agreementAlerts && forecastResult.agreementAlerts.length > 0" style="margin-top:8px;">
+                <p style="color:#c62828;"><b>⚠ 协议库存预警：</b></p>
+                <ul style="margin:4px 0 0 0;padding-left:20px;">
+                  <li v-for="alert in forecastResult.agreementAlerts" :key="alert.materialCode" style="color:#c62828;font-size:13px;">{{ alert.materialName }}：预测采购量 {{ alert.recommendQty }} 超协议额度上限 {{ alert.agreementLimit }}</li>
+                </ul>
+              </div>
+              <div class="confidence-meter" style="margin-top:8px;">
+                <span style="font-size:13px;color:#6B7280;">综合置信度：</span>
+                <el-progress :percentage="forecastResult.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+                <el-tag :type="forecastResult.confidence >= 85 ? 'success' : 'warning'" size="small">{{ forecastResult.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+              </div>
+              <div style="margin-top:12px;">
+                <el-button type="primary" @click="handleGeneratePlan" icon="el-icon-document-add">生成采购计划草案</el-button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+    </section>
+
+    
+    <!-- AI深度预测分析弹窗 -->
+    <el-dialog :lazy="true" title="AI采购需求深度预测" :visible.sync="forecastDialogVisible" width="900px" custom-class="forecast-dialog">
+      <!-- 加载中 -->
+      <div class="fc-loading" v-if="forecastLoading">
+        <i class="el-icon-loading"></i>
+        <p>AI 正在分析 {{ forecastSelection.length }} 条物料的采购需求，请稍候…</p>
+      </div>
+      <!-- 分析结果 -->
+      <div v-if="!forecastLoading && forecastAnalysis">
+        <!-- 概要 -->
+        <div class="fc-summary">
+          <div class="fc-summary__item">
+            <div class="fc-summary__label">参评物料</div>
+            <div class="fc-summary__value">{{ forecastAnalysis.summary.count }} 条</div>
+          </div>
+          <div class="fc-summary__item">
+            <div class="fc-summary__label">预测采购总量</div>
+            <div class="fc-summary__value">{{ forecastAnalysis.summary.totalQty }}</div>
+          </div>
+          <div class="fc-summary__item">
+            <div class="fc-summary__label">高熵品类数</div>
+            <div class="fc-summary__value">{{ forecastAnalysis.summary.highEntropyCount }} 条</div>
+          </div>
+          <div class="fc-summary__item">
+            <div class="fc-summary__label">平均置信度</div>
+            <div class="fc-summary__value">{{ forecastAnalysis.summary.avgConfidence }}%</div>
+          </div>
+        </div>
+
+        <!-- 趋势分布 -->
+        <div class="fc-section">
+          <div class="fc-section__title"><i class="el-icon-data-line"></i>趋势分布</div>
+          <div class="fc-trend-row" v-for="item in forecastAnalysis.trendDist" :key="'td-'+item.label">
+            <div class="trend-label" :style="{ color: item.color }">{{ item.label }}</div>
+            <div class="trend-bar-area">
+              <div class="trend-bar" :style="{ width: item.percent + '%', background: item.color }">{{ item.count }} 条 ({{ item.percent }}%)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 品类分布 -->
+        <div class="fc-section">
+          <div class="fc-section__title"><i class="el-icon-menu"></i>品类分布</div>
+          <table class="fc-cat-table">
+            <thead>
+              <tr>
+                <th>类别</th>
+                <th>物料数</th>
+                <th>预测采购量</th>
+                <th>占比</th>
+                <th>平均熵值</th>
+                <th>平均置信度</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in forecastAnalysis.categoryDist" :key="'cat-'+item.category">
+                <td><el-tag type="info" size="small">{{ item.category }}</el-tag></td>
+                <td>{{ item.count }}</td>
+                <td><b style="color:#0B7266;">{{ item.totalQty }}</b></td>
+                <td>{{ item.percent }}%</td>
+                <td>{{ item.avgEntropy }}</td>
+                <td><el-tag :type="item.avgConfidence >= 85 ? 'success' : (item.avgConfidence >= 70 ? 'warning' : 'danger')" size="small">{{ item.avgConfidence }}%</el-tag></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 高熵品类预警 -->
+        <div class="fc-section" v-if="forecastAnalysis.highEntropyItems.length > 0">
+          <div class="fc-section__title"><i class="el-icon-warning-outline"></i>高熵品类预警（熵值≥0.6）</div>
+          <div style="font-size:12px;color:#6B7280;margin-bottom:8px;">熵值≥0.6的品类需求不确定度高，建议增加 20% 安全库存缓冲。</div>
+          <div class="fc-entropy-item" v-for="item in forecastAnalysis.highEntropyItems" :key="'ent-'+item.materialCode">
+            <span class="ent-name" :title="item.materialName">{{ item.materialName }}</span>
+            <span class="ent-val">熵值 {{ item.entropy }}</span>
+            <el-tag type="warning" size="small">安全库存 {{ item.safetyStock }} → {{ Math.ceil(item.safetyStock * 1.2) }}</el-tag>
+          </div>
+        </div>
+
+        <!-- 历史用量 vs 预测用量对比 -->
+        <div class="fc-section">
+          <div class="fc-section__title"><i class="el-icon-s-marketing"></i>历史用量 vs 预测用量对比</div>
+          <div style="font-size:12px;color:#6B7280;margin-bottom:8px;">蓝色为近12月历史用量（月均），绿色为预测下月用量。</div>
+          <div class="fc-compare-row" v-for="item in forecastAnalysis.compareData" :key="'cmp-'+item.materialCode">
+            <div class="cmp-label" :title="item.materialName">{{ item.materialName }}</div>
+            <div class="cmp-bars">
+              <div class="cmp-bar" :style="{ width: item.histBarPercent + '%', background: '#409EFF' }">历史 {{ item.histAvg }}/月</div>
+              <div class="cmp-bar" :style="{ width: item.forecastBarPercent + '%', background: '#0B7266' }">预测 {{ item.forecastUsage }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI综合建议 -->
+        <div class="ai-suggestion" style="margin-top:0;">
+          <div class="ai-suggestion__title"><i class="el-icon-magic-stick"></i> AI 综合建议</div>
+          <div class="ai-suggestion__text">
+            <p><b>预测周期：</b>{{ forecastAnalysis.recommendation.cycle }}</p>
+            <p><b>总推荐采购量：</b>{{ forecastAnalysis.recommendation.totalQty }} 件 / 台 / 米</p>
+            <p><b>关键发现：</b>{{ forecastAnalysis.recommendation.finding }}</p>
+            <p><b>备货建议：</b>{{ forecastAnalysis.recommendation.advice }}</p>
+            <div class="confidence-meter" style="margin-top:8px;">
+              <span style="font-size:13px;color:#6B7280;">综合置信度：</span>
+              <el-progress :percentage="forecastAnalysis.recommendation.confidence" :color="'#0B7266'" :stroke-width="10" style="width:200px;"></el-progress>
+              <el-tag :type="forecastAnalysis.recommendation.confidence >= 85 ? 'success' : 'warning'" size="small">{{ forecastAnalysis.recommendation.confidence >= 85 ? '高置信' : '中置信' }}</el-tag>
+            </div>
+          </div>
+        </div>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="forecastDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="adoptForecast" v-if="!forecastLoading && forecastAnalysis">采纳建议</el-button>
+      </span>
+    </el-dialog>
+
+    <!-- 详情弹窗 -->
+    <el-dialog :lazy="true" title="需求预测详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <template v-if="currentDetail">
+        <el-descriptions title="基本信息" :column="2" border size="medium">
+          <el-descriptions-item label="物料编码">{{ currentDetail.materialCode }}</el-descriptions-item>
+          <el-descriptions-item label="物料名称">{{ currentDetail.materialName }}</el-descriptions-item>
+          <el-descriptions-item label="类别">{{ currentDetail.category }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="预测数据" :column="2" border size="medium">
+          <el-descriptions-item label="历史用量">{{ currentDetail.histUsage }}</el-descriptions-item>
+          <el-descriptions-item label="预测用量">{{ currentDetail.forecastUsage }}</el-descriptions-item>
+          <el-descriptions-item label="趋势"><el-tag :type="currentDetail.trend==='上升'?'success':(currentDetail.trend==='下降'?'danger':'info')" size="small">{{ currentDetail.trend }}</el-tag></el-descriptions-item>
+          <el-descriptions-item label="推荐采购量">{{ currentDetail.recommendQty }}</el-descriptions-item>
+          <el-descriptions-item label="安全库存">{{ currentDetail.safetyStock }}</el-descriptions-item>
+        </el-descriptions>
+        <el-descriptions title="AI评估" :column="1" border size="medium">
+          <el-descriptions-item label="信息熵">{{ currentDetail.entropy }}</el-descriptions-item>
+          <el-descriptions-item label="置信度"><el-progress :percentage="currentDetail.confidence" :color="'#0B7266'" :stroke-width="14" :text-inside="true" style="width:300px;"></el-progress></el-descriptions-item>
+        </el-descriptions>
+      </template>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="detailVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-info"></i>业务场景</div>
+          <div class="help-section__body"><p>基于<b>控制论前馈控制</b>与<b>信息论信息熵</b>思想，预测下月采购需求。前馈依据历史用量趋势提前备货；信息熵识别罕见品类高不确定需求，提升安全库存精度。</p></div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-s-operation"></i>页面功能</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>历史用量</b>：近12个月实际领用/采购量</li>
+              <li><b>预测下月用量</b>：基于时序模型与季节性分解</li>
+              <li><b>熵值</b>：衡量需求不确定度，值越大越罕见</li>
+              <li><b>推荐采购量</b>：预测量+安全库存调整</li>
+              <li><b>置信度</b>：模型预测可信度评估</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div>
+          <div class="help-section__body">
+            <ul>
+              <li><b>前馈控制备货</b>：基于时序模型+季节性分解提前预测下月需求，变被动响应为主动备货</li>
+              <li><b>信息熵识别罕见品类</b>：熵值≥0.6的品类自动增加20%安全库存缓冲，避免断供</li>
+              <li><b>库存智能预测</b>：联动库存周转率与在途量，输出补货建议而非单纯采购量</li>
+              <li><b>协议库存管理</b>：对接协议库存额度，预测量超协议上限自动预警</li>
+              <li><b>采购计划编制</b>：预测结论一键生成采购计划草案，衔接计划审批流程</li>
+            </ul>
+          </div>
+        </div>
+        <div class="help-section">
+          <div class="help-section__title"><i class="el-icon-document-checked"></i> 详细操作步骤</div>
+          <div class="help-section__body">
+            <ol>
+              <li><b>设置预测条件</b>：在查询面板选择品类、设置日期范围和预测周期（1个月/3个月/6个月），点击"查询"</li>
+              <li><b>查看预测概览</b>：列表展示各品类的历史用量、预测下月用量、熵值、推荐采购量和置信度</li>
+              <li><b>查看历史趋势</b>：点击"详情"查看近12个月实际用量趋势图和季节性分解结果</li>
+              <li><b>查看熵值分析</b>：熵值≥0.6的品类标记为罕见品类，系统自动增加20%安全库存缓冲</li>
+              <li><b>查看推荐采购量</b>：推荐采购量=预测量+安全库存调整，联动库存周转率和在途量</li>
+              <li><b>查看协议库存预警</b>：预测量超过协议库存额度的品类自动预警提示</li>
+              <li><b>生成采购计划</b>：点击"生成计划"将预测结论一键生成采购计划草案，衔接计划审批流程</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="helpVisible = false">关闭</el-button>
+      </div>
+    </el-dialog>
+  </div>
+
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el:'#app',
+      data(){
+        return {
+          labelWidth:'100px',
+          isSearchPanelCollapsed:false,
+          helpVisible:false,
+          queryForm:{category:'',dateRange:[],cycle:'1个月'},
+          tableSearchText:'',
+          currentPage:1,
+          detailVisible:false,
+          currentDetail:null,
+          forecastDialogVisible:false,
+          forecastLoading:false,
+          forecastSelection:[],
+          forecastAnalysis:null,
+          pageSize: 10,
+          selection:[],
+          forecastResult:null,
+          generateLoading:false,
+          fieldLabels:{
+            materialCode:'物料编码',
+            materialName:'物料名称',
+            category:'类别',
+            histUsage:'近12月用量',
+            forecastUsage:'预测下月用量',
+            trend:'趋势',
+            entropy:'熵值',
+            recommendQty:'推荐采购量',
+            safetyStock:'安全库存',
+            confidence:'置信度(%)'
+          },
+          forecastData:[
+            {materialCode:'YJV22-10-3*400',materialName:'10kV交联聚乙烯绝缘钢带铠装电力电缆',category:'10kV电缆',histUsage:18200,forecastUsage:1650,trend:'上升',entropy:0.32,entropyPercent:32,recommendQty:1820,safetyStock:500,confidence:91},
+            {materialCode:'YJV22-10-3*300',materialName:'10kV三芯300mm²铜芯铠装电缆',category:'10kV电缆',histUsage:12400,forecastUsage:1100,trend:'平稳',entropy:0.28,entropyPercent:28,recommendQty:1200,safetyStock:350,confidence:88},
+            {materialCode:'YJV22-10-3*240',materialName:'10kV三芯240mm²铜芯铠装电缆',category:'10kV电缆',histUsage:8600,forecastUsage:920,trend:'上升',entropy:0.41,entropyPercent:41,recommendQty:1050,safetyStock:300,confidence:84},
+            {materialCode:'YJV-1-3*95',materialName:'1kV三芯95mm²铜芯电力电缆',category:'10kV电缆',histUsage:15800,forecastUsage:1320,trend:'下降',entropy:0.35,entropyPercent:35,recommendQty:1450,safetyStock:400,confidence:86},
+            {materialCode:'S11-800/10',materialName:'S11-M-800kVA/10kV油浸式配电变压器',category:'变压器',histUsage:46,forecastUsage:5,trend:'平稳',entropy:0.62,entropyPercent:62,recommendQty:6,safetyStock:2,confidence:78},
+            {materialCode:'S11-630/10',materialName:'S11-M-630kVA/10kV全密封变压器',category:'变压器',histUsage:62,forecastUsage:7,trend:'上升',entropy:0.58,entropyPercent:58,recommendQty:8,safetyStock:2,confidence:81},
+            {materialCode:'SCB13-1000/10',materialName:'SCB13-1000kVA/10kV干式变压器',category:'变压器',histUsage:38,forecastUsage:4,trend:'下降',entropy:0.71,entropyPercent:71,recommendQty:5,safetyStock:2,confidence:73},
+            {materialCode:'SCB13-800/10',materialName:'SCB13-800kVA/10kV环氧浇注干式变压器',category:'变压器',histUsage:52,forecastUsage:6,trend:'平稳',entropy:0.55,entropyPercent:55,recommendQty:7,safetyStock:2,confidence:80},
+            {materialCode:'KYN28-12',materialName:'KYN28-12型中置式高压开关柜',category:'开关柜',histUsage:128,forecastUsage:14,trend:'上升',entropy:0.48,entropyPercent:48,recommendQty:16,safetyStock:4,confidence:85},
+            {materialCode:'KYN28-12-02D',materialName:'KYN28-12型进线柜（含母联）',category:'开关柜',histUsage:96,forecastUsage:10,trend:'平稳',entropy:0.52,entropyPercent:52,recommendQty:12,safetyStock:3,confidence:82},
+            {materialCode:'XGN66-12',materialName:'XGN66-12型固定式高压开关柜',category:'开关柜',histUsage:54,forecastUsage:5,trend:'下降',entropy:0.66,entropyPercent:66,recommendQty:6,safetyStock:2,confidence:75},
+            {materialCode:'MNS-3.0',materialName:'MNS-3.0型低压抽出式配电柜',category:'开关柜',histUsage:185,forecastUsage:20,trend:'上升',entropy:0.38,entropyPercent:38,recommendQty:22,safetyStock:6,confidence:88},
+            {materialCode:'DDZ866-Z1',materialName:'DDZ866-Z1单相智能电表（1级）',category:'智能电表',histUsage:8600,forecastUsage:780,trend:'上升',entropy:0.25,entropyPercent:25,recommendQty:850,safetyStock:200,confidence:92},
+            {materialCode:'DDZ866-Z2',materialName:'DDZ866-Z2单相智能电表（2级）',category:'智能电表',histUsage:12400,forecastUsage:1150,trend:'上升',entropy:0.22,entropyPercent:22,recommendQty:1250,safetyStock:300,confidence:94},
+            {materialCode:'DTZ866-Z1',materialName:'DTZ866-Z1三相智能电表（1级）',category:'智能电表',histUsage:5400,forecastUsage:480,trend:'平稳',entropy:0.34,entropyPercent:34,recommendQty:520,safetyStock:150,confidence:89},
+            {materialCode:'DTZ866-Z2',materialName:'DTZ866-Z2三相智能电表（2级）',category:'智能电表',histUsage:7200,forecastUsage:680,trend:'上升',entropy:0.31,entropyPercent:31,recommendQty:750,safetyStock:200,confidence:90},
+            {materialCode:'DXZ866-Z1',materialName:'DXZ866-Z1多功能智能电表',category:'智能电表',histUsage:3200,forecastUsage:260,trend:'下降',entropy:0.45,entropyPercent:45,recommendQty:290,safetyStock:100,confidence:83},
+            {materialCode:'DJZ866-Z2',materialName:'DJZ866-Z2智能电表（关口表）',category:'智能电表',histUsage:480,forecastUsage:38,trend:'平稳',entropy:0.78,entropyPercent:78,recommendQty:45,safetyStock:15,confidence:71}
+          ]
+        };
+      },
+      computed:{
+        queryConditionText(){
+          const c=[];
+          if(this.queryForm.category) c.push('物料类别：'+this.queryForm.category);
+          if(this.queryForm.dateRange && this.queryForm.dateRange.length===2) c.push('时间范围：'+this.queryForm.dateRange[0]+' 至 '+this.queryForm.dateRange[1]);
+          if(this.queryForm.cycle) c.push('预测周期：'+this.queryForm.cycle);
+          return c.length ? '查询条件('+c.length+')：'+c.join('，') : '';
+        },
+        filteredData(){
+          let d=this.forecastData;
+          if(this.queryForm.category) d=d.filter(r=>r.category===this.queryForm.category);
+          if(this.tableSearchText) d=d.filter(r=>(r.materialName+ r.materialCode).indexOf(this.tableSearchText)!==-1);
+          return d;
+        },
+        pagedData(){
+          const start=(this.currentPage-1)*this.pageSize;
+          return this.filteredData.slice(start,start+this.pageSize);
+        }
+      },
+      watch:{
+        filteredData(){ this.currentPage=1; }
+      },
+      methods:{
+        toggleSearchPanel(){ this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery(){
+          this.currentPage=1;
+          if(this.selection.length >= 2){
+            this.handleForecast();
+          } else {
+            this.$message.success('查询完成，共 '+this.filteredData.length+' 条物料。勾选 2 条以上可进行 AI 深度预测分析。');
+          }
+        },
+        handleReset(){ this.queryForm={category:'',dateRange:[],cycle:'1个月'}; this.tableSearchText=''; this.currentPage=1; },
+        handleExport(){
+          this.exportForecastCSV();
+        },
+        handleSelectionChange(s){ this.selection=s; },
+        handleSizeChange(v){ this.pageSize=v; },
+        handleCurrentChange(v){ this.currentPage=v; },
+        handleForecast(){
+          if(this.selection.length < 2){
+            this.$message.warning('请至少勾选 2 条物料进行深度预测分析');
+            return;
+          }
+          this.forecastSelection = this.selection.slice();
+          this.forecastDialogVisible = true;
+          this.forecastLoading = true;
+          this.forecastAnalysis = null;
+          this.performForecast();
+        },
+        performForecast(){
+          var self = this;
+          var selected = this.forecastSelection;
+
+          // 概要统计
+          var totalQty = selected.reduce(function(s, r){ return s + r.recommendQty; }, 0);
+          var highEntropyItems = selected.filter(function(r){ return r.entropy >= 0.6; });
+          var avgConfidence = Math.round(selected.reduce(function(s, r){ return s + r.confidence; }, 0) / selected.length);
+
+          // 趋势分布
+          var trendGroups = { '上升': { count: 0, color: '#c62828' }, '平稳': { count: 0, color: '#f57c00' }, '下降': { count: 0, color: '#2e7d32' } };
+          selected.forEach(function(r){ if(trendGroups[r.trend]) trendGroups[r.trend].count++; });
+          var trendDist = Object.keys(trendGroups).map(function(key){
+            var count = trendGroups[key].count;
+            return { label: key, count: count, percent: selected.length > 0 ? Math.round(count / selected.length * 100) : 0, color: trendGroups[key].color };
+          });
+
+          // 品类分布
+          var catMap = {};
+          selected.forEach(function(r){
+            if(!catMap[r.category]) catMap[r.category] = { category: r.category, count: 0, totalQty: 0, entropySum: 0, confidenceSum: 0 };
+            var c = catMap[r.category];
+            c.count++;
+            c.totalQty += r.recommendQty;
+            c.entropySum += r.entropy;
+            c.confidenceSum += r.confidence;
+          });
+          var categoryDist = Object.keys(catMap).map(function(key){
+            var c = catMap[key];
+            return {
+              category: c.category,
+              count: c.count,
+              totalQty: c.totalQty.toLocaleString(),
+              percent: Math.round(c.totalQty / totalQty * 100),
+              avgEntropy: (c.entropySum / c.count).toFixed(2),
+              avgConfidence: Math.round(c.confidenceSum / c.count)
+            };
+          });
+
+          // 历史vs预测对比
+          var maxHistAvg = 0;
+          var maxForecast = 0;
+          var compareRaw = selected.map(function(r){
+            var histAvg = Math.round(r.histUsage / 12);
+            if(histAvg > maxHistAvg) maxHistAvg = histAvg;
+            if(r.forecastUsage > maxForecast) maxForecast = r.forecastUsage;
+            return { materialCode: r.materialCode, materialName: r.materialName, histAvg: histAvg, forecastUsage: r.forecastUsage };
+          });
+          var maxVal = Math.max(maxHistAvg, maxForecast);
+          var compareData = compareRaw.map(function(c){
+            return {
+              materialCode: c.materialCode,
+              materialName: c.materialName,
+              histAvg: c.histAvg,
+              forecastUsage: c.forecastUsage,
+              histBarPercent: maxVal > 0 ? Math.round(c.histAvg / maxVal * 100) : 0,
+              forecastBarPercent: maxVal > 0 ? Math.round(c.forecastUsage / maxVal * 100) : 0
+            };
+          });
+
+          // AI综合建议
+          var upwardCount = trendGroups['上升'].count;
+          var downwardCount = trendGroups['下降'].count;
+          var finding = '共 ' + selected.length + ' 条物料进入深度预测，'
+            + '其中 ' + upwardCount + ' 条呈上升趋势、' + downwardCount + ' 条呈下降趋势；'
+            + (highEntropyItems.length > 0 ? highEntropyItems.length + ' 条品类熵值≥0.6，需求不确定度高' : '整体需求分布稳定');
+          var advice = '';
+          if(highEntropyItems.length > 0){
+            var entNames = highEntropyItems.slice(0, 3).map(function(r){ return r.materialName; });
+            advice = '对高熵品类（如 ' + entNames.join('、') + '）建议增加 20% 安全库存缓冲，避免断供；';
+          } else {
+            advice = '可按常规安全库存策略执行；';
+          }
+          if(upwardCount > downwardCount){
+            advice += '整体需求呈上升趋势，建议提前与供应商锁定产能，衔接采购计划编制流程。';
+          } else if(downwardCount > upwardCount){
+            advice += '整体需求呈下降趋势，建议适当控制采购批量，降低库存积压风险。';
+          } else {
+            advice += '需求趋势平稳，按常规采购周期执行即可。';
+          }
+
+          var result = {
+            summary: { count: selected.length, totalQty: totalQty.toLocaleString(), highEntropyCount: highEntropyItems.length, avgConfidence: avgConfidence },
+            trendDist: trendDist,
+            categoryDist: categoryDist,
+            highEntropyItems: highEntropyItems,
+            compareData: compareData,
+            recommendation: {
+              cycle: this.queryForm.cycle || '1个月',
+              totalQty: totalQty.toLocaleString(),
+              finding: finding,
+              advice: advice,
+              confidence: avgConfidence
+            }
+          };
+
+          // 模拟网络延迟
+          setTimeout(function(){
+            self.forecastLoading = false;
+            self.forecastAnalysis = result;
+          }, 1200);
+        },
+        adoptForecast(){
+          if(!this.forecastAnalysis) return;
+          var rec = this.forecastAnalysis.recommendation;
+          this.forecastResult = {
+            cycle: rec.cycle,
+            totalQty: rec.totalQty,
+            finding: rec.finding,
+            advice: rec.advice,
+            confidence: rec.confidence
+          };
+          this.forecastDialogVisible = false;
+          this.$message.success('已采纳 AI 深度预测建议，预测结论已更新');
+        },
+        handleGenerateForecast(){
+          if(this.filteredData.length===0){ this.$message.warning('暂无数据'); return; }
+          this.generateLoading = true;
+          var self = this;
+          var data = this.filteredData;
+
+          // 本地计算预测结论
+          var totalQty = data.reduce(function(s,r){ return s + r.recommendQty; }, 0);
+          var highEntropy = data.filter(function(r){ return r.entropy >= 0.6; }).map(function(r){ return r.materialName; });
+          var upwardItems = data.filter(function(r){ return r.trend === '上升'; }).map(function(r){ return r.materialName; });
+          var upward = upwardItems.length;
+          var avgConfidence = Math.round(data.reduce(function(s,r){ return s + r.confidence; }, 0) / data.length);
+
+          // 协议库存预警（模拟：推荐采购量超过安全库存×10倍视为超协议额度）
+          var agreementAlerts = data.filter(function(r){
+            return r.recommendQty > r.safetyStock * 10;
+          }).map(function(r){
+            return { materialCode: r.materialCode, materialName: r.materialName, recommendQty: r.recommendQty, agreementLimit: r.safetyStock * 10 };
+          });
+
+          var finding = '共 ' + data.length + ' 个物料品类进入预测，其中 ' + upward + ' 个呈现上升趋势；'
+            + (highEntropy.length ? highEntropy.length + ' 个品类熵值≥0.6，需求不确定度高' : '整体需求分布稳定');
+          var advice = '';
+          if(highEntropy.length){
+            advice = '对熵值较高的品类（如 ' + highEntropy.slice(0,2).join('、') + '）建议增加 20% 安全库存缓冲，避免断供；';
+          } else {
+            advice = '可按常规安全库存策略执行，重点关注上升趋势品类的供应商产能预留；';
+          }
+          if(upward > data.length / 2){
+            advice += '整体需求呈上升趋势，建议提前与供应商锁定产能，衔接采购计划编制流程。';
+          } else {
+            advice += '需求趋势平稳，按常规采购周期执行即可。';
+          }
+
+          var result = {
+            cycle: this.queryForm.cycle || '1个月',
+            totalQty: totalQty.toLocaleString(),
+            finding: finding,
+            advice: advice,
+            confidence: avgConfidence,
+            upwardItems: upwardItems,
+            agreementAlerts: agreementAlerts
+          };
+
+          // AJAX 提交预测请求，失败降级到本地结果
+          if(window.fetch){
+            fetch('/api/ai-demand-forecast/generate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ cycle: result.cycle, items: data.map(function(r){ return { materialCode: r.materialCode, recommendQty: r.recommendQty, confidence: r.confidence }; }) })
+            }).then(function(res){
+              if(!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            }).then(function(json){
+              self.generateLoading = false;
+              self.forecastResult = Object.assign({}, result, json.data || {});
+              self.$message.success('AI预测结论已生成');
+            }).catch(function(){
+              self.generateLoading = false;
+              self.forecastResult = result;
+              self.$message.success('AI预测结论已生成（本地）');
+            });
+          } else {
+            setTimeout(function(){
+              self.generateLoading = false;
+              self.forecastResult = result;
+              self.$message.success('AI预测结论已生成（本地）');
+            }, 800);
+          }
+        },
+        handleGeneratePlan(){
+          if(!this.forecastResult){ this.$message.warning('请先生成预测结论'); return; }
+          var self = this;
+          var planNo = 'PP-2026-' + String(Math.floor(Math.random() * 9000) + 1000);
+          var planItems = this.filteredData.map(function(r){
+            return { materialCode: r.materialCode, materialName: r.materialName, recommendQty: r.recommendQty, safetyStock: r.safetyStock };
+          });
+          var planData = {
+            planNo: planNo,
+            cycle: this.forecastResult.cycle,
+            totalQty: this.forecastResult.totalQty,
+            items: planItems
+          };
+
+          if(window.fetch){
+            fetch('/api/purchase-plans/draft', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(planData)
+            }).then(function(res){
+              if(!res.ok) throw new Error('HTTP ' + res.status);
+              return res.json();
+            }).then(function(json){
+              self.$message.success('采购计划草案已生成，编号：' + (json.data && json.data.planNo ? json.data.planNo : planNo) + '，可前往采购计划列表查看');
+            }).catch(function(){
+              self.$message.success('采购计划草案已生成（本地），编号：' + planNo + '，可前往采购计划列表查看');
+            });
+          } else {
+            self.$message.success('采购计划草案已生成（本地），编号：' + planNo + '，可前往采购计划列表查看');
+          }
+        },
+        exportForecastCSV(){
+          var rows = this.filteredData;
+          if(rows.length === 0){ this.$message.warning('暂无数据可导出'); return; }
+
+          var lines = [];
+          // 报告头部
+          lines.push('AI采购需求预测报告');
+          lines.push('生成时间,' + new Date().toLocaleString('zh-CN'));
+          lines.push('预测周期,' + (this.queryForm.cycle || '1个月'));
+          if(this.queryForm.category) lines.push('物料类别,' + this.queryForm.category);
+          if(this.queryForm.dateRange && this.queryForm.dateRange.length === 2) lines.push('时间范围,' + this.queryForm.dateRange[0] + ' 至 ' + this.queryForm.dateRange[1]);
+          lines.push('');
+          // 汇总行
+          var totalQty = rows.reduce(function(s,r){ return s + r.recommendQty; }, 0);
+          lines.push('汇总,物料数 ' + rows.length + ' 条,预测采购总量 ' + totalQty.toLocaleString());
+          lines.push('');
+          // 表头
+          var keys = Object.keys(this.fieldLabels);
+          var headers = keys.map(function(k){ return this.fieldLabels[k]; }, this);
+          lines.push(headers.join(','));
+          // 数据行
+          rows.forEach(function(r){
+            var vals = keys.map(function(k){ return r[k] !== undefined && r[k] !== null ? r[k] : ''; });
+            vals = vals.map(function(v){ return String(v).indexOf(',') !== -1 ? '"' + v + '"' : v; });
+            lines.push(vals.join(','));
+          });
+          // 预测结论
+          if(this.forecastResult){
+            lines.push('');
+            lines.push('AI预测结论');
+            lines.push('预测周期,' + this.forecastResult.cycle);
+            lines.push('总预测采购量,' + this.forecastResult.totalQty);
+            lines.push('关键发现,' + (this.forecastResult.finding.indexOf(',') !== -1 ? '"' + this.forecastResult.finding + '"' : this.forecastResult.finding));
+            lines.push('备货建议,' + (this.forecastResult.advice.indexOf(',') !== -1 ? '"' + this.forecastResult.advice + '"' : this.forecastResult.advice));
+            lines.push('综合置信度,' + this.forecastResult.confidence + '%');
+          }
+
+          var csv = '\uFEFF' + lines.join('\n');
+          var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          var link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'AI采购需求预测报告_' + new Date().toISOString().slice(0,10) + '.csv';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          this.$message.success('已导出采购需求预测报告（共 ' + rows.length + ' 条物料）');
+        },
+        viewDetail(row){ this.currentDetail=row; this.detailVisible=true; },
+        getTrendClass(t){ return t==='上升'?'trend-up':(t==='下降'?'trend-down':'trend-flat'); },
+        getTrendIcon(t){ return t==='上升'?'el-icon-top':(t==='下降'?'el-icon-bottom':'el-icon-right'); }
+      },
+      mounted() {}
+    });
+  </script>
+</body>
+</html>

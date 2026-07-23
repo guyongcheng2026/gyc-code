@@ -1,0 +1,223 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>物流轨迹追踪</title>
+  <link rel="stylesheet" type="text/css" href="./css/element-ui.index.css">
+  <link rel="stylesheet" href="./css/template-driven-prototype.css">
+  <style>
+    .app-scss { --ecp-primary:#0B7266; }
+    .tl-title__title { color:#1A2332; }
+    .el-button--primary { background-color:#0B7266; border-color:#0B7266; }
+    .el-button--primary:hover { background-color:#0a6358; border-color:#0a6358; }
+    .el-table th.el-table__cell { background:#F1F6F7; color:#1A2332; font-weight:600; }
+    .el-table .el-table__cell { font-size:13px; }
+    .el-tag--success { background-color:#e8f5e9; border-color:#c8e6c9; color:#2e7d32; }
+    .el-tag--warning { background-color:#fff8e1; border-color:#ffecb3; color:#f57c00; }
+    .el-tag--danger { background-color:#ffebee; border-color:#ffcdd2; color:#c62828; }
+    .el-tag--info { background-color:#eceff1; border-color:#cfd8dc; color:#455a64; }
+    .el-dialog__header { border-bottom:1px solid #EAECF0; }
+    .el-dialog__footer { border-top:1px solid #EAECF0; }
+    .detail-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-dialog .el-dialog__body { padding:16px 24px; max-height:60vh; overflow-y:auto; }
+    .help-content { font-size:14px; color:#333; }
+    .help-section { margin-bottom:20px; }
+    .help-section:last-child { margin-bottom:0; }
+    .help-section__title { font-size:15px; font-weight:600; color:#0B7266; margin-bottom:10px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+    .help-section__title i { margin-right:6px; }
+    .help-section__body { line-height:1.8; color:#555; }
+    .help-section__body ul, .help-section__body ol { margin:0; padding-left:20px; }
+    .help-section__body li { margin-bottom:6px; }
+    .help-section__body li b { color:#1A2332; }
+    .tl-footer { text-align:center; }
+    .stat-toggle{text-align:center;margin-bottom:12px}.stat-toggle .el-button{font-size:13px;color:#0B7266}
+.stat-cards { display:flex; margin-bottom:16px; } .stat-cards > * + * { margin-left:16px; }
+    .stat-card { flex:1; background:#fff; border:1px solid #EBEEF5; border-radius:4px; padding:16px; text-align:center; }
+    .stat-card .stat-label { font-size:13px; color:#909399; margin-bottom:8px; }
+    .stat-card .stat-value { font-size:24px; font-weight:700; color:#0B7266; }
+    .stat-card .stat-unit { font-size:14px; color:#909399; margin-left:4px; }
+    .form-section-title { width:100%; font-weight:600; color:#0B7266; font-size:15px; margin-bottom:12px; padding-bottom:6px; border-bottom:2px solid #E0F0EE; }
+  </style>
+</head>
+<body class="app-scss" data-theme="dap">
+  <div id="app">
+    <section class="el-container query-page is-vertical">
+      <header class="el-header query-header">
+        <div class="tl-title query-title" area="title">
+          <div class="tl-title__title">物流轨迹追踪</div>
+          <div class="tl-title__slot"></div>
+        </div>
+        <div class="tl-search-panel query-search-panel">
+          <div class="tl-search-panel__inner tl-search-panel__inner--shadow tl-search-panel__inner--fold tl-search-panel__inner--pin">
+            <div class="tl-search-panel__header"><span v-if="isSearchPanelCollapsed">{{ queryConditionText }}</span></div>
+            <div class="tl-search-panel__body" v-show="!isSearchPanelCollapsed">
+              <div class="yj-container query-form" area="query-form">
+                <el-form :inline="true" :model="queryForm" :label-width="labelWidth" label-suffix="：" class="tl-form auto-width el-form--label-right multi-line">
+                  <el-form-item class="tl-form-item" label="运单编号"><el-input v-model="queryForm.trackingNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="订单编号"><el-input v-model="queryForm.orderNo" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="供应商"><el-input v-model="queryForm.supplier" placeholder="请输入" clearable></el-input></el-form-item>
+                  <el-form-item class="tl-form-item" label="物流状态"><el-select v-model="queryForm.status" placeholder="请选择" clearable><el-option label="待发货" value="待发货"></el-option><el-option label="运输中" value="运输中"></el-option><el-option label="已到达" value="已到达"></el-option><el-option label="已签收" value="已签收"></el-option><el-option label="异常" value="异常"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item" label="物流公司"><el-select v-model="queryForm.carrier" placeholder="请选择" clearable><el-option label="顺丰速运" value="顺丰速运"></el-option><el-option label="京东物流" value="京东物流"></el-option><el-option label="德邦快递" value="德邦快递"></el-option><el-option label="供应商自送" value="供应商自送"></el-option></el-select></el-form-item>
+                  <el-form-item class="tl-form-item tl-form-button-item">
+                    <el-button type="primary" @click="handleQuery">查询</el-button>
+                    <el-button @click="handleReset">重置</el-button>
+                    <el-button @click="handleExport" icon="el-icon-download">导出</el-button>
+                    <el-button @click="helpVisible = true" icon="el-icon-question">帮助</el-button>
+                  </el-form-item>
+                </el-form>
+              </div>
+            </div>
+            <div class="tl-search-panel__footer">
+              <button type="button" class="tl-button el-button el-button--default is-icon tl-icon" :title="isSearchPanelCollapsed ? '展开查询面板' : '收起查询面板'" @click="toggleSearchPanel"><i :class="isSearchPanelCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i></button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main class="el-main query-body">
+        <div area="query-body" class="query-grid-body">
+          <div class="yj-container-card" area="grid" id="queryGrid">
+            <div class="yj-container-card__bar">
+              <div class="yj-container-card__toolbar">
+                <div class="tl-table-tools">
+                  <div class="tl-table-tools__title tl-table-tools__title-area is-part"><span title="物流轨迹列表">物流轨迹列表</span></div>
+                  <div class="tl-table-tools__content tl-table-tools__contentexplain-area"><span style="color:#909399;font-size:12px">共 {{ filteredData.length }} 条记录</span></div>
+                  <div class="tl-table-tools__button tl-table-tools__button-area"><div area="table-tools" class="query-toolbar"><div class="yj-button-list" style="width:100%;"><el-button icon="el-icon-refresh" @click="handleRefresh">刷新</el-button></div></div></div>
+                  <div class="tl-table-tools__search tl-table-tools__search-area is-last"><div class="tl-search is-trigger"><el-input v-model="tableSearchText" placeholder="关键词搜索" prefix-icon="el-icon-search" clearable></el-input></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="yj-container-card__body">
+              <div class="yj-container-card__table">
+                <div class="stat-toggle">
+                    <el-button type="text" @click="statCollapsed = !statCollapsed">
+                      <i :class="statCollapsed ? 'el-icon-arrow-down' : 'el-icon-arrow-up'"></i>
+                      {{ statCollapsed ? '展开统计' : '收起统计' }}
+                    </el-button>
+                  </div>
+<div class="stat-cards" v-show="!statCollapsed">
+                  <div class="stat-card"><div class="stat-label">在途运单</div><div class="stat-value">{{ inTransitCount }}<span class="stat-unit">单</span></div></div>
+                  <div class="stat-card"><div class="stat-label">已签收</div><div class="stat-value" style="color:#2e7d32">{{ deliveredCount }}<span class="stat-unit">单</span></div></div>
+                  <div class="stat-card"><div class="stat-label">异常运单</div><div class="stat-value" style="color:#c62828">{{ exceptionCount }}<span class="stat-unit">单</span></div></div>
+                  <div class="stat-card"><div class="stat-label">平均时效</div><div class="stat-value">{{ avgDays }}<span class="stat-unit">天</span></div></div>
+                </div>
+                <el-table ref="table" :data="pagedData" border stripe style="width:100%;" @selection-change="handleSelectionChange">
+                  <el-table-column type="selection" width="50" align="center"></el-table-column>
+                  <el-table-column type="index" label="序号" width="60" align="center"></el-table-column>
+                  <el-table-column prop="trackingNo" label="运单编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="orderNo" label="订单编号" min-width="140" align="center"></el-table-column>
+                  <el-table-column prop="supplier" label="供应商" min-width="180" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="carrier" label="物流公司" min-width="100" align="center"></el-table-column>
+                  <el-table-column prop="origin" label="发货地" min-width="100" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="destination" label="收货地" min-width="100" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="shipDate" label="发货日期" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="etaDate" label="预计到达" min-width="110" align="center"></el-table-column>
+                  <el-table-column prop="currentLocation" label="当前位置" min-width="120" align="center" show-overflow-tooltip></el-table-column>
+                  <el-table-column prop="status" label="物流状态" width="100" align="center"><template slot-scope="{row}"><el-tag :type="row.status==='已签收'?'success':row.status==='运输中'?'':row.status==='已到达'?'success':row.status==='异常'?'danger':'warning'" size="small">{{ row.status }}</el-tag></template></el-table-column>
+                  <el-table-column prop="transitDays" label="在途天数" width="90" align="center"><template slot-scope="{row}"><span :style="{color:row.transitDays>7?'#c62828':'#909399'}">{{ row.transitDays }}天</span></template></el-table-column>
+                  <el-table-column label="操作" width="100" align="center" fixed="right"><template slot-scope="{row}"><el-button type="text" @click="handleDetail(row)">轨迹详情</el-button></template></el-table-column>
+                </el-table>
+                <div style="margin-top:12px;text-align:right;"><el-pagination @current-change="handlePageChange" @size-change="handleSizeChange" :current-page="currentPage" :page-sizes="[10,20,50]" :page-size="pageSize" :total="total" layout="total,sizes,prev,pager,next,jumper"></el-pagination></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+    <el-dialog :lazy="true" title="物流轨迹详情" :visible.sync="detailVisible" width="720px" custom-class="detail-dialog">
+      <div v-if="currentDetail">
+        <div class="form-section-title"><i class="el-icon-s-order"></i> 运单信息</div>
+        <el-descriptions :column="2" border style="margin-bottom:16px;">
+          <el-descriptions-item label="运单编号">{{ currentDetail.trackingNo }}</el-descriptions-item>
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderNo }}</el-descriptions-item>
+          <el-descriptions-item label="供应商">{{ currentDetail.supplier }}</el-descriptions-item>
+          <el-descriptions-item label="物流公司">{{ currentDetail.carrier }}</el-descriptions-item>
+          <el-descriptions-item label="发货地">{{ currentDetail.origin }}</el-descriptions-item>
+          <el-descriptions-item label="收货地">{{ currentDetail.destination }}</el-descriptions-item>
+          <el-descriptions-item label="发货日期">{{ currentDetail.shipDate }}</el-descriptions-item>
+          <el-descriptions-item label="预计到达">{{ currentDetail.etaDate }}</el-descriptions-item>
+          <el-descriptions-item label="当前位置">{{ currentDetail.currentLocation }}</el-descriptions-item>
+          <el-descriptions-item label="物流状态">{{ currentDetail.status }}</el-descriptions-item>
+        </el-descriptions>
+        <div class="form-section-title"><i class="el-icon-truck"></i> 物流轨迹</div>
+        <el-steps :active="(currentDetail.trail || []).length - 1" direction="vertical" style="margin-bottom:16px;">
+          <el-step v-for="(point, idx) in (currentDetail.trail || [])" :key="idx" :title="point.location" :description="point.time + ' · ' + point.event" :icon="point.icon || 'el-icon-location'"></el-step>
+        </el-steps>
+        <el-alert v-if="currentDetail.status==='异常'" title="物流异常告警" type="error" :closable="false" show-icon>{{ currentDetail.exceptionReason || '物流运输异常，请联系物流公司处理' }}</el-alert>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="detailVisible=false">关闭</el-button></div>
+    </el-dialog>
+    <el-dialog :lazy="true" title="帮助说明" :visible.sync="helpVisible" width="640px" custom-class="help-dialog">
+      <div class="help-content">
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-s-order"></i> 业务场景</div><div class="help-section__body">追踪采购订单的物流运输全过程，从发货到签收的每个节点实时可视，异常运单自动预警。适用于采购员和物流跟踪人员。</div></div>
+        <div class="help-section"><div class="help-section__title"><i class="el-icon-medal"></i> 业务价值</div><div class="help-section__body"><ul><li>物流全链路可视化，在途状态实时掌握</li><li>超7天未到达自动标红预警</li><li>异常运单（破损/丢失/拒收）即时告警</li><li>平均时效统计，支撑物流供应商评估</li></ul></div></div>
+      </div>
+      <div slot="footer"><el-button type="primary" @click="helpVisible=false">关闭</el-button></div>
+    </el-dialog>
+  </div>
+  <script src="./js/vue.min.js"></script>
+  <script src="./js/element-ui.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          statCollapsed: true,
+          isSearchPanelCollapsed: false,
+          labelWidth: '100px',
+          queryForm: { trackingNo:'', orderNo:'', supplier:'', status:'', carrier:'' },
+          tableSearchText: '',
+          currentPage: 1,
+          pageSize: 10,
+          selection: [],
+          detailVisible: false,
+          helpVisible: false,
+          currentDetail: null,
+          tableData: [
+            { trackingNo:'SF-20260620001', orderNo:'PO-2026-0615-001', supplier:'远东电缆股份有限公司', carrier:'顺丰速运', origin:'江苏宜兴', destination:'北京昌平', shipDate:'2026-06-20', etaDate:'2026-06-23', currentLocation:'北京分拨中心', status:'运输中', transitDays:3, trail:[{location:'江苏宜兴',time:'2026-06-20 08:00',event:'已揽收',icon:'el-icon-location'},{location:'无锡转运中心',time:'2026-06-20 14:00',event:'运输中'},{location:'北京分拨中心',time:'2026-06-22 09:00',event:'运输中'}] },
+            { trackingNo:'JD-20260619002', orderNo:'PO-2026-0614-005', supplier:'史泰博(上海)有限公司', carrier:'京东物流', origin:'上海', destination:'北京海淀', shipDate:'2026-06-19', etaDate:'2026-06-21', currentLocation:'北京海淀', status:'已签收', transitDays:2, trail:[{location:'上海',time:'2026-06-19 10:00',event:'已揽收'},{location:'北京分拨中心',time:'2026-06-20 16:00',event:'运输中'},{location:'北京海淀',time:'2026-06-21 09:30',event:'已签收'}] },
+            { trackingNo:'DB-20260618003', orderNo:'PO-2026-0612-012', supplier:'宁波三星医疗电气股份有限公司', carrier:'德邦快递', origin:'浙江宁波', destination:'天津滨海', shipDate:'2026-06-18', etaDate:'2026-06-22', currentLocation:'天津转运中心', status:'已到达', transitDays:4, trail:[{location:'浙江宁波',time:'2026-06-18 09:00',event:'已揽收'},{location:'杭州转运中心',time:'2026-06-18 20:00',event:'运输中'},{location:'天津转运中心',time:'2026-06-21 14:00',event:'已到达'}] },
+            { trackingNo:'SF-20260615004', orderNo:'PO-2026-0610-008', supplier:'3M中国有限公司', carrier:'顺丰速运', origin:'上海', destination:'北京朝阳', shipDate:'2026-06-15', etaDate:'2026-06-18', currentLocation:'上海转运中心', status:'异常', transitDays:9, exceptionReason:'运输途中包裹破损，正在处理理赔', trail:[{location:'上海',time:'2026-06-15 10:00',event:'已揽收'},{location:'上海转运中心',time:'2026-06-15 18:00',event:'运输中(异常停留)'}] },
+            { trackingNo:'ZZ-20260622005', orderNo:'PO-2026-0620-003', supplier:'郑州煤矿机械集团股份有限公司', carrier:'供应商自送', origin:'河南郑州', destination:'山西大同', shipDate:'2026-06-22', etaDate:'2026-06-25', currentLocation:'出发地', status:'待发货', transitDays:0, trail:[] },
+            { trackingNo:'JD-20260621006', orderNo:'PO-2026-0618-015', supplier:'厦门科华恒盛股份有限公司', carrier:'京东物流', origin:'福建厦门', destination:'北京大兴', shipDate:'2026-06-21', etaDate:'2026-06-24', currentLocation:'泉州转运中心', status:'运输中', transitDays:2, trail:[{location:'福建厦门',time:'2026-06-21 08:00',event:'已揽收'},{location:'泉州转运中心',time:'2026-06-21 20:00',event:'运输中'}] }
+          ]
+        };
+      },
+      computed: {
+        queryConditionText() { const p=[]; if(this.queryForm.trackingNo)p.push('运单:'+this.queryForm.trackingNo); if(this.queryForm.orderNo)p.push('订单:'+this.queryForm.orderNo); if(this.queryForm.supplier)p.push('供应商:'+this.queryForm.supplier); if(this.queryForm.status)p.push('状态:'+this.queryForm.status); if(this.queryForm.carrier)p.push('物流:'+this.queryForm.carrier); return p.length?p.join(' | '):'全部'; },
+        filteredData() {
+          return this.tableData.filter(r => {
+            if(this.queryForm.trackingNo && !r.trackingNo.includes(this.queryForm.trackingNo)) return false;
+            if(this.queryForm.orderNo && !r.orderNo.includes(this.queryForm.orderNo)) return false;
+            if(this.queryForm.supplier && !r.supplier.includes(this.queryForm.supplier)) return false;
+            if(this.queryForm.status && r.status !== this.queryForm.status) return false;
+            if(this.queryForm.carrier && r.carrier !== this.queryForm.carrier) return false;
+            if(this.tableSearchText) { const kw=this.tableSearchText.toLowerCase(); const text=(r.trackingNo+r.orderNo+r.supplier+r.carrier).toLowerCase(); if(!text.includes(kw)) return false; }
+            return true;
+          });
+        },
+        pagedData() { const s=(this.currentPage-1)*this.pageSize; return this.filteredData.slice(s,s+this.pageSize); },
+        total() { return this.filteredData.length; },
+        inTransitCount() { return this.tableData.filter(r=>r.status==='运输中'||r.status==='待发货').length; },
+        deliveredCount() { return this.tableData.filter(r=>r.status==='已签收').length; },
+        exceptionCount() { return this.tableData.filter(r=>r.status==='异常').length; },
+        avgDays() { const d=this.tableData.filter(r=>r.transitDays>0); return d.length?(d.reduce((s,r)=>s+r.transitDays,0)/d.length).toFixed(1):'0'; }
+      },
+      methods: {
+        toggleSearchPanel() { this.isSearchPanelCollapsed=!this.isSearchPanelCollapsed; },
+        handleQuery() { this.currentPage=1; },
+        handleReset() { this.queryForm={trackingNo:'',orderNo:'',supplier:'',status:'',carrier:''}; this.currentPage=1; },
+        handleExport() { this.$message.success('导出成功'); },
+        handleRefresh() { this.$message.success('刷新成功'); },
+        handleDetail(row) { this.currentDetail=row; this.detailVisible=true; },
+        handleSelectionChange(val) { this.selection=val; },
+        handlePageChange(page) { this.currentPage=page; },
+        handleSizeChange(size) { this.pageSize=size; this.currentPage=1; }
+      },
+      mounted() { this.handleQuery(); }
+    });
+  </script>
+  <footer class="tl-footer" style="text-align:center;padding:16px 0;color:#909399;font-size:13px;">© 2026 远光软件股份有限公司 | 电子商城系统 | yg-html-generator</footer>
+</body>
+</html>
