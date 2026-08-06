@@ -1,0 +1,4 @@
+#!/bin/sh
+# gyc-code 自动同步：每次提交后推送到 GitHub（经 gh-proxy）
+git push origin HEAD >/dev/null 2>&1
+exit 0
