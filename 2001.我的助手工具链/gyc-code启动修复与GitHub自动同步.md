@@ -55,3 +55,25 @@
 ---
 
 *记录：Codex | 2026-08-06*
+---
+
+## 七、界面与默认模型调整（2026-08-06）
+
+| 项目 | 修改 |
+|------|------|
+| 终端标题 | `app.tsx` 全部改为 `gyc`（会话标题 `gyc | <title>`）；通知默认标题 `attention.ts` → gyc |
+| 欢迎界面 | 去除非洲雄狮与 GYCCODE 大字，参照 MIMO CODE 显示 `GYC CODE` wordmark（含版本号 v0.0.1） |
+| CLI banner | `cli/ui.ts`、`presentation.ts` 同步改为 GYC CODE |
+| key 保存容错 | `dialog-provider.tsx` 增加 `normalizeApiKey`：自动剥离 `opencode `、`zen:` 前缀，兼容完整格式输入 |
+| 默认 LLM | `opencode.jsonc` 配置 `"model": "opencode/deepseek-v4-flash-free"` |
+| API key | 已写入 `auth.json`（opencode provider，`sk-Gh4...`） |
+
+### 验证结果（PTY 实测）
+- 欢迎界面正常显示 `GYC CODE v0.0.1` + `Ask anything...`，狮子已移除
+- 终端标题 OSC 序列 `]0;gyc` 生效
+- `gyc models` 确认 `opencode/deepseek-v4-flash-free` 存在
+- 默认模型代码路径：`Provider.defaultModel()` 优先读取 `cfg.model`，`parseModel` 解析 `provider/model`
+- `gyc --help` banner 显示 GYC CODE
+
+### 提交
+- `3165adf` 已推送 GitHub（guyongcheng2026/gyc-code），本地与远程完全一致
