@@ -4,9 +4,9 @@ import { logo as glyphs } from "./logo"
 
 const wordmark = [
   `⠀                                ▄     `,
-  `█▀▀█ █▀▀█ █▀▀█ █▀▀▄ █▀▀▀ █▀▀█ █▀▀█ █▀▀█`,
-  `█  █ █  █ █▀▀▀ █  █ █    █  █ █  █ █▀▀▀`,
-  `▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀  ▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀`,
+  `█▀▀▀ █▀▀█ █▀▀▀ █▀▀▀ █▀▀█ █▀▀█ █▀▀█`,
+  `█___ _██_ █___ █___ █__█ █__█ █^^^`,
+  `█▀▀█ __█_ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀ █▀▀▀ ▀▀▀▀`,
 ]
 
 export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("UICancelledError", {}) {}

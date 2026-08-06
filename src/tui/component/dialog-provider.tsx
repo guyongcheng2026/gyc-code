@@ -16,6 +16,12 @@ import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
 
+function normalizeApiKey(raw: string, providerID: string) {
+  let value = raw.trim()
+  value = value.replace(new RegExp(`^${providerID}\\s*(?:zen:)?\\s*:?\\s*`, "i"), "")
+  if (/^zen:/i.test(value)) value = value.replace(/^zen:/i, "")
+  return value
+}
 const PROVIDER_PRIORITY: Record<string, number> = {
   opencode: 0,
   "opencode-go": 1,
@@ -392,7 +398,8 @@ function ApiMethod(props: ApiMethodProps) {
           ),
         })[props.providerID] ?? undefined
       }
-      onConfirm={async (value) => {
+      onConfirm={async (raw) => {
+        const value = normalizeApiKey(raw, props.providerID)
         if (!value) return
         await sdk.client.auth.set({
           providerID: props.providerID,
