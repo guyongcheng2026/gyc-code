@@ -1,0 +1,7 @@
+{
+  "name": "@opencode-ai/server",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "type": "module"
+}

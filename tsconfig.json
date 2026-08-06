@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/opencode/*"],
+      "@test/*": ["./src/opencode/test/*"]
+    },
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["bun-types"],
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "customConditions": ["browser"]
+  },
+  "include": ["./src/**/*.ts", "./src/**/*.tsx"]
+}

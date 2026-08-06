@@ -1,0 +1,8 @@
+{
+  "name": "@opencode-ai/schema",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./*.ts"
+  },
+  "type": "module"
+}

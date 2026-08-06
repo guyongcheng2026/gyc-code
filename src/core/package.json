@@ -1,0 +1,28 @@
+{
+  "name": "@opencode-ai/core",
+  "exports": {
+    "./effect/layer-node": "./effect/layer-node.ts",
+    "./effect/app-node": "./effect/app-node.ts",
+    "./session/runner": "./session/runner/index.ts",
+    "./system-context": "./system-context/index.ts",
+    "./*": "./*.ts"
+  },
+  "imports": {
+    "#sqlite": {
+      "bun": "./database/sqlite.bun.ts",
+      "node": "./database/sqlite.node.ts",
+      "default": "./database/sqlite.bun.ts"
+    },
+    "#pty": {
+      "bun": "./pty/pty.bun.ts",
+      "node": "./pty/pty.node.ts",
+      "default": "./pty/pty.bun.ts"
+    },
+    "#fff": {
+      "bun": "./filesystem/fff.bun.ts",
+      "node": "./filesystem/fff.node.ts",
+      "default": "./filesystem/fff.bun.ts"
+    }
+  },
+  "type": "module"
+}

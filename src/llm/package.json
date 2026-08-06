@@ -1,0 +1,28 @@
+{
+  "name": "@opencode-ai/llm",
+  "exports": {
+    ".": "./index.ts",
+    "./route": "./route/index.ts",
+    "./provider": "./provider.ts",
+    "./providers": "./providers/index.ts",
+    "./providers/amazon-bedrock": "./providers/amazon-bedrock.ts",
+    "./providers/anthropic": "./providers/anthropic.ts",
+    "./providers/azure": "./providers/azure.ts",
+    "./providers/cloudflare": "./providers/cloudflare.ts",
+    "./providers/github-copilot": "./providers/github-copilot.ts",
+    "./providers/google": "./providers/google.ts",
+    "./providers/openai": "./providers/openai.ts",
+    "./providers/openai-compatible": "./providers/openai-compatible.ts",
+    "./providers/openai-compatible-profile": "./providers/openai-compatible-profile.ts",
+    "./providers/openrouter": "./providers/openrouter.ts",
+    "./providers/xai": "./providers/xai.ts",
+    "./protocols": "./protocols/index.ts",
+    "./protocols/anthropic-messages": "./protocols/anthropic-messages.ts",
+    "./protocols/bedrock-converse": "./protocols/bedrock-converse.ts",
+    "./protocols/gemini": "./protocols/gemini.ts",
+    "./protocols/openai-chat": "./protocols/openai-chat.ts",
+    "./protocols/openai-compatible-chat": "./protocols/openai-compatible-chat.ts",
+    "./protocols/openai-responses": "./protocols/openai-responses.ts"
+  },
+  "type": "module"
+}

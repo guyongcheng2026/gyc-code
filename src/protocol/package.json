@@ -1,0 +1,7 @@
+{
+  "name": "@opencode-ai/protocol",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "type": "module"
+}

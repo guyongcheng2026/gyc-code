@@ -1,0 +1,7 @@
+{
+  "name": "@opencode-ai/codemode",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "type": "module"
+}

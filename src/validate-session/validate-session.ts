@@ -1,0 +1,1 @@
+export const validateSession = () => Promise.resolve()

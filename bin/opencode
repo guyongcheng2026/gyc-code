@@ -1,0 +1,28 @@
+#!/usr/bin/env node
+// gyc — gyc-code CLI launcher
+// Runs the TypeScript entry directly with Bun (no precompiled binary needed).
+const { spawnSync } = require("child_process")
+const path = require("path")
+
+const entry = path.join(__dirname, "..", "src", "opencode", "index.ts")
+const candidates = [
+  process.env.GYC_BUN,
+  "C:\\Program Files\\nodejs\\bun.exe",
+  "C:\\Users\\谷勇成\\.bun\\bin\\bun.exe",
+].filter(Boolean)
+const bun = candidates.find((c) => {
+  try {
+    require("fs").accessSync(c)
+    return true
+  } catch {
+    return false
+  }
+}) || "bun"
+const result = spawnSync(bun, ["run", "--conditions=browser", entry, ...process.argv.slice(2)], {
+  stdio: "inherit",
+})
+if (result.error) {
+  console.error("Failed to launch gyc:", result.error.message)
+  process.exit(1)
+}
+process.exit(result.status ?? 0)

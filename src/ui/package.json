@@ -1,0 +1,27 @@
+{
+  "name": "@opencode-ai/ui",
+  "exports": {
+    "./package.json": "./package.json",
+    "./*": "./components/*.tsx",
+    "./i18n/*": "./i18n/*.ts",
+    "./hooks": "./hooks/index.ts",
+    "./context": "./context/index.ts",
+    "./context/*": "./context/*.tsx",
+    "./storybook/scaffold": "./storybook/scaffold.tsx",
+    "./storybook/fixtures": "./storybook/fixtures.ts",
+    "./styles": "./styles/index.css",
+    "./styles/tailwind": "./styles/tailwind/index.css",
+    "./theme": "./theme/index.ts",
+    "./theme/*": "./theme/*.ts",
+    "./theme/context": "./theme/context.tsx",
+    "./icons/provider": "./components/provider-icons/types.ts",
+    "./icons/file-type": "./components/file-icons/types.ts",
+    "./icons/app": "./components/app-icons/types.ts",
+    "./fonts/*": "./assets/fonts/*",
+    "./audio/*": "./assets/audio/*",
+    "./v2/*.css": "./v2/components/*.css",
+    "./v2/*": "./v2/components/*.tsx",
+    "./v2/styles/*": "./v2/styles/*"
+  },
+  "type": "module"
+}
