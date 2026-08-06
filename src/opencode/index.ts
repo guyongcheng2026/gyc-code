@@ -1,3 +1,4 @@
+
 import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { readFileSync, existsSync } from "fs"
@@ -46,7 +47,7 @@ const args = hideBin(process.argv)
 
 function show(out: string) {
   const text = out.trimStart()
-  if (!text.startsWith("opencode ")) {
+  if (!text.startsWith("gyc ")) {
     process.stderr.write(UI.logo() + EOL + EOL)
     process.stderr.write(text + EOL)
     return
@@ -56,7 +57,7 @@ function show(out: string) {
 
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
-  .scriptName("opencode")
+  .scriptName("gyc")
   .wrap(100)
   .help("help", "show help")
   .alias("help", "h")

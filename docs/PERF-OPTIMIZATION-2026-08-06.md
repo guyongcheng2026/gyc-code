@@ -75,3 +75,24 @@ node bin/opencode --help
 3. 评估 run 的非 TUI 轻量路径（纯对话场景）
 
 详见技能：gyc-code-ops
+
+## 七、今日收尾（P0 完成）
+
+### 7.1 启动问题根因与修复（已验证）
+- 根因：bun 内置 TSX 编译由内到外立即求值 children，`@opentui/solid/jsx-runtime.js` 的 `jsx()` 对函数组件立即 `createComponent`，导致最内层 `App` 在 `TuiStartupProvider` 包裹前渲染 → `TuiStartupProvider is missing`。
+- 修复：patch `node_modules/@opentui/solid/jsx-runtime.js`，函数组件改为惰性 `return () => createComponent(type, normalizedProps)`（备份 `jsx-runtime.js.bak`）；tsconfig 恢复 `"jsx": "preserve"` + `"jsxImportSource": "@opentui/solid"`。
+- 构建参数：`bun build --define:OPENCODE_VERSION='"0.0.1"' --conditions=browser ...`（`--conditions=browser` 防止 solid-js 解析为 SSR 版 server.js）。
+- 验证：`gyc --version` = `0.0.1`；`gyc --help` 正常；无参数启动挂起等终端（非 TTY 预期行为，不再报 `Unexpected error`）。
+
+### 7.2 欢迎界面改造（谷总要求）
+- `src/tui/logo.ts`：新增 17 行非洲雄狮 ASCII 剪影（`lion`）；GYCCODE 七字母块字符 logo（`logo`，暗色 left + 亮色 right 双色）；`go` 恢复原版。
+- `src/tui/component/logo.tsx`：渲染顺序 = 雄狮 → 空行 → GYCCODE logo → 居中 `GYCCODE v0.0.1`。
+- `src/core/installation/version.ts` fallback、`package.json` version 与 `--define:OPENCODE_VERSION` 均统一为 `0.0.1`。
+- CLI 品牌统一：`scriptName("gyc")`、help 命令前缀与描述、`UI.logo()` wordmark 均已由 opencode → gyc。
+
+### 7.3 遗留与注意事项
+- ⚠️ `node_modules/@opentui/solid/jsx-runtime.js` 的惰性 patch 在 `bun install` 后会丢失，需用 `bun patch` 或 patch-package 持久化（上游 MiMo 用 patches/solid-js@1.9.10.patch 同思路）。
+- TUI 欢迎界面的狮子/GYCCODE 渲染效果需在真实终端目测确认（非 TTY 无法截图）。
+- 临时调试代码（[DBG-ERR] cause 链打印）已从 `src/opencode/index.ts` 移除。
+- 清理：`scripts/bun-solid-plugin.ts`（无引用）、`dist-broken-bak/`（旧 dist 备份）已删除；tsconfig.json BOM 已移除。
+- 未提交改动仍在本机工作区，待谷总确认效果后统一提交。

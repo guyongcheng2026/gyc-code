@@ -1,7 +1,8 @@
 import { RGBA, TextAttributes } from "@opentui/core"
 import { For, type JSX } from "solid-js"
 import { tint, useTheme } from "../context/theme"
-import { logo } from "../logo"
+import { lion, logo } from "../logo"
+import { InstallationVersion } from "@opencode-ai/core/installation/version"
 
 export function Logo() {
   const { theme } = useTheme()
@@ -48,6 +49,16 @@ export function Logo() {
 
   return (
     <box>
+      <For each={lion}>
+        {(line) => (
+          <box flexDirection="row">
+            <text fg={theme.textMuted} selectable={false}>
+              {line}
+            </text>
+          </box>
+        )}
+      </For>
+      <box height={1} />
       <For each={logo.left}>
         {(line, index) => (
           <box flexDirection="row" gap={1}>
@@ -56,6 +67,11 @@ export function Logo() {
           </box>
         )}
       </For>
+      <box flexDirection="row" justifyContent="center" paddingTop={1}>
+        <text fg={theme.textMuted} selectable={false}>
+          GYCCODE v{InstallationVersion}
+        </text>
+      </box>
     </box>
   )
 }

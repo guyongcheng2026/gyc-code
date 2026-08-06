@@ -1,6 +1,6 @@
 {
   "name": "gyc-code",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Minimal AI coding CLI — forked from opencode, inspired by Pi Agent philosophy",
   "license": "MIT",
   "type": "module",
@@ -9,8 +9,8 @@
   },
   "main": "./src/opencode/index.ts",
   "scripts": {
-    "dev": "bun run --conditions=browser ./src/opencode/index.ts",
-    "build": "bun build --conditions=browser --target=bun ./src/opencode/index.ts --outfile dist/gyc.mjs",
+    "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/opencode/index.ts",
+    "build": "bun build.mjs",
     "start": "node dist/gyc.mjs"
   },
   "dependencies": {

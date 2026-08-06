@@ -28,7 +28,7 @@ import { useTuiStartup } from "./runtime"
 import { createSimpleContext } from "./helper"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, onMount } from "solid-js"
+import { batch, createSignal, onMount } from "solid-js"
 import path from "path"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
@@ -61,6 +61,8 @@ export const {
     const startup = useTuiStartup()
     const kv = useKV()
     const permission = usePermission()
+    const [bootReady, setBootReady] = createSignal(false)
+    setTimeout(() => setBootReady(true), 5000).unref?.()
     const [store, setStore] = createStore<{
       status: "loading" | "partial" | "complete"
       provider: Provider[]
@@ -537,11 +539,7 @@ export const {
             name: e instanceof Error ? e.name : undefined,
             stack: e instanceof Error ? e.stack : undefined,
           })
-          if (fatal) {
-            exit(e)
-          } else {
-            throw e
-          }
+          setStore("status", "partial")
         })
     }
 
@@ -557,6 +555,7 @@ export const {
       },
       get ready() {
         if (startup.skipInitialLoading) return true
+        if (bootReady()) return true
         return store.status !== "loading"
       },
       get path() {

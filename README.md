@@ -1,4 +1,4 @@
-# gyc-code
+﻿# gyc-code
 
 基于 opencode (MIT) fork 的编码智能体 CLI —— 融合 MiMo-Code 开发工作流与 Hermes 记忆系统，对标 Claude Code / Codex 的完整编码能力。
 
@@ -82,7 +82,7 @@ bun test --timeout 60000 src/opencode/benchmark/benchmark.test.ts
 ## 构建
 
 ```bash
-bun build src/opencode/index.ts --outdir dist --target=bun --format=esm --splitting --external "@opentui/core-*"
+bun build.mjs
 ```
 
 ## 项目结构
