@@ -1,4 +1,4 @@
-import yargs, { type Argv, type CommandModule } from "yargs"
+import yargs from "yargs"
 import { hideBin } from "yargs/helpers"
 import { readFileSync, existsSync } from "fs"
 import { homedir, EOL } from "os"
@@ -13,28 +13,34 @@ for (const file of ENV_FILES) {
     if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
   }
 }
+import { RunCommand } from "./cli/cmd/run"
+import { GenerateCommand } from "./cli/cmd/generate"
+import { ConsoleCommand } from "./cli/cmd/account"
+import { ProvidersCommand } from "./cli/cmd/providers"
+import { AgentCommand } from "./cli/cmd/agent"
+import { UpgradeCommand } from "./cli/cmd/upgrade"
+import { UninstallCommand } from "./cli/cmd/uninstall"
+import { ModelsCommand } from "./cli/cmd/models"
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import { FormatError } from "./cli/error"
+import { ServeCommand } from "./cli/cmd/serve"
+import { DebugCommand } from "./cli/cmd/debug"
+import { StatsCommand } from "./cli/cmd/stats"
+import { McpCommand } from "./cli/cmd/mcp"
+import { GithubCommand } from "./cli/cmd/github"
+import { ExportCommand } from "./cli/cmd/export"
+import { ImportCommand } from "./cli/cmd/import"
+import { AttachCommand } from "./cli/cmd/attach"
+import { TuiThreadCommand } from "./cli/cmd/tui"
+import { AcpCommand } from "./cli/cmd/acp"
+import { WebCommand } from "./cli/cmd/web"
+import { PrCommand } from "./cli/cmd/pr"
+import { SessionCommand } from "./cli/cmd/session"
+import { PluginCommand } from "./cli/cmd/plug"
+import { DbCommand } from "./cli/cmd/db"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
-
-// Lazy command loader: registers command name/describe synchronously (cheap),
-// loads the heavy command module only when the command is actually parsed.
-function lazy(command: string, describe: string, load: () => Promise<CommandModule>): CommandModule {
-  return {
-    command,
-    describe,
-    builder: async (y: Argv) => {
-      const mod = await load()
-      return mod.builder ? mod.builder(y) : y
-    },
-    handler: async (argv) => {
-      const mod = await load()
-      await mod.handler?.(argv)
-    },
-  }
-}
 
 const args = hideBin(process.argv)
 
@@ -84,29 +90,29 @@ const cli = yargs(args)
   })
   .usage("")
   .completion("completion", "generate shell completion script")
-  .command(lazy("acp", "start ACP (Agent Client Protocol) server", async () => (await import("./cli/cmd/acp")).AcpCommand))
-  .command(lazy("mcp", "manage MCP servers", async () => (await import("./cli/cmd/mcp")).McpCommand))
-  .command(lazy("$0 [project]", "start TUI", async () => (await import("./cli/cmd/tui")).TuiThreadCommand))
-  .command(lazy("attach <url>", "attach to a running server", async () => (await import("./cli/cmd/attach")).AttachCommand))
-  .command(lazy("run [message..]", "run with a message", async () => (await import("./cli/cmd/run")).RunCommand))
-  .command(lazy("generate", "generate a prompt", async () => (await import("./cli/cmd/generate")).GenerateCommand))
-  .command(lazy("debug", "debugging and troubleshooting tools", async () => (await import("./cli/cmd/debug")).DebugCommand))
-  .command(lazy("login [url]", "login to an account", async () => (await import("./cli/cmd/account")).ConsoleCommand))
-  .command(lazy("providers", "manage AI providers and credentials", async () => (await import("./cli/cmd/providers")).ProvidersCommand))
-  .command(lazy("create", "create an agent", async () => (await import("./cli/cmd/agent")).AgentCommand))
-  .command(lazy("upgrade [target]", "upgrade to a different version", async () => (await import("./cli/cmd/upgrade")).UpgradeCommand))
-  .command(lazy("uninstall", "uninstall opencode", async () => (await import("./cli/cmd/uninstall")).UninstallCommand))
-  .command(lazy("serve", "starts a headless server", async () => (await import("./cli/cmd/serve")).ServeCommand))
-  .command(lazy("web", "start server and open web interface", async () => (await import("./cli/cmd/web")).WebCommand))
-  .command(lazy("models [provider]", "list available models", async () => (await import("./cli/cmd/models")).ModelsCommand))
-  .command(lazy("stats", "show statistics", async () => (await import("./cli/cmd/stats")).StatsCommand))
-  .command(lazy("export [sessionID]", "export a session", async () => (await import("./cli/cmd/export")).ExportCommand))
-  .command(lazy("import <file>", "import a session", async () => (await import("./cli/cmd/import")).ImportCommand))
-  .command(lazy("install", "manage GitHub installation", async () => (await import("./cli/cmd/github")).GithubCommand))
-  .command(lazy("pr <number>", "manage pull requests", async () => (await import("./cli/cmd/pr")).PrCommand))
-  .command(lazy("session", "manage sessions", async () => (await import("./cli/cmd/session")).SessionCommand))
-  .command(lazy("plugin <module>", "manage plugins", async () => (await import("./cli/cmd/plug")).PluginCommand))
-  .command(lazy("$0 [query]", "run a database query", async () => (await import("./cli/cmd/db")).DbCommand))
+  .command(AcpCommand)
+  .command(McpCommand)
+  .command(TuiThreadCommand)
+  .command(AttachCommand)
+  .command(RunCommand)
+  .command(GenerateCommand)
+  .command(DebugCommand)
+  .command(ConsoleCommand)
+  .command(ProvidersCommand)
+  .command(AgentCommand)
+  .command(UpgradeCommand)
+  .command(UninstallCommand)
+  .command(ServeCommand)
+  .command(WebCommand)
+  .command(ModelsCommand)
+  .command(StatsCommand)
+  .command(ExportCommand)
+  .command(ImportCommand)
+  .command(GithubCommand)
+  .command(PrCommand)
+  .command(SessionCommand)
+  .command(PluginCommand)
+  .command(DbCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||
@@ -123,7 +129,11 @@ const cli = yargs(args)
 
 try {
   if (args.includes("-h") || args.includes("--help")) {
-    cli.showHelp(show)
+    await cli.parse(args, (err: Error | undefined, _argv: unknown, out: string) => {
+      if (err) throw err
+      if (!out) return
+      show(out)
+    })
   } else {
     await cli.parse()
   }
