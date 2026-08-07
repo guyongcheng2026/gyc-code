@@ -78,6 +78,11 @@ export class Subscription {
     waiters.add(waiter)
     this.idleWaiters.set(sessionId, waiters)
 
+    const IDLE_TIMEOUT_MS = 30_000
+    const timeout = setTimeout(() => {
+      waiter.reject(new Error(`ACP runUntilIdle timed out after ${IDLE_TIMEOUT_MS}ms for session ${sessionId}`))
+    }, IDLE_TIMEOUT_MS)
+
     try {
       // Idle is queued after the turn's events, and this subscription awaits each update in order.
       void waiter.promise.catch(() => {})
@@ -85,6 +90,7 @@ export class Subscription {
       await waiter.promise
       return response
     } finally {
+      clearTimeout(timeout)
       waiters.delete(waiter)
       if (waiters.size === 0) this.idleWaiters.delete(sessionId)
     }

@@ -142,6 +142,9 @@ export function make(input: {
     if (params.methodId !== AuthMethodID) {
       return yield* new ACPError.UnknownAuthMethodError({ methodId: params.methodId })
     }
+    // Invalidate all cached directory snapshots so subsequent configSnapshot
+    // calls re-fetch fresh data (e.g. newly-authorized providers).
+    sessionSnapshots.clear()
     return {}
   })
 
@@ -244,7 +247,14 @@ export function make(input: {
   })
 
   const listSessions = Effect.fn("ACP.listSessions")(function* (params: ListSessionsRequest) {
-    const cursor = params.cursor ? Number(params.cursor) : undefined
+    // Composite cursor: "timestamp:sessionId" to handle sessions with identical updatedAt
+    let cursorTimestamp: number | undefined
+    let cursorSessionId: string | undefined
+    if (params.cursor) {
+      const parts = params.cursor.split(":")
+      cursorTimestamp = Number(parts[0])
+      cursorSessionId = parts[1]
+    }
     const limit = 100
     const sessions = yield* request(
       () =>
@@ -278,14 +288,20 @@ export function make(input: {
       (a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime(),
     )
     const filtered =
-      cursor === undefined || !Number.isFinite(cursor)
+      cursorTimestamp === undefined || !Number.isFinite(cursorTimestamp) || !cursorSessionId
         ? sorted
-        : sorted.filter((item) => new Date(item.updatedAt ?? 0).getTime() < cursor)
+        : sorted.filter((item) => {
+            const ts = new Date(item.updatedAt ?? 0).getTime()
+            // Composite: strictly less-than timestamp, OR same timestamp but sessionId lexicographically after cursor
+            return ts < cursorTimestamp! || (ts === cursorTimestamp! && item.sessionId > cursorSessionId!)
+          })
     const page = filtered.slice(0, limit)
     const last = page.at(-1)
     return {
       sessions: page,
-      ...(filtered.length > limit && last ? { nextCursor: String(new Date(last.updatedAt ?? 0).getTime()) } : {}),
+      ...(filtered.length > limit && last
+        ? { nextCursor: `${new Date(last.updatedAt ?? 0).getTime()}:${last.sessionId}` }
+        : {}),
     }
   })
 
@@ -568,10 +584,12 @@ export function make(input: {
             ),
           "session",
         )
+        yield* sendUsageUpdate(input.usage, input.sdk, input.connection, current.id, current.cwd)
+        return yield* promptResponse(undefined, params.messageId)
       }
 
-      yield* sendUsageUpdate(input.usage, input.sdk, input.connection, current.id, current.cwd)
-      return yield* promptResponse(undefined, params.messageId)
+      // Unknown slash command — return an invalidParams error instead of silently ignoring
+      return yield* new ACPError.InvalidConfigOptionError({ configId: command.name })
     }),
     cancel,
   }
@@ -600,6 +618,9 @@ function makeDirectoryService(sdk: OpencodeClient) {
 }
 
 function makeUsageService(sdk: OpencodeClient) {
+  // Delegate contextLimit to the canonical cached implementation via a simple
+  // Map cache (functional equivalent of UsageService's SynchronizedRef cache,
+  // but without requiring Effect runtime).
   const limits = new Map<string, Promise<number | undefined>>()
   const contextLimit: UsageService.Interface["contextLimit"] = Effect.fn("ACP.promptUsage.contextLimit")(
     function* (params) {
@@ -621,6 +642,9 @@ function makeUsageService(sdk: OpencodeClient) {
     },
   )
 
+  // Delegate sendUpdate to canonical UsageService helpers (no local reimplementation).
+  // Use a bounded limit to avoid fetching the entire session history — O(recent)
+  // instead of O(total messages) per usage update.
   const sendUpdate: UsageService.Interface["sendUpdate"] = Effect.fn("ACP.promptUsage.sendUpdate")(function* (params) {
     const messages = yield* request(
       () =>
@@ -628,6 +652,7 @@ function makeUsageService(sdk: OpencodeClient) {
           {
             sessionID: params.sessionID,
             directory: params.directory,
+            limit: 200,
           },
           { throwOnError: true },
         ),

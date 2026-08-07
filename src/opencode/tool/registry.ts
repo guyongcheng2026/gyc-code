@@ -110,7 +110,14 @@ const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const agent = yield* Agent.Service
-    const codeMode = flags.experimentalCodeMode ? yield* Effect.promise(() => import("./code-mode")) : undefined
+    const codeMode = flags.experimentalCodeMode
+      ? yield* Effect.promise(() => import("./code-mode")).pipe(
+          Effect.catchAll(() => {
+            Effect.logWarning("experimental code mode failed to load, disabling")
+            return Effect.succeed(undefined)
+          }),
+        )
+      : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
 
     const state = yield* InstanceState.make<State>(

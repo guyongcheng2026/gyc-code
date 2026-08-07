@@ -53,9 +53,13 @@ export type Prepared = {
 const mergeOptions = (target: Record<string, any>, source: Record<string, any> | undefined): Record<string, any> =>
   mergeDeep(target, source ?? {}) as Record<string, any>
 
-export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
-  const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
-  const isDeepSeek = input.provider.id === "deepseek"
+/**
+ * Assemble the system prompt array from agent prompt, system strings, and user system.
+ * Applies plugin transform and collapses multi-segment prompts when possible.
+ */
+const assembleSystemPrompt = Effect.fn("LLMRequestPrep.assembleSystemPrompt")(function* (
+  input: Pick<PrepareInput, "agent" | "system" | "user" | "sessionID" | "model" | "plugin">,
+) {
   const system = [
     [
       ...(input.agent.prompt ? [input.agent.prompt] : SystemPrompt.provider(input.model)),
@@ -77,6 +81,19 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     system.length = 0
     system.push(header, rest.join("\n"))
   }
+  return system
+})
+
+/**
+ * Resolve provider-specific options by merging base, model, agent, and variant options.
+ * Handles Azure completion-URL cleanup and DeepSeek API key injection.
+ */
+const resolveProviderOptions = (
+  input: Pick<PrepareInput, "small" | "model" | "sessionID" | "provider" | "agent" | "user" | "auth">,
+  system: string[],
+): { options: Record<string, any>; isOpenaiOauth: boolean; isDeepSeek: boolean } => {
+  const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
+  const isDeepSeek = input.provider.id === "deepseek"
 
   const variant =
     !input.small && input.model.variants && input.user.model.variant
@@ -102,6 +119,13 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     const deepseekKey = process.env.DEEPSEEK_API_KEY
     if (deepseekKey) options.apiKey = deepseekKey
   }
+  return { options, isOpenaiOauth, isDeepSeek }
+}
+
+export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
+  const system = yield* assembleSystemPrompt(input)
+  const { options, isOpenaiOauth, isDeepSeek } = resolveProviderOptions(input, system)
+
   const messages =
     isOpenaiOauth || isDeepSeek || input.isWorkflow
       ? input.messages
@@ -209,6 +233,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   }
 })
 
+/**
+ * Resolve available tools by filtering out permission-disabled and user-disabled tools.
+ * Tool resolution is synchronous: Permission.disabled merges agent + session rulesets,
+ * and user.tools provides per-tool opt-out. Returns a filtered copy of the input tools.
+ */
 function resolveTools(input: Pick<PrepareInput, "tools" | "agent" | "permission" | "user">) {
   const disabled = Permission.disabled(
     Object.keys(input.tools),

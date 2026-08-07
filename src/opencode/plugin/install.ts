@@ -238,7 +238,7 @@ function patchPluginList(
     out = patch(out, ["plugin", keep.i], next)
   }
   if (Array.isArray(keep.item) && typeof keep.item[0] === "string") {
-    out = patch(out, ["plugin", keep.i, 0], spec)
+    out = patch(out, ["plugin", keep.i], next)
   }
 
   const del = dup

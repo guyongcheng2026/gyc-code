@@ -539,6 +539,8 @@ async function activatePluginEntry(state: RuntimeState, plugin: PluginEntry, per
     })
 
   if (!ok) {
+    plugin.enabled = false
+    if (persist) writePluginEnabledState(state.api, plugin.id, false)
     await scope.dispose()
     state.view.update({ status: listPluginStatus(state) })
     return false
@@ -1002,6 +1004,10 @@ export async function init(input: {
 
   dir = cwd
   loaded = load({ ...input, runtime: input.runtime ?? createPluginRuntime() })
+  loaded.catch(() => {
+    loaded = undefined
+    dir = ""
+  })
   return loaded
 }
 

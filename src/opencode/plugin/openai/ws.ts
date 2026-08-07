@@ -259,7 +259,15 @@ export function streamResponsesWebSocket(options: StreamResponsesWebSocketOption
       return
     }
 
-    if (event.type === "response.failed" || event.type === "response.incomplete" || event.type === "error") {
+    if (event.type === "response.failed") {
+      completed = true
+      options.onTerminal?.(event)
+      cleanup()
+      controller?.error(new ProviderError.ResponseStreamError(`Response failed: ${JSON.stringify(event)}`))
+      return
+    }
+
+    if (event.type === "response.incomplete" || event.type === "error") {
       completed = true
       options.onTerminal?.(event)
       closeCompleted()

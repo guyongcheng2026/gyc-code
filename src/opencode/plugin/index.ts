@@ -102,7 +102,7 @@ function getLegacyPlugins(mod: Record<string, unknown>) {
     if (seen.has(entry)) continue
     seen.add(entry)
     const plugin = getServerPlugin(entry)
-    if (!plugin) throw new TypeError("Plugin export is not a function")
+    if (!plugin) continue
     result.push(plugin)
   }
 
@@ -250,6 +250,7 @@ const layer = Layer.effect(
           return Effect.sync(() => {
             for (const hook of hooks) {
               void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
+                .catch(() => {})
             }
           })
         })

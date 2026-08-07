@@ -39,7 +39,13 @@ export class Handler {
     const previous = this.queues.get(permission.sessionID) ?? Promise.resolve()
     const next = previous
       .then(() => this.process(event))
-      .catch(() => {})
+      .catch((error) => {
+        console.error("[ACP] permission handler error:", error)
+        // Retry once on failure
+        return this.process(event).catch((retryError) => {
+          console.error("[ACP] permission handler retry failed:", retryError)
+        })
+      })
       .finally(() => {
         if (this.queues.get(permission.sessionID) === next) {
           this.queues.delete(permission.sessionID)

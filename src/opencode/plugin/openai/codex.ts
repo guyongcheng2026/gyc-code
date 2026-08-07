@@ -220,7 +220,10 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
     oauthServer!.listen(OAUTH_PORT, () => {
       resolve()
     })
-    oauthServer!.on("error", reject)
+    oauthServer!.on("error", (err) => {
+      oauthServer = undefined
+      reject(err)
+    })
   })
 
   return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
@@ -342,11 +345,13 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
           async fetch(requestInput: RequestInfo | URL, init?: RequestInit) {
             if (init?.headers) {
               if (init.headers instanceof Headers) {
+                init.headers = new Headers(init.headers)
                 init.headers.delete("authorization")
                 init.headers.delete("Authorization")
               } else if (Array.isArray(init.headers)) {
                 init.headers = init.headers.filter(([key]) => key.toLowerCase() !== "authorization")
               } else {
+                init.headers = { ...init.headers }
                 delete init.headers["authorization"]
                 delete init.headers["Authorization"]
               }
@@ -476,6 +481,7 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
               device_auth_id: string
               user_code: string
               interval: string
+              expires_in?: number
             }
             const interval = Math.max(parseInt(deviceData.interval) || 5, 1) * 1000
 
@@ -484,7 +490,8 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
               instructions: `Enter code: ${deviceData.user_code}`,
               method: "auto" as const,
               async callback() {
-                while (true) {
+                const deadline = Date.now() + (deviceData.expires_in ?? 900) * 1000
+                while (Date.now() < deadline) {
                   const response = await fetch(`${ISSUER}/api/accounts/deviceauth/token`, {
                     method: "POST",
                     headers: {
@@ -536,6 +543,7 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
 
                   await sleep(interval + OAUTH_POLLING_SAFETY_MARGIN_MS)
                 }
+                return { type: "failed" as const }
               },
             }
           },

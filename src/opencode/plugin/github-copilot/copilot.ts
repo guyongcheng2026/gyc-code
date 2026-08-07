@@ -253,14 +253,17 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
               user_code: string
               device_code: string
               interval: number
+              expires_in: number
             }
+            const pollInterval = Math.max(Number(deviceData.interval) || 5, 1) * 1000
 
             return {
               url: deviceData.verification_uri,
               instructions: `Enter code: ${deviceData.user_code}`,
               method: "auto" as const,
               async callback() {
-                while (true) {
+                const deadline = Date.now() + (deviceData.expires_in ?? 900) * 1000
+                while (Date.now() < deadline) {
                   const response = await fetch(urls.ACCESS_TOKEN_URL, {
                     method: "POST",
                     headers: {
@@ -306,14 +309,14 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                   }
 
                   if (data.error === "authorization_pending") {
-                    await sleep(deviceData.interval * 1000 + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                    await sleep(pollInterval + OAUTH_POLLING_SAFETY_MARGIN_MS)
                     continue
                   }
 
                   if (data.error === "slow_down") {
                     // Based on the RFC spec, we must add 5 seconds to our current polling interval.
                     // (See https://www.rfc-editor.org/rfc/rfc8628#section-3.5)
-                    let newInterval = (deviceData.interval + 5) * 1000
+                    let newInterval = pollInterval + 5000
 
                     // GitHub OAuth API may return the new interval in seconds in the response.
                     // We should try to use that if provided with safety margin.
@@ -328,9 +331,10 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
 
                   if (data.error) return { type: "failed" as const }
 
-                  await sleep(deviceData.interval * 1000 + OAUTH_POLLING_SAFETY_MARGIN_MS)
+                  await sleep(pollInterval + OAUTH_POLLING_SAFETY_MARGIN_MS)
                   continue
                 }
+                return { type: "failed" as const }
               },
             }
           },

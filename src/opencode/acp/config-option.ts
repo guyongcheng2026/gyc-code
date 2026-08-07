@@ -34,18 +34,24 @@ export function buildModelSelectOption(input: {
   currentVariant?: string
   includeVariants?: boolean
 }): SessionConfigOption {
+  const options = buildModelSelectOptions(input.providers, { includeVariants: input.includeVariants ?? false })
+  const computed = formatCurrentModelId({
+    model: input.currentModel,
+    variant: input.currentVariant,
+    variants: variantsForModel(input.providers, input.currentModel),
+    includeVariant: input.includeVariants ?? false,
+  })
+  // Ensure currentValue matches an entry in options; fall back to first option if not found
+  const currentValue = options.some((opt) => opt.value === computed)
+    ? computed
+    : options[0]?.value ?? computed
   return {
     id: "model",
     name: "Model",
     category: "model",
     type: "select",
-    currentValue: formatCurrentModelId({
-      model: input.currentModel,
-      variant: input.currentVariant,
-      variants: variantsForModel(input.providers, input.currentModel),
-      includeVariant: input.includeVariants ?? false,
-    }),
-    options: buildModelSelectOptions(input.providers, { includeVariants: input.includeVariants ?? false }),
+    currentValue,
+    options,
   }
 }
 

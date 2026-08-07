@@ -142,6 +142,15 @@ const live: Layer.Layer<
               title: typeof result === "object" ? result?.title : undefined,
             }
           } catch (e: any) {
+            bridge.fork(
+              Effect.logError("workflow tool execution failed", {
+                toolName,
+                requestID: _requestID,
+                "session.id": input.sessionID,
+                error: e.message ?? String(e),
+                stack: e instanceof Error ? e.stack : undefined,
+              }),
+            )
             return { result: "", error: e.message ?? String(e) }
           }
         }
@@ -383,8 +392,6 @@ const live: Layer.Layer<
     return Service.of({ stream })
   }),
 )
-
-export const hasToolCalls = LLMRequestPrep.hasToolCalls
 
 export const node = LayerNode.make({
   service: Service,

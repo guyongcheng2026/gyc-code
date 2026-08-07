@@ -143,16 +143,24 @@ export const EditTool = Tool.define(
                 ),
               )
               yield* ctx.ask({
-                permission: "edit",
-                patterns: [path.relative(instance.worktree, filePath)],
-                always: ["*"],
-                metadata: {
-                  filepath: filePath,
-                  diff,
-                },
-              })
+                              permission: "edit",
+                              patterns: [path.relative(instance.worktree, filePath)],
+                              always: ["*"],
+                              metadata: {
+                                filepath: filePath,
+                                diff,
+                              },
+                            })
 
-              yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
+                            // TOCTOU 防护：审批期间文件可能被外部修改，写入前校验 mtime
+                            const preWriteStat = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+                            if (preWriteStat && info && preWriteStat.mtime?.getTime() !== info.mtime?.getTime()) {
+                              return yield* Effect.fail(
+                                new Error(`File ${filePath} was modified externally during approval. Please re-read and try again.`),
+                              )
+                            }
+
+                            yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
               if (yield* format.file(filePath)) {
                 contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
               }

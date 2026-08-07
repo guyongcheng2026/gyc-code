@@ -43,7 +43,9 @@ export const PlanExitTool = Tool.define(
             tool: ctx.callID ? { messageID: ctx.messageID, callID: ctx.callID } : undefined,
           })
 
-          if (answers[0]?.[0] === "No") yield* new Question.RejectedError()
+          // 只有显式回答 "Yes" 才允许切换到 build agent
+          // 取消/关闭对话框/无答案时默认拒绝（留在 plan agent）
+          if (answers[0]?.[0] !== "Yes") yield* new Question.RejectedError()
 
           const messages = yield* session.messages({ sessionID: ctx.sessionID }).pipe(Effect.orDie)
           const lastUser = messages.findLast((item) => item.info.role === "user" && item.info.model)

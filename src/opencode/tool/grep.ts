@@ -77,13 +77,9 @@ export const GrepTool = Tool.define(
             text: item.text,
           }))
 
-          const limit = 100
-          const truncated = rows.length === limit
-          const final = rows
-          if (final.length === 0) return empty
-
+          const truncated = rows.length === 100
           const total = rows.length
-          const hasMore = truncated || result.length === limit
+          const hasMore = truncated
           const output = [`Found ${total} matches${hasMore ? " (more matches available)" : ""}`]
 
           let current = ""

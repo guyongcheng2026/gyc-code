@@ -5,9 +5,37 @@ import * as Tool from "./tool"
 import TurndownService from "turndown"
 import DESCRIPTION from "./webfetch.txt"
 import { isImageAttachment } from "@/util/media"
+import { isIPv4 } from "net"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
+
+// 检查主机名是否为私网/回环/链路本地地址（SSRF 防护）
+function isPrivateHost(hostname: string): boolean {
+  // 回环地址
+  if (hostname === "localhost" || hostname === "::1" || hostname === "0.0.0.0") return true
+  // IPv4 私网/回环/链路本地
+  if (isIPv4(hostname)) {
+    const parts = hostname.split(".").map(Number)
+    if (parts[0] === 127) return true // 回环 127.0.0.0/8
+    if (parts[0] === 10) return true // 私网 10.0.0.0/8
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true // 私网 172.16.0.0/12
+    if (parts[0] === 192 && parts[1] === 168) return true // 私网 192.168.0.0/16
+    if (parts[0] === 169 && parts[1] === 254) return true // 链路本地 169.254.0.0/16
+    if (parts[0] === 0) return true // 当前网络 0.0.0.0
+  }
+  // IPv6 私网/链路本地
+  if (hostname.includes(":")) {
+    const h = hostname.toLowerCase()
+    if (h.startsWith("fc") || h.startsWith("fd")) return true // 私网 fc00::/7
+    if (h.startsWith("fe80")) return true // 链路本地 fe80::/10
+    if (h === "::ffff:127.0.0.1" || h === "::ffff:10.") return true
+  }
+  // 云元数据端点常见主机名
+  const blocklist = ["169.254.169.254", "metadata.google.internal", "instance-data/latest"]
+  if (blocklist.includes(hostname)) return true
+  return false
+}
 const MAX_TIMEOUT = 120 * 1000 // 2 minutes
 
 export const Parameters = Schema.Struct({
@@ -34,6 +62,12 @@ export const WebFetchTool = Tool.define(
         Effect.gen(function* () {
           if (!params.url.startsWith("http://") && !params.url.startsWith("https://")) {
             throw new Error("URL must start with http:// or https://")
+          }
+
+          // SSRF 防护：拒绝私网/回环/链路本地地址
+          const parsedUrl = new URL(params.url)
+          if (isPrivateHost(parsedUrl.hostname)) {
+            throw new Error(`URL points to a private/loopback address: ${parsedUrl.hostname}`)
           }
 
           yield* ctx.ask({

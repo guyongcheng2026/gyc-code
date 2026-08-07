@@ -75,6 +75,13 @@ export const ApplyPatchTool = Tool.define(
 
         switch (hunk.type) {
           case "add": {
+            // 检查文件是否已存在（add 语义应为新建）
+            const existing = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            if (existing && existing.type === "File") {
+              return yield* Effect.fail(
+                new Error(`apply_patch: file already exists for 'add': ${filePath}. Use 'update' instead.`),
+              )
+            }
             const oldContent = ""
             const newContent =
               hunk.contents.length === 0 || hunk.contents.endsWith("\n") ? hunk.contents : `${hunk.contents}\n`

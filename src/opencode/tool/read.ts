@@ -120,19 +120,23 @@ export const ReadTool = Tool.define<
     })
 
     const readSample = Effect.fn("ReadTool.readSample")(function* (
-      filepath: string,
-      fileSize: number,
-      sampleSize: number,
-    ) {
-      if (fileSize === 0) return new Uint8Array()
+          filepath: string,
+          fileSize: number,
+          ctx: Tool.Context<Metadata>,
+        ) {
+          if (fileSize === 0) return new Uint8Array()
 
-      return yield* Effect.scoped(
-        Effect.gen(function* () {
-          const file = yield* fs.open(filepath, { flag: "r" })
-          return Option.getOrElse(yield* file.readAlloc(Math.min(sampleSize, fileSize)), () => new Uint8Array())
-        }),
-      )
-    })
+          // Sample size: respect tool_output.max_bytes if set, else fall back to constant
+          const maxSample = ctx.config?.tool_output?.max_bytes ?? MAX_BYTES
+          const sampleSize = Math.min(fileSize, maxSample)
+
+          return yield* Effect.scoped(
+            Effect.gen(function* () {
+              const file = yield* fs.open(filepath, { flag: "r" })
+              return Option.getOrElse(yield* file.readAlloc(sampleSize), () => new Uint8Array())
+            }),
+          )
+        })
 
     const lines = Effect.fn("ReadTool.lines")(function* (filepath: string, opts: { limit: number; offset: number }) {
       const start = opts.offset - 1
@@ -298,12 +302,18 @@ export const ReadTool = Tool.define<
       }
 
       const loaded = yield* instruction.resolve(ctx.messages, filepath, ctx.messageID)
-      const sample = yield* readSample(filepath, Number(stat.size), SAMPLE_BYTES)
+      const sample = yield* readSample(filepath, Number(stat.size), ctx)
 
       const mime = sniffAttachmentMime(sample, FSUtil.mimeType(filepath))
       const isImage = SUPPORTED_IMAGE_MIMES.has(mime)
 
       if (isImage || isPdfAttachment(mime)) {
+        const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
+        if (Number(stat.size) > MAX_ATTACHMENT_SIZE) {
+          return yield* Effect.fail(
+            new Error(`File too large for inline reading: ${filepath} (${Math.round(Number(stat.size) / 1024 / 1024)}MB). Use a different approach.`),
+          )
+        }
         const bytes = yield* fs.readFile(filepath)
         const msg = isPdfAttachment(mime) ? "PDF read successfully" : "Image read successfully"
         return {

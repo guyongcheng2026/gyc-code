@@ -185,7 +185,8 @@ const layer = Layer.effect(
 
       const failToolCall = Effect.fn("SessionProcessor.failToolCall")(function* (toolCallID: string, error: unknown) {
         const match = yield* readToolCall(toolCallID)
-        if (!match || match.part.state.status !== "running") return false
+        // P1-3: Also settle pending tools (not just running) to avoid cleanup timeout delay
+        if (!match || (match.part.state.status !== "running" && match.part.state.status !== "pending")) return false
         yield* session.updatePart({
           ...match.part,
           state: {
@@ -194,7 +195,7 @@ const layer = Layer.effect(
             error: errorMessage(error),
             // Keep metadata streamed while running so failures retain progress detail (e.g. execute's child calls).
             metadata: match.part.state.metadata,
-            time: { start: match.part.state.time.start, end: Date.now() },
+            time: { start: "time" in match.part.state ? match.part.state.time.start : Date.now(), end: Date.now() },
           },
         })
         if (error instanceof PermissionV1.RejectedError || error instanceof Question.RejectedError) {
@@ -332,7 +333,11 @@ const layer = Layer.effect(
             if (ctx.assistantMessage.summary) {
               throw new Error(`Tool call not allowed while generating summary: ${value.name}`)
             }
-            yield* ensureToolCall(value)
+            const existing = yield* ensureToolCall(value)
+            // P1-2: Skip re-execution if tool was already completed/errored (e.g. on retry replay)
+            if (existing && (existing.part.state.status === "completed" || existing.part.state.status === "error")) {
+              return
+            }
             const input = isRecord(value.input) ? value.input : { value: value.input }
             yield* updateToolCall(value.id, (match) => ({
               ...match,
@@ -383,6 +388,8 @@ const layer = Layer.effect(
           case "tool-result": {
             const toolCall = yield* readToolCall(value.id)
             if (!toolCall && value.result.type === "error") return
+            // P1-4: Early return for non-existent tool calls to avoid wasted image normalization
+            if (!toolCall) return
             if (value.result.type === "error") {
               yield* failToolCall(value.id, value.result.value)
               return
@@ -422,6 +429,13 @@ const layer = Layer.effect(
             throw new Error(value.message)
 
           case "step-start":
+            // P1-5: Flush orphaned currentText before creating new step-start part
+            if (ctx.currentText) {
+              const textEnd = Date.now()
+              ctx.currentText.time = { start: ctx.currentText.time?.start ?? textEnd, end: textEnd }
+              yield* session.updatePart(ctx.currentText)
+              ctx.currentText = undefined
+            }
             if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()
             yield* session.updatePart({
               id: PartID.ascending(),
@@ -442,7 +456,7 @@ const layer = Layer.effect(
             })
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost
-            ctx.assistantMessage.tokens = usage.tokens
+            ctx.assistantMessage.tokens = (ctx.assistantMessage.tokens ?? 0) + usage.tokens
             yield* session.updatePart({
               id: PartID.ascending(),
               reason: value.reason,
@@ -614,6 +628,7 @@ const layer = Layer.effect(
           }
           ctx.needsCompaction = true
           yield* events.publish(Session.Event.Error, { sessionID: ctx.sessionID, error })
+          yield* status.set(ctx.sessionID, { type: "idle" })
           return
         }
         ctx.assistantMessage.error = error

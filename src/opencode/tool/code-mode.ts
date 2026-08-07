@@ -216,10 +216,11 @@ export const CodeModeTool = Tool.define(
         const publish = () =>
           ctx.metadata({ title: CODE_MODE_TOOL, metadata: { toolCalls: calls.map((c) => ({ ...c })) } })
 
-        let childCalls = 0
+        // 用 Effect.Ref 替代裸 let，防止并发竞态
+        const childCallsRef = yield* Effect.Ref.make(0)
         const callTool = (entry: CatalogEntry) => (input: unknown) =>
           Effect.gen(function* () {
-            childCalls += 1
+            const childCalls = yield* Effect.Ref.updateAndGet(childCallsRef, (n) => n + 1)
             const result = yield* invokeChildTool({
               plugin,
               entry,

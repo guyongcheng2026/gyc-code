@@ -92,6 +92,11 @@ export function toRequestError(error: Error) {
   }
 }
 
-export function fromUnknownDefect(_defect: unknown, safeMessage = "Internal service failure") {
-  return new ServiceFailureError({ safeMessage })
+export function fromUnknownDefect(defect: unknown, safeMessage = "Internal service failure") {
+  // Log the original defect so it's not silently swallowed
+  console.error("[ACP] fromUnknownDefect:", defect)
+  return new ServiceFailureError({
+    safeMessage,
+    ...(defect instanceof Error ? { errorName: defect.name } : {}),
+  })
 }

@@ -1,4 +1,5 @@
 import path from "path"
+import { realpath } from "fs/promises"
 import { Effect } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import type * as Tool from "./tool"
@@ -22,8 +23,14 @@ export const assertExternalDirectoryEffect = Effect.fn("Tool.assertExternalDirec
   if (options?.bypass) return false
 
   const ins = yield* InstanceState.context
-  const full = process.platform === "win32" ? FSUtil.normalizePath(target) : target
-  if (containsPath(full, ins)) return false
+  // Resolve symlinks to their real target before checking containment.
+  // A symlink whose link path is inside the worktree but whose target
+  // points outside would bypass the containsPath check without realpath.
+  const resolved = yield* Effect.tryPromise({
+    try: () => realpath(full),
+    catch: () => full, // If realpath fails (broken symlink, etc.), use the original
+  }).pipe(Effect.catchAll(() => Effect.succeed(full)))
+  if (containsPath(resolved, ins)) return false
 
   const kind = options?.kind ?? "file"
   const dir = kind === "directory" ? full : path.dirname(full)
