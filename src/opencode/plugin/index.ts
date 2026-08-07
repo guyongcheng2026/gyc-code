@@ -170,7 +170,10 @@ const layer = Layer.effect(
             try: () => plugin(input),
             catch: errorMessage,
           }).pipe(
-            Effect.tapError((error) => Effect.logError("failed to load internal plugin", { name: plugin.name, error })),
+            Effect.tapError((error) => {
+              publishPluginError(`Failed to load internal plugin ${plugin.name}: ${error}`)
+              return Effect.logError("failed to load internal plugin", { name: plugin.name, error })
+            }),
             Effect.option,
           )
           if (init._tag === "Some") hooks.push(init.value)
@@ -225,17 +228,9 @@ const layer = Layer.effect(
               const message = errorMessage(err)
               return message
             },
-          }).pipe(
+          ).pipe(
             Effect.tapError((error) => Effect.logError("failed to load plugin", { path: load.spec, error })),
-            Effect.catch(() => {
-              // TODO: make proper events for this
-              // events.publish(Session.Event.Error, {
-              //   error: new NamedError.Unknown({
-              //     message: `Failed to load plugin ${load.spec}: ${message}`,
-              //   }).toObject(),
-              // })
-              return Effect.void
-            }),
+            Effect.catch(() => (publishPluginError(`Failed to load plugin ${load.spec}: plugin crashed`), Effect.void)),
           )
         }
 
@@ -289,7 +284,14 @@ const layer = Layer.effect(
       for (const hook of s.hooks) {
         const fn = hook[name] as any
         if (!fn) continue
-        yield* Effect.promise(async () => fn(input, output))
+        // Isolate each hook: a throwing plugin must not break the rest of the chain or the caller.
+        yield* Effect.tryPromise({
+          try: () => Promise.resolve(fn(input, output)),
+          catch: errorMessage,
+        }).pipe(
+          Effect.tapError((error) => Effect.logWarning("plugin hook failed", { hook: name, error })),
+          Effect.ignore,
+        )
       }
       return output
     })

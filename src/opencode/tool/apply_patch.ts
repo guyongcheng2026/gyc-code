@@ -140,6 +140,11 @@ export const ApplyPatchTool = Tool.define(
             }
 
             const movePath = hunk.move_path ? path.resolve(instance.directory, hunk.move_path) : undefined
+            // Guard against a malformed patch that resolves to the same destination as the source
+            // (e.g. move_path === path). Writing then removing the same path would silently delete the file.
+            if (movePath && movePath === filePath) {
+              return yield* Effect.fail(new Error(`apply_patch verification failed: move path must differ from source path: ${filePath}`))
+            }
             yield* assertExternalDirectoryEffect(ctx, movePath)
 
             fileChanges.push({
