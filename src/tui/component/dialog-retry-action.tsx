@@ -100,7 +100,7 @@ export function DialogRetryAction(props: DialogRetryActionProps) {
         {props.link ? (
           showGoTreatment() ? (
             <box alignItems="center" justifyContent="flex-end" height={7} paddingBottom={1}>
-              <Link href={props.link} fg={theme.primary} bg={textBg()} wrapMode="none" />
+              <Link href={props.link} fg={theme.primary} bg={textBg()} wrapMode="none">Go to the official website</Link>
             </box>
           ) : (
             <box width="100%" flexDirection="row" justifyContent="center" paddingBottom={1}>

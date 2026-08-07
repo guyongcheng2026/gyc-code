@@ -111,6 +111,7 @@ const live: Layer.Layer<
         plugin,
         flags,
         isWorkflow,
+        language: cfg.language,
       })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls
@@ -315,6 +316,7 @@ const live: Layer.Layer<
           maxOutputTokens: prepared.params.maxOutputTokens,
           abortSignal: input.abort,
           headers: prepared.headers,
+          allowSystemInMessages: true,
           maxRetries: input.retries ?? 0,
           messages: prepared.messages,
           model: wrapLanguageModel({

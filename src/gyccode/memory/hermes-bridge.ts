@@ -3,9 +3,10 @@
 
 import { readFile, writeFile } from "fs/promises"
 import path from "path"
+import { homedir } from "os"
 
 const HERMES_MEMORY_PATH = path.join(
-  process.env.HERMES_HOME || "~/.codex",
+  process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
   "hermes_gyccode_memory.md",
 )

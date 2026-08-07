@@ -124,7 +124,6 @@ const appBindingCommands = [
   "theme.switch_mode",
   "theme.mode.lock",
   "help.show",
-  "docs.open",
   "diff.open",
   "workspace.list",
   "app.debug",
@@ -454,24 +453,24 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     if (!terminalTitleEnabled() || Flag.GYCCODE_DISABLE_TERMINAL_TITLE) return
 
     if (route.data.type === "home") {
-      renderer.setTerminalTitle("gyc")
+      renderer.setTerminalTitle("GycCode")
       return
     }
 
     if (route.data.type === "session") {
       const session = sync.session.get(route.data.sessionID)
       if (!session || isDefaultTitle(session.title)) {
-        renderer.setTerminalTitle("gyc")
+        renderer.setTerminalTitle("GycCode")
         return
       }
 
       const title = session.title.length > 40 ? session.title.slice(0, 37) + "..." : session.title
-      renderer.setTerminalTitle(`gyc | ${title}`)
+      renderer.setTerminalTitle(`GycCode | ${title}`)
       return
     }
 
     if (route.data.type === "plugin") {
-      renderer.setTerminalTitle(`gyc | ${route.data.id}`)
+      renderer.setTerminalTitle(`GycCode | ${route.data.id}`)
     }
   })
 
@@ -812,15 +811,6 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         slashName: "help",
         run: () => {
           dialog.replace(() => <DialogHelp />)
-        },
-        category: "System",
-      },
-      {
-        name: "docs.open",
-        title: "Open docs",
-        run: () => {
-          open("https://opencode.ai/docs").catch(() => {})
-          dialog.clear()
         },
         category: "System",
       },

@@ -35,3 +35,7 @@ logs/
 # Backup
 *-backup/
 gyc-cli-src-backup/
+
+# Local runtime state
+.hermes/
+.workbuddy/

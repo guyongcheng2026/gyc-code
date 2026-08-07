@@ -2,7 +2,7 @@ import { build } from "bun"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
 await build({
-  entrypoints: ["./src/gyccode/index.ts"],
+  entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
   outdir: "./dist",
   target: "bun",
   format: "esm",

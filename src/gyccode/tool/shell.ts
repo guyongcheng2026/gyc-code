@@ -310,21 +310,15 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
 }
 const parser = lazy(async () => {
   const { Parser } = await import("web-tree-sitter")
-  const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string, {
-    with: { type: "wasm" },
-  })
+  const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string)
   const treePath = resolveWasm(treeWasm)
   await Parser.init({
     locateFile() {
       return treePath
     },
   })
-  const { default: bashWasm } = await import("tree-sitter-bash/tree-sitter-bash.wasm" as string, {
-    with: { type: "wasm" },
-  })
-  const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string, {
-    with: { type: "wasm" },
-  })
+  const { default: bashWasm } = await import("tree-sitter-bash/tree-sitter-bash.wasm" as string)
+  const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string)
   const bashPath = resolveWasm(bashWasm)
   const psPath = resolveWasm(psWasm)
   const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])

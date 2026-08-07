@@ -44,6 +44,8 @@ import { PrCommand } from "./cli/cmd/pr"
 import { SessionCommand } from "./cli/cmd/session"
 import { PluginCommand } from "./cli/cmd/plug"
 import { DbCommand } from "./cli/cmd/db"
+import { ComposeCommand } from "./cli/cmd/compose"
+import { MemoryCommand } from "./cli/cmd/memory"
 import { errorMessage } from "./util/error"
 import { Heap } from "./cli/heap"
 
@@ -118,6 +120,8 @@ const cli = yargs(args)
   .command(SessionCommand)
   .command(PluginCommand)
   .command(DbCommand)
+  .command(ComposeCommand)
+  .command(MemoryCommand)
   .fail((msg, err) => {
     if (
       msg?.startsWith("Unknown argument") ||

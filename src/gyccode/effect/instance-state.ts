@@ -3,6 +3,7 @@ import type { InstanceContext } from "@/project/instance-context"
 import { InstanceRef, WorkspaceRef } from "./instance-ref"
 import { registerDisposer } from "./instance-registry"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
+import { ProjectID } from "@gyccode/schema/project-id"
 
 const TypeId = "~gyccode/InstanceState"
 
@@ -13,8 +14,23 @@ export interface InstanceState<A, E = never, R = never> {
 
 export const context = Effect.gen(function* () {
   const ctx = yield* InstanceRef
-  if (!ctx) return yield* Effect.die(new Error("InstanceRef not provided"))
-  return ctx
+  if (ctx) return ctx
+  // Layer 构建期等无 InstanceRef 的场景，回退到当前目录的最小上下文
+  const directory = yield* Effect.sync(() => process.cwd())
+  return {
+    directory,
+    worktree: directory,
+    project: {
+      id: ProjectID.global,
+      worktree: directory,
+      vcs: undefined,
+      name: undefined,
+      icon: undefined,
+      commands: undefined,
+      time: { created: Date.now(), updated: Date.now() },
+      sandboxes: [],
+    },
+  }
 })
 
 export const workspaceID = Effect.gen(function* () {

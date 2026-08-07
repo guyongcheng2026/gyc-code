@@ -69,6 +69,7 @@ export const WebFetchTool = Tool.define(
           const parsedUrl = new URL(params.url)
           if (isPrivateHost(parsedUrl.hostname)) {
             throw new Error(`URL points to a private/loopback address: ${parsedUrl.hostname}`)
+          }
 
           // DNS 解析后二次校验，防 DNS rebinding（域名首次解析为公网、实际连接时解析到内网）
           const resolved = yield* Effect.tryPromise(() => lookup(parsedUrl.hostname, { all: true })).pipe(
@@ -76,7 +77,6 @@ export const WebFetchTool = Tool.define(
           )
           if (resolved.length > 0 && resolved.some((entry) => isPrivateHost(entry.address))) {
             throw new Error("URL resolves to a private/loopback address: " + parsedUrl.hostname)
-          }
           }
 
           yield* ctx.ask({
