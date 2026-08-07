@@ -9,6 +9,7 @@
   },
   "main": "./src/opencode/index.ts",
   "scripts": {
+    "postinstall": "node scripts/apply-opentui-patch.cjs",
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/opencode/index.ts",
     "build": "bun build.mjs",
     "start": "node dist/gyc.mjs"
