@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Accordion } from "./accordion"
 import { ParentProps } from "solid-js"
 

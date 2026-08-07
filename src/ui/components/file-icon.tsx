@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { Component, JSX } from "solid-js"
 import { createMemo, createUniqueId, splitProps, Show } from "solid-js"
 import sprite from "./file-icons/sprite.svg"

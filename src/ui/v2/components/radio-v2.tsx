@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { RadioGroup as Kobalte } from "@kobalte/core/radio-group"
 import { Show, splitProps, type JSX } from "solid-js"
 import type { ComponentProps, ParentProps } from "solid-js"

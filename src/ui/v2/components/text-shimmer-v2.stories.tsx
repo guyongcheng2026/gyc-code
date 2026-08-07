@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { TextShimmerV2 } from "./text-shimmer-v2"
 
 const docs = `### Overview

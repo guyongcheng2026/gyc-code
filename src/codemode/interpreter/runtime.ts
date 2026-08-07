@@ -1,6 +1,6 @@
 import { parse } from "acorn"
 import { Cause, Effect, Exit, Fiber, Semaphore } from "effect"
-import { DiagnosticCategory, ModuleKind, ScriptTarget, flattenDiagnosticMessageText, transpileModule } from "typescript"
+import { transformSync } from "esbuild"
 import {
   copyIn,
   copyOut,
@@ -113,26 +113,25 @@ import {
 } from "../values.js"
 
 const parseProgram = (code: string): ProgramNode => {
-  const transpiled = transpileModule(`async function __codemode__() {\n${code}\n}`, {
-    reportDiagnostics: true,
-    compilerOptions: {
-      target: ScriptTarget.ESNext,
-      module: ModuleKind.ESNext,
-    },
-  })
-  const diagnostic = transpiled.diagnostics?.find((item) => item.category === DiagnosticCategory.Error)
-
-  if (diagnostic) {
+  let outputText: string
+  try {
+    outputText = transformSync(`async function __codemode__() {\n${code}\n}`, {
+      loader: "ts",
+      target: "esnext",
+    }).code
+  } catch (error) {
     throw new InterpreterRuntimeError(
-      `Failed to parse TypeScript: ${flattenDiagnosticMessageText(diagnostic.messageText, "\n")}`,
+      `Failed to parse TypeScript: ${
+        error instanceof Error ? error.message.replace(/^<stdin>:\d+:\d+:\s*/, "") : String(error)
+      }`,
       undefined,
       "ParseError",
     )
   }
 
-  const bodyStart = transpiled.outputText.indexOf("{") + 1
-  const bodyEnd = transpiled.outputText.lastIndexOf("}")
-  const executableCode = transpiled.outputText.slice(bodyStart, bodyEnd)
+  const bodyStart = outputText.indexOf("{") + 1
+  const bodyEnd = outputText.lastIndexOf("}")
+  const executableCode = outputText.slice(bodyStart, bodyEnd)
   const parsed = parse(executableCode, {
     ecmaVersion: "latest",
     sourceType: "script",

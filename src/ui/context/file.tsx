@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { ValidComponent } from "solid-js"
 import { createSimpleContext } from "./helper"
 

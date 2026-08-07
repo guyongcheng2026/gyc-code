@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Toaster, toast, type ToasterProps } from "solid-sonner"
 import { isRTL } from "@kobalte/core/i18n"
 import type { ComponentProps, JSX } from "solid-js"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Tabs as Kobalte } from "@kobalte/core/tabs"
 import { Show, splitProps, type JSX } from "solid-js"
 import type { ComponentProps, ParentProps, Component } from "solid-js"

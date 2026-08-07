@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/tui",
+  "name": "@gyccode/tui",
   "exports": {
     ".": "./index.tsx",
     "./builtins": "./feature-plugins/builtins.ts",

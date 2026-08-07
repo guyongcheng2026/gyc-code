@@ -1,18 +1,37 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/opencode/*"],
-      "@test/*": ["./src/opencode/test/*"]
+      "@/*": [
+        "./src/gyccode/*"
+      ],
+      "@test/*": [
+        "./src/gyccode/test/*"
+      ]
     },
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["bun-types"],
+    "types": [
+      "@types/bun",
+      "vite/client"
+    ],
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
-    "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "customConditions": ["browser"]
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "customConditions": [
+      "browser"
+    ],
+    "skipLibCheck": true
   },
-  "include": ["./src/**/*.ts", "./src/**/*.tsx"]
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx"
+  ],
+  "exclude": [
+    "./src/plugin"
+  ]
 }

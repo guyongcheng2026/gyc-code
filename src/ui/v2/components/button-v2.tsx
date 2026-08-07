@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Button as Kobalte } from "@kobalte/core/button"
 import { type ComponentProps, Show, createMemo, splitProps } from "solid-js"
 import { Icon, type IconProps } from "./icon"

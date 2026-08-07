@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./diff-changes"
 import { create } from "../storybook/scaffold"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { DiffChanges } from "./diff-changes-v2"
 
 const docs = `### Overview  

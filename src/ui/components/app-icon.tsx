@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { Component, ComponentProps } from "solid-js"
 import { createSignal, onCleanup, onMount, splitProps } from "solid-js"
 import type { IconName } from "./app-icons/types"

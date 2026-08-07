@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import katex from "katex"
 import { Marked, type MarkedExtension, type Tokens } from "marked"
 import markedShiki from "marked-shiki"

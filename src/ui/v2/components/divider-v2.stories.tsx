@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { DividerV2 } from "./divider-v2"
 
 const docs = `### Overview

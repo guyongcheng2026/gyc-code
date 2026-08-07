@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { createSignal, onMount } from "solid-js"
 import { createResizeObserver } from "@solid-primitives/resize-observer"

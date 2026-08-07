@@ -1,9 +1,10 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { createSignal } from "solid-js"
 import { LineCommentEditorV2, LineCommentV2, LineCommentV2OverflowIcon } from "./line-comment-v2"
 
 const docs = `### Overview
-Line comment **display** and **editor** cards aligned with OpenCode line-comment specs (raised \`#FAFAFA\` surface, footer line context, \`ButtonV2\` neutral + contrast actions).
+Line comment **display** and **editor** cards aligned with GycCode line-comment specs (raised \`#FAFAFA\` surface, footer line context, \`ButtonV2\` neutral + contrast actions).
 
 ### Display
 - \`LineCommentV2\`: column stack (body + meta) beside optional \`actions\` (overflow).

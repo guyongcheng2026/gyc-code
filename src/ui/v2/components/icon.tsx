@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { onMount, type ComponentProps, splitProps } from "solid-js"
 
 const icons = {
@@ -151,8 +152,8 @@ const icons = {
   },
 }
 
-const spriteID = "opencode-v2-icon-sprite"
-const symbol = (name: keyof typeof icons) => `opencode-v2-icon-${name}`
+const spriteID = "gyccode-v2-icon-sprite"
+const symbol = (name: keyof typeof icons) => `gyccode-v2-icon-${name}`
 let spriteInserted = false
 
 function ensureSprite() {

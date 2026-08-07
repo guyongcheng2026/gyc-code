@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { ComponentProps, ParentProps } from "solid-js"
 
 export interface KeybindProps extends ParentProps {

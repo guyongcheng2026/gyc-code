@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createEffect, on, onCleanup, onMount } from "solid-js"
 import { createStore } from "solid-js/store"
 

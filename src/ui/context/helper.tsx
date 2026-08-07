@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createContext, createMemo, Show, useContext, type ParentProps, type Accessor } from "solid-js"
 
 export function createSimpleContext<T, Props extends Record<string, any>>(

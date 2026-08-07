@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Dialog as Kobalte } from "@kobalte/core/dialog"
 import { type ComponentProps, type JSXElement, type ParentProps, Show, children, splitProps } from "solid-js"
 import { useI18n } from "../../context/i18n"

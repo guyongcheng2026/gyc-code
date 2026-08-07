@@ -1,8 +1,9 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./logo"
 
 const docs = `### Overview
-OpenCode logo assets: mark, splash, and wordmark.
+GycCode logo assets: mark, splash, and wordmark.
 
 Use Mark for compact spaces, Logo for headers, Splash for hero sections.
 

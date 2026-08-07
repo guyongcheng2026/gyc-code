@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Dialog as Kobalte } from "@kobalte/core/dialog"
 import { useI18n } from "../context/i18n"
 import { IconButton } from "./icon-button"

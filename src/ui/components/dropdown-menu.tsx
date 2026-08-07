@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { DropdownMenu as Kobalte } from "@kobalte/core/dropdown-menu"
 import { splitProps } from "solid-js"
 import type { ComponentProps, ParentProps } from "solid-js"

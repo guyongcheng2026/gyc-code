@@ -1,0 +1,7 @@
+{
+  "name": "@gyccode/effect-drizzle-sqlite",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "type": "module"
+}

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createMemo, For, Match, Show, Switch } from "solid-js"
 
 export function DiffChanges(props: {

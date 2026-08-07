@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, createMemo, splitProps } from "solid-js"
 import "./progress-circle-v2.css"
 

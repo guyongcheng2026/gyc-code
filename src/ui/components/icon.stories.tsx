@@ -1,9 +1,10 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./icon"
 import { create } from "../storybook/scaffold"
 
 const docs = `### Overview
-Inline icon renderer using the built-in OpenCode icon set.
+Inline icon renderer using the built-in GycCode icon set.
 
 Use with \`Button\`, \`IconButton\`, and menu items.
 

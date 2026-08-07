@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { Switch } from "./switch-v2"
 

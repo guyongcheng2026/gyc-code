@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./toast"
 import { Button } from "./button"

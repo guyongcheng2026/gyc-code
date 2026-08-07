@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { Icon } from "./icon"
 import * as mod from "./checkbox"

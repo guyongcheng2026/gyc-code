@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, splitProps } from "solid-js"
 import "./textarea-v2.css"
 

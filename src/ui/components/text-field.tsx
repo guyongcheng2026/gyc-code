@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { TextField as Kobalte } from "@kobalte/core/text-field"
 import { createSignal, Show, splitProps } from "solid-js"
 import type { ComponentProps } from "solid-js"

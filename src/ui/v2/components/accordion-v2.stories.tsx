@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { AccordionV2 } from "./accordion-v2"
 

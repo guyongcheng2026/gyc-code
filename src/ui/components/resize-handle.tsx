@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { splitProps, type JSX } from "solid-js"
 
 export interface ResizeHandleProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "onResize"> {

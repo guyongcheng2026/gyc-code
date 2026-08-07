@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { splitProps, type ComponentProps } from "solid-js"
 
 export function TabStateIndicator(props: ComponentProps<"svg">) {

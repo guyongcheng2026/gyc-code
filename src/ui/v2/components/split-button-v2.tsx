@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { splitProps, type ComponentProps, type ParentProps } from "solid-js"
 import "./split-button-v2.css"
 

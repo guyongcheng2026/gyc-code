@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/codemode",
+  "name": "@gyccode/codemode",
   "exports": {
     ".": "./index.ts"
   },

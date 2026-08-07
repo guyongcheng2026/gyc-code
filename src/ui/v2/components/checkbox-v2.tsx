@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Checkbox as Kobalte } from "@kobalte/core/checkbox"
 import { Show, splitProps, type JSX } from "solid-js"
 import type { ComponentProps } from "solid-js"

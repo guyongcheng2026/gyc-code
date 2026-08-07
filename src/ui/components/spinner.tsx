@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { ComponentProps, For } from "solid-js"
 
 const outerIndices = new Set([1, 2, 4, 7, 8, 11, 13, 14])

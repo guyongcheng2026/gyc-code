@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, type JSX, Show, splitProps } from "solid-js"
 import { Icon } from "./icon"
 import { useI18n } from "../../context/i18n"

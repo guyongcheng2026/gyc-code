@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/ui",
+  "name": "@gyccode/ui",
   "exports": {
     "./package.json": "./package.json",
     "./*": "./components/*.tsx",

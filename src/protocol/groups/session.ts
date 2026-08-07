@@ -1,10 +1,10 @@
-import { SessionMessage } from "@opencode-ai/schema/session-message"
-import { SessionInput } from "@opencode-ai/schema/session-input"
-import { PromptInput } from "@opencode-ai/schema/prompt-input"
-import { Session } from "@opencode-ai/schema/session"
-import { Project } from "@opencode-ai/schema/project"
-import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath, statics } from "@opencode-ai/schema/schema"
-import { Workspace } from "@opencode-ai/schema/workspace"
+import { SessionMessage } from "@gyccode/schema/session-message"
+import { SessionInput } from "@gyccode/schema/session-input"
+import { PromptInput } from "@gyccode/schema/prompt-input"
+import { Session } from "@gyccode/schema/session"
+import { Project } from "@gyccode/schema/project"
+import { AbsolutePath, NonNegativeInt, PositiveInt, RelativePath, statics } from "@gyccode/schema/schema"
+import { Workspace } from "@gyccode/schema/workspace"
 import { Context, Effect, Encoding, Result, Schema, Struct } from "effect"
 import { HttpApiEndpoint, HttpApiGroup, HttpApiMiddleware, HttpApiSchema, OpenApi } from "effect/unstable/httpapi"
 import {
@@ -16,11 +16,11 @@ import {
   SessionNotFoundError,
   UnknownError,
 } from "../errors"
-import { Agent } from "@opencode-ai/schema/agent"
-import { Model } from "@opencode-ai/schema/model"
-import { Location } from "@opencode-ai/schema/location"
-import { Revert } from "@opencode-ai/schema/revert"
-import { SessionEvent } from "@opencode-ai/schema/session-event"
+import { Agent } from "@gyccode/schema/agent"
+import { Model } from "@gyccode/schema/model"
+import { Location } from "@gyccode/schema/location"
+import { Revert } from "@gyccode/schema/revert"
+import { SessionEvent } from "@gyccode/schema/session-event"
 
 const SessionsQueryFields = {
   workspace: Workspace.ID.pipe(Schema.optional),
@@ -150,7 +150,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           identifier: "v2.session.active",
           summary: "List active sessions",
           description:
-            "Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.",
+            "Retrieve foreground Session drains currently owned by this GycCode process. Sessions absent from the result are inactive.",
         }),
       ),
     )
@@ -352,7 +352,7 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           OpenApi.annotations({
             identifier: "v2.session.interrupt",
             summary: "Interrupt session execution",
-            description: "Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op.",
+            description: "Interrupt active execution owned by this GycCode process. Idle interruption is a no-op.",
           }),
         ),
     )

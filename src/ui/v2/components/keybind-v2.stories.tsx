@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { KeybindV2 } from "./keybind-v2"
 
 const docs = `### Overview

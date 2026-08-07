@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createEffect, on, onCleanup } from "solid-js"
 import { createStore } from "solid-js/store"
 import { createEventListener } from "@solid-primitives/event-listener"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./progress"
 import { create } from "../storybook/scaffold"

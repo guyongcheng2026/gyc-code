@@ -1,19 +1,20 @@
+/** @jsxImportSource solid-js */
 import { getSharedHighlighter } from "@pierre/diffs"
 import { bundledLanguages, type BundledLanguage } from "shiki"
 import { createSimpleContext } from "./helper"
 import { createMarkdownParser } from "./marked-parser"
-import { registerOpenCodeTheme } from "./marked-theme-register"
+import { registerGycCodeTheme } from "./marked-theme-register"
 
-export { OpenCodeTheme } from "./marked-theme"
+export { GycCodeTheme } from "./marked-theme"
 
-registerOpenCodeTheme()
+registerGycCodeTheme()
 
 export const { use: useMarked, provider: MarkedProvider } = createSimpleContext({
   name: "Marked",
   init: () =>
     createMarkdownParser(async (code, language) => {
       const highlighter = await getSharedHighlighter({
-        themes: ["OpenCode"],
+        themes: ["GycCode"],
         langs: [],
         preferredHighlighter: "shiki-wasm",
       })
@@ -21,7 +22,7 @@ export const { use: useMarked, provider: MarkedProvider } = createSimpleContext(
       if (!highlighter.getLoadedLanguages().includes(name)) await highlighter.loadLanguage(name as BundledLanguage)
       return highlighter.codeToHtml(code, {
         lang: name,
-        theme: "OpenCode",
+        theme: "GycCode",
         tabindex: false,
       })
     }),

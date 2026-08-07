@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import fuzzysort from "fuzzysort"
 import { entries, flatMap, groupBy, map, pipe } from "remeda"
 import { createEffect, createMemo, createResource, on } from "solid-js"

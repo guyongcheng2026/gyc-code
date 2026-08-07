@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createSignal } from "solid-js"
 import { SegmentedControlItemV2, SegmentedControlV2 } from "./segmented-control-v2"
 

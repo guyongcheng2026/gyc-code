@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Switch as Kobalte } from "@kobalte/core/switch"
 import { Show, splitProps } from "solid-js"
 import type { ComponentProps, ParentProps } from "solid-js"

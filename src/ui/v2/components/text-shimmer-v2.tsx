@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createEffect, createMemo, createSignal, onCleanup, type ValidComponent } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import "./text-shimmer-v2.css"

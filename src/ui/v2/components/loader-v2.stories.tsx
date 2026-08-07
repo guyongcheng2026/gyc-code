@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { LoaderV2 } from "./loader-v2"
 
 const docs = `### Overview

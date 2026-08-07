@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import * as mod from "./font"
 
@@ -41,8 +42,8 @@ export const Basic = {
   render: () => (
     <div style={{ display: "grid", gap: "8px" }}>
       <mod.Font />
-      <div style={{ "font-family": "var(--font-family-sans)" }}>OpenCode Sans Sample</div>
-      <div style={{ "font-family": "var(--font-family-mono)" }}>OpenCode Mono Sample</div>
+      <div style={{ "font-family": "var(--font-family-sans)" }}>GycCode Sans Sample</div>
+      <div style={{ "font-family": "var(--font-family-mono)" }}>GycCode Mono Sample</div>
     </div>
   ),
 }

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { For, Show, createSignal, onMount, splitProps, type ComponentProps, type JSX } from "solid-js"
 import { FileIcon } from "../../components/file-icon"
 import { useI18n } from "../../context/i18n"

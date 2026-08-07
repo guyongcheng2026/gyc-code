@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createMemo, Show } from "solid-js"
 import "./diff-changes-v2.css"
 

@@ -1,5 +1,5 @@
 {
-  "name": "@opencode-ai/server",
+  "name": "@gyccode/server",
   "exports": {
     "./*": "./*.ts"
   },

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createUniqueId, type ComponentProps } from "solid-js"
 
 export function WordmarkV2(props: Pick<ComponentProps<"svg">, "class">) {

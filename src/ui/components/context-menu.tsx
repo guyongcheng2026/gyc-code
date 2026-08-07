@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { ContextMenu as Kobalte } from "@kobalte/core/context-menu"
 import { splitProps } from "solid-js"
 import type { ComponentProps, ParentProps } from "solid-js"

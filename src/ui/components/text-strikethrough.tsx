@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { JSX } from "solid-js"
 import { onMount } from "solid-js"
 import { createResizeObserver } from "@solid-primitives/resize-observer"

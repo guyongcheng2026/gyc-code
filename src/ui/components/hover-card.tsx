@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { HoverCard as Kobalte } from "@kobalte/core/hover-card"
 import { ComponentProps, JSXElement, ParentProps, splitProps } from "solid-js"
 

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { ButtonV2 } from "./button-v2"
 
 const docs = `### Overview

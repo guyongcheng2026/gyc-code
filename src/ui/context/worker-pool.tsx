@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { WorkerPoolManager } from "@pierre/diffs/worker"
 import { createSimpleContext } from "./helper"
 

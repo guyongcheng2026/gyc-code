@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, For, splitProps } from "solid-js"
 import "./keybind-v2.css"
 

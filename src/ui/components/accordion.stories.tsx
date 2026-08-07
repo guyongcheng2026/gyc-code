@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { createEffect, createSignal } from "solid-js"
 import * as mod from "./accordion"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { Card, CardActions, CardDescription, CardTitle } from "./card"
 import { Button } from "./button"

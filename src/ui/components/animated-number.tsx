@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { For, Index, createEffect, createMemo, on } from "solid-js"
 import { createStore } from "solid-js/store"
 

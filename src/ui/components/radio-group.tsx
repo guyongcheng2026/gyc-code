@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { SegmentedControl as Kobalte } from "@kobalte/core/segmented-control"
 import { For, splitProps } from "solid-js"
 import type { ComponentProps, JSX } from "solid-js"

@@ -2,7 +2,7 @@ import { RGBA, TextAttributes } from "@opentui/core"
 import { For, type JSX } from "solid-js"
 import { tint, useTheme } from "../context/theme"
 import { logo } from "../logo"
-import { InstallationVersion } from "@opencode-ai/core/installation/version"
+import { InstallationVersion } from "@gyccode/core/installation/version"
 
 export function Logo() {
   const { theme } = useTheme()

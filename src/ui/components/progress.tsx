@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Progress as Kobalte } from "@kobalte/core/progress"
 import { Show, splitProps } from "solid-js"
 import type { ComponentProps, ParentProps } from "solid-js"

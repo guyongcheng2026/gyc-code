@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { createSignal } from "solid-js"
 import { RadioGroupV2, RadioItemV2 } from "./radio-v2"

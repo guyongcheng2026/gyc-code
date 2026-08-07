@@ -1,4 +1,5 @@
-import { type FilteredListProps, useFilteredList } from "@opencode-ai/ui/hooks"
+/** @jsxImportSource solid-js */
+import { type FilteredListProps, useFilteredList } from "@gyccode/ui/hooks"
 import { createEffect, For, type JSX, on, Show } from "solid-js"
 import { createStore } from "solid-js/store"
 import { makeEventListener } from "@solid-primitives/event-listener"

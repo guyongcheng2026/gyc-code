@@ -1,10 +1,10 @@
-import { Location } from "@opencode-ai/core/location"
-import { PermissionV2 } from "@opencode-ai/core/permission"
-import { PermissionSaved } from "@opencode-ai/core/permission/saved"
+import { Location } from "@gyccode/core/location"
+import { PermissionV2 } from "@gyccode/core/permission"
+import { PermissionSaved } from "@gyccode/core/permission/saved"
 import { Effect } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { PermissionNotFoundError, SessionNotFoundError } from "@opencode-ai/protocol/errors"
+import { PermissionNotFoundError, SessionNotFoundError } from "@gyccode/protocol/errors"
 import { response } from "../location"
 
 function missingRequest(id: PermissionV2.ID) {

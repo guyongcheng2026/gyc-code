@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Accordion as Kobalte } from "@kobalte/core/accordion"
 import { Show, splitProps, type Component, type ComponentProps, type ParentProps } from "solid-js"
 import "./accordion-v2.css"

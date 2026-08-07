@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { TooltipV2 } from "./tooltip-v2"
 import { KeybindV2 } from "./keybind-v2"
 

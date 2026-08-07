@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createEffect, onCleanup, Show, type ValidComponent } from "solid-js"
 import { createStore } from "solid-js/store"
 import { Dynamic } from "solid-js/web"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { IconButtonV2 } from "./icon-button-v2"
 
 const docs = `### Overview

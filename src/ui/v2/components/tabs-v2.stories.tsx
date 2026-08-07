@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Show } from "solid-js"
 import * as mod from "./tabs-v2"
 import type { TabsV2Props } from "./tabs-v2"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { attachSpring, motionValue } from "motion"
 import type { SpringOptions } from "motion"
 import { createComputed, createEffect, createSignal, onCleanup } from "solid-js"

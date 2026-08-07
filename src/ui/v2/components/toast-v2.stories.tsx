@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import * as mod from "./toast-v2"
 import { ButtonV2 } from "./button-v2"
 

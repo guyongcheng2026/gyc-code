@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { createContext, useContext, type Accessor, type ParentProps } from "solid-js"
 import { I18nProvider } from "@kobalte/core/i18n"
 import { dict as en } from "../i18n/en"

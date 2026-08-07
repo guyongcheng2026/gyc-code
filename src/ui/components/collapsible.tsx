@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { Collapsible as Kobalte, CollapsibleRootProps } from "@kobalte/core/collapsible"
 import { ComponentProps, ParentProps, splitProps } from "solid-js"
 import { Icon } from "./icon"

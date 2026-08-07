@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, splitProps } from "solid-js"
 import "./divider-v2.css"
 

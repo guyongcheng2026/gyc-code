@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { createSignal } from "solid-js"
 import * as mod from "./hover-card"

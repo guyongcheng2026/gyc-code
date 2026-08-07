@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { For } from "solid-js"
 import { ProjectAvatar, PROJECT_AVATAR_VARIANTS } from "./project-avatar-v2"

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import { type ComponentProps, splitProps, Show } from "solid-js"
 import "./avatar-v2.css"
 

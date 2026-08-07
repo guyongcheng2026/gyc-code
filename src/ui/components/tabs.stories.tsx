@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { IconButton } from "./icon-button"
 import { createSignal } from "solid-js"

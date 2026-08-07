@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 import type { ComponentProps } from "solid-js"
 import { splitProps } from "solid-js"
 

@@ -1,3 +1,4 @@
+/** @jsxImportSource solid-js */
 // @ts-nocheck
 import { iconNames } from "./provider-icons/types"
 import * as mod from "./provider-icon"
