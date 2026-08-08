@@ -43,3 +43,6 @@
 
 - [OK] 2026-08-08 [f263408] feat: add auto memory extraction with dedup and formatting utilities
   - [FILES] 1: src/gyccode/memory/extract.ts
+
+- [OK] 2026-08-08 [95eec07] feat: add auto memory consolidation (dream) with time/session gating
+  - [FILES] 1: src/gyccode/memory/dream.ts
