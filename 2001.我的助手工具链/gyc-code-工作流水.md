@@ -37,3 +37,6 @@
 
 - [OK] 2026-08-08 [2e97cd5] feat: add prompt shard caching with static/semi-static/dynamic tiers
   - [FILES] 2: src/gyccode/session/prompt-shard.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-08 [74d8da8] fix: update Schema API usage for effect v4 beta compatibility
+  - [FILES] 5: src/gyccode/hook/executor.ts, src/gyccode/hook/types.ts, src/gyccode/permission/modes.ts, src/gyccode/tool/shell.ts, src/gyccode/tool/shell/security.ts
