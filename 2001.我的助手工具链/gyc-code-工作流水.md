@@ -46,3 +46,6 @@
 
 - [OK] 2026-08-08 [95eec07] feat: add auto memory consolidation (dream) with time/session gating
   - [FILES] 1: src/gyccode/memory/dream.ts
+
+- [OK] 2026-08-08 [792e940] feat: add autonomous loop with stuck detection and loop/stuck skills
+  - [FILES] 3: src/gyccode/session/proactive.ts, src/gyccode/skill/bundled/loop.md, src/gyccode/skill/bundled/stuck.md
