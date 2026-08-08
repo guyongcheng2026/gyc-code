@@ -103,3 +103,6 @@
 
 - [OK] 2026-08-08 [54c790a] perf: gyc CLI 性能与 24h 稳定性优化——流式 delta 合并节流（30ms）、渲染 60→30fps、BgPulse 12fps+动画关闭、音效默认关闭、轮询降频（1000/200ms）、日志轮转 10MB、冷启动 1.3s 达标
   - [FILES] 9: src/core/observability/logging.ts, src/tui/app.tsx, src/tui/component/bg-pulse.tsx, src/tui/component/prompt/autocomplete.tsx, src/tui/component/spinner.tsx, src/tui/config/index.tsx ...
+
+- [OK] 2026-08-08 [cbf61d1] perf: 会话循环记忆检索缓存（同 query 30s TTL）提速首 token/结果反馈；启动 1.3s、LLM 切换 SDK 缓存、流式节流均已达标
+  - [FILES] 1: src/gyccode/memory/hermes-bridge.ts
