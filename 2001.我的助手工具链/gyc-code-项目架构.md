@@ -1,6 +1,6 @@
 # gyc-code 项目架构
 
-> 更新：2026-08-07
+> 更新：2026-08-08
 > 项目：gyc-code（AI 编码 CLI，品牌 gyc / GYCCODE / GycCode）
 > 本地仓库：`C:\Users\谷勇成\gyc-cli`
 > GitHub：`guyongcheng2026/gyc-code`（经 gh-proxy.com 代理同步）
@@ -73,13 +73,20 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - 全局 `gyc` 是 bun 安装的 shim，指向本地仓库源码目录；**改源码后必须 rebuild 才生效**
 - 构建产物为 ESM 分包；WASM 通过相对路径解析（`resolveWasm` 基于 `import.meta.url`）
 
+## 五·五、目录结构对齐 Claude Code（2026-08-08）
+
+对标 Claude Code v2.1.88 的 src/ 结构，落地 9 个顶层门面文件（re-export 到 gyc 实际实现，不复制 React/Ink 架构）：
+- `src/main.tsx`（入口锚点，实际入口 `src/gyccode/index.ts`）、`src/context.ts`（system）、`src/history.ts`（message-v2）、`src/commands.ts`（command）、`src/Tool.ts`（tool/tool）、`src/Task.ts`（tool/task）、`src/QueryEngine.ts`（session/prompt）、`src/tools.ts`（tool/registry）、`src/setup.ts`（project/bootstrap）
+- 能力映射文档：`src/STRUCTURE.md`（Claude Code 目录 → gyc-code 实际路径，37 行）
+- 技术栈差异：Claude Code 用 React/Ink，gyc 用 SolidJS/OpenTUI + Effect v4，因此采用「门面文件 + 能力映射」而非物理搬移
+
 ## 六、命令清单
 
 `gyc`（TUI）、`gyc run`、`gyc models`、`gyc serve`、`gyc tui`、`gyc account`、`gyc providers`、`gyc compose`、`gyc memory`、`gyc github`、`gyc debug`、`gyc stats`、`gyc session`、`gyc mcp`、`gyc agent` 等
 
 ## 七、已知限制
 
-- opencode zen 免费额度超限：`Free usage exceeded, subscribe to Go`，自动重试 10h
+- opencode zen 免费额度超限：`Free usage exceeded, subscribe to Go`；retry-after 超 5 分钟直接放弃重试报错（不再挂死 13 小时，commit ec47d6b）
 - openrouter 免费模型每日额度用尽（429）
 - NVIDIA 正常（本次全流程验证用 `nvidia/meta/llama-3.1-8b-instruct`）
 - GitHub 直连被墙，需经 `https://gh-proxy.com/` 代理；push 靠 `.githooks/post-commit` 自动执行
