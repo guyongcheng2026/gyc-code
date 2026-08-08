@@ -73,3 +73,6 @@
 
 - [OK] 2026-08-08 [9d5aae8] feat: add natural language token budget parsing (+500k, use 2M tokens)
   - [FILES] 1: src/gyccode/session/token-budget.ts
+
+- [OK] 2026-08-08 [cc48932] feat: add team memory sharing with search and merge utilities
+  - [FILES] 1: src/gyccode/memory/team.ts
