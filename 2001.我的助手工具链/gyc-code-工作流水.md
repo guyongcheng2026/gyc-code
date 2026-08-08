@@ -97,3 +97,6 @@
 
 - [OK] 2026-08-08 [457b11d] feat: 记忆相关性检索接入系统提示（P0-1，hermes-bridge 关键词/标签粗筛 + 4KB 预算注入 + mtime 缓存）
   - [FILES] 3: src/gyccode/memory/hermes-bridge.ts, src/gyccode/session/prompt.ts, src/gyccode/session/system.ts
+
+- [OK] 2026-08-08 [6e1e323] fix: GYCCODE logo 清晰化（GYC 与 CODE 渲染统一）+ provider 更名 OpenCode Zen；修复 92 处 tsc 类型错误（嵌套 Effect/Option<Date>/variadic 等真实 bug）+ UI 测试 preload 配置，tsc 与测试全绿
+  - [FILES] 17: package.json, src/core/plugin/provider/gyccode.ts, src/core/plugin/skill.ts, src/gyccode/cli/cmd/memory.ts, src/gyccode/cli/ui.ts, src/gyccode/hook/executor.ts ...
