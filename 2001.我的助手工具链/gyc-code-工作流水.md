@@ -88,3 +88,6 @@
 
 - [OK] 2026-08-08 [ec47d6b] fix: 修复 429 retry-after 导致 run 挂死 13 小时 + BOM 配置解析失败；目录对齐 Claude Code 结构
   - [FILES] 24: docs/BUG-2026-08-08.md, src/QueryEngine.ts, src/STRUCTURE.md, src/Task.ts, src/Tool.ts, src/commands.ts ...
+
+- [OK] 2026-08-08 [08b5fbf] docs: BUG 清单补充端到端验证结论（auth.set 保存/模型目录/LLM 实际调用均正常）
+  - [FILES] 1: docs/BUG-2026-08-08.md
