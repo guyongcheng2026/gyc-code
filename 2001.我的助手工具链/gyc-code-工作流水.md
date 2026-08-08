@@ -67,3 +67,6 @@
 
 - [OK] 2026-08-08 [c39fc97] feat: add vim keybindings and configurable keybinding system
   - [FILES] 1: src/gyccode/cli/keybindings.ts
+
+- [OK] 2026-08-08 [bf0cb64] feat: add plugin marketplace stubs (search, install, update)
+  - [FILES] 1: src/gyccode/plugin/marketplace.ts
