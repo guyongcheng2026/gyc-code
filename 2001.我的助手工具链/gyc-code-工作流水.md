@@ -58,3 +58,6 @@
 
 - [OK] 2026-08-08 [fa4e9cf] feat: add IDE transport stub and OAuth token lifecycle to MCP
   - [FILES] 2: src/gyccode/mcp/auth.ts, src/gyccode/mcp/transport-ide.ts
+
+- [OK] 2026-08-08 [c927c6d] feat: add 5 built-in skills (debug, verify, review, tdd, brainstorm)
+  - [FILES] 5: src/gyccode/skill/bundled/brainstorm.md, src/gyccode/skill/bundled/debug.md, src/gyccode/skill/bundled/review.md, src/gyccode/skill/bundled/tdd.md, src/gyccode/skill/bundled/verify.md
