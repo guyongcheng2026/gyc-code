@@ -40,3 +40,6 @@
 
 - [OK] 2026-08-08 [74d8da8] fix: update Schema API usage for effect v4 beta compatibility
   - [FILES] 5: src/gyccode/hook/executor.ts, src/gyccode/hook/types.ts, src/gyccode/permission/modes.ts, src/gyccode/tool/shell.ts, src/gyccode/tool/shell/security.ts
+
+- [OK] 2026-08-08 [f263408] feat: add auto memory extraction with dedup and formatting utilities
+  - [FILES] 1: src/gyccode/memory/extract.ts
