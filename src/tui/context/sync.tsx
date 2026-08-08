@@ -153,6 +153,46 @@ export const {
       hydratingSessions.get(sessionID)?.parts.add(partID)
     }
 
+    // Batch streaming text deltas (30ms) so high-frequency token updates collapse
+    // into a single store write. Avoids re-parsing and re-highlighting the whole
+    // markdown block (tree-sitter WASM) on every token for long assistant messages.
+    const DELTA_FLUSH_MS = 30
+    type PendingDelta = {
+      sessionID: string
+      messageID: string
+      partID: string
+      field: string
+      text: string
+    }
+    let pendingDeltas = new Map<string, PendingDelta>()
+    let deltaTimer: ReturnType<typeof setTimeout> | undefined
+
+    const flushDeltas = () => {
+      deltaTimer = undefined
+      if (pendingDeltas.size === 0) return
+      const deltas = pendingDeltas
+      pendingDeltas = new Map()
+      batch(() => {
+        for (const delta of deltas.values()) {
+          touchPart(delta.sessionID, delta.partID)
+          const parts = store.part[delta.messageID]
+          if (!parts) continue
+          const result = search(parts, delta.partID, (p) => p.id)
+          if (!result.found) continue
+          setStore(
+            "part",
+            delta.messageID,
+            produce((draft) => {
+              const part = draft[result.index]
+              const field = delta.field as keyof typeof part
+              const existing = part[field] as string | undefined
+              ;(part[field] as string) = (existing ?? "") + delta.text
+            }),
+          )
+        }
+      })
+    }
+
     function sessionListQuery(): { scope?: "project"; path?: string } {
       if (!kv.get("session_directory_filter_enabled", true)) return { scope: "project" }
       if (!project.data.instance.path.worktree || !project.data.instance.path.directory) return { scope: "project" }
@@ -392,21 +432,18 @@ export const {
         }
 
         case "message.part.delta": {
-          const parts = store.part[event.properties.messageID]
-          if (!parts) break
-          const result = search(parts, event.properties.partID, (p) => p.id)
-          if (!result.found) break
-          touchPart(event.properties.sessionID, event.properties.partID)
-          setStore(
-            "part",
-            event.properties.messageID,
-            produce((draft) => {
-              const part = draft[result.index]
-              const field = event.properties.field as keyof typeof part
-              const existing = part[field] as string | undefined
-              ;(part[field] as string) = (existing ?? "") + event.properties.delta
-            }),
-          )
+          const key = `${event.properties.messageID}:${event.properties.partID}:${event.properties.field}`
+          const existing = pendingDeltas.get(key)
+          if (existing) existing.text += event.properties.delta
+          else
+            pendingDeltas.set(key, {
+              sessionID: event.properties.sessionID,
+              messageID: event.properties.messageID,
+              partID: event.properties.partID,
+              field: event.properties.field,
+              text: event.properties.delta,
+            })
+          if (!deltaTimer) deltaTimer = setTimeout(flushDeltas, DELTA_FLUSH_MS)
           break
         }
 

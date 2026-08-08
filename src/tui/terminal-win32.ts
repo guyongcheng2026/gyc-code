@@ -132,7 +132,7 @@ export function win32InstallCtrlCGuard() {
   // Ensure it's cleared immediately too (covers any earlier mode changes).
   later()
 
-  const interval = setInterval(enforce, 100)
+  const interval = setInterval(enforce, 1000)
   interval.unref()
 
   let done = false

@@ -192,7 +192,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           try: () =>
             createCliRenderer({
               externalOutputMode: "passthrough",
-              targetFps: 60,
+              targetFps: 30,
               gatherStats: false,
               exitOnCtrlC: false,
               useKittyKeyboard: {},
@@ -882,10 +882,10 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "app.toggle.animations",
-        title: kv.get("animations_enabled", true) ? "关闭动画" : "开启动画",
+        title: kv.get("animations_enabled", false) ? "关闭动画" : "开启动画",
         category: "系统",
         run: () => {
-          kv.set("animations_enabled", !kv.get("animations_enabled", true))
+          kv.set("animations_enabled", !kv.get("animations_enabled", false))
           dialog.clear()
         },
       },

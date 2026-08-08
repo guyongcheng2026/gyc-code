@@ -8,6 +8,7 @@ import {
 import { extend, useRenderer } from "@opentui/solid"
 import { onCleanup, onMount } from "solid-js"
 import { tint, useTheme } from "../context/theme"
+import { useKV } from "../context/kv"
 import { GoUpsellArtPainter } from "./bg-pulse-render"
 
 type GoUpsellArtOptions = RenderableOptions<FrameBufferRenderable> & {
@@ -71,20 +72,28 @@ extend({ go_upsell_art: GoUpsellArtRenderable })
 export function BgPulse() {
   const { theme } = useTheme()
   const renderer = useRenderer()
+  const kv = useKV()
   let targetFps = renderer.targetFps
   let maxFps = renderer.maxFps
+  let active = false
 
   onMount(() => {
+    // Respect the global animations toggle; when off, never force a render loop.
+    if (!kv.get("animations_enabled", false)) return
+    active = true
     targetFps = renderer.targetFps
     maxFps = renderer.maxFps
-    renderer.targetFps = 30
-    renderer.maxFps = 30
+    renderer.targetFps = 12
+    renderer.maxFps = 12
   })
 
   onCleanup(() => {
+    if (!active) return
     renderer.targetFps = targetFps
     renderer.maxFps = maxFps
   })
+
+  if (!kv.get("animations_enabled", false)) return null
 
   return (
     <go_upsell_art

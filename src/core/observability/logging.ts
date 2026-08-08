@@ -1,7 +1,16 @@
 import { Formatter, Logger, type LogLevel } from "effect"
 import path from "path"
+import { appendFile, rename, stat } from "fs/promises"
 import { Global } from "../global"
 import { runID } from "./shared"
+
+// Cap the on-disk log so a long-running (24h+) session cannot grow it without
+// bound. The newest log is always "gyccode.log"; when it exceeds the cap it is
+// rotated to "gyccode.log.1" (previous rotated copies are discarded).
+const MAX_LOG_BYTES = 10 * 1024 * 1024
+const ROTATE_CHECK_INTERVAL_MS = 5000
+// Serialize appends so log lines stay ordered (fire-and-forget would interleave).
+let writeQueue: Promise<void> = Promise.resolve()
 
 function formatter(id: string = runID) {
   return Logger.map(Logger.formatStructured, (output) => {
@@ -47,8 +56,28 @@ function format(input: unknown) {
 }
 
 export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id: string = runID) {
-  // Do not set batchWindow to 0; it causes high idle CPU usage.
-  return Logger.toFile(formatter(id), file, { flag: "a" })
+  const fmt = formatter(id)
+  let lastCheck = 0
+  return Logger.make((options) => {
+    const line = fmt.log(options) + "\n"
+    writeQueue = writeQueue.then(async () => {
+      const now = Date.now()
+      if (now - lastCheck > ROTATE_CHECK_INTERVAL_MS) {
+        lastCheck = now
+        try {
+          const info = await stat(file)
+          if (info.size > MAX_LOG_BYTES) {
+            await rename(file, `${file}.1`).catch(() => {})
+          }
+        } catch {
+          // File may not exist yet; nothing to rotate.
+        }
+      }
+      await appendFile(file, line).catch(() => {
+        // Never let a logging failure crash the session.
+      })
+    })
+  })
 }
 
 const stderrLogger = Logger.make((options) => process.stderr.write(formatter().log(options) + "\n"))

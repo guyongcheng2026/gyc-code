@@ -102,7 +102,7 @@ export function resolve(input: Info, options: ResolveOptions): Resolved {
     attention: {
       enabled: input.attention?.enabled ?? false,
       notifications: input.attention?.notifications ?? true,
-      sound: input.attention?.sound ?? true,
+      sound: input.attention?.sound ?? false,
       volume: input.attention?.volume ?? 0.4,
       sound_pack: input.attention?.sound_pack ?? "gyccode.default",
       sounds: input.attention?.sounds ?? {},
