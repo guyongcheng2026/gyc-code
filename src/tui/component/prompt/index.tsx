@@ -1012,7 +1012,7 @@ title: "打开编辑器",
         console.log("Creating a session failed:", res.error)
 
         toast.show({
-          message: "Creating a session failed. Open console for more details.",
+          message: "创建会话失败。打开控制台查看详细信息。",
           variant: "error",
         })
 
@@ -1111,7 +1111,7 @@ title: "打开编辑器",
         )
         .catch((error) => {
           toast.show({
-            title: "Failed to send prompt",
+            title: "发送提示词失败",
             message: errorMessage(error),
             variant: "error",
           })
@@ -1678,7 +1678,7 @@ title: "打开编辑器",
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>
-                    esc <span style={{ fg: theme.textMuted }}>exit shell mode</span>
+                    esc <span style={{ fg: theme.textMuted }}>退出 Shell 模式</span>
                   </text>
                 </Match>
               </Switch>

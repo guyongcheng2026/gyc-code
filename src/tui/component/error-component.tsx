@@ -41,7 +41,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
       }
 
   const message = props.error.message || "An unknown error occurred."
-  const stack = props.error.stack || "No stack trace available."
+  const stack = props.error.stack || "无可用堆栈跟踪。"
   const issueURL = buildIssueURL(message, stack)
 
   const copyReport = () => {
@@ -111,7 +111,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
             gyccode crashed
           </text>
           <Show when={showSubtext()}>
-            <text fg={colors.muted}>An unexpected error stopped the session.</text>
+            <text fg={colors.muted}>发生意外错误，会话已停止。</text>
           </Show>
         </box>
 
@@ -121,7 +121,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           border
           borderStyle="rounded"
           borderColor={colors.error}
-          title=" Error "
+          title="错误 "
           titleColor={colors.error}
           paddingLeft={2}
           paddingRight={2}
@@ -168,7 +168,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           border
           borderStyle="rounded"
           borderColor={colors.borderSubtle}
-          title=" Stack trace "
+          title="堆栈跟踪 "
           titleColor={colors.muted}
           bottomTitle=" ↑↓ scroll "
           bottomTitleAlignment="right"
@@ -189,8 +189,8 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           <box flexDirection="column" alignItems="center" flexShrink={0}>
             <text fg={colors.muted}>
               {copied()
-                ? "Report copied — paste it into a new GitHub issue."
-                : "Copy the report and open a GitHub issue to help us fix this."}
+                ? "报告已复制——粘贴到新的 GitHub issue 中。"
+                : "复制报告并打开 GitHub issue 以帮助我们修复此问题。"}
             </text>
             <text fg={colors.muted}>gyccode {InstallationVersion}</text>
           </box>
@@ -211,7 +211,7 @@ function buildIssueURL(message: string, stack: string) {
   url.searchParams.set("terminal", describeTerminal())
   url.searchParams.set(
     "reproduce",
-    "Reported automatically from the gyccode crash screen. If you can, describe what you were doing when it crashed.",
+    "由 gyccode 崩溃界面自动上报。如果可能，请描述崩溃时你在做什么。",
   )
 
   // Budget the stack against the fully URL-encoded length (not the raw length) so

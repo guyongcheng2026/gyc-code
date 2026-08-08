@@ -259,8 +259,8 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           const value = currentModel()
           if (!value) {
             return {
-              provider: "Connect a provider",
-              model: "No provider selected",
+              provider: "连接服务商",
+              model: "未选择服务商",
               reasoning: false,
             }
           }
@@ -292,7 +292,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (!favorites.length) {
             toast.show({
               variant: "info",
-              message: "Add a favorite model to use this shortcut",
+              message: "添加收藏模型以使用此快捷键",
               duration: 3000,
             })
             return

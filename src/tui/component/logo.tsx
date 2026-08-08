@@ -48,7 +48,7 @@ export function Logo() {
   }
 
   return (
-    <box>
+    <box alignItems="center">
       <For each={logo.left}>
         {(line, index) => (
           <box flexDirection="row" gap={1}>

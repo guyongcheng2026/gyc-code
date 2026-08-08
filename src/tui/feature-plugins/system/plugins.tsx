@@ -67,7 +67,7 @@ function Install(props: { api: TuiPluginApi }) {
         if (!mod) {
           props.api.ui.toast({
             variant: "error",
-            message: "Plugin package name is required",
+            message: "必须提供插件包名",
           })
           return
         }
@@ -84,7 +84,7 @@ function Install(props: { api: TuiPluginApi }) {
               if (out.missing) {
                 props.api.ui.toast({
                   variant: "info",
-                  message: "Check npm registry/auth settings and try again.",
+                  message: "请检查 npm 源/认证设置后重试。",
                 })
               }
               show(props.api)
@@ -98,7 +98,7 @@ function Install(props: { api: TuiPluginApi }) {
             if (!out.tui) {
               props.api.ui.toast({
                 variant: "info",
-                message: "Package has no TUI target to load in this app.",
+                message: "该包没有可在本应用中加载的 TUI 入口。",
               })
               show(props.api)
               return
@@ -108,7 +108,7 @@ function Install(props: { api: TuiPluginApi }) {
               if (!ok) {
                 props.api.ui.toast({
                   variant: "warning",
-                  message: "Installed plugin, but runtime load failed. See console/logs; restart TUI to retry.",
+                  message: "插件已安装，但运行时加载失败。请查看控制台/日志；重启 TUI 重试。",
                 })
                 show(props.api)
                 return

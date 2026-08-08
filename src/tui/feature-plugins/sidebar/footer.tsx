@@ -47,7 +47,7 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
           <box flexGrow={1} gap={1}>
             <box flexDirection="row" justifyContent="space-between">
               <text fg={theme().text}>
-                <b>Getting started</b>
+                <b>开始使用</b>
               </text>
               <text fg={theme().textMuted} onMouseDown={() => props.api.kv.set("dismissed_getting_started", true)}>
                 ✕
@@ -58,7 +58,7 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
               Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
             </text>
             <box flexDirection="row" gap={1} justifyContent="space-between">
-              <text fg={theme().text}>Connect provider</text>
+              <text fg={theme().text}>连接服务商</text>
               <text fg={theme().textMuted}>/connect</text>
             </box>
           </box>

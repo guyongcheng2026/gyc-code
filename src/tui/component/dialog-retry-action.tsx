@@ -48,25 +48,25 @@ export function DialogRetryAction(props: DialogRetryActionProps) {
     bindings: [
       {
         key: "left",
-        desc: "Previous retry option",
+        desc: "上一个重试选项",
         group: "Dialog",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "right",
-        desc: "Next retry option",
+        desc: "下一个重试选项",
         group: "Dialog",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "tab",
-        desc: "Next retry option",
+        desc: "下一个重试选项",
         group: "Dialog",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "return",
-        desc: "Confirm retry option",
+        desc: "确认重试选项",
         group: "Dialog",
         cmd: () => {
           if (selected() === "action") runAction(props, dialog)
@@ -100,7 +100,7 @@ export function DialogRetryAction(props: DialogRetryActionProps) {
         {props.link ? (
           showGoTreatment() ? (
             <box alignItems="center" justifyContent="flex-end" height={7} paddingBottom={1}>
-              <Link href={props.link} fg={theme.primary} bg={textBg()} wrapMode="none">Go to the official website</Link>
+              <Link href={props.link} fg={theme.primary} bg={textBg()} wrapMode="none">前往官方网站</Link>
             </box>
           ) : (
             <box width="100%" flexDirection="row" justifyContent="center" paddingBottom={1}>

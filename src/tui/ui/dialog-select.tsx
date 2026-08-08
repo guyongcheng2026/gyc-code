@@ -601,7 +601,7 @@ title: "选择项目",
           fallback={
             props.emptyView ?? (
               <box paddingLeft={4} paddingRight={4} paddingTop={1}>
-                <text fg={theme.textMuted}>No results found</text>
+                <text fg={theme.textMuted}>未找到结果</text>
               </box>
             )
           }

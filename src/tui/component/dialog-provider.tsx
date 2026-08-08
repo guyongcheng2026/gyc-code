@@ -68,7 +68,7 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
           gyccode: "(Recommended)",
           anthropic: "(API key)",
           openai: "(ChatGPT Plus/Pro or API key)",
-          "gyccode-go": "Low cost subscription for everyone",
+          "gyccode-go": "人人可用的低成本订阅",
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "热门" : "提供商",
       })),
@@ -254,7 +254,7 @@ function AutoMethod(props: AutoMethodProps) {
     bindings: [
       {
         key: "c",
-        desc: "Copy provider code",
+        desc: "复制服务商代码",
         group: "Dialog",
         cmd: () => {
           const code =
@@ -278,7 +278,7 @@ function AutoMethod(props: AutoMethodProps) {
         variant: "error",
         message:
           "name" in result.error && result.error.name === "ProviderAuthOauthCallbackFailed"
-            ? "OAuth authorization failed. Try /connect again."
+            ? "OAuth 授权失败。请重试 /connect。"
             : JSON.stringify(result.error),
       })
       dialog.clear()
@@ -303,7 +303,7 @@ function AutoMethod(props: AutoMethodProps) {
         <Link href={props.authorization.url} fg={theme.primary} />
         <text fg={theme.textMuted}>{props.authorization.instructions}</text>
       </box>
-      <text fg={theme.textMuted}>Waiting for authorization...</text>
+      <text fg={theme.textMuted}>正在等待授权...</text>
       <text fg={theme.text}>
         c <span style={{ fg: theme.textMuted }}>copy</span>
       </text>
@@ -327,7 +327,7 @@ function CodeMethod(props: CodeMethodProps) {
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="Authorization code"
+      placeholder="授权代码"
       onConfirm={async (value) => {
         const { error } = await sdk.client.provider.oauth.callback({
           providerID: props.providerID,
@@ -347,7 +347,7 @@ function CodeMethod(props: CodeMethodProps) {
           <text fg={theme.textMuted}>{props.authorization.instructions}</text>
           <Link href={props.authorization.url} fg={theme.primary} />
           <Show when={error()}>
-            <text fg={theme.error}>Invalid code</text>
+            <text fg={theme.error}>无效代码</text>
           </Show>
         </box>
       )}
@@ -389,7 +389,7 @@ function ApiMethod(props: ApiMethodProps) {
             <box gap={1}>
               <text fg={theme.textMuted}>
                 GycCode Go is a $10 per month subscription that provides reliable access to popular open coding models
-                with generous usage limits.
+                并提供宽裕的使用额度。
               </text>
               <text fg={theme.text}>
                 Go to the official website and enable GycCode Go
@@ -412,7 +412,7 @@ function ApiMethod(props: ApiMethodProps) {
         if (setResult.error) {
           toast.show({
             variant: "error",
-            message: `Failed to save credential for ${props.providerID}. ${JSON.stringify(setResult.error)}`,
+            message: `保存凭据失败：${props.providerID} ${JSON.stringify(setResult.error)}`,
           })
           return
         }
@@ -421,7 +421,7 @@ function ApiMethod(props: ApiMethodProps) {
         if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {
           toast.show({
             variant: "info",
-            message: `Saved credential for ${props.providerID}. Configure it in gyccode.json to use it.`,
+            message: `已保存凭据：${props.providerID}。请在 gyccode.json 中配置后使用。`,
           })
           dialog.clear()
           return

@@ -76,11 +76,11 @@ export function DialogStatus() {
                   <b>{key}</b>{" "}
                   <span style={{ fg: theme.textMuted }}>
                     <Switch fallback={item.status}>
-                      <Match when={item.status === "connected"}>Connected</Match>
+                      <Match when={item.status === "connected"}>已连接</Match>
                       <Match when={item.status === "failed" && item}>{(val) => val().error}</Match>
-                      <Match when={item.status === "disabled"}>Disabled in configuration</Match>
+                      <Match when={item.status === "disabled"}>已在配置中禁用</Match>
                       <Match when={(item.status as string) === "needs_auth"}>
-                        Needs authentication (run: gyccode mcp auth {key})
+                        需要认证（运行：gyccode mcp auth {key}）
                       </Match>
                       <Match when={(item.status as string) === "needs_client_registration" && item}>
                         {(val) => (val() as { error: string }).error}
@@ -118,7 +118,7 @@ export function DialogStatus() {
           </For>
         </box>
       )}
-      <Show when={enabledFormatters().length > 0} fallback={<text fg={theme.text}>No Formatters</text>}>
+      <Show when={enabledFormatters().length > 0} fallback={<text fg={theme.text}>无格式化器</text>}>
         <box>
           <text fg={theme.text}>{enabledFormatters().length} Formatters</text>
           <For each={enabledFormatters()}>
@@ -140,7 +140,7 @@ export function DialogStatus() {
           </For>
         </box>
       </Show>
-      <Show when={plugins().length > 0} fallback={<text fg={theme.text}>No Plugins</text>}>
+      <Show when={plugins().length > 0} fallback={<text fg={theme.text}>无插件</text>}>
         <box>
           <text fg={theme.text}>{plugins().length} Plugins</text>
           <For each={plugins()}>

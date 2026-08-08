@@ -24,12 +24,12 @@ export function DialogDebug() {
   const entries = createMemo(() => {
     const model = local.model.current()
     return [
-      { label: "Version", value: `${InstallationVersion} (${InstallationChannel})` },
-      { label: "Date", value: new Date().toISOString() },
+      { label: "版本", value: `${InstallationVersion} (${InstallationChannel})` },
+      { label: "日期", value: new Date().toISOString() },
       { label: "OS", value: describeOS() },
-      { label: "Terminal", value: describeTerminal() },
-      { label: "Session ID", value: route.data.type === "session" ? route.data.sessionID : "n/a" },
-      { label: "Model", value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
+      { label: "终端", value: describeTerminal() },
+      { label: "会话 ID", value: route.data.type === "session" ? route.data.sessionID : "n/a" },
+      { label: "模型", value: model ? `${model.providerID}/${model.modelID}` : "n/a" },
     ]
   })
 
@@ -47,7 +47,7 @@ export function DialogDebug() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "Copy debug info", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制调试信息", group: "Dialog", cmd: copy }],
   }))
 
   return (
@@ -77,7 +77,7 @@ export function DialogDebug() {
         </For>
       </box>
       <box flexDirection="row" justifyContent="space-between">
-        <text fg={theme.textMuted}>Share this when reporting an issue.</text>
+        <text fg={theme.textMuted}>反馈问题时请附带此信息。</text>
         <text onMouseUp={copy}>
           <span style={{ fg: copied() ? theme.success : theme.text }}>
             <b>{copied() ? "✓ copied" : "copy"}</b>{" "}

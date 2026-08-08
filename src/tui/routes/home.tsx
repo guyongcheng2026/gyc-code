@@ -15,7 +15,7 @@ import { HomeSessionDestinationProvider } from "./home/session-destination"
 
 let once = false
 const placeholder = {
-  normal: ["Fix a TODO in the codebase", "What is the tech stack of this project?", "Fix broken tests"],
+  normal: ["修复代码库中的一个待办事项", "这个项目用了什么技术栈？", "修复失败的测试"],
   shell: ["ls -la", "git status", "pwd"],
 }
 

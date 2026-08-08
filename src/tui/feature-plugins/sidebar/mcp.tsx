@@ -64,8 +64,8 @@ function View(props: { api: TuiPluginApi }) {
                         <i>{item.error}</i>
                       </Match>
                       <Match when={item.status === "disabled"}>Disabled</Match>
-                      <Match when={item.status === "needs_auth"}>Needs auth</Match>
-                      <Match when={item.status === "needs_client_registration"}>Needs client ID</Match>
+                      <Match when={item.status === "needs_auth"}>需要认证</Match>
+                      <Match when={item.status === "needs_client_registration"}>需要客户端 ID</Match>
                     </Switch>
                   </span>
                 </text>
