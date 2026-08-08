@@ -108,10 +108,19 @@ function cleanEntryValue(entry: HermesMemoryEntry): string {
 }
 
 /**
- * 按关键词/标签粗筛记忆条目：标签命中 ×2、内容命中 ×1，按分数降序返回。
+ * 按关键词/标签粗筛记忆条目：标签命中×2、内容命中×1，按分数降序返回。
  * 纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
+ * 同一会话的连续循环 query 相同，命中结果按 query 短 TTL 缓存，避免重复遍历。
  */
+const searchCache = new Map<string, { time: number; entries: HermesMemoryEntry[] }>()
+const SEARCH_CACHE_TTL_MS = 30_000
+const SEARCH_CACHE_MAX = 20
+
 export async function searchHermesMemories(query: string, limit = 20): Promise<HermesMemoryEntry[]> {
+  const cacheKey = `${query}:${limit}`
+  const hit = searchCache.get(cacheKey)
+  if (hit && Date.now() - hit.time < SEARCH_CACHE_TTL_MS) return hit.entries
+
   const entries = await readHermesMemoriesCached()
   if (entries.length === 0) return []
 
@@ -131,8 +140,16 @@ export async function searchHermesMemories(query: string, limit = 20): Promise<H
   }
 
   scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, limit).map((item) => item.entry)
+  const result = scored.slice(0, limit).map((item) => item.entry)
+
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    const oldest = searchCache.keys().next().value
+    if (oldest !== undefined) searchCache.delete(oldest)
+  }
+  searchCache.set(cacheKey, { time: Date.now(), entries: result })
+  return result
 }
+
 
 /** 将命中记忆格式化为系统提示段，总长受 budget 限制 */
 export function formatMemoriesForPrompt(
