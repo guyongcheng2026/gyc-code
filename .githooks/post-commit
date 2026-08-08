@@ -1,4 +1,5 @@
 #!/bin/sh
-# gyc-code 自动同步：每次提交后推送到 GitHub（经 gh-proxy）
+# gyc-code auto-sync: push to GitHub (via gh-proxy), then append sync work log to Obsidian vault
 git push origin HEAD >/dev/null 2>&1
+node "$(dirname "$0")/../scripts/worklog-sync.mjs" >/dev/null 2>&1
 exit 0
