@@ -16,3 +16,6 @@
 
 - [OK] 2026-08-08 [73e30a1] perf: Bun --smol 启动参数 + SessionData dispose 释放 session 切换内存
   - [FILES] 3: bin/gyc, src/gyccode/cli/cmd/run/session-data.ts, src/gyccode/cli/cmd/run/stream.transport.ts
+
+- [OK] 2026-08-08 [7022fb8] fix: Windows conhost 乱码——启动切换控制台输出代码页为 UTF-8（65001）
+  - [FILES] 10: docs/GYCCODE-WORKLOG-2026-08-08.md, docs/compose/plans/2026-08-08-resource-optimization.md, src/codemode/tool-runtime.ts, src/core/database/database.ts, src/gyccode/index.ts, src/gyccode/tool/edit.ts ...
