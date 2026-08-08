@@ -56,6 +56,7 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { LLMEvent } from "@gyccode/llm"
+import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -80,6 +81,36 @@ IMPORTANT:
 - This tool provides your final answer - no further actions are taken after calling it`
 
 const STRUCTURED_OUTPUT_SYSTEM_PROMPT = `IMPORTANT: The user has requested structured output. You MUST use the StructuredOutput tool to provide your final response. Do NOT respond with plain text - you MUST call the StructuredOutput tool with your answer formatted according to the schema.`
+
+/** Prompt shard cache for static/semi-static/dynamic tiers */
+const shardCache = new ShardCache()
+
+function buildStaticPrompt(skills: string | undefined): string {
+  const content = skills ?? ""
+  const h = hashShard(content)
+  const cached = shardCache.get("static")
+  if (cached?.hash === h) return cached.content
+  const shard = { tier: "static" as const, content, hash: h }
+  shardCache.set(shard)
+  return content
+}
+
+function buildSemiStaticPrompt(env: string[], mcpInstructions: string | undefined): string[] {
+  const content = [...env, ...(mcpInstructions ? [mcpInstructions] : [])]
+  return content
+}
+
+function buildDynamicPrompt(instructions: string[]): string[] {
+  return instructions
+}
+
+export function clearPromptCache(): void {
+  shardCache.invalidate("semi")
+}
+
+export function invalidateAllPromptCache(): void {
+  shardCache.invalidate()
+}
 
 function mcpResourceBase64Size(value: string) {
   const trimmed = value.replace(/\s/g, "")
@@ -1261,11 +1292,13 @@ const layer = Layer.effect(
               sys.mcp(agent, session.permission),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
+            const staticPrompt = buildStaticPrompt(skills)
+            const semiPrompt = buildSemiStaticPrompt(env, mcpInstructions)
+            const dynamicPrompt = buildDynamicPrompt(instructions)
             const system = [
-              ...env,
-              ...instructions,
-              ...(mcpInstructions ? [mcpInstructions] : []),
-              ...(skills ? [skills] : []),
+              ...semiPrompt,
+              ...dynamicPrompt,
+              staticPrompt,
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
