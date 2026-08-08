@@ -1314,11 +1314,19 @@ const layer = Layer.effect(
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            const [skills, env, instructions, mcpInstructions, modelMsgs] = yield* Effect.all([
+            const memoryQuery = lastUserMsg
+              ? lastUserMsg.parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join(" ")
+                  .slice(0, 500)
+              : ""
+            const [skills, env, instructions, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
+              sys.memory(memoryQuery),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
             const staticPrompt = buildStaticPrompt(skills)
@@ -1328,6 +1336,7 @@ const layer = Layer.effect(
               ...semiPrompt,
               ...dynamicPrompt,
               staticPrompt,
+              ...(memories ? [memories] : []),
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

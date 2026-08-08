@@ -1,7 +1,7 @@
 // Hermes memory bridge — gyc-cli ↔ Hermes bidirectional sync
 // Based on @yunguang/memory UnifiedMemoryManager
 
-import { readFile, writeFile } from "fs/promises"
+import { readFile, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 
@@ -57,4 +57,103 @@ export async function syncHermesMemories(): Promise<HermesMemoryEntry[]> {
     await writeFile(HERMES_MEMORY_PATH, content, "utf-8")
   }
   return entries
+}
+
+/** 记忆注入系统提示的字符预算（与 MCP 指令预算一致，4KB） */
+export const MEMORY_INJECTION_BUDGET = 4_096
+
+// 模块级缓存：记忆文件 mtime/size 未变时复用，避免每轮请求重复读盘（低 IO）
+let cachedStat: { mtimeMs: number; size: number } | undefined
+let cachedEntries: HermesMemoryEntry[] | undefined
+
+async function readHermesMemoriesCached(): Promise<HermesMemoryEntry[]> {
+  try {
+    const fileStat = await stat(HERMES_MEMORY_PATH)
+    if (cachedStat && cachedStat.mtimeMs === fileStat.mtimeMs && cachedStat.size === fileStat.size) {
+      return cachedEntries ?? []
+    }
+    cachedStat = { mtimeMs: fileStat.mtimeMs, size: fileStat.size }
+    cachedEntries = await readHermesMemories()
+    return cachedEntries
+  } catch {
+    return []
+  }
+}
+
+function tokenize(input: string): string[] {
+  const tokens: string[] = []
+  for (const word of input.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
+    if (word.length < 2) continue
+    if (/^[\p{Script=Han}]+$/u.test(word)) {
+      // 中文连续串：整串 + 2-gram（保证长短词组都能命中）
+      tokens.push(word)
+      for (let i = 0; i + 2 <= word.length; i++) {
+        tokens.push(word.slice(i, i + 2))
+      }
+    } else {
+      tokens.push(word)
+    }
+  }
+  return [...new Set(tokens)]
+}
+
+/** 剥离写入时残留的 "#memory_<key>" 首行，只保留实际记忆内容 */
+function cleanEntryValue(entry: HermesMemoryEntry): string {
+  const value = entry.value.trim()
+  const lines = value.split("\n")
+  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
+    return lines.slice(1).join("\n").trim()
+  }
+  return value
+}
+
+/**
+ * 按关键词/标签粗筛记忆条目：标签命中 ×2、内容命中 ×1，按分数降序返回。
+ * 纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
+ */
+export async function searchHermesMemories(query: string, limit = 20): Promise<HermesMemoryEntry[]> {
+  const entries = await readHermesMemoriesCached()
+  if (entries.length === 0) return []
+
+  const terms = tokenize(query)
+  if (terms.length === 0) return []
+
+  const scored: Array<{ entry: HermesMemoryEntry; score: number }> = []
+  for (const entry of entries) {
+    const text = cleanEntryValue(entry).toLowerCase()
+    const tagText = (entry.tags ?? []).join(" ").toLowerCase()
+    let score = 0
+    for (const term of terms) {
+      if (tagText.includes(term)) score += 2
+      if (text.includes(term)) score += 1
+    }
+    if (score > 0) scored.push({ entry, score })
+  }
+
+  scored.sort((a, b) => b.score - a.score)
+  return scored.slice(0, limit).map((item) => item.entry)
+}
+
+/** 将命中记忆格式化为系统提示段，总长受 budget 限制 */
+export function formatMemoriesForPrompt(
+  entries: readonly HermesMemoryEntry[],
+  budget = MEMORY_INJECTION_BUDGET,
+): string | undefined {
+  if (entries.length === 0) return undefined
+
+  const blocks: string[] = []
+  let total = 0
+  for (const entry of entries) {
+    const line = `- ${cleanEntryValue(entry)}`
+    const block = `${line}\n`
+    if (blocks.length === 0 || total + block.length <= budget) {
+      blocks.push(block)
+      total += block.length
+    } else {
+      break
+    }
+  }
+  if (blocks.length === 0) return undefined
+
+  return ["<memories>", "Relevant memories from previous sessions:", ...blocks, "</memories>"].join("\n")
 }

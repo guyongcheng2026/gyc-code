@@ -23,6 +23,7 @@ import { LocationServiceMap, locationServiceMapLayer } from "@gyccode/core/locat
 import { Reference } from "@gyccode/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
+import { formatMemoriesForPrompt, searchHermesMemories } from "../memory/hermes-bridge"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse-spark")) return [PROMPT_META]
@@ -45,6 +46,7 @@ export interface Interface {
   readonly environment: (model: Provider.Model) => Effect.Effect<string[]>
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
+  readonly memory: (query: string) => Effect.Effect<string | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/SystemPrompt") {}
@@ -137,6 +139,15 @@ const layer = Layer.effect(
           ...blocks,
           "</mcp_instructions>",
         ].join("\n")
+      }),
+
+      memory: Effect.fn("SystemPrompt.memory")(function* (query: string) {
+        if (!query.trim()) return
+        const entries = yield* Effect.promise(() => searchHermesMemories(query))
+        if (entries.length > 0) {
+          yield* Effect.logInfo("SystemPrompt.memory", { query: query.slice(0, 80), hits: entries.length })
+        }
+        return formatMemoriesForPrompt(entries)
       }),
     })
   }),
