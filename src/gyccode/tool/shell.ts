@@ -1,4 +1,4 @@
-import { Effect, Stream } from "effect"
+import { Effect, Schema, Stream } from "effect"
 import os from "os"
 import { createWriteStream } from "node:fs"
 import * as Tool from "./tool"
@@ -21,8 +21,13 @@ import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { ShellPrompt, type Parameters } from "./shell/prompt"
 import { BashArity } from "@/permission/arity"
+import { classifyCommand, SecurityClassification } from "./shell/security"
 
 export { Parameters } from "./shell/prompt"
+
+export class ShellBlockedError extends Schema.TaggedError<ShellBlockedError>()("ShellBlockedError", {
+  classification: SecurityClassification,
+}) {}
 
 const MAX_METADATA_LENGTH = 30_000
 const CWD = new Set(["cd", "chdir", "popd", "pushd", "push-location", "set-location"])
@@ -621,6 +626,11 @@ export const ShellTool = Tool.define(
                   yield* ask(ctx, scan, params)
                 }),
               )
+
+              const classification = classifyCommand(params.command)
+              if (classification.level === "blocked") {
+                return Effect.fail(new ShellBlockedError({ classification }))
+              }
 
               return yield* run(
                 {
