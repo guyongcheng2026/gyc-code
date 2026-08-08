@@ -691,6 +691,7 @@ const layer: Layer.Layer<
     })
 
     const fork = Effect.fn("Session.fork")(function* (input: { sessionID: SessionID; messageID?: MessageID }) {
+      const FORK_CACHE_KEEP_RECENT = 5 // keep last 5 messages for context
       const ctx = yield* InstanceState.context
       const original = yield* get(input.sessionID)
       const title = getForkedTitle(original.title)
@@ -699,12 +700,20 @@ const layer: Layer.Layer<
         path: sessionPath(ctx.worktree, ctx.directory),
         workspaceID: original.workspaceID,
         title,
+        agent: original.agent,
+        model: original.model,
         metadata: structuredClone(original.metadata),
       })
       const msgs = yield* messages({ sessionID: input.sessionID })
+
+      // Keep only the last N messages to preserve cache prefix alignment
+      const recentMsgs = msgs.length > FORK_CACHE_KEEP_RECENT
+        ? msgs.slice(msgs.length - FORK_CACHE_KEEP_RECENT)
+        : msgs
+
       const idMap = new Map<string, MessageID>()
 
-      for (const msg of msgs) {
+      for (const msg of recentMsgs) {
         if (input.messageID && msg.info.id >= input.messageID) break
         const newID = MessageID.ascending()
         idMap.set(msg.info.id, newID)
