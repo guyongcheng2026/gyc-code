@@ -100,3 +100,6 @@
 
 - [OK] 2026-08-08 [6e1e323] fix: GYCCODE logo 清晰化（GYC 与 CODE 渲染统一）+ provider 更名 OpenCode Zen；修复 92 处 tsc 类型错误（嵌套 Effect/Option<Date>/variadic 等真实 bug）+ UI 测试 preload 配置，tsc 与测试全绿
   - [FILES] 17: package.json, src/core/plugin/provider/gyccode.ts, src/core/plugin/skill.ts, src/gyccode/cli/cmd/memory.ts, src/gyccode/cli/ui.ts, src/gyccode/hook/executor.ts ...
+
+- [OK] 2026-08-08 [54c790a] perf: gyc CLI 性能与 24h 稳定性优化——流式 delta 合并节流（30ms）、渲染 60→30fps、BgPulse 12fps+动画关闭、音效默认关闭、轮询降频（1000/200ms）、日志轮转 10MB、冷启动 1.3s 达标
+  - [FILES] 9: src/core/observability/logging.ts, src/tui/app.tsx, src/tui/component/bg-pulse.tsx, src/tui/component/prompt/autocomplete.tsx, src/tui/component/spinner.tsx, src/tui/config/index.tsx ...
