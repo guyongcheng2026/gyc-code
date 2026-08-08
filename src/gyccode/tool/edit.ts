@@ -18,6 +18,7 @@ import { Snapshot } from "@/snapshot"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@gyccode/core/fs-util"
 import * as Bom from "@/util/bom"
+import { ReadCache } from "./read-cache"
 
 function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
@@ -33,6 +34,8 @@ function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
 }
 
 const locks = new Map<string, Semaphore.Semaphore>()
+
+const readCache = ReadCache()
 
 function lock(filePath: string) {
   const resolvedFilePath = FSUtil.resolve(filePath)
@@ -113,11 +116,13 @@ export const EditTool = Tool.define(
                   contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
                 }
                 yield* events.publish(FileSystem.Event.Edited, { file: filePath })
-                yield* events.publish(Watcher.Event.Updated, {
-                  file: filePath,
-                  event: "add",
-                })
-                return
+                 yield* events.publish(Watcher.Event.Updated, {
+                   file: filePath,
+                   event: "add",
+                 })
+                 // Invalidate cache after a file creation
+                 readCache.invalidate(filePath)
+                 return
               }
 
               const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
@@ -167,10 +172,12 @@ export const EditTool = Tool.define(
                 contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
               }
               yield* events.publish(FileSystem.Event.Edited, { file: filePath })
-              yield* events.publish(Watcher.Event.Updated, {
-                file: filePath,
-                event: "change",
-              })
+               yield* events.publish(Watcher.Event.Updated, {
+                 file: filePath,
+                 event: "change",
+               })
+               // Invalidate cache after editing the file
+               readCache.invalidate(filePath)
               diff = trimDiff(
                 createTwoFilesPatch(
                   filePath,

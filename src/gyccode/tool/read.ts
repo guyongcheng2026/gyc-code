@@ -10,6 +10,7 @@ import { Config } from "@/config/config"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isPdfAttachment, sniffAttachmentMime } from "@/util/media"
+import { ReadCache, FILE_UNCHANGED_STUB, type StatLike } from "./read-cache"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -19,7 +20,10 @@ const MAX_BYTES_LABEL = `${MAX_BYTES / 1024} KB`
 const SAMPLE_BYTES = 4096
 const SUPPORTED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"])
 
+const readCache = ReadCache()
+
 class ReadStop extends Schema.TaggedErrorClass<ReadStop>()("ReadStop", {}) {}
+
 
 // `offset` and `limit` were originally `z.coerce.number()` — the runtime
 // coercion was useful when the tool was called from a shell but serves no
@@ -249,12 +253,33 @@ export const ReadTool = Tool.define<
       }
       const title = path.relative(instance.worktree, filepath)
 
-      const stat = yield* fs.stat(filepath).pipe(
-        Effect.catchIf(
-          (err) => "reason" in err && err.reason._tag === "NotFound",
-          () => Effect.succeed(undefined),
-        ),
-      )
+        const stat = yield* fs.stat(filepath).pipe(
+          Effect.catchIf(
+            (err) => "reason" in err && err.reason._tag === "NotFound",
+            () => Effect.succeed(undefined),
+          ),
+        )
+        // Check cache for unchanged file to avoid sending full content again (token savings)
+        if (stat && stat.type !== "Directory") {
+          const cachedStat = readCache.getStat(filepath)
+          if (
+            cachedStat &&
+            cachedStat !== FILE_UNCHANGED_STUB &&
+            cachedStat?.mtime?.getTime?.() === stat.mtime?.getTime?.() &&
+            cachedStat?.size === stat.size
+          ) {
+            return {
+              title,
+              output: FILE_UNCHANGED_STUB,
+              metadata: {
+                preview: "",
+                truncated: false,
+                loaded: [],
+              },
+            }
+          }
+        }
+
 
       yield* assertExternalDirectoryEffect(ctx, filepath, {
         bypass: Boolean(ctx.extra?.["bypassCwdCheck"]),
@@ -371,24 +396,26 @@ export const ReadTool = Tool.define<
         output += `\n\n<system-reminder>\n${loaded.map((item) => item.content).join("\n\n")}\n</system-reminder>`
       }
 
-      return {
-        title,
-        output,
-        metadata: {
-          preview: file.raw.slice(0, 20).join("\n"),
-          truncated,
-          loaded: loaded.map((item) => item.filepath),
-          display: {
-            type: "file" as const,
-            path: filepath,
-            text: file.raw.join("\n"),
-            lineStart: file.offset,
-            lineEnd: last,
-            totalLines: file.count,
+        // Cache file content and stat for future reads
+        readCache.set(filepath, file.raw.join("\n"), stat);
+        return {
+          title,
+          output,
+          metadata: {
+            preview: file.raw.slice(0, 20).join("\n"),
             truncated,
+            loaded: loaded.map((item) => item.filepath),
+            display: {
+              type: "file" as const,
+              path: filepath,
+              text: file.raw.join("\n"),
+              lineStart: file.offset,
+              lineEnd: last,
+              totalLines: file.count,
+              truncated,
+            },
           },
-        },
-      }
+        }
     })
 
     return {

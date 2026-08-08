@@ -10,9 +10,13 @@ const kernel = () =>
     GetConsoleMode: { args: ["ptr", "ptr"], returns: "i32" },
     SetConsoleMode: { args: ["ptr", "u32"], returns: "i32" },
     FlushConsoleInputBuffer: { args: ["ptr"], returns: "i32" },
+    SetConsoleOutputCP: { args: ["u32"], returns: "i32" },
+    GetConsoleOutputCP: { args: [], returns: "u32" },
   })
 
 let k32: ReturnType<typeof kernel> | undefined
+
+const CP_UTF8 = 65001
 
 function load() {
   if (process.platform !== "win32") return false
@@ -22,6 +26,25 @@ function load() {
   } catch {
     return false
   }
+}
+
+/**
+ * 将 Windows 控制台输出代码页切换为 UTF-8（65001）。
+ *
+ * TUI 通过原始 UTF-8 字节流渲染（Braille spinner、CJK 文本），而 conhost
+ * 默认使用系统 ANSI 代码页（如 936/GBK），会把 UTF-8 字节解码成乱码，
+ * 表现为底部 spinner 与状态文本不断闪烁乱码。Windows Terminal 本身即为
+ * UTF-8，调用后无副作用。
+ *
+ * 退出时不恢复原代码页：恢复会重新引入乱码（同一控制台后续运行的
+ * bun/node/git 均输出 UTF-8）。
+ */
+export function win32EnableUtf8Console() {
+  if (process.platform !== "win32") return false
+  if (!process.stdout.isTTY) return false
+  if (!load()) return false
+  if (k32!.symbols.GetConsoleOutputCP() === CP_UTF8) return false
+  return k32!.symbols.SetConsoleOutputCP(CP_UTF8) !== 0
 }
 
 /**

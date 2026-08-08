@@ -14,8 +14,11 @@ import { InstanceState } from "@/effect/instance-state"
 import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
+import { ReadCache } from "./read-cache"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
+
+const readCache = ReadCache()
 
 export const Parameters = Schema.Struct({
   content: Schema.String.annotate({ description: "The content to write to the file" }),
@@ -66,10 +69,12 @@ export const WriteTool = Tool.define(
             yield* Bom.syncFile(fs, filepath, desiredBom)
           }
           yield* events.publish(FileSystem.Event.Edited, { file: filepath })
-          yield* events.publish(Watcher.Event.Updated, {
-            file: filepath,
-            event: exists ? "change" : "add",
-          })
+            yield* events.publish(Watcher.Event.Updated, {
+              file: filepath,
+              event: exists ? "change" : "add",
+            })
+            // Invalidate cache after writing – ensures subsequent reads see the new content
+            readCache.invalidate(filepath)
 
           let output = "Wrote file successfully."
           yield* lsp.touchFile(filepath, "document")

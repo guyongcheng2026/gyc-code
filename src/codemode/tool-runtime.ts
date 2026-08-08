@@ -19,7 +19,32 @@ import {
   SandboxURLSearchParams,
 } from "./values.js"
 
-const estimateTokens = (input: string) => Math.max(0, Math.round(input.length / 4))
+/**
+ * Estimate token count for a given string.
+ * Simple heuristic: non-ASCII characters (code > 0x7f) are counted as one token each,
+ * while ASCII characters are grouped at 4 characters per token (approximation for English).
+ * This provides better accuracy for mixed content (e.g., Chinese characters) than a pure
+ * length/4 estimate.
+ */
+const estimateTokens = (input: string) => {
+  let tokens = 0
+  let asciiRun = 0
+  for (const ch of input) {
+    const code = ch.codePointAt(0) ?? 0
+    if (code > 0x7f) {
+      // Flush any accumulated ASCII run
+      if (asciiRun > 0) {
+        tokens += Math.ceil(asciiRun / 4)
+        asciiRun = 0
+      }
+      tokens += 1
+    } else {
+      asciiRun++
+    }
+  }
+  if (asciiRun > 0) tokens += Math.ceil(asciiRun / 4)
+  return tokens
+}
 
 export type HostTool<R = never> = (...args: Array<unknown>) => Effect.Effect<unknown, unknown, R>
 
