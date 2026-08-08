@@ -34,3 +34,6 @@
 
 - [OK] 2026-08-08 [c3c3adf] feat: add cache-preserving fork for shared prompt cache between parent and child agents
   - [FILES] 1: src/gyccode/session/session.ts
+
+- [OK] 2026-08-08 [2e97cd5] feat: add prompt shard caching with static/semi-static/dynamic tiers
+  - [FILES] 2: src/gyccode/session/prompt-shard.ts, src/gyccode/session/prompt.ts
