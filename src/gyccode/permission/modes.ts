@@ -1,9 +1,18 @@
-﻿import { Schema } from "@gyccode/schema"
+﻿import { Schema } from "effect"
 
-export const PermissionMode = Schema.Literal("default", "acceptEdits", "bypassPermissions", "plan")
+export const PermissionMode = Schema.Union(
+  Schema.Literal("default"),
+  Schema.Literal("acceptEdits"),
+  Schema.Literal("bypassPermissions"),
+  Schema.Literal("plan"),
+)
 export type PermissionMode = typeof PermissionMode.Type
 
-export const PermissionAction = Schema.Literal("allow", "ask", "deny")
+export const PermissionAction = Schema.Union(
+  Schema.Literal("allow"),
+  Schema.Literal("ask"),
+  Schema.Literal("deny"),
+)
 export type PermissionAction = typeof PermissionAction.Type
 
 export function resolveAction(

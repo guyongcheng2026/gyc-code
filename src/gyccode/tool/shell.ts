@@ -25,7 +25,7 @@ import { classifyCommand, SecurityClassification } from "./shell/security"
 
 export { Parameters } from "./shell/prompt"
 
-export class ShellBlockedError extends Schema.TaggedError<ShellBlockedError>()("ShellBlockedError", {
+export class ShellBlockedError extends Schema.TaggedErrorClass<ShellBlockedError>()("ShellBlockedError", {
   classification: SecurityClassification,
 }) {}
 

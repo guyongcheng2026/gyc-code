@@ -1,5 +1,7 @@
 ﻿import { Effect } from "effect"
 import { ChildProcess } from "effect/unstable/process"
+import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
+import * as Stream from "effect/Stream"
 import { HookConfig, HookEvent, HookResult } from "./types"
 import { HookRegistry } from "./registry"
 
@@ -13,18 +15,39 @@ export function executeHooks(
 
   return Effect.forEach(hooks, (config: HookConfig) =>
     Effect.gen(function* () {
+      const spawner = yield* ChildProcessSpawner
       const start = Date.now()
-      const process = yield* ChildProcess.execute(config.command, {
-        timeout: config.timeout ?? 30_000,
+      const cmd = ChildProcess.make(config.command, [], { shell: true })
+      const handle = yield* spawner.spawn(cmd)
+      let stdout = ""
+      let stderr = ""
+      yield* Stream.runForEach(Stream.decodeText(handle.stdout), (chunk) => {
+        stdout += chunk
       })
+      yield* Stream.runForEach(Stream.decodeText(handle.stderr), (chunk) => {
+        stderr += chunk
+      })
+      const exitCode = yield* handle.exitCode
       const duration = Date.now() - start
       return new HookResult({
         event,
-        stdout: process.stdout,
-        stderr: process.stderr,
-        exitCode: process.exitCode ?? 0,
+        stdout,
+        stderr,
+        exitCode: exitCode ?? 0,
         duration,
       })
-    }),
+    }).pipe(
+      Effect.catchAll(() =>
+        Effect.succeed(
+          new HookResult({
+            event,
+            stdout: "",
+            stderr: "Hook execution failed",
+            exitCode: 1,
+            duration: 0,
+          }),
+        ),
+      ),
+    ),
   )
 }

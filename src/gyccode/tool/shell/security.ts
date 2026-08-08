@@ -1,7 +1,12 @@
-﻿import { Schema } from "@gyccode/schema"
+﻿import { Schema } from "effect"
 
 export class SecurityClassification extends Schema.Class<SecurityClassification>("SecurityClassification")({
-  level: Schema.Literal("safe", "warning", "dangerous", "blocked"),
+  level: Schema.Union(
+    Schema.Literal("safe"),
+    Schema.Literal("warning"),
+    Schema.Literal("dangerous"),
+    Schema.Literal("blocked"),
+  ),
   patterns: Schema.Array(Schema.String),
   reason: Schema.String,
 }) {}
