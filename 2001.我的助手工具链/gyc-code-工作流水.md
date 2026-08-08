@@ -94,3 +94,6 @@
 
 - [OK] 2026-08-08 [0b0a8bf] docs: 能力清单覆盖评估报告（A-G 逐项核查 + P0/P1/P2 追赶计划）
   - [FILES] 1: docs/CAPABILITY-GAP-2026-08-08.md
+
+- [OK] 2026-08-08 [457b11d] feat: 记忆相关性检索接入系统提示（P0-1，hermes-bridge 关键词/标签粗筛 + 4KB 预算注入 + mtime 缓存）
+  - [FILES] 3: src/gyccode/memory/hermes-bridge.ts, src/gyccode/session/prompt.ts, src/gyccode/session/system.ts
