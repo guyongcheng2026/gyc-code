@@ -49,3 +49,6 @@
 
 - [OK] 2026-08-08 [792e940] feat: add autonomous loop with stuck detection and loop/stuck skills
   - [FILES] 3: src/gyccode/session/proactive.ts, src/gyccode/skill/bundled/loop.md, src/gyccode/skill/bundled/stuck.md
+
+- [OK] 2026-08-08 [b8ff5a3] feat: add microcompact strategy with cache prefix preservation
+  - [FILES] 1: src/gyccode/session/compaction.ts
