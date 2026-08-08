@@ -31,3 +31,6 @@
 
 - [OK] 2026-08-08 [78c154a] feat: add hook system with 9 event types and config-driven execution
   - [FILES] 3: src/gyccode/hook/executor.ts, src/gyccode/hook/registry.ts, src/gyccode/hook/types.ts
+
+- [OK] 2026-08-08 [c3c3adf] feat: add cache-preserving fork for shared prompt cache between parent and child agents
+  - [FILES] 1: src/gyccode/session/session.ts
