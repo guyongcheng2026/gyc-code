@@ -106,3 +106,6 @@
 
 - [OK] 2026-08-08 [cbf61d1] perf: 会话循环记忆检索缓存（同 query 30s TTL）提速首 token/结果反馈；启动 1.3s、LLM 切换 SDK 缓存、流式节流均已达标
   - [FILES] 1: src/gyccode/memory/hermes-bridge.ts
+
+- [OK] 2026-08-08 [acac175] feat: 基于 hermes /learn 理念将今日会话高价值能力封装为 gyc 技能（gyc-perf-optimization 性能优化 + gyc-effect-ts-fixes 类型修复），已入 compose bundle 供后续会话复用
+  - [FILES] 3: src/gyccode/skill/compose/.bundle/gyc-effect-ts-fixes/SKILL.md, src/gyccode/skill/compose/.bundle/gyc-perf-optimization/SKILL.md, src/gyccode/skill/compose/bundle.gen.ts
