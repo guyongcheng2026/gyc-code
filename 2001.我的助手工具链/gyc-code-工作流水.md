@@ -61,3 +61,6 @@
 
 - [OK] 2026-08-08 [c927c6d] feat: add 5 built-in skills (debug, verify, review, tdd, brainstorm)
   - [FILES] 5: src/gyccode/skill/bundled/brainstorm.md, src/gyccode/skill/bundled/debug.md, src/gyccode/skill/bundled/review.md, src/gyccode/skill/bundled/tdd.md, src/gyccode/skill/bundled/verify.md
+
+- [OK] 2026-08-08 [deb9839] feat: add BriefTool for agent-to-user notifications
+  - [FILES] 2: src/gyccode/tool/brief.ts, src/gyccode/tool/registry.ts
