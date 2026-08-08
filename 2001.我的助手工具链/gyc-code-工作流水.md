@@ -76,3 +76,6 @@
 
 - [OK] 2026-08-08 [cc48932] feat: add team memory sharing with search and merge utilities
   - [FILES] 1: src/gyccode/memory/team.ts
+
+- [OK] 2026-08-08 [d54796a] feat: add hermes-style input recall (history sentence completion with Tab) and next-step prediction hint
+  - [FILES] 5: src/tui/component/next-step-hint.tsx, src/tui/component/prompt/autocomplete.tsx, src/tui/prompt/history.tsx, src/tui/prompt/next-step.ts, src/tui/routes/session/index.tsx
