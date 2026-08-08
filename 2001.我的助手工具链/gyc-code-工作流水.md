@@ -79,3 +79,6 @@
 
 - [OK] 2026-08-08 [d54796a] feat: add hermes-style input recall (history sentence completion with Tab) and next-step prediction hint
   - [FILES] 5: src/tui/component/next-step-hint.tsx, src/tui/component/prompt/autocomplete.tsx, src/tui/prompt/history.tsx, src/tui/prompt/next-step.ts, src/tui/routes/session/index.tsx
+
+- [OK] 2026-08-08 [2fd7f74] fix: 修复 effect v4 Schema.Union 多参数调用崩溃，LLM 选择与计划执行恢复正常
+  - [FILES] 13: src/gyccode/agent/swarm/teammate.ts, src/gyccode/agent/swarm/types.ts, src/gyccode/hook/types.ts, src/gyccode/mcp/auth.ts, src/gyccode/mcp/index.ts, src/gyccode/mcp/transport-ide.ts ...
