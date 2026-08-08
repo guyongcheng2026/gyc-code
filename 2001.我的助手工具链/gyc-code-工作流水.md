@@ -28,3 +28,6 @@
 
 - [OK] 2026-08-08 [7c6160d] feat: expand permission system with 4 modes and denial tracker
   - [FILES] 3: src/gyccode/permission/classifier.ts, src/gyccode/permission/index.ts, src/gyccode/permission/modes.ts
+
+- [OK] 2026-08-08 [78c154a] feat: add hook system with 9 event types and config-driven execution
+  - [FILES] 3: src/gyccode/hook/executor.ts, src/gyccode/hook/registry.ts, src/gyccode/hook/types.ts
