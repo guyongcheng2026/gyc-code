@@ -22,3 +22,6 @@
 
 - [OK] 2026-08-08 [f5251f8] chore: phase 0 - remove 9 dead files (empty, stub, unused utils)
   - [FILES] 9: src/core/markdown.d.ts, src/core/util/array.ts, src/core/util/binary.ts, src/core/util/path.ts, src/core/util/retry.ts, src/gyccode/temporary.ts ...
+
+- [OK] 2026-08-08 [43d9bef] feat: add shell security engine with 14 dangerous pattern classifications
+  - [FILES] 2: src/gyccode/tool/shell.ts, src/gyccode/tool/shell/security.ts
