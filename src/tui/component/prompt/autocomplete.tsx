@@ -668,7 +668,7 @@ export function Autocomplete(props: {
     ]),
   }))
 
-  function show(mode: "@" | "/") {
+  function show(mode: AutocompleteRef["visible"]) {
     setStore({
       visible: mode,
       index: props.input().cursorOffset,

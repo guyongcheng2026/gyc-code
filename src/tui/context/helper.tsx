@@ -1,4 +1,4 @@
-import { createContext, createMemo, useContext, type ParentProps } from "solid-js"
+import { createContext, createMemo, useContext, type JSX, type ParentProps } from "solid-js"
 
 export function createSimpleContext<T, Props extends Record<string, any>>(input: {
   name: string
@@ -9,16 +9,13 @@ export function createSimpleContext<T, Props extends Record<string, any>>(input:
   return {
     context: ctx,
     provider: (props: ParentProps<Props>) => {
-      const init = input.init(props)
+      const init = input.init(props) as T & { ready?: boolean }
       return createMemo(() => {
         if (init.ready === undefined || init.ready === true) {
-          return (
-            // @ts-expect-error
-            <ctx.Provider value={init}>{props.children}</ctx.Provider>
-          )
+          return <ctx.Provider value={init}>{props.children}</ctx.Provider>
         }
         return undefined
-      })
+      }) as unknown as JSX.Element
     },
     use() {
       const value = useContext(ctx)

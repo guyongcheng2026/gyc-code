@@ -40,7 +40,7 @@ function oauth(http: HttpClient.HttpClient) {
     method: {
       id: methodID,
       type: "oauth",
-      label: "GycCode Console account",
+      label: "OpenCode Zen Console account",
     },
     authorize: () =>
       Effect.gen(function* () {
@@ -100,7 +100,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
 
     yield* ctx.integration.transform((draft) => {
       draft.update("gyccode", (integration) => {
-        integration.name = "GycCode"
+        integration.name = "OpenCode Zen"
       })
       draft.method.update(oauth(http))
       draft.method.update({ integrationID: "gyccode", method: { type: "key", label: "API key (service account)" } })
@@ -161,6 +161,12 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
           })
         }
       }
+
+      // Always surface the gyccode gateway under its upstream brand name,
+      // regardless of what the remote org config reports.
+      catalog.provider.update(ProviderV2.ID.gyccode, (provider) => {
+        provider.name = "OpenCode Zen"
+      })
 
       const item = catalog.provider.get(ProviderV2.ID.gyccode)
       if (!item) return

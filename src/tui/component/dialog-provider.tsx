@@ -377,7 +377,7 @@ function ApiMethod(props: ApiMethodProps) {
           gyccode: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                GycCode Zen gives you access to all the best coding models at the cheapest prices with a single API
+                OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
                 key.
               </text>
               <text fg={theme.text}>

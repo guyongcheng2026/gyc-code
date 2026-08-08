@@ -5,11 +5,11 @@ export const BriefLevel = Schema.Literals(["info", "warning", "critical"])
 
 export class BriefInput extends Schema.Class<BriefInput>("BriefInput")({
   message: Schema.String,
-  level: Schema.optional(BriefLevel, { default: () => "info" as const }),
+  level: Schema.optional(BriefLevel),
   details: Schema.optional(Schema.String),
 }) {}
 
-export const BriefTool = Tool.define<typeof BriefInput, {}>(
+export const BriefTool = Tool.define<typeof BriefInput, {}, never>(
   "brief",
   Effect.succeed({
     description:

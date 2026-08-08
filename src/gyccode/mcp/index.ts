@@ -109,7 +109,10 @@ export type Status = Schema.Schema.Type<typeof Status>
 
 // Store transports for OAuth servers to allow finishing auth
 type TransportWithAuth = StreamableHTTPClientTransport | SSEClientTransport
-const pendingOAuthTransports = new Map<string, { transport: TransportWithAuth; provider?: McpOAuthPendingProvider }>()
+const pendingOAuthTransports = new Map<string, {
+  transport: TransportWithAuth | WSTransport
+  provider?: McpOAuthPendingProvider
+}>()
 
 // Prompt cache types
 type PromptInfo = Awaited<ReturnType<MCPClient["listPrompts"]>>["prompts"][number]
@@ -955,7 +958,12 @@ const layer = Layer.effect(
       if (!pending) throw new Error(`No pending OAuth flow for MCP server: ${mcpName}`)
 
       const error = yield* Effect.tryPromise({
-        try: () => pending.transport.finishAuth(authorizationCode),
+        try: () => {
+          if (!("finishAuth" in pending.transport)) {
+            return Promise.reject(new Error("WebSocket transport does not support OAuth"))
+          }
+          return pending.transport.finishAuth(authorizationCode)
+        },
         catch: (error) => error,
       }).pipe(
         Effect.match({

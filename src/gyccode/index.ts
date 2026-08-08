@@ -1,5 +1,6 @@
 
 import yargs from "yargs"
+import type { Argv } from "yargs"
 import { hideBin } from "yargs/helpers"
 import { readFileSync, existsSync } from "fs"
 import { homedir, EOL } from "os"
@@ -96,7 +97,7 @@ const COMMAND_KEYS = [
   "db",
 ]
 
-async function registerCommand(cli: yargs.Argv, loader: CommandLoader) {
+async function registerCommand(cli: Argv, loader: CommandLoader) {
   const mod = await loader.load()
   cli.command(mod[loader.name] as never)
 }

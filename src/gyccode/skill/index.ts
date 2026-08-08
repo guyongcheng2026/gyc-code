@@ -153,7 +153,7 @@ const scan = Effect.fnUntraced(function* (
   state: ScanState,
   root: string,
   pattern: string,
-  opts?: { dot?: boolean; scope?: string },
+  opts?: { dot?: boolean; scope?: string; hidden?: boolean },
 ) {
   const matches = yield* Effect.tryPromise({
     try: () =>
@@ -312,28 +312,28 @@ const layer = Layer.effect(
     )
 
     const get = Effect.fn("Skill.get")(function* (name: string) {
-      const s = yield* InstanceState.get(state)
+      const s = yield* InstanceState.get(state).pipe(Effect.orDie)
       return s.skills[name]
     })
 
     const require = Effect.fn("Skill.require")(function* (name: string) {
-      const s = yield* InstanceState.get(state)
+      const s = yield* InstanceState.get(state).pipe(Effect.orDie)
       const info = s.skills[name]
       if (info) return info
       return yield* new NotFoundError({ name, available: Object.keys(s.skills).toSorted() })
     })
 
     const all = Effect.fn("Skill.all")(function* () {
-      const s = yield* InstanceState.get(state)
+      const s = yield* InstanceState.get(state).pipe(Effect.orDie)
       return Object.values(s.skills)
     })
 
     const dirs = Effect.fn("Skill.dirs")(function* () {
-      return (yield* InstanceState.get(discovered)).dirs
+      return (yield* InstanceState.get(discovered).pipe(Effect.orDie)).dirs
     })
 
     const available = Effect.fn("Skill.available")(function* (agent?: Agent.Info) {
-      const s = yield* InstanceState.get(state)
+      const s = yield* InstanceState.get(state).pipe(Effect.orDie)
       const list = Object.values(s.skills)
         .filter((skill) => skill.hidden !== true)
         .toSorted((a, b) => a.name.localeCompare(b.name))

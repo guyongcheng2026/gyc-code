@@ -12,7 +12,8 @@
     "postinstall": "node scripts/apply-opentui-patch.cjs",
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
-    "start": "bun dist/index.js"
+    "start": "bun dist/index.js",
+    "test": "bun test --preload ./scripts/bun-solid-preload.ts"
   },
   "dependencies": {
     "@actions/core": "1.11.1",

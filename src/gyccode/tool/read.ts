@@ -262,11 +262,13 @@ export const ReadTool = Tool.define<
         // Check cache for unchanged file to avoid sending full content again (token savings)
         if (stat && stat.type !== "Directory") {
           const cachedStat = readCache.getStat(filepath)
+          const statMtime = Option.getOrUndefined(stat.mtime)?.getTime?.()
+          const statSize = stat.size === undefined ? undefined : Number(stat.size)
           if (
             cachedStat &&
             cachedStat !== FILE_UNCHANGED_STUB &&
-            cachedStat?.mtime?.getTime?.() === stat.mtime?.getTime?.() &&
-            cachedStat?.size === stat.size
+            cachedStat?.mtime?.getTime?.() === statMtime &&
+            cachedStat?.size === statSize
           ) {
             return {
               title,
@@ -397,7 +399,11 @@ export const ReadTool = Tool.define<
       }
 
         // Cache file content and stat for future reads
-        readCache.set(filepath, file.raw.join("\n"), stat);
+        readCache.set(filepath, file.raw.join("\n"), {
+          mtime: Option.getOrUndefined(stat.mtime),
+          size: stat.size === undefined ? undefined : Number(stat.size),
+          type: stat.type,
+        });
         return {
           title,
           output,

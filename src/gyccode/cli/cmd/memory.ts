@@ -29,7 +29,7 @@ export const MemoryCommand = cmd({
         builder: (yargs) =>
           yargs
             .positional("key", { type: "string", demandOption: true, describe: "memory key" })
-            .positional("value", { type: "string", demandOption: true, describe: "memory value" }),
+            .positional("value", { type: "string", array: true, demandOption: true, describe: "memory value" }),
         handler: async (argv) => {
           await writeHermesMemoryFile({
             key: argv.key as string,

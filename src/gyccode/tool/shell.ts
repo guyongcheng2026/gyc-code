@@ -629,7 +629,7 @@ export const ShellTool = Tool.define(
 
               const classification = classifyCommand(params.command)
               if (classification.level === "blocked") {
-                return Effect.fail(new ShellBlockedError({ classification }))
+                return yield* Effect.die(new ShellBlockedError({ classification }))
               }
 
               return yield* run(
