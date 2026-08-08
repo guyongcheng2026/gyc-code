@@ -19,3 +19,6 @@
 
 - [OK] 2026-08-08 [7022fb8] fix: Windows conhost 乱码——启动切换控制台输出代码页为 UTF-8（65001）
   - [FILES] 10: docs/GYCCODE-WORKLOG-2026-08-08.md, docs/compose/plans/2026-08-08-resource-optimization.md, src/codemode/tool-runtime.ts, src/core/database/database.ts, src/gyccode/index.ts, src/gyccode/tool/edit.ts ...
+
+- [OK] 2026-08-08 [f5251f8] chore: phase 0 - remove 9 dead files (empty, stub, unused utils)
+  - [FILES] 9: src/core/markdown.d.ts, src/core/util/array.ts, src/core/util/binary.ts, src/core/util/path.ts, src/core/util/retry.ts, src/gyccode/temporary.ts ...
