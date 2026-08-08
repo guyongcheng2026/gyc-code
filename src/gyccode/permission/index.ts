@@ -220,4 +220,7 @@ export function visibleTools<T>(tools: Record<string, T>, ruleset: PermissionV1.
 
 export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node] })
 
+export { PermissionMode, PermissionAction, resolveAction } from "./modes"
+export { DenialTracker } from "./classifier"
+
 export * as Permission from "."
