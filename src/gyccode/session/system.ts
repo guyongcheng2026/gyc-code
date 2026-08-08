@@ -103,9 +103,7 @@ const layer = Layer.effect(
         return [
           "Skills provide specialized instructions and workflows for specific tasks.",
           "Use the skill tool to load a skill when a task matches its description.",
-          // the agents seem to ingest the information about skills a bit better if we present a more verbose
-          // version of them here and a less verbose version in tool description, rather than vice versa.
-          Skill.fmt(list, { verbose: true }),
+          Skill.fmt(list, { verbose: false }),
         ].join("\n")
       }),
 
@@ -116,13 +114,27 @@ const layer = Layer.effect(
         )
         if (instructions.length === 0) return
 
-        return [
-          "<mcp_instructions>",
-          ...instructions.flatMap((item) => [
+        // MCP 指令总长预算：防止服务器指令无上限膨胀系统提示词
+        const maxInstructions = 4_096
+        const blocks: string[] = []
+        let total = 0
+        for (const item of instructions) {
+          const block = [
             `  <server name="${item.name}">`,
             ...item.instructions.split("\n").map((line) => `    ${line}`),
             "  </server>",
-          ]),
+          ].join("\n")
+          if (blocks.length === 0 || total + block.length <= maxInstructions) {
+            blocks.push(block)
+            total += block.length
+          } else {
+            break
+          }
+        }
+
+        return [
+          "<mcp_instructions>",
+          ...blocks,
           "</mcp_instructions>",
         ].join("\n")
       }),

@@ -13,6 +13,7 @@ const DEFAULT_BUFFER = 20_000
 const DEFAULT_KEEP_TOKENS = 8_000
 const TOOL_OUTPUT_MAX_CHARS = 2_000
 const SUMMARY_OUTPUT_TOKENS = 4_096
+const NO_TOOLS_PREAMBLE = `You are summarizing a conversation for continuation. Respond with TEXT ONLY — do NOT call any tools and do NOT wrap your response in a code block. Tool calls will be REJECTED.`
 const SUMMARY_TEMPLATE = `Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
 <template>
 ## Objective
@@ -160,6 +161,7 @@ const select = (
 
 export const buildPrompt = (input: { readonly previousSummary?: string; readonly context: readonly string[] }) =>
   [
+    NO_TOOLS_PREAMBLE,
     input.previousSummary
       ? `Update the anchored summary below using the conversation history above.\nPreserve still-true details, remove stale details, and merge in the new facts.\n<previous-summary>\n${input.previousSummary}\n</previous-summary>`
       : "Create a new anchored summary from the conversation history.",

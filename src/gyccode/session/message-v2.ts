@@ -52,6 +52,38 @@ function truncateToolOutput(text: string, maxChars?: number) {
   return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
 }
 
+const MAX_AGGREGATED_TOOL_CHARS = 100_000
+const MIN_AGGREGATED_TOOL_KEEP_CHARS = 1_024
+
+/**
+ * 单条 assistant 消息的全部工具结果聚合预算：
+ * 总长超限时从大到小削减最大输出（保底 1KB 头部），保证下游单条 user 消息不爆。
+ * 纯函数、确定性，同输入必得同输出（prompt cache 前缀稳定）。
+ * 返回 callID -> 允许字符数；未超限返回 undefined。
+ */
+function aggregateToolCaps(parts: readonly SessionV1.Part[]) {
+  const caps = new Map<string, number>()
+  let total = 0
+  for (const part of parts) {
+    if (part.type !== "tool") continue
+    if (part.state.status !== "completed" || part.state.time.compacted) continue
+    const text = part.state.output
+    caps.set(part.callID, text.length)
+    total += text.length
+  }
+  if (total <= MAX_AGGREGATED_TOOL_CHARS) return undefined
+  let excess = total - MAX_AGGREGATED_TOOL_CHARS
+  for (const [callID, length] of [...caps.entries()].sort((a, b) => b[1] - a[1])) {
+    if (excess <= 0) break
+    if (length <= MIN_AGGREGATED_TOOL_KEEP_CHARS) continue
+    const keep = Math.max(MIN_AGGREGATED_TOOL_KEEP_CHARS, length - excess)
+    if (keep >= length) continue
+    caps.set(callID, keep)
+    excess -= length - keep
+  }
+  return caps
+}
+
 export const Event = {
   Updated: SessionV1.Event.MessageUpdated,
   Removed: SessionV1.Event.MessageRemoved,
@@ -274,6 +306,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         if (part.type !== "reasoning") return false
         return part.metadata?.anthropic?.signature != null
       })
+      const toolCaps = aggregateToolCaps(msg.parts)
       for (const part of msg.parts) {
         if (part.type === "text") {
           const text = part.text === "" && hasSignedReasoning ? " " : part.text
@@ -292,7 +325,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           if (part.state.status === "completed") {
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
-              : truncateToolOutput(part.state.output, options?.toolOutputMaxChars)
+              : truncateToolOutput(part.state.output, toolCaps?.get(part.callID) ?? options?.toolOutputMaxChars)
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files

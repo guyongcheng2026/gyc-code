@@ -53,7 +53,13 @@ export const GlobTool = Tool.define(
           const output = []
           if (files.length === 0) output.push("No files found")
           if (files.length > 0) {
-            output.push(...files.map((file) => path.resolve(search, file.path)))
+            output.push(
+              ...files.map((file) => {
+                const abs = path.resolve(search, file.path)
+                const rel = path.relative(ins.worktree, abs)
+                return rel && !rel.startsWith("..") ? rel : abs
+              }),
+            )
             if (truncated) {
               output.push("")
               output.push(

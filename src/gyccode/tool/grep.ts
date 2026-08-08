@@ -68,14 +68,18 @@ export const GrepTool = Tool.define(
           })
           if (result.length === 0) return empty
 
-          const rows = result.map((item) => ({
-            path: path.resolve(
+          const rows = result.map((item) => {
+            const abs = path.resolve(
               requestedInfo?.type === "Directory" ? requested : path.dirname(requested),
               item.entry.path,
-            ),
-            line: item.line,
-            text: item.text,
-          }))
+            )
+            const rel = path.relative(ins.worktree, abs)
+            return {
+              path: rel && !rel.startsWith("..") ? rel : abs,
+              line: item.line,
+              text: item.text,
+            }
+          })
 
           const truncated = rows.length === 100
           const total = rows.length

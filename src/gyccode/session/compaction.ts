@@ -36,6 +36,7 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // --- Microcompact ---
 export const MICROCOMPACT_THRESHOLD = 0.85 // Start microcompact at 85% context usage
 export const CACHE_PREFIX_KEEP = 10 // Keep first 10 messages for cache preservation
+export const MAX_CONSECUTIVE_COMPACTION_FAILURES = 3 // Auto-compaction circuit breaker
 
 export interface MicrocompactBlock {
   index: number
@@ -100,7 +101,11 @@ function summaryText(message: SessionV1.WithParts) {
     .filter(Boolean)
     .join("\n\n")
     .trim()
-  return text || undefined
+  if (!text) return undefined
+  // 草稿剥离：若模型输出 <analysis>...</analysis><summary>...</summary>，只保留 <summary> 内容
+  const summary = text.match(/<summary>([\s\S]*)<\/summary>/)
+  const cleaned = (summary ? summary[1]! : text).trim()
+  return cleaned || undefined
 }
 
 function completedCompactions(messages: SessionV1.WithParts[]) {
@@ -119,6 +124,23 @@ function completedCompactions(messages: SessionV1.WithParts[]) {
     if (userIndex === undefined) return []
     return [{ userIndex, assistantIndex, summary: summaryText(msg) }]
   })
+}
+
+/**
+ * 统计历史尾部连续失败的自动压缩次数：
+ * 一条压缩尝试（带 compaction part 的 user 消息）若其后没有成功产出 summary 的 assistant 消息，记为失败。
+ * 用于熔断：连续失败达到上限后停止自动压缩，避免每轮白烧 API。
+ */
+export function consecutiveCompactionFailures(messages: SessionV1.WithParts[]) {
+  const successful = new Set(completedCompactions(messages).map((item) => messages[item.userIndex]?.info.id))
+  let failures = 0
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.info.role !== "user" || !msg.parts.some((part) => part.type === "compaction")) continue
+    if (successful.has(msg.info.id)) break
+    failures += 1
+  }
+  return failures
 }
 
 function preserveRecentBudget(input: { cfg: ConfigV1.Info; model: Provider.Model }) {

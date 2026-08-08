@@ -27,15 +27,34 @@ const layer = Layer.effect(
     const { db } = yield* Database.Service
 
     const update = Effect.fn("Todo.update")(function* (input: { sessionID: SessionID; todos: ReadonlyArray<Info> }) {
+      const rows = yield* db
+        .select()
+        .from(TodoTable)
+        .where(eq(TodoTable.session_id, input.sessionID))
+        .orderBy(asc(TodoTable.position))
+        .all()
+        .pipe(Effect.orDie)
+      const unchanged =
+        rows.length === input.todos.length &&
+        input.todos.every((todo, position) => {
+          const row = rows[position]
+          return row?.content === todo.content && row?.status === todo.status && row?.priority === todo.priority
+        })
+      if (unchanged) return
+
+      // 全完成或空列表自动清空，防止 todo 无限膨胀
+      const stored =
+        input.todos.length === 0 || input.todos.every((todo) => todo.status === "completed") ? [] : input.todos
+
       yield* db
         .transaction((tx) =>
           Effect.gen(function* () {
             yield* tx.delete(TodoTable).where(eq(TodoTable.session_id, input.sessionID)).run()
-            if (input.todos.length === 0) return
+            if (stored.length === 0) return
             yield* tx
               .insert(TodoTable)
               .values(
-                input.todos.map((todo, position) => ({
+                stored.map((todo, position) => ({
                   session_id: input.sessionID,
                   content: todo.content,
                   status: todo.status,
@@ -47,7 +66,7 @@ const layer = Layer.effect(
           }),
         )
         .pipe(Effect.orDie)
-      yield* events.publish(Event.Updated, input)
+      yield* events.publish(Event.Updated, { sessionID: input.sessionID, todos: stored })
     })
 
     const get = Effect.fn("Todo.get")(function* (sessionID: SessionID) {

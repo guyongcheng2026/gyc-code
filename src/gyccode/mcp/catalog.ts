@@ -10,6 +10,14 @@ import { Effect } from "effect"
 
 const DEFAULT_TIMEOUT = 30_000
 const MAX_LIST_PAGES = 1_000
+const MAX_TOOL_DESCRIPTION = 2_048
+
+function truncateDescription(description: string) {
+  if (description.length <= MAX_TOOL_DESCRIPTION) return description
+  const cut = description.slice(0, MAX_TOOL_DESCRIPTION)
+  const boundary = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("\n"))
+  return (boundary > MAX_TOOL_DESCRIPTION * 0.5 ? cut.slice(0, boundary + 1) : cut) + "…"
+}
 
 const TolerantListToolsResultSchema = ListToolsResultSchema.extend({
   tools: ToolSchema.omit({ outputSchema: true }).array(),
@@ -48,7 +56,7 @@ export function convertTool(mcpTool: MCPToolDef, client: Client, timeout?: numbe
   }
 
   return dynamicTool({
-    description: mcpTool.description ?? "",
+    description: truncateDescription(mcpTool.description ?? ""),
     inputSchema: jsonSchema(inputSchema),
     execute: async (args: unknown, options) => {
       const result = await client.callTool(

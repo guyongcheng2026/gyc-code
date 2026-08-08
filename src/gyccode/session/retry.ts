@@ -26,7 +26,12 @@ export type Retryable = {
 export const RETRY_INITIAL_DELAY = 2000
 export const RETRY_BACKOFF_FACTOR = 2
 export const RETRY_MAX_DELAY_NO_HEADERS = 30_000 // 30 seconds
-export const RETRY_MAX_DELAY = 2_147_483_647 // max 32-bit signed integer for setTimeout
+// 带 retry-after 响应头时的硬上限。opencode 等免费模型会在 429 时返回
+// retry-after（如 46666 秒 ≈ 13 小时），若不设上限会让 run 挂死数小时。
+export const RETRY_MAX_DELAY_WITH_HEADERS = 60_000 // 60 seconds
+// retry-after 超过该值视为非瞬时限流（额度耗尽/封禁），放弃重试直接报错。
+export const RETRY_ABANDON_AFTER_MS = 300_000 // 5 minutes
+export const MAX_RETRY_ATTEMPTS = 5 // 重试次数上限，防止 429/5xx 无限重试挂起
 
 const RETRYABLE_MESSAGE_PATTERNS = [
   /429|500|502|503|504|524/i,
@@ -37,11 +42,7 @@ const RETRYABLE_MESSAGE_PATTERNS = [
   /try your request again|retry your request|resource exhausted|resource_exhausted/i,
 ]
 
-function cap(ms: number) {
-  return Math.min(ms, RETRY_MAX_DELAY)
-}
-
-export function delay(attempt: number, error?: SessionV1.APIError) {
+export function delay(attempt: number, error?: SessionV1.APIError): number | undefined {
   if (error) {
     const headers = error.data.responseHeaders
     if (headers) {
@@ -49,7 +50,8 @@ export function delay(attempt: number, error?: SessionV1.APIError) {
       if (retryAfterMs) {
         const parsedMs = Number.parseFloat(retryAfterMs)
         if (!Number.isNaN(parsedMs)) {
-          return cap(parsedMs)
+          if (parsedMs > RETRY_ABANDON_AFTER_MS) return undefined
+          return Math.min(parsedMs, RETRY_MAX_DELAY_WITH_HEADERS)
         }
       }
 
@@ -58,20 +60,26 @@ export function delay(attempt: number, error?: SessionV1.APIError) {
         const parsedSeconds = Number.parseFloat(retryAfter)
         if (!Number.isNaN(parsedSeconds)) {
           // convert seconds to milliseconds
-          return cap(Math.ceil(parsedSeconds * 1000))
+          const ms = Math.ceil(parsedSeconds * 1000)
+          if (ms > RETRY_ABANDON_AFTER_MS) return undefined
+          return Math.min(ms, RETRY_MAX_DELAY_WITH_HEADERS)
         }
         // Try parsing as HTTP date format
         const parsed = Date.parse(retryAfter) - Date.now()
         if (!Number.isNaN(parsed) && parsed > 0) {
-          return cap(Math.ceil(parsed))
+          if (parsed > RETRY_ABANDON_AFTER_MS) return undefined
+          return Math.min(Math.ceil(parsed), RETRY_MAX_DELAY_WITH_HEADERS)
         }
       }
 
-      return cap(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1))
+      return Math.min(
+        RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1),
+        RETRY_MAX_DELAY_WITH_HEADERS,
+      )
     }
   }
 
-  return cap(Math.min(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1), RETRY_MAX_DELAY_NO_HEADERS))
+  return Math.min(RETRY_INITIAL_DELAY * Math.pow(RETRY_BACKOFF_FACTOR, attempt - 1), RETRY_MAX_DELAY_NO_HEADERS)
 }
 
 export function retryable(error: Err, provider: string) {
@@ -180,10 +188,13 @@ export function policy(opts: {
   return Schedule.fromStepWithMetadata(
     Effect.succeed((meta: Schedule.InputMetadata<unknown>) => {
       const error = opts.parse(meta.input)
+      if (meta.attempt > MAX_RETRY_ATTEMPTS) return Cause.done(meta.attempt)
       const retry = retryable(error, opts.provider)
       if (!retry) return Cause.done(meta.attempt)
+      const wait = delay(meta.attempt, SessionV1.APIError.isInstance(error) ? error : undefined)
+      // 长 retry-after（如免费额度耗尽返回 13 小时）直接放弃重试，避免 run 挂死
+      if (wait === undefined) return Cause.done(meta.attempt)
       return Effect.gen(function* () {
-        const wait = delay(meta.attempt, SessionV1.APIError.isInstance(error) ? error : undefined)
         const now = yield* Clock.currentTimeMillis
         yield* opts.set({
           attempt: meta.attempt,

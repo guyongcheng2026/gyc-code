@@ -6,6 +6,8 @@ import type { DeepMutable } from "@gyccode/core/schema"
 import { InvalidError, JsonError } from "@gyccode/core/v1/config/error"
 
 export function jsonc(text: string, filepath: string): unknown {
+  // 兼容 UTF-8 BOM 配置文件（部分编辑器写入时会带 BOM，jsonc-parser 会报 InvalidSymbol）
+  text = text.replace(/^\uFEFF/, "")
   const errors: JsoncParseError[] = []
   const data = parseJsoncImpl(text, errors, { allowTrailingComma: true })
   if (errors.length) {

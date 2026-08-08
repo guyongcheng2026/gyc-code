@@ -1114,6 +1114,7 @@ const layer = Layer.effect(
         const ctx = yield* InstanceState.context
         let structured: unknown
         let step = 0
+        let resumes = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1138,6 +1139,34 @@ const layer = Layer.effect(
             lastAssistantMsg?.parts.some(
               (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
             ) ?? false
+
+          // 输出 token 上限命中：注入精炼接续指令，让模型不道歉不复述地继续写
+          if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {
+            resumes += 1
+            yield* Effect.logInfo("output token limit hit, resuming", {
+              "session.id": sessionID,
+              messageID: lastAssistant.id,
+              resume: resumes,
+            })
+            const continueUserMsg: SessionV1.User = {
+              id: MessageID.ascending(),
+              sessionID,
+              time: { created: Date.now() },
+              role: "user",
+              agent: lastUser.agent,
+              model: { providerID: lastUser.model.providerID, modelID: lastUser.model.modelID },
+            }
+            yield* sessions.updateMessage(continueUserMsg)
+            yield* sessions.updatePart({
+              type: "text",
+              id: PartID.ascending(),
+              messageID: continueUserMsg.id,
+              sessionID,
+              text: "Output token limit hit. Resume directly from where you left off — no apology, no repetition.",
+              synthetic: true,
+            } satisfies SessionV1.Part)
+            continue
+          }
 
           if (
             lastAssistant?.finish &&
@@ -1351,6 +1380,14 @@ const layer = Layer.effect(
 
             if (result === "stop") return "break" as const
             if (result === "compact") {
+              if (SessionCompaction.consecutiveCompactionFailures(msgs) >= SessionCompaction.MAX_CONSECUTIVE_COMPACTION_FAILURES) {
+                handle.message.error = new SessionV1.ContextOverflowError({
+                  message: "Auto-compaction disabled after repeated failures",
+                }).toObject()
+                yield* sessions.updateMessage(handle.message)
+                yield* events.publish(Session.Event.Error, { sessionID, error: handle.message.error })
+                return "break" as const
+              }
               yield* compaction.create({
                 sessionID,
                 agent: lastUser.agent,
