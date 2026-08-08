@@ -25,8 +25,8 @@ const bun = candidates.find((c) => {
 
 const preload = path.join(__dirname, "..", "scripts", "bun-solid-preload.ts")
 const args = fs.existsSync(distEntry)
-  ? [entry, ...process.argv.slice(2)]
-  : ["run", "--preload", preload, "--conditions=browser", entry, ...process.argv.slice(2)]
+  ? ["--smol", entry, ...process.argv.slice(2)]
+  : ["--smol", "run", "--preload", preload, "--conditions=browser", entry, ...process.argv.slice(2)]
 
 const result = spawnSync(bun, args, { stdio: "inherit" })
 if (result.error) {

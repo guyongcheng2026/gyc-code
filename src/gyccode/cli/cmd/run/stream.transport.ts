@@ -22,6 +22,7 @@ import {
   blockerStatus,
   bootstrapSessionData,
   createSessionData,
+  disposeSessionData,
   flushInterrupted,
   pickBlockerView,
   reduceSessionData,
@@ -731,6 +732,7 @@ function createLayer(input: StreamInput) {
               : history
 
           if (history) {
+            disposeSessionData(state.data)
             state.data = history.data
           }
 
@@ -1085,6 +1087,7 @@ function createLayer(input: StreamInput) {
             return false
           }
 
+          disposeSessionData(state.data)
           state.data = snapshot.value.history.data
           for (const request of [...state.data.permissions, ...state.data.questions]) {
             seedBlocker(request.id)

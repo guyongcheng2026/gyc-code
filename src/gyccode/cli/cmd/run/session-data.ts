@@ -127,6 +127,24 @@ export function createSessionData(
   }
 }
 
+/** 释放 SessionData 内所有 Map/Set/Array 以回收内存。在 session 离开或 TUI 退出时调用。 */
+export function disposeSessionData(data: SessionData): void {
+  data.ids.clear()
+  data.tools.clear()
+  data.call.clear()
+  data.shell.clear()
+  data.role.clear()
+  data.msg.clear()
+  data.part.clear()
+  data.text.clear()
+  data.sent.clear()
+  data.visible.clear()
+  data.end.clear()
+  data.echo.clear()
+  data.permissions.length = 0
+  data.questions.length = 0
+}
+
 function modelKey(provider: string, model: string): string {
   return `${provider}/${model}`
 }
