@@ -19,6 +19,7 @@ export class Service extends ConfigService.Service<Service>()("@gyccode/RuntimeF
   disableDefaultPlugins: bool("GYCCODE_DISABLE_DEFAULT_PLUGINS"),
   disableEmbeddedWebUi: bool("GYCCODE_DISABLE_EMBEDDED_WEB_UI"),
   disableExternalSkills: bool("GYCCODE_DISABLE_EXTERNAL_SKILLS"),
+  disableComposeSkills: bool("GYCCODE_DISABLE_COMPOSE_SKILLS"),
   disableLspDownload: bool("GYCCODE_DISABLE_LSP_DOWNLOAD"),
   disableClaudeCodePrompt: Config.all({
     broad: bool("GYCCODE_DISABLE_CLAUDE_CODE"),

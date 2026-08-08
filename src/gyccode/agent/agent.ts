@@ -179,6 +179,22 @@ const layer = Layer.effect(
             mode: "primary",
             native: true,
           },
+          compose: {
+            name: "compose",
+            description: "Compose mode. Orchestrates workflows with built-in compose skills.",
+            options: {},
+            color: "#a78bf3",
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                question: "allow",
+                skill: "allow",
+              }),
+              user,
+            ),
+            mode: "primary",
+            native: true,
+          },
           general: {
             name: "general",
             description: `General-purpose agent for researching complex questions and executing multi-step tasks. Use this agent to execute multiple units of work in parallel.`,
@@ -320,6 +336,8 @@ const layer = Layer.effect(
             values(),
             sortBy(
               [(x) => (cfg.default_agent ? x.name === cfg.default_agent : x.name === "build"), "desc"],
+              [(x) => x.name === "plan", "desc"],
+              [(x) => x.name === "compose", "desc"],
               [(x) => x.name, "asc"],
             ),
           )

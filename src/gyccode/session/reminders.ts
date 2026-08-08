@@ -11,6 +11,8 @@ import { Session } from "./session"
 import PROMPT_PLAN from "./prompt/plan.txt"
 import BUILD_SWITCH from "./prompt/build-switch.txt"
 import PLAN_MODE from "./prompt/plan-mode.txt"
+import PROMPT_COMPOSE from "./prompt/compose.txt"
+import { ComposeSkill } from "../skill/compose"
 
 export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   messages: SessionV1.WithParts[]
@@ -22,6 +24,19 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   const sessions = yield* Session.Service
   const userMessage = input.messages.findLast((msg) => msg.info.role === "user")
   if (!userMessage) return input.messages
+
+  if (input.agent.name === "compose") {
+    const skills = ComposeSkill.composeSkillsBlock()
+    userMessage.parts.push({
+      id: PartID.ascending(),
+      messageID: userMessage.info.id,
+      sessionID: userMessage.info.sessionID,
+      type: "text",
+      text: skills ? `${PROMPT_COMPOSE}\n\n${skills}` : PROMPT_COMPOSE,
+      synthetic: true,
+    })
+    return input.messages
+  }
 
   if (!flags.experimentalPlanMode) {
     if (input.agent.name === "plan") {

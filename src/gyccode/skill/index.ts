@@ -15,6 +15,7 @@ import { ConfigMarkdown } from "@/config/markdown"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Glob } from "@gyccode/core/util/glob"
 import { Discovery } from "./discovery"
+import { ComposeSkill } from "./compose"
 import { isRecord } from "@/util/record"
 import { escapeHtml } from "@/util/html"
 
@@ -39,6 +40,7 @@ export const Info = Schema.Struct({
   description: Schema.optional(Schema.String),
   location: Schema.String,
   content: Schema.String,
+  hidden: Schema.optional(Schema.Boolean),
 })
 export type Info = Schema.Schema.Type<typeof Info>
 
@@ -87,11 +89,13 @@ type State = {
 type DiscoveryState = {
   matches: string[]
   dirs: string[]
+  hidden: string[]
 }
 
 type ScanState = {
   matches: Set<string>
   dirs: Set<string>
+  hidden: Set<string>
 }
 
 export interface Interface {
@@ -102,7 +106,12 @@ export interface Interface {
   readonly available: (agent?: Agent.Info) => Effect.Effect<Info[]>
 }
 
-const add = Effect.fnUntraced(function* (state: State, match: string, events: EventV2Bridge.Service["Service"]) {
+const add = Effect.fnUntraced(function* (
+  state: State,
+  match: string,
+  events: EventV2Bridge.Service["Service"],
+  hidden?: boolean,
+) {
   const md = yield* Effect.tryPromise({
     try: () => ConfigMarkdown.parse(match),
     catch: (err) => err,
@@ -136,6 +145,7 @@ const add = Effect.fnUntraced(function* (state: State, match: string, events: Ev
     description: md.data.description,
     location: match,
     content: md.content,
+    ...(hidden ? { hidden: true } : {}),
   }
 })
 
@@ -167,6 +177,7 @@ const scan = Effect.fnUntraced(function* (
   for (const match of matches) {
     state.matches.add(match)
     state.dirs.add(path.dirname(match))
+    if (opts?.hidden) state.hidden.add(match)
   }
 })
 
@@ -177,10 +188,11 @@ const discoverSkills = Effect.fnUntraced(function* (
   global: Global.Interface,
   disableExternalSkills: boolean,
   disableClaudeCodeSkills: boolean,
+  disableComposeSkills: boolean,
   directory: string,
   worktree: string,
 ) {
-  const state: ScanState = { matches: new Set(), dirs: new Set() }
+  const state: ScanState = { matches: new Set(), dirs: new Set(), hidden: new Set() }
 
   const externalDirs: string[] = []
   if (!disableExternalSkills) {
@@ -226,9 +238,20 @@ const discoverSkills = Effect.fnUntraced(function* (
     }
   }
 
+  // Built-in compose skills: extracted on first run, registered hidden so they
+  // only surface in Compose mode via the injected <compose_skills> block.
+  if (!disableComposeSkills) {
+    yield* ComposeSkill.extractComposeSkills(fsys, true)
+    const root = ComposeSkill.composeRoot()
+    if (yield* fsys.isDir(root)) {
+      yield* scan(state, root, SKILL_PATTERN, { dot: true, scope: "compose", hidden: true })
+    }
+  }
+
   return {
     matches: Array.from(state.matches),
     dirs: Array.from(state.dirs),
+    hidden: Array.from(state.hidden),
   }
 })
 
@@ -237,7 +260,8 @@ const loadSkills = Effect.fnUntraced(function* (
   discovered: DiscoveryState,
   events: EventV2Bridge.Service["Service"],
 ) {
-  yield* Effect.forEach(discovered.matches, (match) => add(state, match, events), {
+  const discoveredHidden = new Set(discovered.hidden)
+  yield* Effect.forEach(discovered.matches, (match) => add(state, match, events, discoveredHidden.has(match)), {
     concurrency: "unbounded",
     discard: true,
   })
@@ -265,6 +289,7 @@ const layer = Layer.effect(
           global,
           flags.disableExternalSkills,
           flags.disableClaudeCodeSkills,
+          flags.disableComposeSkills,
           ctx.directory,
           ctx.worktree,
         )
@@ -309,7 +334,9 @@ const layer = Layer.effect(
 
     const available = Effect.fn("Skill.available")(function* (agent?: Agent.Info) {
       const s = yield* InstanceState.get(state)
-      const list = Object.values(s.skills).toSorted((a, b) => a.name.localeCompare(b.name))
+      const list = Object.values(s.skills)
+        .filter((skill) => skill.hidden !== true)
+        .toSorted((a, b) => a.name.localeCompare(b.name))
       if (!agent) return list
       return list.filter((skill) => Permission.evaluate("skill", skill.name, agent.permission).action !== "deny")
     })
