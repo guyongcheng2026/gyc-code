@@ -55,3 +55,6 @@
 
 - [OK] 2026-08-08 [12c0296] feat: add swarm multi-agent system with teammate and coordinator
   - [FILES] 3: src/gyccode/agent/swarm/coordinator.ts, src/gyccode/agent/swarm/teammate.ts, src/gyccode/agent/swarm/types.ts
+
+- [OK] 2026-08-08 [fa4e9cf] feat: add IDE transport stub and OAuth token lifecycle to MCP
+  - [FILES] 2: src/gyccode/mcp/auth.ts, src/gyccode/mcp/transport-ide.ts
