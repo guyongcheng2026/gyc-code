@@ -82,6 +82,14 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
         if (store.index === 0) return { input: "", parts: [] }
         return store.history.at(store.index)
       },
+      suggest(query: string): PromptInfo[] {
+        const q = query.trim().toLowerCase()
+        if (!q) return []
+        return [...store.history]
+          .filter((h) => h.input && h.input.toLowerCase().startsWith(q) && h.input.length > q.length)
+          .slice(-8)
+          .reverse()
+      },
       append(item: PromptInfo) {
         const entry = structuredClone(unwrap(item))
         if (isDuplicateEntry(store.history.at(-1), entry)) {

@@ -27,6 +27,7 @@ import { Spinner } from "../../component/spinner"
 import { createSyntaxStyleMemo, generateSubtleSyntax, selectedForeground, useTheme } from "../../context/theme"
 import { BoxRenderable, ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
 import { Prompt, type PromptRef } from "../../component/prompt"
+import { NextStepHint } from "../../component/next-step-hint"
 import type {
   AssistantMessage,
   Part,
@@ -1315,6 +1316,7 @@ export function Session() {
                       sessionID={route.sessionID}
                       right={<pluginRuntime.Slot name="session_prompt_right" session_id={route.sessionID} />}
                     />
+                    <NextStepHint sessionID={route.sessionID} />
                   </pluginRuntime.Slot>
                 </Show>
               </box>

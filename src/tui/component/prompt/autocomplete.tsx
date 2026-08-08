@@ -20,6 +20,7 @@ import { useTerminalDimensions } from "@opentui/solid"
 import { Locale } from "../../util/locale"
 import type { PromptInfo } from "../../prompt/history"
 import { useFrecency } from "../../prompt/frecency"
+import { usePromptHistory } from "../../prompt/history"
 import { useBindings, useCommandSlashes, useGyccodeModeStack } from "../../keymap"
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
 import type { FileSystemEntry } from "@opencode-ai/sdk/v2"
@@ -58,7 +59,7 @@ function extractLineRange(input: string) {
 
 export type AutocompleteRef = {
   onInput: (value: string) => void
-  visible: false | "@" | "/"
+  visible: false | "@" | "/" | "recall"
 }
 
 export type AutocompleteOption = {
@@ -94,6 +95,7 @@ export function Autocomplete(props: {
   const { theme } = useTheme()
   const dimensions = useTerminalDimensions()
   const frecency = useFrecency()
+  const promptHistory = usePromptHistory()
   const tuiConfig = useTuiConfig()
   const paths = useTuiPaths()
   const location = useLocation()
@@ -148,6 +150,9 @@ export function Autocomplete(props: {
     // Track props.value to make memo reactive to text changes
     props.value // <- there surely is a better way to do this, like making .input() reactive
 
+    if (store.visible === "recall") {
+      return props.input().getTextRange(0, props.input().cursorOffset)
+    }
     return props.input().getTextRange(store.index + 1, props.input().cursorOffset)
   })
 
@@ -473,7 +478,30 @@ export function Autocomplete(props: {
     }))
   })
 
+  const recallOptions = createMemo((): AutocompleteOption[] => {
+    if (store.visible !== "recall") return []
+    const query = search().trim()
+    if (!query) return []
+    return promptHistory.suggest(query).map((entry) => ({
+      display: entry.input,
+      description: "历史",
+      onSelect: () => {
+        const newText = entry.input
+        const cursor = props.input().logicalCursor
+        props.input().deleteRange(0, 0, cursor.row, cursor.col)
+        props.input().insertText(newText)
+        props.input().cursorOffset = Bun.stringWidth(newText)
+        props.setPrompt((draft) => {
+          draft.input = newText
+        })
+      },
+    }))
+  })
+
   const options = createMemo((prev: AutocompleteOption[] | undefined) => {
+    if (store.visible === "recall") {
+      return recallOptions()
+    }
     const filesValue = files()
     const referenceMatchValue = referenceMatch()
     const agentsValue = agents()
@@ -675,10 +703,15 @@ export function Autocomplete(props: {
       },
       onInput(value) {
         if (store.visible) {
+          if (store.visible === "recall") {
+            const prefix = value.slice(0, props.input().cursorOffset).trim()
+            if (!prefix || promptHistory.suggest(prefix).length === 0) {
+              hide()
+            }
+            return
+          }
           if (
-            // Typed text before the trigger
             props.input().cursorOffset <= store.index ||
-            // There is a space between the trigger and the cursor
             props.input().getTextRange(store.index, props.input().cursorOffset).match(/\s/) ||
             // "/<command>" is not the sole content
             (store.visible === "/" && value.match(/^\S+\s+\S+\s*$/))
@@ -704,6 +737,14 @@ export function Autocomplete(props: {
         if (idx !== undefined) {
           show("@")
           setStore("index", idx)
+          return
+        }
+
+        // Recall: plain-text prefix matches against prompt history
+        const prefix = value.slice(0, offset).trim()
+        if (prefix && !value.includes("@") && promptHistory.suggest(prefix).length > 0) {
+          show("recall")
+          setStore("index", 0)
         }
       },
     })
