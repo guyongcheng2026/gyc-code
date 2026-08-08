@@ -32,6 +32,50 @@ const PRUNE_PROTECTED_TOOLS = ["skill"]
 const DEFAULT_TAIL_TURNS = 2
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
 const MAX_PRESERVE_RECENT_TOKENS = 8_000
+
+// --- Microcompact ---
+export const MICROCOMPACT_THRESHOLD = 0.85 // Start microcompact at 85% context usage
+export const CACHE_PREFIX_KEEP = 10 // Keep first 10 messages for cache preservation
+
+export interface MicrocompactBlock {
+  index: number
+  content: string
+  expired: boolean
+}
+
+/** Simple message type for microcompact operations */
+interface Message {
+  role: string
+  content: string
+}
+
+export function microcompact(
+  messages: readonly Message[],
+  contextUsed: number,
+  contextLimit: number,
+): readonly Message[] {
+  const ratio = contextUsed / contextLimit
+  if (ratio < MICROCOMPACT_THRESHOLD) return messages
+
+  // Keep cache prefix intact, mark middle blocks as expired
+  const result: Message[] = []
+  for (let i = 0; i < messages.length; i++) {
+    if (i < CACHE_PREFIX_KEEP || i >= messages.length - 5) {
+      // Keep cache prefix and recent messages
+      result.push(messages[i])
+    } else if (messages[i].role === "tool") {
+      // Mark expired tool outputs
+      result.push({
+        ...messages[i],
+        content: "[This tool output has been compacted. The result was processed in earlier context.]",
+      })
+    } else {
+      result.push(messages[i])
+    }
+  }
+  return result
+}
+
 type Turn = {
   start: number
   end: number
