@@ -82,3 +82,6 @@
 
 - [OK] 2026-08-08 [2fd7f74] fix: 修复 effect v4 Schema.Union 多参数调用崩溃，LLM 选择与计划执行恢复正常
   - [FILES] 13: src/gyccode/agent/swarm/teammate.ts, src/gyccode/agent/swarm/types.ts, src/gyccode/hook/types.ts, src/gyccode/mcp/auth.ts, src/gyccode/mcp/index.ts, src/gyccode/mcp/transport-ide.ts ...
+
+- [OK] 2026-08-08 [d13dc75] docs: 重建并落盘 CC-BENCHMARK 对标报告（Claude Code 2.1.88 五维对标 + 22 项提升措施）
+  - [FILES] 1: docs/CC-BENCHMARK-2026-08-08.md
