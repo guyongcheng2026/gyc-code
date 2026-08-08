@@ -91,3 +91,6 @@
 
 - [OK] 2026-08-08 [08b5fbf] docs: BUG 清单补充端到端验证结论（auth.set 保存/模型目录/LLM 实际调用均正常）
   - [FILES] 1: docs/BUG-2026-08-08.md
+
+- [OK] 2026-08-08 [0b0a8bf] docs: 能力清单覆盖评估报告（A-G 逐项核查 + P0/P1/P2 追赶计划）
+  - [FILES] 1: docs/CAPABILITY-GAP-2026-08-08.md
