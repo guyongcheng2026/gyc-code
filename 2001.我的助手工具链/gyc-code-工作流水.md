@@ -85,3 +85,6 @@
 
 - [OK] 2026-08-08 [d13dc75] docs: 重建并落盘 CC-BENCHMARK 对标报告（Claude Code 2.1.88 五维对标 + 22 项提升措施）
   - [FILES] 1: docs/CC-BENCHMARK-2026-08-08.md
+
+- [OK] 2026-08-08 [ec47d6b] fix: 修复 429 retry-after 导致 run 挂死 13 小时 + BOM 配置解析失败；目录对齐 Claude Code 结构
+  - [FILES] 24: docs/BUG-2026-08-08.md, src/QueryEngine.ts, src/STRUCTURE.md, src/Task.ts, src/Tool.ts, src/commands.ts ...
