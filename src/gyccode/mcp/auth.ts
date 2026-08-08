@@ -14,6 +14,37 @@ export const Tokens = Schema.Struct({
 })
 export type Tokens = Schema.Schema.Type<typeof Tokens>
 
+// OAuth token type alias for external consumers
+export type OAuthTokenState = Tokens
+
+export function isTokenExpired(token: OAuthTokenState): boolean {
+  if (!token.expiresAt) return false
+  return Date.now() > token.expiresAt - 60_000 // 1 minute buffer
+}
+
+export function shouldRefreshToken(token: OAuthTokenState): boolean {
+  if (!token.refreshToken) return false
+  if (!token.expiresAt) return false
+  return Date.now() > token.expiresAt - 300_000 // 5 minute buffer
+}
+
+export interface TokenRefreshResult {
+  accessToken: string
+  refreshToken?: string
+  expiresIn: number  // seconds
+}
+
+// Stub for actual OAuth refresh
+export function refreshAccessToken(
+  token: OAuthTokenState,
+  tokenEndpoint: string,
+  clientId: string,
+): Promise<TokenRefreshResult> {
+  // In production, this would make an HTTP request to the token endpoint
+  // using the refresh_token grant type
+  throw new Error(`Token refresh not implemented for endpoint: ${tokenEndpoint}`)
+}
+
 export const ClientInfo = Schema.Struct({
   clientId: Schema.mutableKey(Schema.String),
   clientSecret: Schema.mutableKey(Schema.optional(Schema.String)),
