@@ -97,11 +97,11 @@ function countLabel(count: number, total: number, query: string) {
 }
 
 function categoryRank(category: string) {
-  if (category === "Project Commands") {
+  if (category === "项目命令") {
     return 0
   }
 
-  if (category === "MCP Commands") {
+  if (category === "MCP 命令") {
     return 1
   }
 
@@ -359,8 +359,8 @@ export function RunCommandMenuBody(props: {
     const session: CommandEntry[] = [
       {
         action: "editor",
-        category: "Session",
-        display: "Open editor",
+        category: "会话",
+        display: "打开编辑器",
         footer: "/editor",
         keywords: "editor compose draft external editor",
       },
@@ -368,8 +368,8 @@ export function RunCommandMenuBody(props: {
         ? [
             {
               action: "subagent" as const,
-              category: "Session",
-              display: "View subagents",
+              category: "会话",
+              display: "查看子代理",
               footer:
                 activeSubagentCount() > 0 ? `${activeSubagentCount()} active` : `${props.subagents().length} recent`,
               keywords: props
@@ -381,9 +381,9 @@ export function RunCommandMenuBody(props: {
         : []),
       {
         action: "slash",
-        category: "Session",
+        category: "会话",
         name: "new",
-        display: "New session",
+        display: "新会话",
         footer: "/new",
         keywords: "new session clear",
       },
@@ -393,8 +393,8 @@ export function RunCommandMenuBody(props: {
         ? [
             {
               action: "skill" as const,
-              category: "Prompt",
-              display: "Skills",
+              category: "提示词",
+              display: "技能",
               footer: "/skills",
               keywords: `skill skills ${skills()
                 .map((item) => `${item.name} ${item.description ?? ""}`)
@@ -405,15 +405,15 @@ export function RunCommandMenuBody(props: {
     const agent: CommandEntry[] = [
       {
         action: "model",
-        category: "Agent",
-        display: "Switch model",
+        category: "代理",
+        display: "切换模型",
       },
       ...(props.queued().length > 0
         ? [
             {
               action: "queued" as const,
-              category: "Agent",
-              display: "Manage queued prompts",
+              category: "代理",
+              display: "管理排队提示",
               footer: `${props.queued().length} queued`,
               keywords: props
                 .queued()
@@ -424,8 +424,8 @@ export function RunCommandMenuBody(props: {
         : []),
       {
         action: "variant.cycle",
-        category: "Agent",
-        display: "Variant cycle",
+        category: "代理",
+        display: "循环切换变体",
         footer: props.variantCycle,
         keywords: "variant cycle",
       },
@@ -433,8 +433,8 @@ export function RunCommandMenuBody(props: {
         ? [
             {
               action: "variant.list" as const,
-              category: "Agent",
-              display: "Switch model variant",
+              category: "代理",
+              display: "切换模型变体",
               keywords: `variant variants ${props.variants().join(" ")}`,
             },
           ]
@@ -446,7 +446,7 @@ export function RunCommandMenuBody(props: {
         (item) =>
           ({
             action: "slash",
-            category: item.source === "mcp" ? "MCP Commands" : "Project Commands",
+            category: item.source === "mcp" ? "MCP 命令" : "项目命令",
             name: item.name,
             display: item.name,
             footer: `/${item.name}`,
@@ -463,7 +463,7 @@ export function RunCommandMenuBody(props: {
       ...prompt,
       ...agent,
       ...commands,
-      { action: "exit", category: "System", display: "Exit", footer: "/exit", keywords: "/exit exit" },
+      { action: "exit", category: "系统", display: "退出", footer: "/exit", keywords: "/exit exit" },
     ]
   })
   const items = createMemo<CommandEntry[]>(() => match(query(), entries()))

@@ -10,12 +10,12 @@ import { useSDK } from "../context/sdk"
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
   if (props.loading) {
-    return <span style={{ fg: theme.textMuted }}>⋯ Loading</span>
+    return <span style={{ fg: theme.textMuted }}>⋯ 加载中</span>
   }
   if (props.enabled) {
-    return <span style={{ fg: theme.success, attributes: TextAttributes.BOLD }}>✓ Enabled</span>
+    return <span style={{ fg: theme.success, attributes: TextAttributes.BOLD }}>✓ 已启用</span>
   }
-  return <span style={{ fg: theme.textMuted }}>○ Disabled</span>
+  return <span style={{ fg: theme.textMuted }}>○ 已停用</span>
 }
 
 export function DialogMcp() {
@@ -47,7 +47,7 @@ export function DialogMcp() {
   const actions = createMemo(() => [
     {
       command: "dialog.mcp.toggle",
-      title: "toggle",
+      title: "启用/停用",
       onTrigger: async (option: DialogSelectOption<string>) => {
         // Prevent toggling while an operation is already in progress
         if (loading() !== null) return
@@ -74,7 +74,7 @@ export function DialogMcp() {
   return (
     <DialogSelect
       ref={setRef}
-      title="MCPs"
+      title="MCP"
       options={options()}
       actions={actions()}
       onSelect={(_option) => {

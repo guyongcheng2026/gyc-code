@@ -13,11 +13,11 @@ export const Plugin = define({
     yield* ctx.command.transform((draft) => {
       draft.update("init", (command) => {
         command.template = PROMPT_INITIALIZE.replace("${path}", location.project.directory)
-        command.description = "guided AGENTS.md setup"
+        command.description = "引导式 AGENTS.md 配置"
       })
       draft.update("review", (command) => {
         command.template = PROMPT_REVIEW.replace("${path}", location.project.directory)
-        command.description = "review changes [commit|branch|pr], defaults to uncommitted"
+        command.description = "审查更改 [commit|branch|pr]，默认为未提交的更改"
         command.subtask = true
       })
     })

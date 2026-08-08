@@ -289,72 +289,72 @@ function WhichKeyPanel(props: {
     commands: [
       {
         name: command.groupPrevious,
-        title: "Previous key binding group",
-        desc: "Show the previous which-key group",
-        category: "System",
+        title: "上一个按键绑定分组",
+        desc: "显示上一个 which-key 分组",
+        category: "系统",
         run() {
           moveGroup(-1)
         },
       },
       {
         name: command.groupNext,
-        title: "Next key binding group",
-        desc: "Show the next which-key group",
-        category: "System",
+        title: "下一个按键绑定分组",
+        desc: "显示下一个 which-key 分组",
+        category: "系统",
         run() {
           moveGroup(1)
         },
       },
       {
         name: command.scrollUp,
-        title: "Scroll key bindings up",
-        desc: "Scroll the which-key panel up",
-        category: "System",
+        title: "向上滚动按键绑定",
+        desc: "向上滚动 which-key 面板",
+        category: "系统",
         run() {
           scroll(-columns())
         },
       },
       {
         name: command.scrollDown,
-        title: "Scroll key bindings down",
-        desc: "Scroll the which-key panel down",
-        category: "System",
+        title: "向下滚动按键绑定",
+        desc: "向下滚动 which-key 面板",
+        category: "系统",
         run() {
           scroll(columns())
         },
       },
       {
         name: command.pageUp,
-        title: "Page key bindings up",
-        desc: "Page the which-key panel up",
-        category: "System",
+        title: "按键绑定上翻页",
+        desc: "which-key 面板上翻页",
+        category: "系统",
         run() {
           scroll(-pageSize())
         },
       },
       {
         name: command.pageDown,
-        title: "Page key bindings down",
-        desc: "Page the which-key panel down",
-        category: "System",
+        title: "按键绑定下翻页",
+        desc: "which-key 面板下翻页",
+        category: "系统",
         run() {
           scroll(pageSize())
         },
       },
       {
         name: command.home,
-        title: "First key binding",
-        desc: "Jump to the first which-key binding",
-        category: "System",
+        title: "第一个按键绑定",
+        desc: "跳转到第一个 which-key 绑定",
+        category: "系统",
         run() {
           setOffset(0)
         },
       },
       {
         name: command.end,
-        title: "Last key binding",
-        desc: "Jump to the last which-key binding",
-        category: "System",
+        title: "最后一个按键绑定",
+        desc: "跳转到最后一个 which-key 绑定",
+        category: "系统",
         run() {
           setOffset(maxOffset())
         },
@@ -539,18 +539,18 @@ const tui: TuiPlugin = async (api) => {
     commands: [
       {
         name: command.toggle,
-        title: "Show key bindings",
-        desc: "Toggle which-key overlay",
-        category: "System",
+        title: "显示按键绑定",
+        desc: "切换 which-key 浮层",
+        category: "系统",
         run() {
           setPinned((value) => !value)
         },
       },
       {
         name: command.toggleLayout,
-        title: "Toggle key bindings layout",
-        desc: "Switch which-key between dock and overlay mode",
-        category: "System",
+        title: "切换按键绑定布局",
+        desc: "在停靠与浮层模式间切换 which-key",
+        category: "系统",
         run() {
           setMode((value) => {
             const next = value === "dock" ? "overlay" : "dock"
@@ -561,9 +561,9 @@ const tui: TuiPlugin = async (api) => {
       },
       {
         name: command.togglePending,
-        title: "Toggle pending key preview",
-        desc: "Automatically show which-key for pending key sequences in overlay mode",
-        category: "System",
+        title: "切换待定按键预览",
+        desc: "在浮层模式下自动显示待定按键序列的 which-key",
+        category: "系统",
         run() {
           setPendingPreview((value) => {
             api.kv.set(KV_PENDING_PREVIEW, !value)

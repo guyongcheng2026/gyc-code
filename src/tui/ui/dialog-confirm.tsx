@@ -3,7 +3,6 @@ import { useTheme } from "../context/theme"
 import { useDialog, type DialogContext } from "./dialog"
 import { createStore } from "solid-js/store"
 import { For } from "solid-js"
-import { Locale } from "../util/locale"
 import { useBindings } from "../keymap"
 
 export type DialogConfirmProps = {
@@ -27,7 +26,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
     bindings: [
       {
         key: "return",
-        desc: "Confirm dialog selection",
+        desc: "确认对话框选项",
         group: "Dialog",
         cmd: () => {
           if (store.active === "confirm") props.onConfirm?.()
@@ -37,7 +36,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
       },
       {
         key: "left",
-        desc: "Previous dialog option",
+        desc: "上一个对话框选项",
         group: "Dialog",
         cmd: () => {
           setStore("active", store.active === "confirm" ? "cancel" : "confirm")
@@ -45,7 +44,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
       },
       {
         key: "right",
-        desc: "Next dialog option",
+        desc: "下一个对话框选项",
         group: "Dialog",
         cmd: () => {
           setStore("active", store.active === "confirm" ? "cancel" : "confirm")
@@ -80,7 +79,7 @@ export function DialogConfirm(props: DialogConfirmProps) {
               }}
             >
               <text fg={key === store.active ? theme.selectedListItemText : theme.textMuted}>
-                {Locale.titlecase(key === "cancel" ? (props.label ?? key) : key)}
+                {key === "cancel" ? (props.label ?? "取消") : "确认"}
               </text>
             </box>
           )}

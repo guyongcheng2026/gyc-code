@@ -13,7 +13,7 @@ export const InvalidTool = Tool.define(
     parameters: Parameters,
     execute: (params: { tool: string; error: string }) =>
       Effect.succeed({
-        title: "Invalid Tool",
+        title: "无效工具",
         output: `The arguments provided to the tool are invalid: ${params.error}`,
         metadata: {},
       }),

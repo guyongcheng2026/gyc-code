@@ -41,23 +41,23 @@ function Install(props: { api: TuiPluginApi }) {
 
   useBindings(() => ({
     enabled: !busy(),
-    bindings: [{ key: "tab", desc: "Toggle install scope", group: "Plugins", cmd: () => setGlobal((value) => !value) }],
+    bindings: [{ key: "tab", desc: "切换安装范围", group: "插件", cmd: () => setGlobal((value) => !value) }],
   }))
 
   return (
     <props.api.ui.DialogPrompt
-      title="Install plugin"
-      placeholder="npm package name"
+      title="安装插件"
+      placeholder="npm 包名"
       busy={busy()}
-      busyText="Installing plugin..."
+      busyText="正在安装插件..."
       description={() => (
         <box flexDirection="row" gap={1}>
           <text fg={props.api.theme.current.textMuted}>scope:</text>
           <text fg={busy() ? props.api.theme.current.textMuted : props.api.theme.current.text}>
-            {global() ? "global" : "local"}
+            {global() ? "全局" : "本地"}
           </text>
           <Show when={!busy()}>
-            <text fg={props.api.theme.current.textMuted}>(tab toggle)</text>
+            <text fg={props.api.theme.current.textMuted}>(Tab 键切换)</text>
           </Show>
         </box>
       )}
@@ -200,13 +200,13 @@ function View(props: { api: TuiPluginApi }) {
 
   return (
     <DialogSelect
-      title="Plugins"
+      title="插件"
       options={rows()}
       current={cur()}
       onMove={(item) => setCur(item.value)}
       actions={[
         {
-          title: "toggle",
+          title: "启用/停用",
           command: "plugins.toggle",
           hidden: lock(),
           onTrigger: (item) => {
@@ -215,7 +215,7 @@ function View(props: { api: TuiPluginApi }) {
           },
         },
         {
-          title: "install",
+          title: "安装",
           command: "dialog.plugins.install",
           hidden: lock(),
           onTrigger: () => {
@@ -240,8 +240,8 @@ const tui: TuiPlugin = async (api) => {
     commands: [
       {
         name: "plugins.list",
-        title: "Plugins",
-        category: "System",
+        title: "插件",
+        category: "系统",
         namespace: "palette",
         run() {
           show(api)
@@ -249,8 +249,8 @@ const tui: TuiPlugin = async (api) => {
       },
       {
         name: "plugins.install",
-        title: "Install plugin",
-        category: "System",
+        title: "安装插件",
+        category: "系统",
         namespace: "palette",
         run() {
           showInstall(api)

@@ -216,7 +216,7 @@ export function Prompt(props: PromptProps) {
   function promptModelWarning() {
     toast.show({
       variant: "warning",
-      message: "Connect a provider to send prompts",
+      message: "连接提供商以发送提示",
       duration: 3000,
     })
     if (sync.data.provider.length === 0) {
@@ -334,9 +334,9 @@ export function Prompt(props: PromptProps) {
   const promptCommands = createMemo(() =>
     [
       {
-        title: "Clear prompt",
+        title: "清空提示词",
         name: "prompt.clear",
-        category: "Prompt",
+        category: "提示词",
         hidden: true,
         run: () => {
           clearPrompt()
@@ -344,9 +344,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Submit prompt",
+        title: "提交提示词",
         name: "prompt.submit",
-        category: "Prompt",
+        category: "提示词",
         hidden: true,
         run: async () => {
           if (!input.focused) return
@@ -357,9 +357,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Remove editor context",
+        title: "移除编辑器上下文",
         name: "prompt.editor_context.clear",
-        category: "Prompt",
+        category: "提示词",
         enabled: Boolean(editorContext()),
         run: () => {
           dismissEditorContext()
@@ -367,9 +367,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Paste",
+        title: "粘贴",
         name: "prompt.paste",
-        category: "Prompt",
+        category: "提示词",
         hidden: true,
         run: async (ctx: CommandContext<Renderable, KeyEvent>) => {
           ctx.event.preventDefault()
@@ -389,9 +389,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Interrupt session",
+        title: "中断会话",
         name: "session.interrupt",
-        category: "Session",
+        category: "会话",
         hidden: true,
         enabled: status().type !== "idle",
         run: () => {
@@ -420,8 +420,8 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Open editor",
-        category: "Session",
+title: "打开编辑器",
+        category: "会话",
         name: "prompt.editor",
         slashName: "editor",
         run: async () => {
@@ -512,9 +512,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Skills",
+        title: "技能",
         name: "prompt.skills",
-        category: "Prompt",
+        category: "提示词",
         slashName: "skills",
         run: () => {
           dialog.replace(() => (
@@ -532,10 +532,10 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Warp",
-        desc: "Change the workspace for the session",
+        title: "工作区",
+        desc: "更改会话的工作区",
         name: "workspace.set",
-        category: "Session",
+        category: "会话",
         enabled: Flag.GYCCODE_EXPERIMENTAL_WORKSPACES,
         slashName: "warp",
         run: () => {
@@ -543,10 +543,10 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Move session",
-        desc: "Move to another project dir",
+        title: "移动会话",
+        desc: "移到另一个项目目录",
         name: "session.move",
-        category: "Session",
+        category: "会话",
         slashName: "move",
         run: () => {
           move.open()
@@ -735,9 +735,9 @@ export function Prompt(props: PromptProps) {
   const stashCommands = createMemo(() =>
     [
       {
-        title: "Stash prompt",
+        title: "暂存提示词",
         name: "prompt.stash",
-        category: "Prompt",
+        category: "提示词",
         enabled: !!store.prompt.input,
         run: () => {
           if (!store.prompt.input) return
@@ -753,9 +753,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Stash pop",
+        title: "取出暂存",
         name: "prompt.stash.pop",
-        category: "Prompt",
+        category: "提示词",
         enabled: stash.list().length > 0,
         run: () => {
           const entry = stash.pop()
@@ -769,9 +769,9 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "Stash list",
+        title: "暂存列表",
         name: "prompt.stash.list",
-        category: "Prompt",
+        category: "提示词",
         enabled: stash.list().length > 0,
         run: () => {
           dialog.replace(() => (
@@ -828,7 +828,7 @@ export function Prompt(props: PromptProps) {
       bindings: [
         {
           key: "!",
-          desc: "Shell mode",
+          desc: "Shell 模式",
           group: "Prompt",
           cmd: () => {
             setStore("placeholder", randomIndex(shell().length))
@@ -843,7 +843,7 @@ export function Prompt(props: PromptProps) {
     return {
       target: inputTarget,
       enabled: inputTarget() !== undefined && store.mode === "shell",
-      bindings: [{ key: "escape", desc: "Exit shell mode", group: "Prompt", cmd: () => setStore("mode", "normal") }],
+      bindings: [{ key: "escape", desc: "退出 Shell 模式", group: "Prompt", cmd: () => setStore("mode", "normal") }],
     }
   })
 
@@ -854,7 +854,7 @@ export function Prompt(props: PromptProps) {
         cursorVersion()
         return inputTarget() !== undefined && store.mode === "shell" && input?.visualCursor.offset === 0
       })(),
-      bindings: [{ key: "backspace", desc: "Exit shell mode", group: "Prompt", cmd: () => setStore("mode", "normal") }],
+      bindings: [{ key: "backspace", desc: "退出 Shell 模式", group: "Prompt", cmd: () => setStore("mode", "normal") }],
     }
   })
 
@@ -868,8 +868,8 @@ export function Prompt(props: PromptProps) {
       commands: [
         {
           name: "prompt.history.previous",
-          title: "Previous prompt history",
-          category: "Prompt",
+          title: "上一个历史提示",
+          category: "提示词",
           run() {
             if (input.cursorOffset !== 0) {
               if (input.scrollY + input.visualCursor.visualRow === 0) input.cursorOffset = 0
@@ -900,8 +900,8 @@ export function Prompt(props: PromptProps) {
       commands: [
         {
           name: "prompt.history.next",
-          title: "Next prompt history",
-          category: "Prompt",
+          title: "下一个历史提示",
+          category: "提示词",
           run() {
             if (input.cursorOffset !== input.plainText.length) {
               if (

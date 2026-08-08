@@ -414,10 +414,10 @@ export function createPromptState(input: PromptInput): PromptState {
         action: "editor" as const,
         name: "editor",
         display: "/editor",
-        description: "compose in your external editor",
+        description: "在外部编辑器中编写",
       } satisfies SlashOption,
-      { kind: "slash", name: "new", display: "/new", description: "start a new session" } satisfies SlashOption,
-      { kind: "slash", name: "exit", display: "/exit", description: "close GycCode" } satisfies SlashOption,
+      { kind: "slash", name: "new", display: "/new", description: "开始新会话" } satisfies SlashOption,
+      { kind: "slash", name: "exit", display: "/exit", description: "关闭 GycCode" } satisfies SlashOption,
     ]
     const hidden = new Set(builtins.map((item) => item.name))
     const showSkillMenu = !shell() && skillCommands().length > 0 && !hasSkillsCommand()
@@ -433,7 +433,7 @@ export function createPromptState(input: PromptInput): PromptState {
               action: "skill-menu" as const,
               name: "skills",
               display: "/skills",
-              description: "browse available skills",
+              description: "浏览可用技能",
             } satisfies SlashOption,
           ]
         : []),
@@ -981,8 +981,8 @@ export function createPromptState(input: PromptInput): PromptState {
     commands: [
       {
         name: "prompt.clear",
-        title: "Clear prompt or exit",
-        category: "Prompt",
+        title: "清空提示或退出",
+        category: "提示词",
         run() {
           if (requestExit()) return
           return false
@@ -998,8 +998,8 @@ export function createPromptState(input: PromptInput): PromptState {
     commands: [
       {
         name: "session.interrupt",
-        title: "Interrupt session",
-        category: "Session",
+        title: "中断会话",
+        category: "会话",
         run() {
           if (input.onInterrupt()) return
           return false
@@ -1015,8 +1015,8 @@ export function createPromptState(input: PromptInput): PromptState {
     commands: [
       {
         name: "prompt.editor",
-        title: "Open editor",
-        category: "Prompt",
+        title: "打开编辑器",
+        category: "提示词",
         run() {
           void openEditor()
         },
@@ -1031,16 +1031,16 @@ export function createPromptState(input: PromptInput): PromptState {
     commands: [
       {
         name: "prompt.history.previous",
-        title: "Previous prompt history",
-        category: "Prompt",
+        title: "上一个历史提示",
+        category: "提示词",
         run(ctx: { event: KeyEvent }) {
           return historyCommand(-1, ctx.event)
         },
       },
       {
         name: "prompt.history.next",
-        title: "Next prompt history",
-        category: "Prompt",
+        title: "下一个历史提示",
+        category: "提示词",
         run(ctx: { event: KeyEvent }) {
           return historyCommand(1, ctx.event)
         },
@@ -1099,26 +1099,26 @@ export function createPromptState(input: PromptInput): PromptState {
     commands: [
       {
         name: "prompt.autocomplete.prev",
-        title: "Previous autocomplete item",
-        category: "Autocomplete",
+        title: "上一个自动补全项",
+        category: "自动补全",
         run: () => menu.move(-1),
       },
       {
         name: "prompt.autocomplete.next",
-        title: "Next autocomplete item",
-        category: "Autocomplete",
+        title: "下一个自动补全项",
+        category: "自动补全",
         run: () => menu.move(1),
       },
       {
         name: "prompt.autocomplete.hide",
-        title: "Hide autocomplete",
-        category: "Autocomplete",
+        title: "隐藏自动补全",
+        category: "自动补全",
         run: cancelAutocomplete,
       },
       {
         name: "prompt.autocomplete.select",
-        title: "Select autocomplete item",
-        category: "Autocomplete",
+        title: "选择自动补全项",
+        category: "自动补全",
         run() {
           if (mode() === "slash" && options().length === 0) {
             hide()
@@ -1129,8 +1129,8 @@ export function createPromptState(input: PromptInput): PromptState {
       },
       {
         name: "prompt.autocomplete.complete",
-        title: "Complete autocomplete item",
-        category: "Autocomplete",
+        title: "完成自动补全项",
+        category: "自动补全",
         run() {
           if (mode() === "slash" && options().length === 0) {
             hide()

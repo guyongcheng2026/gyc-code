@@ -41,7 +41,7 @@ export function DialogDebug() {
       .write?.(text)
       .then(() => {
         setCopied(true)
-        toast.show({ message: "Debug info copied to clipboard", variant: "info" })
+        toast.show({ message: "调试信息已复制到剪贴板", variant: "info" })
       })
       .catch(toast.error)
   }

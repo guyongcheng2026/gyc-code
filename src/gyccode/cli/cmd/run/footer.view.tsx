@@ -503,14 +503,14 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         name: "command.palette.show",
-        title: "Open command palette",
-        category: "Prompt",
+        title: "打开命令面板",
+        category: "提示词",
         run: openCommand,
       },
       {
         name: "variant.cycle",
-        title: "Cycle model variant",
-        category: "Model",
+        title: "循环切换模型变体",
+        category: "模型",
         run: props.onCycle,
       },
     ],
@@ -527,8 +527,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         name: "session.background",
-        title: "Background subagents",
-        category: "Session",
+        title: "后台子代理",
+        category: "会话",
         run: () => props.onBackground?.(),
       },
     ],
@@ -541,8 +541,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         name: "session.child.first",
-        title: "View subagents",
-        category: "Session",
+        title: "查看子代理",
+        category: "会话",
         run: openSubagentMenu,
       },
     ],
@@ -555,8 +555,8 @@ export function RunFooterView(props: RunFooterViewProps) {
     commands: [
       {
         name: "session.queued_prompts",
-        title: "Manage queued prompts",
-        category: "Session",
+        title: "管理排队提示",
+        category: "会话",
         run: openQueuedMenu,
       },
     ],

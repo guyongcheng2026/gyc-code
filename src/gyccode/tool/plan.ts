@@ -71,7 +71,7 @@ export const PlanExitTool = Tool.define(
           } satisfies SessionV1.TextPart)
 
           return {
-            title: "Switching to build agent",
+            title: "切换至构建代理",
             output: "User approved switching to build agent. Wait for further instructions.",
             metadata: {},
           }
