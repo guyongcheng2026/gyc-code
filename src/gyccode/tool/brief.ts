@@ -1,11 +1,7 @@
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 
-export const BriefLevel = Schema.Union(
-  Schema.Literal("info"),
-  Schema.Literal("warning"),
-  Schema.Literal("critical"),
-)
+export const BriefLevel = Schema.Literals(["info", "warning", "critical"])
 
 export class BriefInput extends Schema.Class<BriefInput>("BriefInput")({
   message: Schema.String,

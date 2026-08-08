@@ -34,6 +34,7 @@ import { CrossSpawnSpawner } from "@gyccode/core/cross-spawn-spawner"
 import { McpCatalog } from "./catalog"
 import { McpEvent } from "@gyccode/schema/mcp-event"
 import { McpBrowser } from "./browser"
+import { WSTransport } from "./transport-ws"
 
 const DEFAULT_TIMEOUT = 30_000
 const CLIENT_OPTIONS = {
@@ -124,6 +125,31 @@ function remoteURL(value: string) {
   if (URL.canParse(value)) return new URL(value)
 }
 
+export type MCPTransportKind = "stdio" | "streamable-http" | "sse" | "ws" | "ide"
+
+/**
+ * Resolve which transport an MCP server config should use based on its URL
+ * scheme. Local servers always use stdio; remote http(s) servers use
+ * streamable-http (with sse as a fallback); ws(s) servers use WebSocket.
+ * The "ide" kind is reserved for explicit local IDE-extension selection and
+ * is not derived from a URL scheme.
+ */
+export function resolveTransport(mcp: ConfigMCPV1.Info): { kind: MCPTransportKind; url?: URL } | undefined {
+  if (mcp.type === "local") return { kind: "stdio" }
+  const url = remoteURL(mcp.url)
+  if (!url) return undefined
+  switch (url.protocol) {
+    case "ws:":
+    case "wss:":
+      return { kind: "ws", url }
+    case "http:":
+    case "https:":
+      return { kind: "streamable-http", url }
+    default:
+      return undefined
+  }
+}
+
 interface CreateResult {
   mcpClient?: MCPClient
   status: Status
@@ -209,7 +235,7 @@ const layer = Layer.effect(
     const events = yield* EventV2Bridge.Service
     const browser = yield* McpBrowser.Service
 
-    type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport
+    type Transport = StdioClientTransport | StreamableHTTPClientTransport | SSEClientTransport | WSTransport
 
     /**
      * Connect a client via the given transport with resource safety:
@@ -266,22 +292,30 @@ const layer = Layer.effect(
         )
       }
 
-      const transports: Array<{ name: string; transport: TransportWithAuth }> = [
-        {
-          name: "StreamableHTTP",
-          transport: new StreamableHTTPClientTransport(url, {
-            authProvider,
-            requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
-          }),
-        },
-        {
-          name: "SSE",
-          transport: new SSEClientTransport(url, {
-            authProvider,
-            requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
-          }),
-        },
-      ]
+      const isWebSocket = url.protocol === "ws:" || url.protocol === "wss:"
+      const transports: Array<{ name: string; transport: TransportWithAuth | WSTransport }> = isWebSocket
+        ? [
+            {
+              name: "WebSocket",
+              transport: new WSTransport({ headers: mcp.headers }),
+            },
+          ]
+        : [
+            {
+              name: "StreamableHTTP",
+              transport: new StreamableHTTPClientTransport(url, {
+                authProvider,
+                requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
+              }),
+            },
+            {
+              name: "SSE",
+              transport: new SSEClientTransport(url, {
+                authProvider,
+                requestInit: mcp.headers ? { headers: mcp.headers } : undefined,
+              }),
+            },
+          ]
 
       const connectTimeout = mcp.timeout ?? DEFAULT_TIMEOUT
       let lastStatus: Status | undefined

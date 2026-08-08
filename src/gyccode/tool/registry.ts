@@ -10,6 +10,7 @@ import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
+import { SwarmTool } from "./swarm"
 import { Database } from "@gyccode/core/database/database"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
@@ -62,12 +63,14 @@ export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false
 
 type TaskDef = Tool.InferDef<typeof TaskTool>
 type ReadDef = Tool.InferDef<typeof ReadTool>
+type SwarmDef = Tool.InferDef<typeof SwarmTool>
 
 type State = {
   custom: Tool.Def[]
   builtin: Tool.Def[]
   task: TaskDef
   read: ReadDef
+  swarm: SwarmDef
 }
 
 export interface Interface {
@@ -96,6 +99,7 @@ const layer = Layer.effect(
 
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
+    const swarm = yield* SwarmTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -219,6 +223,7 @@ const layer = Layer.effect(
           edit: Tool.init(edit),
           write: Tool.init(writetool),
           task: Tool.init(task),
+          swarm: Tool.init(swarm),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
@@ -244,6 +249,7 @@ const layer = Layer.effect(
             tool.edit,
             tool.write,
             tool.task,
+            tool.swarm,
             tool.fetch,
             tool.todo,
             tool.search,
@@ -255,6 +261,7 @@ const layer = Layer.effect(
           ],
           task: tool.task,
           read: tool.read,
+          swarm: tool.swarm,
         }
       }),
     )

@@ -1,12 +1,7 @@
 ﻿import { Schema } from "effect"
 
 export class SecurityClassification extends Schema.Class<SecurityClassification>("SecurityClassification")({
-  level: Schema.Union(
-    Schema.Literal("safe"),
-    Schema.Literal("warning"),
-    Schema.Literal("dangerous"),
-    Schema.Literal("blocked"),
-  ),
+  level: Schema.Literals(["safe", "warning", "dangerous", "blocked"]),
   patterns: Schema.Array(Schema.String),
   reason: Schema.String,
 }) {}

@@ -8,7 +8,7 @@ export function createTeammatePrompt(config: TeammateConfig, task: string): stri
     debugger: "You are a debugger. Your job is to find and fix issues in the code.",
   }
 
-  return `${rolePrompts[config.role] ?? rolePrompts.implementer]}
+  return `${rolePrompts[config.role] ?? rolePrompts.implementer}
 
 Task: ${task}
 

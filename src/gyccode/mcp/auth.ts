@@ -34,15 +34,70 @@ export interface TokenRefreshResult {
   expiresIn: number  // seconds
 }
 
-// Stub for actual OAuth refresh
-export function refreshAccessToken(
+export class TokenRefreshError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+    readonly code?: string,
+  ) {
+    super(message)
+    this.name = "TokenRefreshError"
+  }
+}
+
+export async function refreshAccessToken(
   token: OAuthTokenState,
   tokenEndpoint: string,
   clientId: string,
 ): Promise<TokenRefreshResult> {
-  // In production, this would make an HTTP request to the token endpoint
-  // using the refresh_token grant type
-  throw new Error(`Token refresh not implemented for endpoint: ${tokenEndpoint}`)
+  if (!token.refreshToken) {
+    throw new TokenRefreshError("No refresh token available", undefined, "no_refresh_token")
+  }
+
+  let response: Response
+  try {
+    response = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        client_id: clientId,
+        refresh_token: token.refreshToken,
+      }),
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    throw new TokenRefreshError(`Token refresh network failure: ${message}`, undefined, "network_error")
+  }
+
+  if (!response.ok) {
+    const description = await refreshErrorDescription(response)
+    if (response.status === 400 && description.includes("invalid_grant")) {
+      throw new TokenRefreshError(`Invalid refresh token: ${description}`, response.status, "invalid_grant")
+    }
+    throw new TokenRefreshError(`Token refresh failed: ${description}`, response.status, "http_error")
+  }
+
+  const body = (await response.json()) as Record<string, unknown>
+  if (typeof body.access_token !== "string") {
+    throw new TokenRefreshError("Token refresh response missing access_token", response.status, "invalid_response")
+  }
+  return {
+    accessToken: body.access_token,
+    refreshToken: typeof body.refresh_token === "string" ? body.refresh_token : token.refreshToken,
+    expiresIn: typeof body.expires_in === "number" ? body.expires_in : 3600,
+  }
+}
+
+async function refreshErrorDescription(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as Record<string, unknown>
+    const parts: string[] = []
+    if (typeof body.error === "string") parts.push(body.error)
+    if (typeof body.error_description === "string") parts.push(body.error_description)
+    if (parts.length) return parts.join(": ")
+  } catch {}
+  return response.statusText || `HTTP ${response.status}`
 }
 
 export const ClientInfo = Schema.Struct({

@@ -1,18 +1,9 @@
 ﻿import { Schema } from "effect"
 
-export const PermissionMode = Schema.Union(
-  Schema.Literal("default"),
-  Schema.Literal("acceptEdits"),
-  Schema.Literal("bypassPermissions"),
-  Schema.Literal("plan"),
-)
+export const PermissionMode = Schema.Literals(["default", "acceptEdits", "bypassPermissions", "plan"])
 export type PermissionMode = typeof PermissionMode.Type
 
-export const PermissionAction = Schema.Union(
-  Schema.Literal("allow"),
-  Schema.Literal("ask"),
-  Schema.Literal("deny"),
-)
+export const PermissionAction = Schema.Literals(["allow", "ask", "deny"])
 export type PermissionAction = typeof PermissionAction.Type
 
 export function resolveAction(
