@@ -70,3 +70,6 @@
 
 - [OK] 2026-08-08 [bf0cb64] feat: add plugin marketplace stubs (search, install, update)
   - [FILES] 1: src/gyccode/plugin/marketplace.ts
+
+- [OK] 2026-08-08 [9d5aae8] feat: add natural language token budget parsing (+500k, use 2M tokens)
+  - [FILES] 1: src/gyccode/session/token-budget.ts
