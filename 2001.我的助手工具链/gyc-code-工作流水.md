@@ -64,3 +64,6 @@
 
 - [OK] 2026-08-08 [deb9839] feat: add BriefTool for agent-to-user notifications
   - [FILES] 2: src/gyccode/tool/brief.ts, src/gyccode/tool/registry.ts
+
+- [OK] 2026-08-08 [c39fc97] feat: add vim keybindings and configurable keybinding system
+  - [FILES] 1: src/gyccode/cli/keybindings.ts
