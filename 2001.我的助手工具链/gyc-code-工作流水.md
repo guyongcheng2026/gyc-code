@@ -25,3 +25,6 @@
 
 - [OK] 2026-08-08 [43d9bef] feat: add shell security engine with 14 dangerous pattern classifications
   - [FILES] 2: src/gyccode/tool/shell.ts, src/gyccode/tool/shell/security.ts
+
+- [OK] 2026-08-08 [7c6160d] feat: expand permission system with 4 modes and denial tracker
+  - [FILES] 3: src/gyccode/permission/classifier.ts, src/gyccode/permission/index.ts, src/gyccode/permission/modes.ts
