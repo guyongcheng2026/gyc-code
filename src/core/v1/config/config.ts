@@ -169,6 +169,28 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  memory: Schema.optional(
+    Schema.Struct({
+      extraction: Schema.optional(
+        Schema.Struct({
+          enabled: Schema.optional(Schema.Boolean).annotate({
+            description: "Enable automatic cross-session memory extraction (default: true)",
+          }),
+          min_turns: Schema.optional(NonNegativeInt).annotate({
+            description: "Extract memories every N turns (default: 3)",
+          }),
+          model: Schema.optional(Schema.String).annotate({
+            description: "Model to use for extraction, e.g. deepseek/deepseek-chat (default: provider small model)",
+          }),
+          max_memories: Schema.optional(NonNegativeInt).annotate({
+            description: "Maximum memories to persist per extraction (default: 5)",
+          }),
+        }),
+      ),
+    }),
+  ).annotate({
+    description: "Cross-session memory configuration",
+  }),
   experimental: Schema.optional(
     Schema.Struct({
       disable_paste_summary: Schema.optional(Schema.Boolean),

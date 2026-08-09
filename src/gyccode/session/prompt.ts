@@ -57,6 +57,9 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
+import { readHermesMemories } from "../memory/hermes-bridge"
+import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
+import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extraction-runner"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
 
@@ -1282,6 +1285,66 @@ const layer = Layer.effect(
               providerID: lastUser.model.providerID,
               history: msgs,
             }).pipe(Effect.ignore, Effect.forkIn(scope))
+
+          // Cross-session memory extraction: every N turns, asynchronously ask a
+          // cheap model to distill durable facts/decisions/learnings from the
+          // recent conversation and persist them to the hermes memory file.
+          // Non-blocking: failures never interrupt the main loop.
+          const memoryCfg = (yield* config.get()).memory?.extraction
+          if (memoryCfg?.enabled !== false && step % (memoryCfg?.min_turns ?? 3) === 0) {
+            yield* Effect.gen(function* () {
+              const recent = msgs
+                .filter((m) => m.info.role === "user")
+                .flatMap((m) => m.parts)
+                .filter((p): p is SessionV1.TextPart => p.type === "text" && !("synthetic" in p && p.synthetic))
+                .map((p) => p.text)
+                .join(" ")
+                .slice(-2000)
+              if (!recent.trim()) return
+              const existing = yield* Effect.promise(() => readHermesMemories())
+              const cfg = memoryCfg
+              const extractor: Extractor = ({ conversation, existing: ex }) =>
+                Effect.gen(function* () {
+                  const mdl = cfg?.model
+                    ? yield* getModel(...(cfg.model.split("/") as [ProviderV2.ID, ModelV2.ID]), sessionID)
+                    : ((yield* provider.getSmallModel(lastUser.model.providerID)) ??
+                      (yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)))
+                  const ag = yield* agents.get("summary")
+                  if (!ag) return [] as string[]
+                  const text = yield* llm
+                    .stream({
+                      agent: ag,
+                      user: lastUser,
+                      system: [],
+                      small: true,
+                      tools: {},
+                      model: mdl,
+                      sessionID,
+                      retries: 2,
+                      messages: [{ role: "user", content: formatExtractionPrompt(conversation, ex) }],
+                    })
+                    .pipe(
+                      Stream.filter(LLMEvent.is.textDelta),
+                      Stream.map((e) => e.text),
+                      Stream.mkString,
+                      Effect.orDie,
+                    )
+                  return parseExtractionResult(text)
+                })
+              const result = yield* runExtraction({
+                extractor,
+                sink: hermesMemorySink,
+                existing,
+                conversation: recent,
+                config: {
+                  minTurns: cfg?.min_turns ?? 3,
+                  model: cfg?.model ?? "",
+                  maxMemories: cfg?.max_memories ?? 5,
+                },
+              })
+              yield* Effect.logInfo("memory extraction complete", { "session.id": sessionID, count: result.length })
+            }).pipe(Effect.ignore, Effect.forkIn(scope))
+          }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
           const task = tasks.pop()
