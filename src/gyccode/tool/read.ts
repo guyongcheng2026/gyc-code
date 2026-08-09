@@ -11,6 +11,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isPdfAttachment, sniffAttachmentMime } from "@/util/media"
 import { ReadCache, FILE_UNCHANGED_STUB, type StatLike } from "./read-cache"
+import { maybeRegisterMagicDoc } from "../magic-docs"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -408,6 +409,9 @@ export const ReadTool = Tool.define<
           size: stat.size === undefined ? undefined : Number(stat.size),
           type: stat.type,
         });
+        // Auto-maintained documentation (MAGIC DOC): register so the session can
+        // refresh it in the background when idle (aligned with Claude Code MagicDocs).
+        maybeRegisterMagicDoc(filepath, file.raw.join("\n"))
         return {
           title,
           output,
