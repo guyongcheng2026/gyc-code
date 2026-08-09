@@ -124,3 +124,6 @@
 
 - [OK] 2026-08-09 [57f6d3d] feat(session): cwd tracker broadcast + instructions list event
   - [FILES] 5: src/gyccode/session/instruction.ts, src/gyccode/session/prompt.ts, src/gyccode/session/session-cwd.test.ts, src/gyccode/session/session-cwd.ts, src/gyccode/tool/shell.ts
+
+- [OK] 2026-08-09 [7767330] fix(session): reuse resolved instruction paths for InstructionsListed; scope cwd store lifecycle
+  - [FILES] 5: src/gyccode/session/instruction.ts, src/gyccode/session/prompt.ts, src/gyccode/session/session-cwd.test.ts, src/gyccode/session/session-cwd.ts, src/gyccode/session/session.ts
