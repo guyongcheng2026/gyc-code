@@ -1,42 +1,32 @@
 ﻿export * as Token from "./token"
 
-// Character-per-token heuristics (aligned with Claude Code's type-aware
-// tokenEstimation): plain ASCII prose ~4 chars/token, JSON ~2 (dense single
-// char tokens), CJK ~1.5 (each Han char typically maps to 1-2 tokens), and
-// code-dense content ~3 (symbols/punctuation add token weight). These keep
-// compaction triggers close to real usage without a full tokenizer.
-const CHARS_PER_TOKEN = 4
-const JSON_CHARS_PER_TOKEN = 2
-const CJK_CHARS_PER_TOKEN = 1.5
-const CODE_CHARS_PER_TOKEN = 3
+import { tokenize } from "./tokenizer"
 
-// Han + full-width punctuation (CJK Unified Ideographs, Extension A, CJK
-// punctuation, full-width forms).
-const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/
-// Characters that add density in code (symbols, punctuation).
-const CODE_DENSE_RE = /[{}[\]();:,<>~`!@#$%^&*+=\\-_/\\?.'"]/
+// Token estimation is backed by the local tokenizer: `estimate` runs the same
+// deterministic, linear-time tokenize pass that `tokenize` exposes, so counts
+// are consistent everywhere (CJK = 1 token/char, code symbols tokenize
+// individually, ASCII runs cluster into word-ish tokens). `estimateWithAPI`
+// delegates to an injected Anthropic countTokens when available and falls back
+// to the local `estimate` on any failure.
 
 export const estimate = (input: string) => {
   if (!input) return 0
-  if (isJson(input)) return Math.max(0, Math.round(input.length / JSON_CHARS_PER_TOKEN))
-
-  let cjk = 0
-  let codeDense = 0
-  let rest = 0
-  for (const ch of input) {
-    if (CJK_RE.test(ch)) cjk++
-    else if (CODE_DENSE_RE.test(ch)) codeDense++
-    else rest++
-  }
-
-  // Weighted char-per-token: CJK chars are densest, code symbols next, prose lightest.
-  const weighted = cjk / CJK_CHARS_PER_TOKEN + codeDense / CODE_CHARS_PER_TOKEN + rest / CHARS_PER_TOKEN
-  return Math.max(0, Math.round(weighted))
+  return tokenize(input).length
 }
 
-function isJson(input: string) {
-  const head = input.trimStart()
-  return head.startsWith("{") || head.startsWith("[")
+export async function estimateWithAPI(
+  input: string,
+  opts: { api?: { countTokens: (text: string) => Promise<number> }; model?: string },
+): Promise<number> {
+  if (opts.api && opts.model) {
+    try {
+      const n = await opts.api.countTokens(input)
+      if (typeof n === "number" && Number.isFinite(n) && n >= 0) return n
+    } catch {
+      // fall through to local
+    }
+  }
+  return estimate(input)
 }
 
 // Compact token count for display: 300000 -> "300K", 1050000 -> "1.05M".
