@@ -84,6 +84,47 @@ export const Moved = Event.define({
 })
 export type Moved = typeof Moved.Type
 
+export const SessionGoalVerdict = Schema.Struct({
+  ok: Schema.Boolean,
+  impossible: Schema.Boolean.pipe(optional),
+  reason: Schema.String,
+  attempt: Schema.Finite,
+  messageID: SessionMessage.ID.pipe(optional),
+  error: Schema.Boolean.pipe(optional),
+}).annotate({ identifier: "session.goal.verdict" })
+export interface SessionGoalVerdict extends Schema.Schema.Type<typeof SessionGoalVerdict> {}
+
+export const CwdChanged = Event.define({
+  type: "session.cwd",
+  ...options,
+  schema: {
+    ...Base,
+    cwd: Schema.String,
+  },
+})
+export type CwdChanged = typeof CwdChanged.Type
+
+export const GoalUpdated = Event.define({
+  type: "session.goal",
+  ...options,
+  schema: {
+    ...Base,
+    goal: Schema.Struct({ condition: Schema.String }).pipe(optional),
+    lastVerdict: SessionGoalVerdict.pipe(optional),
+  },
+})
+export type GoalUpdated = typeof GoalUpdated.Type
+
+export const InstructionsListed = Event.define({
+  type: "session.instructions",
+  ...options,
+  schema: {
+    ...Base,
+    files: Schema.Array(Schema.String),
+  },
+})
+export type InstructionsListed = typeof InstructionsListed.Type
+
 export const Prompted = Event.define({
   type: "session.next.prompted",
   ...options,
