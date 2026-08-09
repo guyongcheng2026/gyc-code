@@ -241,3 +241,6 @@
 
 - [OK] 2026-08-10 [aabd865] feat(session): restrict response language to Simplified Chinese and English
   - [FILES] 2: src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts
+
+- [OK] 2026-08-10 [940addc] docs(spec): design for closing 6 model-capability gaps (1.2/1.3/1.4/2.3/5.3/5.4)
+  - [FILES] 1: docs/compose/specs/2026-08-10-model-capability-gaps-closure-design.md
