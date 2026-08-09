@@ -193,3 +193,6 @@
 
 - [OK] 2026-08-10 [d1a06c4] feat(session): escalate output cap to 64k on first output-length truncation
   - [FILES] 4: src/gyccode/session/llm.ts, src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [7d233d7] feat(tool): require source citation in websearch results (anti-hallucination)
+  - [FILES] 1: src/gyccode/tool/websearch.ts
