@@ -253,3 +253,6 @@
 
 - [OK] 2026-08-10 [fdd5df4] feat(core): add local BPE-approximation tokenizer
   - [FILES] 2: src/core/util/tokenizer.test.ts, src/core/util/tokenizer.ts
+
+- [OK] 2026-08-10 [e64c8f1] fix(core): make tokenizer linear-time with sticky regex, add whitespace-collapse test
+  - [FILES] 2: src/core/util/tokenizer.test.ts, src/core/util/tokenizer.ts
