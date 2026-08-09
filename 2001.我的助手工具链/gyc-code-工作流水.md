@@ -127,3 +127,6 @@
 
 - [OK] 2026-08-09 [7767330] fix(session): reuse resolved instruction paths for InstructionsListed; scope cwd store lifecycle
   - [FILES] 5: src/gyccode/session/instruction.ts, src/gyccode/session/prompt.ts, src/gyccode/session/session-cwd.test.ts, src/gyccode/session/session-cwd.ts, src/gyccode/session/session.ts
+
+- [OK] 2026-08-09 [544f0ae] fix: 修复 benchmark 测试超时与 goal.test.ts import 拼写错误
+  - [FILES] 3: src/gyccode/benchmark/benchmark.test.ts, src/gyccode/session/goal.test.ts, src/gyccode/session/goal.ts
