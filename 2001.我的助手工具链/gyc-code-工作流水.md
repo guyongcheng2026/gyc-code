@@ -199,3 +199,6 @@
 
 - [OK] 2026-08-10 [fe9a53d] feat(memory): flag stale memories with freshness reminder (anti-hallucination)
   - [FILES] 3: src/gyccode/memory/hermes-bridge.test.ts, src/gyccode/memory/hermes-bridge.ts, src/gyccode/session/system.ts
+
+- [OK] 2026-08-10 [31fb293] feat(tool): add task_list/task_get/task_stop management tools
+  - [FILES] 3: src/gyccode/tool/registry.ts, src/gyccode/tool/task-manage.test.ts, src/gyccode/tool/task-manage.ts
