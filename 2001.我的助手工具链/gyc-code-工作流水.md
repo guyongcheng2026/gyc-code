@@ -163,3 +163,6 @@
 
 - [OK] 2026-08-10 [9fb07d5] docs(spec): claude-code 三指标差距评估与分阶段改进设计
   - [FILES] 1: docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
+
+- [OK] 2026-08-10 [be37d1e] docs(plan): P0 阶段实施计划 - Claude Code 三指标对标第一批改进
+  - [FILES] 1: docs/compose/plans/2026-08-10-claude-code-benchmark-p0.md
