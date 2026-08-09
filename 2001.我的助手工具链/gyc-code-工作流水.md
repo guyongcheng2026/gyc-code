@@ -181,3 +181,6 @@
 
 - [OK] 2026-08-10 [a85e361] feat(session): wire token budget continuation into runLoop
   - [FILES] 1: src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [9c9df68] feat(memory): add injectable extraction runner with dedup + cap
+  - [FILES] 2: src/gyccode/memory/extraction-runner.test.ts, src/gyccode/memory/extraction-runner.ts
