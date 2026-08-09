@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { pluralCategory } from "./i18n"
+import { pluralCategory, defaultLocale } from "./i18n"
 
 describe("pluralCategory", () => {
   test.each([
@@ -20,5 +20,11 @@ describe("pluralCategory", () => {
     ["ja", 1, "other"],
   ] as const)("selects %s for %d as %s", (locale, count, expected) => {
     expect(pluralCategory(locale, count)).toBe(expected)
+  })
+})
+
+describe("defaultLocale", () => {
+  test("defaults to Simplified Chinese (zh)", () => {
+    expect(defaultLocale).toBe("zh")
   })
 })

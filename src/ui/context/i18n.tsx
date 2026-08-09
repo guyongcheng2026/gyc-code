@@ -49,7 +49,7 @@ function resolveTemplate(text: string, params?: UiI18nParams) {
 }
 
 const fallback: UiI18n = {
-  locale: () => "en",
+  locale: () => defaultLocale,
   t: (key, params) => {
     const value = en[key] ?? String(key)
     return resolveTemplate(value, params)
@@ -57,6 +57,9 @@ const fallback: UiI18n = {
   plural: (key, count, params) =>
     fallback.t(pluralKey(key, pluralCategory(fallback.locale(), count)), { ...params, count }),
 }
+
+/** Default UI locale (Simplified Chinese) used when no provider supplies one. */
+export const defaultLocale = "zh"
 
 const Context = createContext<UiI18n>(fallback)
 

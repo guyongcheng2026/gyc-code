@@ -56,7 +56,7 @@ export type Prepared = {
  * Defaults to Simplified Chinese (zh-CN) so gyc always responds in Chinese
  * unless explicitly configured otherwise.
  */
-function languageDirective(language: string | undefined): string | undefined {
+export function languageDirective(language: string | undefined): string | undefined {
   const resolved = language ?? process.env.GYCCODE_LANGUAGE ?? "zh-CN"
   const normalized = resolved.toLowerCase()
   if (normalized === "zh-cn" || normalized === "zh" || normalized === "zh-hans" || normalized === "zh-sg") {
