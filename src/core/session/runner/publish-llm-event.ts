@@ -10,6 +10,7 @@ type Input = {
   readonly sessionID: SessionSchema.ID
   readonly agent: string
   readonly model: ModelV2.Ref
+  readonly price?: Price
   readonly snapshot?: string
 }
 
@@ -25,6 +26,26 @@ const tokens = (usage: Usage | undefined) => {
     reasoning,
     cache: { read, write },
   }
+}
+
+export type StepTokens = ReturnType<typeof tokens>
+
+/** Per-1M-token price for a model (models.dev / opencode convention). */
+export type Price = {
+  readonly input: number
+  readonly output: number
+  readonly cache: { readonly read: number; readonly write: number }
+}
+
+/** Dollars charged for a provider step: token counts x price, per 1M tokens. */
+export function costForStep(tokens: StepTokens, price: Price): number {
+  const charge = (count: number, rate: number) => (count * rate) / 1_000_000
+  return (
+    charge(tokens.input, price.input) +
+    charge(tokens.output + tokens.reasoning, price.output) +
+    charge(tokens.cache.read, price.cache.read) +
+    charge(tokens.cache.write, price.cache.write)
+  )
 }
 
 const record = (value: unknown): Record<string, unknown> =>
@@ -69,7 +90,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
   let assistantActive = false
   let assistantFailed = false
   let providerFailed = false
-  let stepSettlement: { readonly finish: string; readonly tokens: ReturnType<typeof tokens> } | undefined
+  let stepSettlement: { readonly finish: string; readonly tokens: StepTokens; readonly cost: number } | undefined
 
   const startAssistant = Effect.fnUntraced(function* () {
     if (assistantMessageID !== undefined) return assistantMessageID
@@ -393,12 +414,14 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
         })
         return
       }
-      case "step-finish":
+      case "step-finish": {
         yield* flush()
         assistantActive = false
         if (stepSettlement) return yield* Effect.die("Duplicate step finish")
-        stepSettlement = { finish: event.reason, tokens: tokens(event.usage) }
+        const price = input.price ?? { input: 0, output: 0, cache: { read: 0, write: 0 } }
+        stepSettlement = { finish: event.reason, tokens: tokens(event.usage), cost: costForStep(tokens(event.usage), price) }
         return
+      }
       case "finish":
         return
       case "provider-error":

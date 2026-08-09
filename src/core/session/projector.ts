@@ -14,6 +14,8 @@ import { SessionInput } from "./input"
 import { WorkspaceV2 } from "../workspace"
 import { SessionContextEpoch } from "./context-epoch"
 import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable } from "./sql"
+import { ModelV2 } from "../model"
+import { ProviderV2 } from "../provider"
 import type { DeepMutable } from "../schema"
 
 type DatabaseService = Database.Interface["db"]
@@ -87,8 +89,9 @@ function partData(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"
   return rest as DeepMutable<typeof rest>
 }
 
-function applyUsage(
+export function applyUsage(
   db: DatabaseService,
+  events: EventV2.Interface,
   sessionID: (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"],
   value: Usage,
   sign = 1,
@@ -106,7 +109,79 @@ function applyUsage(
     })
     .where(eq(SessionTable.id, sessionID))
     .run()
-    .pipe(Effect.orDie)
+    .pipe(Effect.orDie, Effect.andThen(() => broadcastUsage(events, db, sessionID)))
+}
+
+export function broadcastUsage(
+  events: EventV2.Interface,
+  db: DatabaseService,
+  sessionID: (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"],
+) {
+  return Effect.gen(function* () {
+    const row = yield* db
+      .select()
+      .from(SessionTable)
+      .where(eq(SessionTable.id, sessionID))
+      .get()
+      .pipe(Effect.orDie)
+    if (!row) return
+    const info = sessionInfo(row)
+    yield* events.publish(SessionV1.Event.Updated, { sessionID: info.id, info })
+  }).pipe(Effect.catchCause(() => Effect.void))
+}
+
+function sessionInfo(row: typeof SessionTable.$inferSelect) {
+  return SessionV1.SessionInfo.make({
+    id: row.id,
+    slug: row.slug,
+    projectID: row.project_id,
+    workspaceID: row.workspace_id ?? undefined,
+    directory: row.directory,
+    path: row.path ?? undefined,
+    parentID: row.parent_id ?? undefined,
+    title: row.title,
+    agent: row.agent ?? undefined,
+    model: row.model
+      ? {
+          id: ModelV2.ID.make(row.model.id),
+          providerID: ProviderV2.ID.make(row.model.providerID),
+          variant: row.model.variant,
+        }
+      : undefined,
+    version: row.version,
+    summary:
+      row.summary_additions !== null || row.summary_deletions !== null || row.summary_files !== null
+        ? {
+            additions: row.summary_additions ?? 0,
+            deletions: row.summary_deletions ?? 0,
+            files: row.summary_files ?? 0,
+            diffs: row.summary_diffs ?? undefined,
+          }
+        : undefined,
+    cost: row.cost,
+    tokens: {
+      input: row.tokens_input,
+      output: row.tokens_output,
+      reasoning: row.tokens_reasoning,
+      cache: { read: row.tokens_cache_read, write: row.tokens_cache_write },
+    },
+    share: row.share_url ? { url: row.share_url } : undefined,
+    metadata: row.metadata ?? undefined,
+    revert: row.revert
+      ? {
+          messageID: SessionV1.MessageID.make(row.revert.messageID),
+          partID: row.revert.partID ? SessionV1.PartID.make(row.revert.partID) : undefined,
+          snapshot: row.revert.snapshot,
+          diff: row.revert.diff,
+        }
+      : undefined,
+    time: {
+      created: row.time_created,
+      updated: row.time_updated,
+      compacting: row.time_compacting ?? undefined,
+      archived: row.time_archived ?? undefined,
+    },
+  })
 }
 
 function run(db: DatabaseService, event: SessionEvent.Event) {
@@ -283,7 +358,7 @@ const layer = Layer.effectDiscard(
           .pipe(Effect.orDie)
         for (const row of rows) {
           const previous = usage(row.data)
-          if (previous) yield* applyUsage(db, event.data.sessionID, previous, -1)
+          if (previous) yield* applyUsage(db, events, event.data.sessionID, previous, -1)
         }
         yield* db
           .delete(MessageTable)
@@ -301,7 +376,7 @@ const layer = Layer.effectDiscard(
           .get()
           .pipe(Effect.orDie)
         const previous = row && usage(row.data)
-        if (previous) yield* applyUsage(db, event.data.sessionID, previous, -1)
+        if (previous) yield* applyUsage(db, events, event.data.sessionID, previous, -1)
         yield* db
           .delete(PartTable)
           .where(and(eq(PartTable.id, event.data.partID), eq(PartTable.session_id, event.data.sessionID)))
@@ -324,8 +399,8 @@ const layer = Layer.effectDiscard(
           .pipe(Effect.orDie)
         const previous = row && usage(row.data)
         const next = usage(event.data.part)
-        if (previous) yield* applyUsage(db, row.session_id, previous, -1)
-        if (next) yield* applyUsage(db, sessionID, next)
+        if (previous) yield* applyUsage(db, events, row.session_id, previous, -1)
+        if (next) yield* applyUsage(db, events, sessionID, next)
       }),
     )
     yield* events.project(SessionEvent.AgentSwitched, (event) =>

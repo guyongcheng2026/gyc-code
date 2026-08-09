@@ -10,6 +10,7 @@ import {
 } from "@gyccode/llm"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
 import { AgentV2 } from "../../agent"
+import { Catalog } from "../../catalog"
 import { Config } from "../../config"
 import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
@@ -97,6 +98,7 @@ const layer = Layer.effect(
     const llm = yield* LLMClient.Service
     const agents = yield* AgentV2.Service
     const tools = yield* ToolRegistry.Service
+    const catalog = yield* Catalog.Service
     const models = yield* SessionRunnerModel.Service
     const store = yield* SessionStore.Service
     const location = yield* Location.Service
@@ -197,6 +199,7 @@ const layer = Layer.effect(
       const system =
         initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
       const model = yield* models.resolve(session)
+      const price = (yield* catalog.model.get(ProviderV2.ID.make(model.provider), ModelV2.ID.make(model.id)))?.cost?.[0]
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps
@@ -223,6 +226,7 @@ const layer = Layer.effect(
           providerID: ProviderV2.ID.make(model.provider),
           ...(session.model?.variant === undefined ? {} : { variant: session.model.variant }),
         },
+        price,
         snapshot: startSnapshot,
       })
       const withPublication = Semaphore.makeUnsafe(1).withPermit
@@ -328,7 +332,7 @@ const layer = Layer.effect(
                 timestamp: yield* DateTime.now,
                 assistantMessageID: yield* publisher.startAssistant(),
                 finish: stepSettlement.finish,
-                cost: 0,
+                cost: stepSettlement.cost,
                 tokens: stepSettlement.tokens,
                 snapshot: endSnapshot,
                 files,
@@ -416,6 +420,7 @@ export const node = makeLocationNode({
   layer,
   deps: [
     EventV2.node,
+    Catalog.node,
     llmClient,
     AgentV2.node,
     ToolRegistry.node,
