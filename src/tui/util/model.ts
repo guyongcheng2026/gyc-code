@@ -1,5 +1,21 @@
 import type { Provider } from "@opencode-ai/sdk/v2"
 
+export type ContextWindow = {
+  hard: number
+  effective: number
+  source: "model" | "config"
+}
+
+export function contextWindow(
+  _config: unknown,
+  model: Provider["models"][string] | undefined,
+): ContextWindow | undefined {
+  if (!model) return undefined
+  const hard = model.limit.context
+  if (!hard || hard === 0) return undefined
+  return { hard, effective: hard, source: "model" }
+}
+
 export function parse(value: string) {
   const [providerID, ...modelID] = value.split("/")
   return { providerID, modelID: modelID.join("/") }
