@@ -178,3 +178,6 @@
 
 - [OK] 2026-08-10 [781b62a] feat(session): add token budget continuation check + message
   - [FILES] 2: src/gyccode/session/token-budget.test.ts, src/gyccode/session/token-budget.ts
+
+- [OK] 2026-08-10 [a85e361] feat(session): wire token budget continuation into runLoop
+  - [FILES] 1: src/gyccode/session/prompt.ts
