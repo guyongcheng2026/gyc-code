@@ -10,6 +10,7 @@ import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
 import { ReadTool } from "./read"
 import { TaskTool } from "./task"
+import { TaskManage } from "./task-manage"
 import { SwarmTool } from "./swarm"
 import { Database } from "@gyccode/core/database/database"
 import { TodoWriteTool } from "./todo"
@@ -99,6 +100,11 @@ const layer = Layer.effect(
 
     const invalid = yield* InvalidTool
     const task = yield* TaskTool
+    const bg = yield* BackgroundJob.Service
+    const taskManageService = TaskManage.liveService(bg)
+    const taskList = TaskManage.list(taskManageService)
+    const taskGet = TaskManage.get(taskManageService)
+    const taskStop = TaskManage.stop(taskManageService)
     const swarm = yield* SwarmTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
@@ -224,6 +230,9 @@ const layer = Layer.effect(
           write: Tool.init(writetool),
           task: Tool.init(task),
           swarm: Tool.init(swarm),
+          taskList: Tool.init(taskList),
+          taskGet: Tool.init(taskGet),
+          taskStop: Tool.init(taskStop),
           fetch: Tool.init(webfetch),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
@@ -250,6 +259,9 @@ const layer = Layer.effect(
             tool.write,
             tool.task,
             tool.swarm,
+            tool.taskList,
+            tool.taskGet,
+            tool.taskStop,
             tool.fetch,
             tool.todo,
             tool.search,
