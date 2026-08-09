@@ -15,6 +15,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@gyccode/core/global"
 import { type SessionEventPublisher } from "./session-cwd"
+import { resolveIncludes, MAX_INCLUDE_DEPTH, TEXT_FILE_EXTENSIONS } from "./instruction-includes"
 import type { MessageV2 } from "./message-v2"
 import type { MessageID, SessionID } from "./schema"
 
@@ -115,6 +116,42 @@ const layer: Layer.Layer<
       return yield* fs.readFileString(filepath).pipe(Effect.catch(() => Effect.succeed("")))
     })
 
+    // Recursively resolve `@include` references in an instruction file.
+    // Bounded by MAX_INCLUDE_DEPTH and a visited-set to prevent cycles; only
+    // text files are pulled in (TEXT_FILE_EXTENSIONS), so binaries never enter
+    // the prompt. Aligned with Claude Code's claudemd.ts @include handling.
+    const withIncludes = Effect.fnUntraced(function* (from: string, content: string) {
+      const ctx = yield* InstanceState.context
+      const base = path.dirname(from)
+      const visited = new Set([path.resolve(from)])
+
+      const loadIncludes = (source: string, text: string, depth: number): Effect.Effect<string> =>
+        Effect.gen(function* () {
+          if (depth > MAX_INCLUDE_DEPTH) return text
+          let out = text
+          for (const ref of resolveIncludes(text)) {
+            const target = ref.startsWith("~/")
+              ? path.join(global.home, ref.slice(2))
+              : ref.startsWith("/")
+                ? ref
+                : path.resolve(base, ref)
+            const resolved = path.resolve(target)
+            if (visited.has(resolved)) continue
+            const ext = (path.extname(resolved) || "").slice(1).toLowerCase()
+            if (!TEXT_FILE_EXTENSIONS.has(ext)) continue
+            if (!resolved.startsWith(ctx.worktree) && !resolved.startsWith(global.home)) continue
+            const included = yield* read(resolved)
+            if (!included) continue
+            visited.add(resolved)
+            const nested = yield* loadIncludes(resolved, included, depth + 1)
+            out += `\n\nInstructions from: ${resolved}\n${nested}`
+          }
+          return out
+        })
+
+      return yield* loadIncludes(from, content, 1)
+    })
+
     const fetch = Effect.fnUntraced(function* (url: string) {
       const res = yield* http.execute(HttpClientRequest.get(url)).pipe(
         Effect.timeout(5000),
@@ -185,7 +222,9 @@ const layer: Layer.Layer<
       const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
       const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
 
-      const local = Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : []))
+      const local = Array.from(paths).flatMap((item, i) =>
+        files[i] ? [`Instructions from: ${item}\n${withIncludes(item, files[i]!)}`] : [],
+      )
       const remoteParts = urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : []))
 
       return { files: [...local, ...remoteParts], paths }
