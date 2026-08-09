@@ -2,7 +2,10 @@ import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { httpClient } from "@gyccode/core/effect/app-node-platform"
 import path from "path"
 import { SessionV1 } from "@gyccode/core/v1/session"
-import { Effect, Layer, Context } from "effect"
+import type { EventV2 } from "@gyccode/core/event"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { SessionEvent } from "@gyccode/schema/session-event"
+import { DateTime, Effect, Layer, Context } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { Config } from "@/config/config"
 import { InstanceState } from "@/effect/instance-state"
@@ -11,8 +14,9 @@ import { Flag } from "@gyccode/core/flag/flag"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@gyccode/core/global"
+import { type SessionEventPublisher } from "./session-cwd"
 import type { MessageV2 } from "./message-v2"
-import type { MessageID } from "./schema"
+import type { MessageID, SessionID } from "./schema"
 
 function extract(messages: SessionV1.WithParts[]) {
   const paths = new Set<string>()
@@ -31,10 +35,23 @@ function extract(messages: SessionV1.WithParts[]) {
   return paths
 }
 
+export const publishInstructionsListed = Effect.fn("Instruction.publishInstructionsListed")(function* (
+  events: SessionEventPublisher,
+  sessionID: SessionID,
+  files: readonly string[],
+) {
+  yield* events.publish(SessionEvent.InstructionsListed, {
+    sessionID,
+    files: Array.from(files),
+    timestamp: yield* DateTime.now,
+  })
+})
+
 export interface Interface {
   readonly clear: (messageID: MessageID) => Effect.Effect<void>
   readonly systemPaths: () => Effect.Effect<Set<string>, FSUtil.Error>
   readonly system: () => Effect.Effect<string[], FSUtil.Error>
+  readonly list: (sessionID: SessionID) => Effect.Effect<string[], FSUtil.Error>
   readonly find: (dir: string) => Effect.Effect<string | undefined, FSUtil.Error>
   readonly resolve: (
     messages: SessionV1.WithParts[],
@@ -48,7 +65,7 @@ export class Service extends Context.Service<Service, Interface>()("@gyccode/Ins
 const layer: Layer.Layer<
   Service,
   never,
-  FSUtil.Service | Config.Service | Global.Service | HttpClient.HttpClient | RuntimeFlags.Service
+  FSUtil.Service | Config.Service | Global.Service | HttpClient.HttpClient | RuntimeFlags.Service | EventV2Bridge.Service
 > = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -56,6 +73,7 @@ const layer: Layer.Layer<
     const fs = yield* FSUtil.Service
     const global = yield* Global.Service
     const flags = yield* RuntimeFlags.Service
+    const events = yield* EventV2Bridge.Service
     const http = HttpClient.filterStatusOk(withTransientReadRetry(yield* HttpClient.HttpClient))
     const globalFiles = [
       path.join(global.config, "AGENTS.md"),
@@ -220,7 +238,14 @@ const layer: Layer.Layer<
       return results
     })
 
-    return Service.of({ clear, systemPaths, system, find, resolve })
+    const list = Effect.fn("Instruction.list")(function* (sessionID: SessionID) {
+      const paths = yield* systemPaths()
+      const files = Array.from(paths)
+      yield* publishInstructionsListed(events, sessionID, files)
+      return files
+    })
+
+    return Service.of({ clear, systemPaths, system, list, find, resolve })
   }),
 )
 
@@ -231,7 +256,7 @@ export function loaded(messages: SessionV1.WithParts[]) {
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [Config.node, FSUtil.node, Global.node, RuntimeFlags.node, httpClient],
+  deps: [Config.node, FSUtil.node, Global.node, RuntimeFlags.node, EventV2Bridge.node, httpClient],
 })
 
 export * as Instruction from "./instruction"

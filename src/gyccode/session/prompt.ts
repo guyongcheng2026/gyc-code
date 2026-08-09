@@ -1329,6 +1329,8 @@ const layer = Layer.effect(
               sys.memory(memoryQuery),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
+            // Publish session.instructions now that the resolved instruction files are in play.
+            yield* instruction.list(sessionID).pipe(Effect.orDie)
             const staticPrompt = buildStaticPrompt(skills)
             const semiPrompt = buildSemiStaticPrompt(env, mcpInstructions)
             const dynamicPrompt = buildDynamicPrompt(instructions)

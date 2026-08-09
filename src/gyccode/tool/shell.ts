@@ -12,6 +12,8 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { EventV2Bridge } from "@/event-v2-bridge"
+import { SessionCwd } from "../session/session-cwd"
 import { Shell } from "@gyccode/core/shell"
 import { ShellID } from "./shell/id"
 
@@ -343,6 +345,7 @@ export const ShellTool = Tool.define(
     const trunc = yield* Truncate.Service
     const plugin = yield* Plugin.Service
     const flags = yield* RuntimeFlags.Service
+    const events = yield* EventV2Bridge.Service
     const defaultTimeoutMs = flags.bashDefaultTimeoutMs ?? 2 * 60 * 1000
 
     const cygpath = Effect.fn("ShellTool.cygpath")(function* (shell: string, text: string) {
@@ -632,7 +635,7 @@ export const ShellTool = Tool.define(
                 return yield* Effect.die(new ShellBlockedError({ classification }))
               }
 
-              return yield* run(
+              const result = yield* run(
                 {
                   shell,
                   command: params.command,
@@ -642,6 +645,8 @@ export const ShellTool = Tool.define(
                 },
                 ctx,
               )
+              yield* SessionCwd.publishIfChanged(ctx.sessionID, cwd, events, instanceCtx.directory)
+              return result
             }),
         }
       })
