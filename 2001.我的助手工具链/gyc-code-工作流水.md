@@ -121,3 +121,6 @@
 
 - [OK] 2026-08-09 [8a1a273] fix(schema): register session.cwd/goal/instructions events in inventories; harden verdict fixtures
   - [FILES] 2: src/schema/session-event.test.ts, src/schema/session-event.ts
+
+- [OK] 2026-08-09 [57f6d3d] feat(session): cwd tracker broadcast + instructions list event
+  - [FILES] 5: src/gyccode/session/instruction.ts, src/gyccode/session/prompt.ts, src/gyccode/session/session-cwd.test.ts, src/gyccode/session/session-cwd.ts, src/gyccode/tool/shell.ts
