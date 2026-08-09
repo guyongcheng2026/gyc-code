@@ -244,3 +244,6 @@
 
 - [OK] 2026-08-10 [940addc] docs(spec): design for closing 6 model-capability gaps (1.2/1.3/1.4/2.3/5.3/5.4)
   - [FILES] 1: docs/compose/specs/2026-08-10-model-capability-gaps-closure-design.md
+
+- [OK] 2026-08-10 [31c355d] docs(plan): implementation plan for 6 model-capability gaps closure (9 tasks, TDD)
+  - [FILES] 1: docs/compose/plans/2026-08-10-model-capability-gaps-closure.md
