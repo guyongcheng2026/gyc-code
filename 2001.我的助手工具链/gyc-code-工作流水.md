@@ -175,3 +175,6 @@
 
 - [OK] 2026-08-10 [6827bab] feat(tool): enforce read-before-write in write/edit tools
   - [FILES] 3: src/gyccode/tool/edit.ts, src/gyccode/tool/read-before-write.test.ts, src/gyccode/tool/write.ts
+
+- [OK] 2026-08-10 [781b62a] feat(session): add token budget continuation check + message
+  - [FILES] 2: src/gyccode/session/token-budget.test.ts, src/gyccode/session/token-budget.ts
