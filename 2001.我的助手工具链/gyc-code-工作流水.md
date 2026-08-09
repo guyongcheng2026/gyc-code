@@ -196,3 +196,6 @@
 
 - [OK] 2026-08-10 [7d233d7] feat(tool): require source citation in websearch results (anti-hallucination)
   - [FILES] 1: src/gyccode/tool/websearch.ts
+
+- [OK] 2026-08-10 [fe9a53d] feat(memory): flag stale memories with freshness reminder (anti-hallucination)
+  - [FILES] 3: src/gyccode/memory/hermes-bridge.test.ts, src/gyccode/memory/hermes-bridge.ts, src/gyccode/session/system.ts
