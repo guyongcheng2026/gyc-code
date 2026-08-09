@@ -142,3 +142,6 @@
 
 - [OK] 2026-08-09 [bc47128] feat(sidebar): realtime Context tokens/% /spent + limit + tps
   - [FILES] 5: src/core/util/token.ts, src/tui/feature-plugins/sidebar/context.tsx, src/tui/feature-plugins/sidebar/tps.test.ts, src/tui/feature-plugins/sidebar/tps.ts, src/tui/util/model.ts
+
+- [OK] 2026-08-09 [ef24e1e] feat(sidebar): add working-directory (cwd) panel
+  - [FILES] 5: src/tui/context/event.ts, src/tui/context/sync.tsx, src/tui/feature-plugins/sidebar/cwd.test.tsx, src/tui/feature-plugins/sidebar/cwd.tsx, src/tui/plugin/adapters.tsx
