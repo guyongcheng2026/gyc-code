@@ -1,5 +1,11 @@
 ﻿# gyc-cli 对标 Claude Code 三指标差距评估与改进设计
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/claude-code-benchmark-p0.md)
+
+
 - 日期：2026-08-10
 - 状态：设计稿
 - 对标对象：`E:\AI项目备份\Claude Code 源码资料\extracted-source\extracted-source\src`（Claude Code 2.1.88）
@@ -140,3 +146,4 @@ P0 为对三指标影响最大、缺失最严重的 4 项：S4（记忆自动提
 
 - 遵循 AGENTS.md：每次 commit 后 `.githooks/post-commit` 自动 push origin + 同步 Obsidian 工作流水。
 - commit 粒度：每个 P0 子项一个 commit，message 前缀 `feat(benchmark):` 或 `feat(session):`。
+

@@ -1,5 +1,11 @@
 ﻿# P0 阶段实施计划：Claude Code 三指标对标改进（第一批）
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/claude-code-benchmark-p0.md)
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 完成 P0 阶段 4 项改进：记忆自动提取接线（S4）、read-before-write 强制（H1）、prompt cache 字节级稳定（C1）、token budget 续跑接线（C2）。
@@ -904,3 +910,4 @@ Expected: PASS
 - [ ] **Step 4: 完成 P0**
 
 更新 spec 状态：P0-1/P0-2/P0-3/P0-4 完成，进入 P1。
+
