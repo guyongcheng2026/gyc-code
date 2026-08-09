@@ -82,6 +82,11 @@ export const reset = (): void => {
   store.clear()
 }
 
+/** Drop the goal state for one session (used from Session.remove cleanup). */
+export const clearSession = (sessionID: SessionID): void => {
+  store.delete(sessionID)
+}
+
 const noopPublisher: SessionEventPublisher = {
   publish: () => Effect.succeed(undefined as never),
 }

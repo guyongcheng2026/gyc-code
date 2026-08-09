@@ -108,7 +108,7 @@ describe("session projector usage broadcast", () => {
         yield* seed(now)
         const { db } = yield* Database.Service
         yield* applyUsage(db, events, sessionID, usage(1.25, 100))
-        yield* applyUsage(db, events, sessionID, usage(-1.25, -100), -1)
+        yield* applyUsage(db, events, sessionID, usage(1.25, 100), -1)
         const row = yield* db
           .select({ cost: SessionTable.cost, tokensInput: SessionTable.tokens_input })
           .from(SessionTable)
@@ -128,7 +128,7 @@ describe("session projector usage broadcast", () => {
   it("does not publish when the session row is missing", () => {
     const published: Array<{ type: string; data: unknown }> = []
     const events = fakeEvents(published)
-    const fakeSessionID = SessionSchema.ID.make("nonexistent")
+    const fakeSessionID = SessionSchema.ID.make("ses_nonexistent")
     runInDb(
       Effect.gen(function* () {
         yield* seed(new Date().getTime())

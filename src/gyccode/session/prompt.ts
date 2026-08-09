@@ -15,6 +15,7 @@ import type { JSONSchema7 } from "@ai-sdk/provider"
 import { SessionCompaction } from "./compaction"
 import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
+import { Goal } from "./goal"
 import { Plugin } from "../plugin"
 import { MAX_STEPS_PROMPT } from "@gyccode/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
@@ -172,6 +173,26 @@ const layer = Layer.effect(
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
     const { db } = database
+
+    // Per-session stop-condition goal: an independent low-temperature judge
+    // reads the transcript and decides whether the active goal is met. Wired
+    // lazily so the judge resolves the session's current model at call time.
+    const goal = Goal.make({
+      events,
+      judge: ({ sessionID, condition, msgs }) =>
+        Effect.gen(function* () {
+          const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
+          const model = yield* getModel(session.model.providerID, session.model.modelID, sessionID)
+          const messages = yield* MessageV2.toModelMessagesEffect(msgs, model)
+          return yield* Goal.judge({ condition, messages, model })
+        }),
+      readTranscript: async (sessionID) =>
+        Effect.runPromise(
+          sessions
+            .messages({ sessionID, limit: 200 })
+            .pipe(Effect.orDie, Effect.map((list) => list.map((item) => item as SessionV1.WithParts))),
+        ),
+    })
     const ops = Effect.fn("SessionPrompt.ops")(function* () {
       return {
         cancel: (sessionID: SessionID) => cancel(sessionID),
@@ -1414,6 +1435,14 @@ const layer = Layer.effect(
             Effect.ensuring(instruction.clear(handle.message.id)),
             Effect.onInterrupt(() => finalizeInterruptedAssistant),
           )
+          // With an active goal, ask the independent judge (asynchronously) whether
+          // the condition is now met. Failures never block the loop.
+          if (goal.get(sessionID)) {
+            yield* Effect.promise(() => goal.evaluate({ sessionID })).pipe(
+              Effect.ignore,
+              Effect.forkIn(scope),
+            )
+          }
           if (outcome === "break") break
           continue
         }
@@ -1442,6 +1471,19 @@ const layer = Layer.effect(
         command: input.command,
         agent: input.agent,
       })
+      // Built-in /goal command: set or clear the session stop-condition goal.
+      if (input.command === "goal") {
+        const raw = input.arguments.match(argsRegex) ?? []
+        const args = raw.map((arg) => arg.replace(quoteTrimRegex, ""))
+        const condition = args.join(" ").trim()
+        if (condition) {
+          const instanceCtx = yield* InstanceState.context
+          yield* Effect.promise(() => goal.set(input.sessionID, condition, instanceCtx.directory))
+        } else {
+          yield* Effect.promise(() => goal.clear(input.sessionID))
+        }
+        return yield* lastAssistant(input.sessionID)
+      }
       const cmd = yield* commands.get(input.command)
       if (!cmd) {
         const available = (yield* commands.list()).map((c) => c.name)
