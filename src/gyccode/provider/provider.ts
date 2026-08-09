@@ -33,6 +33,15 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
+// Default per-request timeouts applied when a provider does not configure its
+// own. Without these, a dropped network/provider connection leaves the fetch
+// hanging indefinitely (Node fetch never times out a stalled connection),
+// which blocks the session runLoop until the OS TCP timeout — the cause of
+// "session became slow after a reconnect". Header timeout bounds how long we
+// wait for the first response bytes; chunk timeout bounds idle gaps between
+// SSE chunks (reset on each chunk, so long reasoning is unaffected).
+const DEFAULT_HEADER_TIMEOUT_MS = 60_000
+const DEFAULT_CHUNK_TIMEOUT_MS = 120_000
 
 function wrapSSE(res: Response, ms: number, ctl: AbortController) {
   if (typeof ms !== "number" || ms <= 0) return res
@@ -1735,8 +1744,8 @@ const layer = Layer.effect(
         if (existing) return existing
 
         const customFetch = options["fetch"]
-        const chunkTimeout = options["chunkTimeout"]
-        const headerTimeout = options["headerTimeout"]
+        const chunkTimeout = options["chunkTimeout"] ?? DEFAULT_CHUNK_TIMEOUT_MS
+        const headerTimeout = options["headerTimeout"] ?? DEFAULT_HEADER_TIMEOUT_MS
         delete options["chunkTimeout"]
         delete options["headerTimeout"]
 
