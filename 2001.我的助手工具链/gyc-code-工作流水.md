@@ -136,3 +136,6 @@
 
 - [OK] 2026-08-09 [1b7ac80] fix(session): real Step.Ended cost + emit session.updated(cost) after usage accumulator
   - [FILES] 5: src/core/session/projector.test.ts, src/core/session/projector.ts, src/core/session/runner/llm.ts, src/core/session/runner/publish-llm-event.test.ts, src/core/session/runner/publish-llm-event.ts
+
+- [OK] 2026-08-09 [373d286] fix(session): decouple usage broadcast from projector durable transaction (publishLive)
+  - [FILES] 3: src/core/event.ts, src/core/session/projector.test.ts, src/core/session/projector.ts
