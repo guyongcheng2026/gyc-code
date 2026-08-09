@@ -157,3 +157,6 @@
 
 - [OK] 2026-08-09 [5250a7e] feat(sidebar): register cwd/instructions/goal panels in builtins
   - [FILES] 1: src/tui/feature-plugins/builtins.ts
+
+- [OK] 2026-08-09 [d984da8] feat(i18n): default Simplified Chinese locale + language directive tests
+  - [FILES] 4: src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/ui/context/i18n.test.ts, src/ui/context/i18n.tsx
