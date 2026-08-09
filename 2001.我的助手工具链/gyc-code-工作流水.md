@@ -190,3 +190,6 @@
 
 - [OK] 2026-08-10 [72be8fd] docs(report): P0 阶段最终报告 + 标记 spec/plan
   - [FILES] 3: docs/compose/plans/2026-08-10-claude-code-benchmark-p0.md, docs/compose/reports/claude-code-benchmark-p0.md, docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
+
+- [OK] 2026-08-10 [d1a06c4] feat(session): escalate output cap to 64k on first output-length truncation
+  - [FILES] 4: src/gyccode/session/llm.ts, src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/gyccode/session/prompt.ts
