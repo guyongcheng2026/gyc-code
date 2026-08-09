@@ -115,3 +115,6 @@
 
 - [OK] 2026-08-09 [5dc779d] docs: 工作区对标 mimo-code 实施计划（cwd/context实时/instructions/goal/task + 默认中文固化）11 任务已入库
   - [FILES] 1: docs/compose/plans/2026-08-09-sidebar-workspace-mimo.md
+
+- [OK] 2026-08-09 [fdf78cf] feat(schema): event defs for session.cwd / session.goal / session.instructions
+  - [FILES] 2: src/schema/session-cwd-event.test.ts, src/schema/session-event.ts
