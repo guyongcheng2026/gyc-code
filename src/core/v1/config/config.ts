@@ -170,6 +170,61 @@ export const Info = Schema.Struct({
       reserved: Schema.optional(NonNegativeInt).annotate({
         description: "Token buffer for compaction. Leaves enough window to avoid overflow during compaction.",
       }),
+      time_based_microcompact: Schema.optional(
+        Schema.Struct({
+          enabled: Schema.optional(Schema.Boolean).annotate({
+            description: "Enable time-based micro-compaction when a long idle gap expires the prompt cache (default: false)",
+          }),
+          gap_minutes: Schema.optional(NonNegativeInt).annotate({
+            description: "Idle gap in minutes that triggers time-based micro-compaction (default: 60)",
+          }),
+          keep_recent: Schema.optional(NonNegativeInt).annotate({
+            description: "Most recent tool results to keep when time-based micro-compaction fires (default: 5)",
+          }),
+        }),
+      ),
+      api_context_management: Schema.optional(
+        Schema.Struct({
+          enabled: Schema.optional(Schema.Boolean).annotate({
+            description: "Enable Anthropic API-native context management (context-management beta) (default: false)",
+          }),
+          trigger_threshold: Schema.optional(NonNegativeInt).annotate({
+            description: "Input token threshold that triggers API-side clearing (default: 180000)",
+          }),
+          keep_target: Schema.optional(NonNegativeInt).annotate({
+            description: "Target input tokens to keep after API-side clearing (default: 40000)",
+          }),
+          clear_thinking: Schema.optional(Schema.Boolean).annotate({
+            description: "Clear old thinking blocks via API (default: true)",
+          }),
+          clear_tool_uses: Schema.optional(Schema.Boolean).annotate({
+            description: "Clear old tool uses via API (default: false)",
+          }),
+          thinking_turns: Schema.optional(NonNegativeInt).annotate({
+            description: "Thinking turns to keep when clearing thinking blocks (default: 1)",
+          }),
+        }),
+      ),
+    }),
+  ),
+  token_counting: Schema.optional(
+    Schema.Struct({
+      mode: Schema.optional(Schema.Literals(["local", "api", "auto"])).annotate({
+        description: "Token counting mode: local (default, zero-cost), api (Anthropic countTokens), auto (api with local fallback)",
+      }),
+      api_model: Schema.optional(Schema.String).annotate({
+        description: "Model id used for API token counting, e.g. anthropic/claude-haiku-4-5 (default: provider small model)",
+      }),
+    }),
+  ),
+  llm: Schema.optional(
+    Schema.Struct({
+      output_token_max: Schema.optional(NonNegativeInt).annotate({
+        description: "Maximum output tokens per request (default: 32000)",
+      }),
+      escalate_output_token_max: Schema.optional(NonNegativeInt).annotate({
+        description: "Output token cap after a finish=length escalation (default: 64000)",
+      }),
     }),
   ),
   memory: Schema.optional(
