@@ -205,3 +205,6 @@
 
 - [OK] 2026-08-10 [c535620] feat(tool): summarize large webfetch results with cheap model (anti-hallucination + cost)
   - [FILES] 3: src/gyccode/tool/summarize.test.ts, src/gyccode/tool/summarize.ts, src/gyccode/tool/webfetch.ts
+
+- [OK] 2026-08-10 [6bda90d] docs(spec): record P1 implementation findings + S5 assessment revision
+  - [FILES] 1: docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
