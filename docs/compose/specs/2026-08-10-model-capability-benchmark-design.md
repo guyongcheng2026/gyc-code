@@ -1,5 +1,10 @@
 ﻿# gyc-cli 对标 Claude Code「模型能力层」5 指标差距评估与改进设计
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/model-capability-benchmark.md)
+
 - 日期：2026-08-10
 - 状态：设计稿
 - 对标对象：`E:\AI项目备份\Claude Code 源码资料\extracted-source\extracted-source\src`（Claude Code 2.1.88）
