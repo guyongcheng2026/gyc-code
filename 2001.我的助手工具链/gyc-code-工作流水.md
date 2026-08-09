@@ -217,3 +217,6 @@
 
 - [OK] 2026-08-10 [8f7e82c] fix(session): add idle+header timeouts so dropped connections never hang the runLoop
   - [FILES] 5: src/gyccode/provider/error.test.ts, src/gyccode/provider/provider.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts
+
+- [OK] 2026-08-10 [1586b8e] docs(spec): 模型能力层 5 指标差距评估与分阶段改进设计
+  - [FILES] 1: docs/compose/specs/2026-08-10-model-capability-benchmark-design.md
