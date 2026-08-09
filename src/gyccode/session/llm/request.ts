@@ -8,6 +8,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
+import { context1MHeader } from "./context-1m"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { Effect, Record } from "effect"
@@ -246,30 +247,38 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
     ? (yield* InstanceState.context).project.id
     : undefined
 
+  const mergedHeaders: Record<string, string> = {
+    ...(input.model.providerID.startsWith("gyccode")
+      ? {
+          ...(gyccodeProjectID ? { "x-gyccode-project": gyccodeProjectID } : {}),
+          "x-gyccode-session": input.sessionID,
+          "x-gyccode-request": input.user.id,
+          "x-gyccode-client": input.flags.client,
+          "User-Agent": USER_AGENT,
+        }
+      : {
+          "x-session-affinity": input.sessionID,
+          "X-Session-Id": input.sessionID,
+          ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
+          "User-Agent": USER_AGENT,
+        }),
+    ...input.model.headers,
+    ...headers,
+  }
+  // 1M-context beta header: models.dev advertises a 1M window (context=1,000,000)
+  // but the Anthropic API only honors it when `context-1m-2025-08-07` is sent.
+  // Merge (comma) into any existing anthropic-beta so static betas like
+  // interleaved-thinking are preserved, never overwritten.
+  const context1M = context1MHeader(input.model, mergedHeaders["anthropic-beta"])
+  if (context1M !== undefined) mergedHeaders["anthropic-beta"] = context1M
+
   return {
     system,
     messages,
     tools: Object.fromEntries(Object.entries(tools).toSorted(([a], [b]) => a.localeCompare(b))),
     params,
     messageTransformOptions: options,
-    headers: {
-      ...(input.model.providerID.startsWith("gyccode")
-        ? {
-            ...(gyccodeProjectID ? { "x-gyccode-project": gyccodeProjectID } : {}),
-            "x-gyccode-session": input.sessionID,
-            "x-gyccode-request": input.user.id,
-            "x-gyccode-client": input.flags.client,
-            "User-Agent": USER_AGENT,
-          }
-        : {
-            "x-session-affinity": input.sessionID,
-            "X-Session-Id": input.sessionID,
-            ...(input.parentSessionID ? { "x-parent-session-id": input.parentSessionID } : {}),
-            "User-Agent": USER_AGENT,
-          }),
-      ...input.model.headers,
-      ...headers,
-    },
+    headers: mergedHeaders,
   }
 })
 
