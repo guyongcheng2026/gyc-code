@@ -151,3 +151,6 @@
 
 - [OK] 2026-08-09 [e620f7a] feat(sidebar): add goal panel + session.goal sync
   - [FILES] 5: src/tui/context/event.ts, src/tui/context/sync.tsx, src/tui/feature-plugins/sidebar/goal.test.tsx, src/tui/feature-plugins/sidebar/goal.tsx, src/tui/plugin/adapters.tsx
+
+- [OK] 2026-08-09 [e93289d] feat(sidebar): upgrade todo panel with status sort + recent-done tail
+  - [FILES] 2: src/tui/feature-plugins/sidebar/todo.test.tsx, src/tui/feature-plugins/sidebar/todo.tsx
