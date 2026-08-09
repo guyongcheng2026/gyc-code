@@ -229,3 +229,6 @@
 
 - [OK] 2026-08-10 [fff8197] feat(session): support @include references in instruction files
   - [FILES] 3: src/gyccode/session/instruction-includes.test.ts, src/gyccode/session/instruction-includes.ts, src/gyccode/session/instruction.ts
+
+- [OK] 2026-08-10 [5bcfa11] feat(magic-docs): register and refresh MAGIC DOC documentation files
+  - [FILES] 3: src/gyccode/magic-docs.test.ts, src/gyccode/magic-docs.ts, src/gyccode/tool/read.ts
