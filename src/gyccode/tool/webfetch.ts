@@ -1,4 +1,4 @@
-import { Effect, Schema } from "effect"
+﻿import { Effect, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { Parser } from "htmlparser2"
 import * as Tool from "./tool"
@@ -7,6 +7,7 @@ import DESCRIPTION from "./webfetch.txt"
 import { isImageAttachment } from "@/util/media"
 import { isIPv4 } from "net"
 import { lookup } from "dns/promises"
+import { summarizeText, type Summarizer } from "./summarize"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
@@ -168,24 +169,41 @@ export const WebFetchTool = Tool.define(
 
           const content = new TextDecoder().decode(arrayBuffer)
 
+          // Summarize large text responses with a cheap model when a summarizer
+          // is available in context (aligned with Claude Code's Haiku-based
+          // WebFetch summarization). Falls back to raw content otherwise.
+          const summarizer = (ctx.extra?.["summarizer"] as Summarizer | undefined) ?? (async (text: string) => text)
+
           // Handle content based on requested format and actual content type
           switch (params.format) {
             case "markdown":
               if (contentType.includes("text/html")) {
                 const markdown = convertHTMLToMarkdown(content)
                 return {
-                  output: markdown,
+                  output: yield* Effect.promise(() => summarizeText(markdown, summarizer)),
                   title,
                   metadata: {},
                 }
               }
-              return { output: content, title, metadata: {} }
+              return {
+                output: yield* Effect.promise(() => summarizeText(content, summarizer)),
+                title,
+                metadata: {},
+              }
 
             case "text":
               if (contentType.includes("text/html")) {
-                return { output: extractTextFromHTML(content), title, metadata: {} }
+                return {
+                  output: yield* Effect.promise(() => summarizeText(extractTextFromHTML(content), summarizer)),
+                  title,
+                  metadata: {},
+                }
               }
-              return { output: content, title, metadata: {} }
+              return {
+                output: yield* Effect.promise(() => summarizeText(content, summarizer)),
+                title,
+                metadata: {},
+              }
 
             case "html":
               return { output: content, title, metadata: {} }
@@ -233,3 +251,4 @@ function convertHTMLToMarkdown(html: string): string {
   turndownService.remove(["script", "style", "meta", "link"])
   return turndownService.turndown(html)
 }
+
