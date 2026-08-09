@@ -128,6 +128,11 @@ export const EditTool = Tool.define(
               const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
               if (!info) throw new Error(`File ${filePath} not found`)
               if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
+              if (!readCache.hasRead(filePath)) {
+                throw new Error(
+                  `File has not been read in this session: ${filePath}. Read it first with the read tool before editing.`,
+                )
+              }
               const source = yield* Bom.readFile(afs, filePath)
               contentOld = source.text
 

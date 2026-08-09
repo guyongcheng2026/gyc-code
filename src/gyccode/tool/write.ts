@@ -47,6 +47,11 @@ export const WriteTool = Tool.define(
           yield* assertExternalDirectoryEffect(ctx, filepath)
 
           const exists = yield* fs.existsSafe(filepath)
+          if (exists && !readCache.hasRead(filepath)) {
+            throw new Error(
+              `File has not been read in this session: ${filepath}. Read it first with the read tool to confirm current content before writing.`,
+            )
+          }
           const source = exists ? yield* Bom.readFile(fs, filepath) : { bom: false, text: "" }
           const next = Bom.split(params.content)
           const desiredBom = source.bom || next.bom
