@@ -223,3 +223,6 @@
 
 - [OK] 2026-08-10 [8ce3168] feat(session): enable micro-compaction of middle tool outputs before full compaction
   - [FILES] 5: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [fca0941] feat(core): type-aware token estimation (CJK/code/JSON density)
+  - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
