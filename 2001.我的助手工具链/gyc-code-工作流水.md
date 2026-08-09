@@ -235,3 +235,6 @@
 
 - [OK] 2026-08-10 [eedeb47] feat(session): auto-inject 1M context beta header for Anthropic-lineage models
   - [FILES] 3: src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context1m.test.ts, src/gyccode/session/llm/request.ts
+
+- [OK] 2026-08-10 [54d296f] docs(report): final report for model-capability-benchmark (5 metrics) P0+P1+P2-1M
+  - [FILES] 2: docs/compose/reports/model-capability-benchmark.md, docs/compose/specs/2026-08-10-model-capability-benchmark-design.md
