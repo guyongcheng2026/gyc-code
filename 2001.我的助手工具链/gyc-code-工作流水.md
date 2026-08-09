@@ -208,3 +208,6 @@
 
 - [OK] 2026-08-10 [6bda90d] docs(spec): record P1 implementation findings + S5 assessment revision
   - [FILES] 1: docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
+
+- [OK] 2026-08-10 [f2dbdb3] docs(report): update final report to cover P0 + P1
+  - [FILES] 1: docs/compose/reports/claude-code-benchmark-p0.md
