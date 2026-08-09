@@ -23,7 +23,12 @@ import { LocationServiceMap, locationServiceMapLayer } from "@gyccode/core/locat
 import { Reference } from "@gyccode/core/reference"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
-import { formatMemoriesForPrompt, searchHermesMemories } from "../memory/hermes-bridge"
+import {
+  formatMemoriesForPrompt,
+  searchHermesMemories,
+  getHermesMemoryAgeMs,
+  MEMORY_INJECTION_BUDGET,
+} from "../memory/hermes-bridge"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse-spark")) return [PROMPT_META]
@@ -145,9 +150,11 @@ const layer = Layer.effect(
         if (!query.trim()) return
         const entries = yield* Effect.promise(() => searchHermesMemories(query))
         if (entries.length > 0) {
-          yield* Effect.logInfo("SystemPrompt.memory", { query: query.slice(0, 80), hits: entries.length })
+          // Per-turn retrieval detail; DEBUG keeps the default log quiet.
+          yield* Effect.logDebug("SystemPrompt.memory", { query: query.slice(0, 80), hits: entries.length })
         }
-        return formatMemoriesForPrompt(entries)
+        const ageMs = yield* Effect.promise(() => getHermesMemoryAgeMs())
+        return formatMemoriesForPrompt(entries, MEMORY_INJECTION_BUDGET, ageMs)
       }),
     })
   }),

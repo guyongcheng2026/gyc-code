@@ -151,10 +151,11 @@ export async function searchHermesMemories(query: string, limit = 20): Promise<H
 }
 
 
-/** 将命中记忆格式化为系统提示段，总长受 budget 限制 */
+/** Format retrieved memories as a system-prompt segment, capped by budget. */
 export function formatMemoriesForPrompt(
   entries: readonly HermesMemoryEntry[],
   budget = MEMORY_INJECTION_BUDGET,
+  fileAgeMs?: number,
 ): string | undefined {
   if (entries.length === 0) return undefined
 
@@ -172,5 +173,30 @@ export function formatMemoriesForPrompt(
   }
   if (blocks.length === 0) return undefined
 
-  return ["<memories>", "Relevant memories from previous sessions:", ...blocks, "</memories>"].join("\n")
+  const header = ["<memories>", "Relevant memories from previous sessions:", ...blocks, "</memories>"].join("\n")
+  // Anti-hallucination freshness: when the memory file predates a threshold,
+  // tell the model the remembered facts may be stale so it verifies against
+  // current code before asserting them (aligned with Claude Code memoryAge).
+  if (fileAgeMs !== undefined && fileAgeMs >= MEMORY_FRESHNESS_THRESHOLD_MS) {
+    const days = Math.floor(fileAgeMs / (24 * 60 * 60 * 1000))
+    return `${header}\n\n<system-reminder>This memory is ${days} days old. Facts, paths, and line numbers may have changed since then. Verify against current code before asserting them as fact.</system-reminder>`
+  }
+  return header
+}
+
+/** Memories older than this are flagged as potentially stale (default: 7 days). */
+export const MEMORY_FRESHNESS_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
+
+
+/**
+ * Age of the hermes memory file in milliseconds (undefined when missing).
+ * Used by the system prompt to flag potentially stale memories.
+ */
+export async function getHermesMemoryAgeMs(): Promise<number | undefined> {
+  try {
+    const fileStat = await stat(HERMES_MEMORY_PATH)
+    return Date.now() - fileStat.mtimeMs
+  } catch {
+    return undefined
+  }
 }
