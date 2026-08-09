@@ -154,3 +154,6 @@
 
 - [OK] 2026-08-09 [e93289d] feat(sidebar): upgrade todo panel with status sort + recent-done tail
   - [FILES] 2: src/tui/feature-plugins/sidebar/todo.test.tsx, src/tui/feature-plugins/sidebar/todo.tsx
+
+- [OK] 2026-08-09 [5250a7e] feat(sidebar): register cwd/instructions/goal panels in builtins
+  - [FILES] 1: src/tui/feature-plugins/builtins.ts
