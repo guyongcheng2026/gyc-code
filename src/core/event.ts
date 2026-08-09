@@ -1,4 +1,4 @@
-export * as EventV2 from "./event"
+﻿export * as EventV2 from "./event"
 
 import { Cause, Context, Effect, Layer, Option, PubSub, Queue, Schema, Stream } from "effect"
 import { Event } from "@gyccode/schema/event"
@@ -128,6 +128,13 @@ export interface Interface {
     definition: D,
     data: Data<D>,
     options?: PublishOptions,
+  ) => Effect.Effect<Payload<D>>
+  /** Publish directly to in-memory subscribers without persisting a durable event.
+   *  Use for live-only broadcasts (e.g. cost-update notifications) that must never
+   *  nest inside a durable-event transaction. */
+  readonly publishLive: <D extends Definition>(
+    definition: D,
+    data: Data<D>,
   ) => Effect.Effect<Payload<D>>
   readonly subscribe: <D extends Definition>(definition: D) => Stream.Stream<Payload<D>>
   readonly all: () => Stream.Stream<Payload>
@@ -438,6 +445,25 @@ export const layerWith = (options?: LayerOptions) =>
         })
       }
 
+      /** Emit directly to in-memory pubsub without going through commitDurableEvent.
+       *  Safe to call from inside a projector transaction. */
+      function publishLive<D extends Definition>(definition: D, data: Data<D>) {
+        return Effect.gen(function* () {
+          const serviceLocation = Option.getOrUndefined(yield* Effect.serviceOption(Location.Service))
+          const location = serviceLocation
+            ? { directory: serviceLocation.directory, workspaceID: serviceLocation.workspaceID }
+            : undefined
+          const event = {
+            id: ID.create(),
+            type: definition.type,
+            ...(location ? { location } : {}),
+            data,
+          } as Payload<D>
+          yield* notify(event as Payload, true)
+          return event
+        })
+      }
+
       function replay(
         event: SerializedEvent,
         options?: { readonly publish?: boolean; readonly ownerID?: string; readonly strictOwner?: boolean },
@@ -621,6 +647,7 @@ export const layerWith = (options?: LayerOptions) =>
 
       return Service.of({
         publish,
+        publishLive,
         subscribe,
         all: streamAll,
         durable,

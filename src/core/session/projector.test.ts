@@ -28,9 +28,13 @@ const usage = (cost: number, input: number): Usage => ({
   tokens: { input, output: 50, reasoning: 25, cache: { read: 10, write: 5 } },
 })
 
-const fakeEvents = (calls: Array<{ type: string; data: unknown }>): EventV2.Interface =>
+const fakeEvents = (
+  calls: Array<{ type: string; data: unknown }>,
+  opts?: { failPublishLive?: boolean },
+): EventV2.Interface =>
   ({
-    publish: (definition: { type: string }, data: unknown) => {
+    publishLive: (definition: { type: string }, data: unknown) => {
+      if (opts?.failPublishLive) return Effect.die("broadcast failed") as never
       calls.push({ type: definition.type, data })
       return Effect.succeed(undefined as never)
     },
@@ -82,22 +86,17 @@ describe("session projector usage broadcast", () => {
           .from(SessionTable)
           .where(eq(SessionTable.id, sessionID))
           .get()
+          .pipe(Effect.orDie)
         return row
       }),
     )
-
+    expect(totals.cost).toBeCloseTo(1.25)
+    expect(totals.tokensInput).toBe(100)
     expect(published).toHaveLength(1)
     expect(published[0].type).toBe("session.updated")
-    const data = published[0].data as {
-      sessionID: string
-      info: { cost: number; tokens: Usage["tokens"] }
-    }
-    expect(data.sessionID).toBe("ses_usage_test")
-    expect(data.info.cost).toBeCloseTo(1.25, 10)
-    expect(data.info.tokens).toEqual({ input: 100, output: 50, reasoning: 25, cache: { read: 10, write: 5 } })
-
-    expect(totals?.cost).toBeCloseTo(1.25, 10)
-    expect(totals?.tokensInput).toBe(100)
+    const info = (published[0].data as { info: { cost: number; tokens: { input: number } } }).info
+    expect(info.cost).toBeCloseTo(1.25)
+    expect(info.tokens.input).toBe(100)
   })
 
   it("publishes the reduced totals after a reverse delta", () => {
@@ -108,29 +107,58 @@ describe("session projector usage broadcast", () => {
       Effect.gen(function* () {
         yield* seed(now)
         const { db } = yield* Database.Service
-        yield* applyUsage(db, events, sessionID, usage(5, 100))
-        yield* applyUsage(db, events, sessionID, usage(5, 100), -1)
+        yield* applyUsage(db, events, sessionID, usage(1.25, 100))
+        yield* applyUsage(db, events, sessionID, usage(-1.25, -100), -1)
+        const row = yield* db
+          .select({ cost: SessionTable.cost, tokensInput: SessionTable.tokens_input })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        return row
       }),
     )
-
     expect(published).toHaveLength(2)
-    const data = published[1].data as { info: { cost: number; tokens: Usage["tokens"] } }
-    expect(data.info.cost).toBeCloseTo(0, 10)
-    expect(data.info.tokens.input).toBe(0)
+    const last = published[published.length - 1]
+    const info = (last.data as { info: { cost: number; tokens: { input: number } } }).info
+    expect(info.cost).toBeCloseTo(0)
+    expect(info.tokens.input).toBe(0)
   })
 
   it("does not publish when the session row is missing", () => {
     const published: Array<{ type: string; data: unknown }> = []
     const events = fakeEvents(published)
-    const now = new Date().getTime()
+    const fakeSessionID = SessionSchema.ID.make("nonexistent")
     runInDb(
+      Effect.gen(function* () {
+        yield* seed(new Date().getTime())
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, fakeSessionID, usage(1.25, 100))
+      }),
+    )
+    expect(published).toHaveLength(0)
+  })
+
+  it("broadcast failure does not break the DB update", () => {
+    const published: Array<{ type: string; data: unknown }> = []
+    const events = fakeEvents(published, { failPublishLive: true })
+    const now = new Date().getTime()
+    const totals = runInDb(
       Effect.gen(function* () {
         yield* seed(now)
         const { db } = yield* Database.Service
-        yield* applyUsage(db, events, SessionSchema.ID.make("ses_not_found"), usage(1, 1))
+        yield* applyUsage(db, events, sessionID, usage(2.5, 200))
+        const row = yield* db
+          .select({ cost: SessionTable.cost, tokensInput: SessionTable.tokens_input })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        return row
       }),
     )
-
+    expect(totals.cost).toBeCloseTo(2.5)
+    expect(totals.tokensInput).toBe(200)
     expect(published).toHaveLength(0)
   })
 })

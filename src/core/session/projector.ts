@@ -1,4 +1,4 @@
-export * as SessionProjector from "./projector"
+﻿export * as SessionProjector from "./projector"
 
 import { and, desc, eq, gt, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
@@ -126,7 +126,7 @@ export function broadcastUsage(
       .pipe(Effect.orDie)
     if (!row) return
     const info = sessionInfo(row)
-    yield* events.publish(SessionV1.Event.Updated, { sessionID: info.id, info })
+    yield* events.publishLive(SessionV1.Event.Updated, { sessionID: info.id, info })
   }).pipe(Effect.catchCause(() => Effect.void))
 }
 
