@@ -45,6 +45,8 @@ export type StreamInput = {
   tools: Record<string, Tool>
   retries?: number
   toolChoice?: "auto" | "required" | "none"
+  /** Override the max output tokens for this request (e.g. 64k escalate on output-length truncation). */
+  maxOutputTokensOverride?: number
 }
 
 export type StreamRequest = StreamInput & {

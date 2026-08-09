@@ -1147,6 +1147,9 @@ const layer = Layer.effect(
         // loop running until the budget is consumed or progress diminishes.
         let budget: BudgetState | undefined
         let budgetParsed = false
+        // Output-length escalation: on the first finish="length" turn, retry the
+        // request with a 64k output cap before falling back to resume messages.
+        let escalatedOutputMax: number | undefined
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1174,6 +1177,17 @@ const layer = Layer.effect(
 
           // 输出 token 上限命中：注入精炼接续指令，让模型不道歉不复述地继续写
           if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {
+            // First truncation: escalate the output cap to 64k and retry once
+            // (aligned with Claude Code max_output_tokens escalate) before
+            // falling back to resume-message continuation.
+            if (escalatedOutputMax === undefined) {
+              escalatedOutputMax = 64_000
+              yield* Effect.logInfo("output token limit hit, escalating output cap to 64k", {
+                "session.id": sessionID,
+                messageID: lastAssistant.id,
+              })
+              continue
+            }
             resumes += 1
             yield* Effect.logInfo("output token limit hit, resuming", {
               "session.id": sessionID,
@@ -1506,6 +1520,7 @@ const layer = Layer.effect(
               tools,
               model,
               toolChoice: format.type === "json_schema" ? "required" : undefined,
+              ...(escalatedOutputMax !== undefined ? { maxOutputTokensOverride: escalatedOutputMax } : {}),
             })
 
             if (structured !== undefined) {

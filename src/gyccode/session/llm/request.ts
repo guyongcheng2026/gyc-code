@@ -34,6 +34,8 @@ type PrepareInput = {
   readonly flags: RuntimeFlags.Info
   readonly isWorkflow: boolean
   readonly language?: string
+  /** Override the max output tokens for this request (e.g. 64k escalate on output-length truncation). */
+  readonly maxOutputTokensOverride?: number
 }
 
 export type Prepared = {
@@ -147,6 +149,19 @@ const resolveProviderOptions = (
   return { options, isOpenaiOauth, isDeepSeek, useInstructions }
 }
 
+/**
+ * Resolve the max output tokens for a request. A caller-supplied override (e.g.
+ * the 64k escalation on output-length truncation) wins; otherwise fall back to
+ * the provider/model computed cap honoring the configured outputTokenMax.
+ */
+export function resolveMaxOutputTokens(
+  model: Provider.Model,
+  outputTokenMax: number | undefined,
+  override: number | undefined,
+): number {
+  return override ?? ProviderTransform.maxOutputTokens(model, outputTokenMax)
+}
+
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
   const system = yield* assembleSystemPrompt(input)
   const { options, isOpenaiOauth, isDeepSeek, useInstructions } = resolveProviderOptions(input, system)
@@ -179,7 +194,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         : undefined,
       topP: input.agent.topP ?? ProviderTransform.topP(input.model),
       topK: ProviderTransform.topK(input.model),
-      maxOutputTokens: ProviderTransform.maxOutputTokens(input.model, input.flags.outputTokenMax),
+      maxOutputTokens: resolveMaxOutputTokens(input.model, input.flags.outputTokenMax, input.maxOutputTokensOverride),
       options,
     },
   )
