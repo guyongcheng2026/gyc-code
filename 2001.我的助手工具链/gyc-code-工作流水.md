@@ -250,3 +250,6 @@
 
 - [OK] 2026-08-10 [465de53] feat(config): add token_counting, llm.output caps, time-based MC and api context management schemas
   - [FILES] 1: src/core/v1/config/config.ts
+
+- [OK] 2026-08-10 [fdd5df4] feat(core): add local BPE-approximation tokenizer
+  - [FILES] 2: src/core/util/tokenizer.test.ts, src/core/util/tokenizer.ts
