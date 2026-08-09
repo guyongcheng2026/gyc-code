@@ -202,3 +202,6 @@
 
 - [OK] 2026-08-10 [31fb293] feat(tool): add task_list/task_get/task_stop management tools
   - [FILES] 3: src/gyccode/tool/registry.ts, src/gyccode/tool/task-manage.test.ts, src/gyccode/tool/task-manage.ts
+
+- [OK] 2026-08-10 [c535620] feat(tool): summarize large webfetch results with cheap model (anti-hallucination + cost)
+  - [FILES] 3: src/gyccode/tool/summarize.test.ts, src/gyccode/tool/summarize.ts, src/gyccode/tool/webfetch.ts
