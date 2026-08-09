@@ -127,11 +127,14 @@ export const make = (options: Options): GoalService => {
 
     set: async (sessionID, condition, directory = "") => {
       const previous = store.get(sessionID)
+      // A fresh condition starts a new goal: reset the react counter and drop the
+      // stale verdict. Re-setting the SAME condition keeps the last judge verdict
+      // so the panel does not flash a blank status while it waits for a re-judge.
       store.set(sessionID, {
         ...(previous ? { goalID: previous.goalID } : {}),
         condition,
-        react: previous?.react ?? 0,
-        lastVerdict: previous?.lastVerdict,
+        react: 0,
+        lastVerdict: previous?.condition === condition ? previous?.lastVerdict : undefined,
         directory,
       })
       await publish(sessionID, { condition }, store.get(sessionID)?.lastVerdict)

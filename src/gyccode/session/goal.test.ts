@@ -56,7 +56,7 @@ describe("Goal.publish", () => {
 
     expect(published).toHaveLength(1)
     expect(published[0].type).toBe("session.goal")
-    const data = published[0].data as { sessionID: string; goal: { condition: string } }
+    const data = published[0].data as { sessionID: string; goal: { condition: string }; lastVerdict?: unknown }
     expect(data.sessionID).toBe("ses_p1")
     expect(data.goal.condition).toBe("task done")
     expect(data.lastVerdict).toBeUndefined()
