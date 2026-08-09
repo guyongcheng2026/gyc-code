@@ -56,6 +56,7 @@ import { eq } from "drizzle-orm"
 import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
+import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
 
@@ -182,9 +183,11 @@ const layer = Layer.effect(
       judge: ({ sessionID, condition, msgs }) =>
         Effect.gen(function* () {
           const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
-          const model = yield* getModel(session.model.providerID, session.model.modelID, sessionID)
+          if (!session.model) return yield* Effect.die(new Error(`Session ${sessionID} has no model`))
+          const model = yield* getModel(session.model.providerID, session.model.id, sessionID).pipe(Effect.orDie)
+          const language = yield* provider.getLanguage(model).pipe(Effect.orDie)
           const messages = yield* MessageV2.toModelMessagesEffect(msgs, model)
-          return yield* Goal.judge({ condition, messages, model })
+          return yield* Goal.judge({ condition, messages, model: language })
         }),
       readTranscript: async (sessionID) =>
         Effect.runPromise(
@@ -1136,6 +1139,11 @@ const layer = Layer.effect(
         let structured: unknown
         let step = 0
         let resumes = 0
+        // Token budget continuation state (from "+500k" / "use 2M tokens" user
+        // instructions). Parsed once from the first real user message; keeps the
+        // loop running until the budget is consumed or progress diminishes.
+        let budget: BudgetState | undefined
+        let budgetParsed = false
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1183,10 +1191,66 @@ const layer = Layer.effect(
               id: PartID.ascending(),
               messageID: continueUserMsg.id,
               sessionID,
-              text: "Output token limit hit. Resume directly from where you left off — no apology, no repetition.",
+              text: "Output token limit hit. Resume directly from where you left off �� no apology, no repetition.",
               synthetic: true,
             } satisfies SessionV1.Part)
             continue
+          }
+
+          // Token budget continuation: keep the loop running toward a user-set
+          // token budget (e.g. "+500k" / "use 2M tokens") even after the model
+          // would normally stop. Parse once, then continue until budget consumed
+          // or continuation turns show diminishing returns.
+          if (!budgetParsed) {
+            budgetParsed = true
+            const budgetText = msgs
+              .filter((m) => m.info.role === "user")
+              .flatMap((m) => m.parts)
+              .filter((p): p is SessionV1.TextPart => p.type === "text" && !("synthetic" in p && p.synthetic))
+              .map((p) => p.text)
+              .join(" ")
+            const target = parseTokenBudgetNL(budgetText)
+            if (target) budget = { budget: target, used: 0, continuations: 0, lastIncrement: 0 }
+          }
+
+          if (
+            budget &&
+            lastAssistant?.finish &&
+            lastAssistant.finish !== "length" &&
+            !hasToolCalls &&
+            lastUser.id < lastAssistant.id
+          ) {
+            const increment = lastFinished?.tokens?.total ?? lastFinished?.tokens?.output ?? 0
+            budget.used += increment
+            budget.lastIncrement = increment
+            const { action } = checkTokenBudget(budget)
+            if (action === "continue") {
+              budget.continuations += 1
+              yield* Effect.logInfo("token budget continuation", {
+                "session.id": sessionID,
+                budget: budget.budget,
+                used: budget.used,
+                continuation: budget.continuations,
+              })
+              const continueUserMsg: SessionV1.User = {
+                id: MessageID.ascending(),
+                sessionID,
+                time: { created: Date.now() },
+                role: "user",
+                agent: lastUser.agent,
+                model: { providerID: lastUser.model.providerID, modelID: lastUser.model.modelID },
+              }
+              yield* sessions.updateMessage(continueUserMsg)
+              yield* sessions.updatePart({
+                type: "text",
+                id: PartID.ascending(),
+                messageID: continueUserMsg.id,
+                sessionID,
+                text: budgetContinuationMessage(budget.used / budget.budget),
+                synthetic: true,
+              } satisfies SessionV1.Part)
+              continue
+            }
           }
 
           if (
