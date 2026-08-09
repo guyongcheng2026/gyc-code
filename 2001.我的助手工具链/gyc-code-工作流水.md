@@ -220,3 +220,6 @@
 
 - [OK] 2026-08-10 [1586b8e] docs(spec): 模型能力层 5 指标差距评估与分阶段改进设计
   - [FILES] 1: docs/compose/specs/2026-08-10-model-capability-benchmark-design.md
+
+- [OK] 2026-08-10 [8ce3168] feat(session): enable micro-compaction of middle tool outputs before full compaction
+  - [FILES] 5: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts, src/gyccode/session/prompt.ts
