@@ -5,6 +5,7 @@ import type { EventV2 } from "@gyccode/core/event"
 import { SessionCwd } from "./session-cwd"
 import { SessionID } from "./schema"
 import { publishInstructionsListed } from "./instruction"
+import { disposeInstance } from "../effect/instance-registry"
 
 const ses = (id: string) => SessionID.descending("ses_" + id)
 
@@ -85,5 +86,30 @@ describe("InstructionsListed emitter", () => {
     expect(data.sessionID).toBe("ses_i1")
     expect(data.files).toEqual(["AGENTS.md", "CLAUDE.md", "docs/guidelines.md"])
     expect(data.timestamp).toBeDefined()
+  })
+})
+
+describe("SessionCwd.lifecycle", () => {
+  afterEach(() => SessionCwd.reset())
+
+  it("drops the session entry when the session ends (clear on remove)", () => {
+    SessionCwd.set(ses("l1"), "/workspace/project", "/instance")
+    expect(SessionCwd.get(ses("l1"))).toBe("/workspace/project")
+
+    SessionCwd.clear(ses("l1"))
+
+    expect(SessionCwd.get(ses("l1"))).toBeUndefined()
+  })
+
+  it("drops all entries that belong to a disposed instance directory", async () => {
+    SessionCwd.set(ses("l2"), "/a", "/root")
+    SessionCwd.set(ses("l3"), "/b", "/root")
+    SessionCwd.set(ses("l4"), "/c", "/other")
+
+    await disposeInstance("/root")
+
+    expect(SessionCwd.get(ses("l2"))).toBeUndefined()
+    expect(SessionCwd.get(ses("l3"))).toBeUndefined()
+    expect(SessionCwd.get(ses("l4"))).toBe("/c")
   })
 })

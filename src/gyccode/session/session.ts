@@ -29,6 +29,7 @@ import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@gyccode/core/session/sql"
 import { ProjectTable } from "@gyccode/core/project/sql"
 import { MessageV2 } from "./message-v2"
+import { SessionCwd } from "./session-cwd"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
@@ -623,6 +624,9 @@ const layer: Layer.Layer<
 
         yield* events.publish(SessionV1.Event.Deleted, { sessionID, info: session })
         yield* events.remove(sessionID)
+        // The session no longer exists; drop its cached working directory so the
+        // module-level cwd store does not grow unboundedly on a long-running server.
+        SessionCwd.clear(sessionID)
       } catch (error) {
         yield* Effect.logError("failed to remove session", { sessionID, error })
       }

@@ -50,8 +50,13 @@ export const publishInstructionsListed = Effect.fn("Instruction.publishInstructi
 export interface Interface {
   readonly clear: (messageID: MessageID) => Effect.Effect<void>
   readonly systemPaths: () => Effect.Effect<Set<string>, FSUtil.Error>
-  readonly system: () => Effect.Effect<string[], FSUtil.Error>
-  readonly list: (sessionID: SessionID) => Effect.Effect<string[], FSUtil.Error>
+  /**
+   * The prompt instruction text plus the exact resolved instruction paths that
+   * backed it, so callers can publish `session.instructions` with the same set
+   * without re-walking the filesystem (see `publishResolved`).
+   */
+  readonly system: () => Effect.Effect<{ files: string[]; paths: ReadonlySet<string> }, FSUtil.Error>
+  readonly publishResolved: (sessionID: SessionID, paths: ReadonlySet<string>) => Effect.Effect<void>
   readonly find: (dir: string) => Effect.Effect<string | undefined, FSUtil.Error>
   readonly resolve: (
     messages: SessionV1.WithParts[],
@@ -180,10 +185,10 @@ const layer: Layer.Layer<
       const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
       const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
 
-      return [
-        ...Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : [])),
-        ...urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : [])),
-      ]
+      const local = Array.from(paths).flatMap((item, i) => (files[i] ? [`Instructions from: ${item}\n${files[i]}`] : []))
+      const remoteParts = urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : []))
+
+      return { files: [...local, ...remoteParts], paths }
     })
 
     const find = Effect.fn("Instruction.find")(function* (dir: string) {
@@ -238,14 +243,14 @@ const layer: Layer.Layer<
       return results
     })
 
-    const list = Effect.fn("Instruction.list")(function* (sessionID: SessionID) {
-      const paths = yield* systemPaths()
-      const files = Array.from(paths)
-      yield* publishInstructionsListed(events, sessionID, files)
-      return files
+    const publishResolved = Effect.fn("Instruction.publishResolved")(function* (
+      sessionID: SessionID,
+      paths: ReadonlySet<string>,
+    ) {
+      yield* publishInstructionsListed(events, sessionID, Array.from(paths))
     })
 
-    return Service.of({ clear, systemPaths, system, list, find, resolve })
+    return Service.of({ clear, systemPaths, system, publishResolved, find, resolve })
   }),
 )
 

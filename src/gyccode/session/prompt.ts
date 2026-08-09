@@ -1321,7 +1321,7 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
-            const [skills, env, instructions, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructionResolved, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
@@ -1329,8 +1329,10 @@ const layer = Layer.effect(
               sys.memory(memoryQuery),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
-            // Publish session.instructions now that the resolved instruction files are in play.
-            yield* instruction.list(sessionID).pipe(Effect.orDie)
+            const instructions = instructionResolved.files
+            // Publish session.instructions with exactly the resolved instruction paths in play
+            // (the same set `instruction.system()` used to build the prompt).
+            yield* instruction.publishResolved(sessionID, instructionResolved.paths).pipe(Effect.orDie)
             const staticPrompt = buildStaticPrompt(skills)
             const semiPrompt = buildSemiStaticPrompt(env, mcpInstructions)
             const dynamicPrompt = buildDynamicPrompt(instructions)
