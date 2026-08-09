@@ -187,3 +187,6 @@
 
 - [OK] 2026-08-10 [7be74c0] feat(session): wire automatic memory extraction into runLoop
   - [FILES] 2: src/core/v1/config/config.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [72be8fd] docs(report): P0 阶段最终报告 + 标记 spec/plan
+  - [FILES] 3: docs/compose/plans/2026-08-10-claude-code-benchmark-p0.md, docs/compose/reports/claude-code-benchmark-p0.md, docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
