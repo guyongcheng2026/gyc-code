@@ -107,6 +107,9 @@ export const {
       }
       formatter: FormatterStatus[]
       vcs: VcsInfo | undefined
+      session_cwd: {
+        [sessionID: string]: string
+      }
     }>({
       provider_next: {
         all: [],
@@ -137,6 +140,7 @@ export const {
       mcp_resource: {},
       formatter: [],
       vcs: undefined,
+      session_cwd: {},
     })
 
     const event = useEvent()
@@ -346,6 +350,12 @@ export const {
               session.time.updated = event.properties.timestamp
             }),
           )
+          break
+        }
+
+        case "session.cwd": {
+          const { sessionID, cwd } = event.properties as { sessionID: string; cwd: string }
+          setStore("session_cwd", sessionID, cwd)
           break
         }
 

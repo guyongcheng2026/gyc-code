@@ -6,16 +6,29 @@ type EventMetadata = {
   workspace: string | undefined
 }
 
+/** Custom durable session event carrying the working directory (not part of the SDK union). */
+export type SessionCwdEvent = {
+  id: string
+  type: "session.cwd"
+  properties: {
+    timestamp: number
+    sessionID: string
+    cwd: string
+  }
+}
+
+type RuntimeEvent = Event | SessionCwdEvent
+
 export function useEvent() {
   const sdk = useSDK()
 
-  function subscribe(handler: (event: Event, metadata: EventMetadata) => void) {
+  function subscribe(handler: (event: RuntimeEvent, metadata: EventMetadata) => void) {
     return sdk.event.on("event", (event) => {
       if (event.payload.type === "sync") {
         return
       }
 
-      handler(event.payload, { directory: event.directory, workspace: event.workspace })
+      handler(event.payload as RuntimeEvent, { directory: event.directory, workspace: event.workspace })
     })
   }
 
@@ -23,7 +36,7 @@ export function useEvent() {
     type: T,
     handler: (event: Extract<Event, { type: T }>, metadata: EventMetadata) => void,
   ) {
-    return subscribe((event: Event, metadata: EventMetadata) => {
+    return subscribe((event: RuntimeEvent, metadata: EventMetadata) => {
       if (event.type !== type) return
       handler(event as Extract<Event, { type: T }>, metadata)
     })
