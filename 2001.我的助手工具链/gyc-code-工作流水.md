@@ -133,3 +133,6 @@
 
 - [OK] 2026-08-09 [fd4e878] feat(session): goal service with injectable judge + session.goal events
   - [FILES] 2: src/gyccode/session/goal.test.ts, src/gyccode/session/goal.ts
+
+- [OK] 2026-08-09 [1b7ac80] fix(session): real Step.Ended cost + emit session.updated(cost) after usage accumulator
+  - [FILES] 5: src/core/session/projector.test.ts, src/core/session/projector.ts, src/core/session/runner/llm.ts, src/core/session/runner/publish-llm-event.test.ts, src/core/session/runner/publish-llm-event.ts
