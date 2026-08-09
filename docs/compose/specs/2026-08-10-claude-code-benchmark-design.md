@@ -1,4 +1,4 @@
-﻿# gyc-cli 对标 Claude Code 三指标差距评估与改进设计
+# gyc-cli 对标 Claude Code 三指标差距评估与改进设计
 
 > [!NOTE]
 > This document may not reflect the current implementation.
@@ -147,3 +147,7 @@ P0 为对三指标影响最大、缺失最严重的 4 项：S4（记忆自动提
 - 遵循 AGENTS.md：每次 commit 后 `.githooks/post-commit` 自动 push origin + 同步 Obsidian 工作流水。
 - commit 粒度：每个 P0 子项一个 commit，message 前缀 `feat(benchmark):` 或 `feat(session):`。
 
+## [S9] P1 实施中发现（2026-08-10）
+
+- **S5 SessionMemory 评估修正**：gyc 的 src/core/session/compaction.ts SUMMARY_TEMPLATE 已包含结构化分区（Objective / Important Details / Work State(Completed/Active/Blocked) / Next Move / Relevant Files），且 previousSummary 跨 compact 链式传递（gyc: session/compaction.ts:402,414）。这与 Claude Code SessionMemory 的结构化状态保留目标等价。S5 从 P1 降级为"已基本满足"，剩余差异（会话内持续维护而非 compact 时快照）归入 P2。
+- **P1 完成项**：S2（64k escalate）、H4（WebSearch 强制引用）、H3（记忆 freshness）、S6（task_list/task_get/task_stop）、H6+C5（大结果 LLM 摘要 + 便宜模型摘要服务）。
