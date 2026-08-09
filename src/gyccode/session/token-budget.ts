@@ -51,3 +51,46 @@ export function parseTokenBudgetNL(input: string): number | null {
   }
   return parseTokenBudget(trimmed)
 }
+
+export const BUDGET_COMPLETION_THRESHOLD = 0.9
+export const BUDGET_DIMINISHING_THRESHOLD = 500
+export const BUDGET_DIMINISHING_MIN_CONTINUATIONS = 3
+
+export interface BudgetState {
+  /** Total token budget target from the user instruction. */
+  budget: number
+  /** Tokens consumed toward the budget so far. */
+  used: number
+  /** Number of continuation turns injected so far. */
+  continuations: number
+  /** Token increment of the most recent continuation turn. */
+  lastIncrement: number
+}
+
+export type BudgetAction = "continue" | "complete"
+
+/**
+ * Decide whether the run loop should keep going toward a token budget.
+ * Continues while usage is below 90% of the target; stops once the target is
+ * reached or when continuation turns stop producing meaningful progress
+ * (3+ continuations with <500 token increments — diminishing returns).
+ */
+export function checkTokenBudget(state: BudgetState): { action: BudgetAction } {
+  // Diminishing returns takes priority: if continuation turns stopped making
+  // meaningful progress, stop even if the budget is not fully consumed.
+  if (
+    state.continuations >= BUDGET_DIMINISHING_MIN_CONTINUATIONS &&
+    state.lastIncrement < BUDGET_DIMINISHING_THRESHOLD
+  ) {
+    return { action: "complete" }
+  }
+  const pct = state.used / state.budget
+  if (pct < BUDGET_COMPLETION_THRESHOLD) return { action: "continue" }
+  return { action: "complete" }
+}
+
+/** Synthetic user message that nudges the model to keep working toward the budget. */
+export function budgetContinuationMessage(pct: number): string {
+  const percent = Math.round(pct * 100)
+  return `Stopped at ${percent}% of token target. Keep working — do not summarize. Continue the task until the token budget is used or the work is complete.`
+}
