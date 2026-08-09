@@ -172,3 +172,6 @@
 
 - [OK] 2026-08-10 [d05a84d] feat(tool): mark files as read after successful Read tool calls
   - [FILES] 1: src/gyccode/tool/read.ts
+
+- [OK] 2026-08-10 [6827bab] feat(tool): enforce read-before-write in write/edit tools
+  - [FILES] 3: src/gyccode/tool/edit.ts, src/gyccode/tool/read-before-write.test.ts, src/gyccode/tool/write.ts
