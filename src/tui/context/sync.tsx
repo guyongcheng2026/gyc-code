@@ -110,6 +110,9 @@ export const {
       session_cwd: {
         [sessionID: string]: string
       }
+      session_instructions: {
+        [sessionID: string]: string[]
+      }
     }>({
       provider_next: {
         all: [],
@@ -141,6 +144,7 @@ export const {
       formatter: [],
       vcs: undefined,
       session_cwd: {},
+      session_instructions: {},
     })
 
     const event = useEvent()
@@ -356,6 +360,12 @@ export const {
         case "session.cwd": {
           const { sessionID, cwd } = event.properties as { sessionID: string; cwd: string }
           setStore("session_cwd", sessionID, cwd)
+          break
+        }
+
+        case "session.instructions": {
+          const { sessionID, files } = event.properties as { sessionID: string; files: string[] }
+          setStore("session_instructions", sessionID, files)
           break
         }
 

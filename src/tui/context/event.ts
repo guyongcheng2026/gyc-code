@@ -17,7 +17,18 @@ export type SessionCwdEvent = {
   }
 }
 
-type RuntimeEvent = Event | SessionCwdEvent
+/** Custom durable session event listing the instruction files in play (not part of the SDK union). */
+export type SessionInstructionsEvent = {
+  id: string
+  type: "session.instructions"
+  properties: {
+    timestamp: number
+    sessionID: string
+    files: string[]
+  }
+}
+
+type RuntimeEvent = Event | SessionCwdEvent | SessionInstructionsEvent
 
 export function useEvent() {
   const sdk = useSDK()
