@@ -160,3 +160,6 @@
 
 - [OK] 2026-08-09 [d984da8] feat(i18n): default Simplified Chinese locale + language directive tests
   - [FILES] 4: src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/ui/context/i18n.test.ts, src/ui/context/i18n.tsx
+
+- [OK] 2026-08-10 [9fb07d5] docs(spec): claude-code 三指标差距评估与分阶段改进设计
+  - [FILES] 1: docs/compose/specs/2026-08-10-claude-code-benchmark-design.md
