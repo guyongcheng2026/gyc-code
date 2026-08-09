@@ -28,4 +28,8 @@ describe("tokenize", () => {
   it("returns empty array for empty input", () => {
     expect(tokenize("")).toEqual([])
   })
+
+  it("collapses a whitespace run into one token", () => {
+    expect(tokenize("a\n\n\n  b")).toEqual(["a", " ", "b"])
+  })
 })

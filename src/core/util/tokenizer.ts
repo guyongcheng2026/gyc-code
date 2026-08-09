@@ -7,6 +7,7 @@
 
 const CJK_RE = /[\u4e00-\u9fff\u3400-\u4dbf\u3000-\u303f\uff00-\uffef]/
 const SYMBOL_RE = /[{}[\]();:,.<>~`!@#$%^&*+=\\-_/?'"]/
+const WORD_RE = /[A-Za-z0-9_]+/y
 
 export function tokenize(input: string): string[] {
   if (!input) return []
@@ -25,10 +26,11 @@ export function tokenize(input: string): string[] {
       tokens.push(" ")
       continue
     }
-    const wordMatch = input.slice(i).match(/^[A-Za-z0-9_]+/)
+    WORD_RE.lastIndex = i
+    const wordMatch = WORD_RE.exec(input)
     if (wordMatch) {
       tokens.push(wordMatch[0])
-      i += wordMatch[0].length
+      i = WORD_RE.lastIndex
       continue
     }
     if (SYMBOL_RE.test(ch)) {
