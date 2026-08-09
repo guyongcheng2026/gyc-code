@@ -184,3 +184,6 @@
 
 - [OK] 2026-08-10 [9c9df68] feat(memory): add injectable extraction runner with dedup + cap
   - [FILES] 2: src/gyccode/memory/extraction-runner.test.ts, src/gyccode/memory/extraction-runner.ts
+
+- [OK] 2026-08-10 [7be74c0] feat(session): wire automatic memory extraction into runLoop
+  - [FILES] 2: src/core/v1/config/config.ts, src/gyccode/session/prompt.ts
