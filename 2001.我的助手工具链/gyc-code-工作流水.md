@@ -166,3 +166,6 @@
 
 - [OK] 2026-08-10 [be37d1e] docs(plan): P0 阶段实施计划 - Claude Code 三指标对标第一批改进
   - [FILES] 1: docs/compose/plans/2026-08-10-claude-code-benchmark-p0.md
+
+- [OK] 2026-08-10 [a35c2a0] feat(tool): track read state in read-cache for read-before-write
+  - [FILES] 2: src/gyccode/tool/read-cache.test.ts, src/gyccode/tool/read-cache.ts
