@@ -211,3 +211,6 @@
 
 - [OK] 2026-08-10 [f2dbdb3] docs(report): update final report to cover P0 + P1
   - [FILES] 1: docs/compose/reports/claude-code-benchmark-p0.md
+
+- [OK] 2026-08-10 [003a37b] feat(tool): remind verification when 3+ todos closed at once
+  - [FILES] 2: src/gyccode/tool/todo.test.ts, src/gyccode/tool/todo.ts
