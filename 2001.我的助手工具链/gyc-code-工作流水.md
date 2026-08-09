@@ -214,3 +214,6 @@
 
 - [OK] 2026-08-10 [003a37b] feat(tool): remind verification when 3+ todos closed at once
   - [FILES] 2: src/gyccode/tool/todo.test.ts, src/gyccode/tool/todo.ts
+
+- [OK] 2026-08-10 [8f7e82c] fix(session): add idle+header timeouts so dropped connections never hang the runLoop
+  - [FILES] 5: src/gyccode/provider/error.test.ts, src/gyccode/provider/provider.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts
