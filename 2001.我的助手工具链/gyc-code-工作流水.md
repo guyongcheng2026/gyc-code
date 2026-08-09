@@ -118,3 +118,6 @@
 
 - [OK] 2026-08-09 [fdf78cf] feat(schema): event defs for session.cwd / session.goal / session.instructions
   - [FILES] 2: src/schema/session-cwd-event.test.ts, src/schema/session-event.ts
+
+- [OK] 2026-08-09 [8a1a273] fix(schema): register session.cwd/goal/instructions events in inventories; harden verdict fixtures
+  - [FILES] 2: src/schema/session-event.test.ts, src/schema/session-event.ts
