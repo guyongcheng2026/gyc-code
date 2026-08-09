@@ -145,3 +145,6 @@
 
 - [OK] 2026-08-09 [ef24e1e] feat(sidebar): add working-directory (cwd) panel
   - [FILES] 5: src/tui/context/event.ts, src/tui/context/sync.tsx, src/tui/feature-plugins/sidebar/cwd.test.tsx, src/tui/feature-plugins/sidebar/cwd.tsx, src/tui/plugin/adapters.tsx
+
+- [OK] 2026-08-09 [d89c0b3] feat(sidebar): add instructions panel + session.instructions sync
+  - [FILES] 5: src/tui/context/event.ts, src/tui/context/sync.tsx, src/tui/feature-plugins/sidebar/instructions.test.tsx, src/tui/feature-plugins/sidebar/instructions.tsx, src/tui/plugin/adapters.tsx
