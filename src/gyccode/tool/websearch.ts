@@ -132,8 +132,15 @@ export const WebSearchTool = Tool.define(
 
           const result = yield* callProvider(http, provider, params, ctx)
 
+          const output =
+            result ??
+            "No search results found. Please try a different query."
+          // Anti-hallucination grounding: remind the model to cite the sources
+          // it was given instead of asserting unverified facts.
+          const grounded = `${output}\n\nREMINDER: You MUST include the sources above in your response when referring to facts found by this search. Do not invent URLs or claims that are not present in the search results.`
+
           return {
-            output: result ?? "No search results found. Please try a different query.",
+            output: grounded,
             title: `${title}: ${params.query}`,
             metadata: { provider },
           }
