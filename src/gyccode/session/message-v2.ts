@@ -56,24 +56,60 @@ const MAX_AGGREGATED_TOOL_CHARS = 100_000
 const MIN_AGGREGATED_TOOL_KEEP_CHARS = 1_024
 
 /**
- * 单条 assistant 消息的全部工具结果聚合预算：
- * 总长超限时从大到小削减最大输出（保底 1KB 头部），保证下游单条 user 消息不爆。
- * 纯函数、确定性，同输入必得同输出（prompt cache 前缀稳定）。
- * 返回 callID -> 允许字符数；未超限返回 undefined。
+ * Frozen truncation decisions keyed by tool callID. Once a callID has been
+ * decided (truncated or kept intact), the decision is recorded here and never
+ * recomputed, so the serialized prompt prefix stays byte-stable across turns
+ * (prompt-cache friendly). Mirrors Claude Code partitionByPriorDecision.
  */
-function aggregateToolCaps(parts: readonly SessionV1.Part[]) {
+const truncationDecisions = new Map<string, number | undefined>()
+
+/** Reset frozen decisions (used by tests). */
+export function resetTruncationDecisions(): void {
+  truncationDecisions.clear()
+}
+
+/**
+ * Compute per-tool-result character caps for one assistant message tool
+ * results: when the aggregate output exceeds the budget, truncate from the
+ * largest output down, keeping at least 1KB of each. Truncation decisions are
+ * frozen by callID once made: re-serializing the same message (or a later
+ * message with the same callIDs) yields identical truncation -> stable prompt
+ * cache prefix. Returns a map of callID -> cap chars, or undefined if under
+ * budget.
+ */
+export function aggregateToolCaps(parts: readonly SessionV1.Part[]) {
   const caps = new Map<string, number>()
+  const callIDs: string[] = []
   let total = 0
   for (const part of parts) {
     if (part.type !== "tool") continue
     if (part.state.status !== "completed" || part.state.time.compacted) continue
+    const callID = part.callID
     const text = part.state.output
-    caps.set(part.callID, text.length)
+    callIDs.push(callID)
     total += text.length
+    caps.set(callID, text.length)
   }
-  if (total <= MAX_AGGREGATED_TOOL_CHARS) return undefined
+  if (callIDs.length === 0) return undefined
+  // All callIDs already decided? Reuse the frozen decision set exactly.
+  const allDecided = callIDs.every((id) => truncationDecisions.has(id))
+  if (allDecided) {
+    for (const [id, keep] of truncationDecisions) {
+      if (keep !== undefined && caps.has(id)) caps.set(id, keep)
+    }
+    return caps
+  }
+  if (total <= MAX_AGGREGATED_TOOL_CHARS) {
+    // Under budget: record "not truncated" for each callID so later calls freeze.
+    for (const id of callIDs) {
+      if (!truncationDecisions.has(id)) truncationDecisions.set(id, undefined)
+    }
+    return undefined
+  }
   let excess = total - MAX_AGGREGATED_TOOL_CHARS
-  for (const [callID, length] of [...caps.entries()].sort((a, b) => b[1] - a[1])) {
+  // Deterministic order: largest length first, then ascending callID.
+  const entries = [...caps.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
+  for (const [callID, length] of entries) {
     if (excess <= 0) break
     if (length <= MIN_AGGREGATED_TOOL_KEEP_CHARS) continue
     const keep = Math.max(MIN_AGGREGATED_TOOL_KEEP_CHARS, length - excess)
@@ -81,6 +117,8 @@ function aggregateToolCaps(parts: readonly SessionV1.Part[]) {
     caps.set(callID, keep)
     excess -= length - keep
   }
+  // Record the full decision set for this batch.
+  for (const id of callIDs) truncationDecisions.set(id, caps.get(id) ?? undefined)
   return caps
 }
 
@@ -161,7 +199,7 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 }
 
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
-  input: WithParts[],
+  input: readonly WithParts[],
   model: Provider.Model,
   options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
 ) {
@@ -448,7 +486,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 })
 
 export function toModelMessages(
-  input: WithParts[],
+  input: readonly WithParts[],
   model: Provider.Model,
   options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
 ): Promise<ModelMessage[]> {
