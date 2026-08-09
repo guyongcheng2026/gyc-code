@@ -112,3 +112,6 @@
 
 - [OK] 2026-08-08 [0ebdbaf] fix: GYCCODE 主界面字标清晰化——纯块字符无阴影（Y 字加粗清晰）、三排严格等宽整体居中、参照 mimo code 布局；TUI 英文界面文案全面中文化（撤回/权限/提问等窗口）+ logo 数据回归测试
   - [FILES] 34: src/gyccode/cli/ui.ts, src/tui/app.tsx, src/tui/component/dialog-debug.tsx, src/tui/component/dialog-provider.tsx, src/tui/component/dialog-retry-action.tsx, src/tui/component/dialog-status.tsx ...
+
+- [OK] 2026-08-09 [5dc779d] docs: 工作区对标 mimo-code 实施计划（cwd/context实时/instructions/goal/task + 默认中文固化）11 任务已入库
+  - [FILES] 1: docs/compose/plans/2026-08-09-sidebar-workspace-mimo.md
