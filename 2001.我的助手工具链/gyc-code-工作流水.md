@@ -238,3 +238,6 @@
 
 - [OK] 2026-08-10 [54d296f] docs(report): final report for model-capability-benchmark (5 metrics) P0+P1+P2-1M
   - [FILES] 2: docs/compose/reports/model-capability-benchmark.md, docs/compose/specs/2026-08-10-model-capability-benchmark-design.md
+
+- [OK] 2026-08-10 [aabd865] feat(session): restrict response language to Simplified Chinese and English
+  - [FILES] 2: src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts
