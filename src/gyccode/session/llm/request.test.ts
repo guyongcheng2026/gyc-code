@@ -28,8 +28,10 @@ describe("languageDirective", () => {
     }
   })
 
-  it("falls back to a generic directive for other languages", () => {
-    expect(languageDirective("fr")).toBe("Always respond in fr.")
+  it("falls back to Simplified Chinese for unsupported languages", () => {
+    const directive = languageDirective("fr")
+    expect(directive).toContain("Simplified Chinese")
+    expect(directive).toContain("zh-CN")
   })
 
   it("honors the GYCCODE_LANGUAGE environment override", () => {

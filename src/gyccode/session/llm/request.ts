@@ -56,19 +56,21 @@ export type Prepared = {
 
 /**
  * Resolve the response language directive injected into the system prompt.
- * Defaults to Simplified Chinese (zh-CN) so gyc always responds in Chinese
- * unless explicitly configured otherwise.
+ * Only Simplified Chinese (zh-CN) and English are supported; any other
+ * language falls back to Simplified Chinese (the default).
  */
+const SIMPLIFIED_CHINESE_DIRECTIVE =
+  "Always respond in Simplified Chinese (zh-CN). \u59cb\u7ec8\u4f7f\u7528\u7b80\u4f53\u4e2d\u6587\u56de\u590d\u7528\u6237\uff0c\u9664\u975e\u7528\u6237\u660e\u786e\u8981\u6c42\u4f7f\u7528\u5176\u4ed6\u8bed\u8a00\u3002"
 export function languageDirective(language: string | undefined): string | undefined {
   const resolved = language ?? process.env.GYCCODE_LANGUAGE ?? "zh-CN"
   const normalized = resolved.toLowerCase()
   if (normalized === "zh-cn" || normalized === "zh" || normalized === "zh-hans" || normalized === "zh-sg") {
-    return "Always respond in Simplified Chinese (zh-CN). \u59cb\u7ec8\u4f7f\u7528\u7b80\u4f53\u4e2d\u6587\u56de\u590d\u7528\u6237\uff0c\u9664\u975e\u7528\u6237\u660e\u786e\u8981\u6c42\u4f7f\u7528\u5176\u4ed6\u8bed\u8a00\u3002"
+    return SIMPLIFIED_CHINESE_DIRECTIVE
   }
   if (normalized === "en" || normalized === "en-us" || normalized === "en-gb") {
     return "Always respond in English."
   }
-  return `Always respond in ${resolved}.`
+  return SIMPLIFIED_CHINESE_DIRECTIVE
 }
 
 const mergeOptions = (target: Record<string, any>, source: Record<string, any> | undefined): Record<string, any> =>
