@@ -139,3 +139,6 @@
 
 - [OK] 2026-08-09 [373d286] fix(session): decouple usage broadcast from projector durable transaction (publishLive)
   - [FILES] 3: src/core/event.ts, src/core/session/projector.test.ts, src/core/session/projector.ts
+
+- [OK] 2026-08-09 [bc47128] feat(sidebar): realtime Context tokens/% /spent + limit + tps
+  - [FILES] 5: src/core/util/token.ts, src/tui/feature-plugins/sidebar/context.tsx, src/tui/feature-plugins/sidebar/tps.test.ts, src/tui/feature-plugins/sidebar/tps.ts, src/tui/util/model.ts
