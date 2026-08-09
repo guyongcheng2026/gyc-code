@@ -1,4 +1,4 @@
-import { LayerNode } from "@gyccode/core/effect/layer-node"
+﻿import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { ConfigV1 } from "@gyccode/core/v1/config/config"
 import { Session } from "./session"
@@ -22,6 +22,7 @@ import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"
 import { buildPrompt } from "@gyccode/core/session/compaction"
 import { SessionCompactionEvent } from "@gyccode/schema/session-compaction-event"
+import { selectMicrocompactParts } from "./microcompact-select"
 
 export const Event = SessionCompactionEvent
 
@@ -198,6 +199,10 @@ export interface Interface {
     tokens: SessionV1.Assistant["tokens"]
     model: Provider.Model
   }) => Effect.Effect<boolean>
+  readonly microcompactIfNeeded: (input: {
+    sessionID: SessionID
+    model: Provider.Model
+  }) => Effect.Effect<boolean>
   readonly prune: (input: { sessionID: SessionID }) => Effect.Effect<void>
   readonly process: (input: {
     parentID: MessageID
@@ -243,6 +248,34 @@ const layer = Layer.effect(
       })
     })
 
+    const microcompactIfNeeded = Effect.fn("SessionCompaction.microcompactIfNeeded")(function* (input: {
+      sessionID: SessionID
+      model: Provider.Model
+    }) {
+      const cfg = yield* config.get()
+      if (cfg.compaction?.microcompact === false) return false
+      const msgs = yield* session
+        .messages({ sessionID: input.sessionID })
+        .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
+      if (!msgs || msgs.length === 0) return false
+      const used = yield* estimate({ messages: msgs, model: input.model })
+      const limit = usable({ cfg, model: input.model, outputTokenMax: flags.outputTokenMax })
+      if (limit <= 0) return false
+      const selected = selectMicrocompactParts(msgs as any, used, limit)
+      if (selected.length === 0) return false
+      yield* Effect.logInfo("microcompacting", {
+        "session.id": input.sessionID,
+        count: selected.length,
+        usage: Math.round((used / limit) * 100),
+      })
+      for (const part of selected) {
+        if (part.state.status === "completed") {
+          part.state.time.compacted = Date.now()
+          yield* session.updatePart(part)
+        }
+      }
+      return true
+    })
     const estimate = Effect.fn("SessionCompaction.estimate")(function* (input: {
       messages: SessionV1.WithParts[]
       model: Provider.Model
@@ -604,6 +637,7 @@ const layer = Layer.effect(
 
     return Service.of({
       isOverflow,
+      microcompactIfNeeded,
       prune,
       process: processCompaction,
       create,
@@ -627,3 +661,4 @@ export const node = LayerNode.make({
 })
 
 export * as SessionCompaction from "./compaction"
+

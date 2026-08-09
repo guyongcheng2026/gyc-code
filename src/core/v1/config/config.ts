@@ -157,6 +157,9 @@ export const Info = Schema.Struct({
       prune: Schema.optional(Schema.Boolean).annotate({
         description: "Enable pruning of old tool outputs (default: false)",
       }),
+      microcompact: Schema.optional(Schema.Boolean).annotate({
+        description: "Enable micro-compaction of middle tool outputs at high context usage (default: true)",
+      }),
       tail_turns: Schema.optional(NonNegativeInt).annotate({
         description:
           "Number of recent user turns, including their following assistant/tool responses, to keep verbatim during compaction (default: 2)",
