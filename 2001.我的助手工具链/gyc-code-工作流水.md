@@ -226,3 +226,6 @@
 
 - [OK] 2026-08-10 [fca0941] feat(core): type-aware token estimation (CJK/code/JSON density)
   - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
+
+- [OK] 2026-08-10 [fff8197] feat(session): support @include references in instruction files
+  - [FILES] 3: src/gyccode/session/instruction-includes.test.ts, src/gyccode/session/instruction-includes.ts, src/gyccode/session/instruction.ts
