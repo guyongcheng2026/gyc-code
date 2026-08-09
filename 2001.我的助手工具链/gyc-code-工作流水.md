@@ -256,3 +256,6 @@
 
 - [OK] 2026-08-10 [e64c8f1] fix(core): make tokenizer linear-time with sticky regex, add whitespace-collapse test
   - [FILES] 2: src/core/util/tokenizer.test.ts, src/core/util/tokenizer.ts
+
+- [OK] 2026-08-10 [5b52814] feat(core): route Token.estimate through local tokenizer, add estimateWithAPI fallback
+  - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
