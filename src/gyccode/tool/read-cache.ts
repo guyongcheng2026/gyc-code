@@ -16,14 +16,18 @@ export type StatLike = {
   type?: string
 }
 
+// Shared singleton maps. All callers share the same underlying map + read-set,
+// so the cache is effectively a singleton across tools (and the read-before-write
+// guard is consistent across read/write/edit in the same session).
+const map = new Map<string, { content: string; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
+const readSet = new Set<string>()
+
 /**
- * Returns a cache object that stores file contents together with their stats.
- * All callers share the same underlying map, so the cache is effectively a singleton.
+ * Returns a cache object that stores file contents together with their stats,
+ * and tracks which files have been read in this session (for the
+ * read-before-write guard in write/edit tools).
  */
 export const ReadCache = () => {
-  // The shared map lives in the module closure, guaranteeing a single cache instance.
-  const map = new Map<string, { content: string; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
-
   return {
     /** Retrieve cache entry for a path, if present */
     get(filepath: string) {
@@ -42,10 +46,20 @@ export const ReadCache = () => {
         if (oldest !== undefined) map.delete(oldest)
       }
       map.set(filepath, { content, stat })
+      // Reading (or writing) a file means the model has seen its current content.
+      readSet.add(filepath)
     },
     /** Remove a cache entry - useful after write/edit operations */
     invalidate(filepath: string) {
       map.delete(filepath)
+    },
+    /** True when the file was read (or written) in this session. */
+    hasRead(filepath: string) {
+      return readSet.has(filepath)
+    },
+    /** Record that the file has been read in this session. */
+    markRead(filepath: string) {
+      readSet.add(filepath)
     },
   }
 }
