@@ -270,6 +270,9 @@ export const ReadTool = Tool.define<
             cachedStat?.mtime?.getTime?.() === statMtime &&
             cachedStat?.size === statSize
           ) {
+            // Content already seen in this session; keep the read-state marker
+            // so the read-before-write guard is satisfied.
+            readCache.markRead(filepath)
             return {
               title,
               output: FILE_UNCHANGED_STUB,
@@ -399,6 +402,7 @@ export const ReadTool = Tool.define<
       }
 
         // Cache file content and stat for future reads
+        readCache.markRead(filepath)
         readCache.set(filepath, file.raw.join("\n"), {
           mtime: Option.getOrUndefined(stat.mtime),
           size: stat.size === undefined ? undefined : Number(stat.size),
