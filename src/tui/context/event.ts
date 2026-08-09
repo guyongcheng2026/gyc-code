@@ -28,7 +28,25 @@ export type SessionInstructionsEvent = {
   }
 }
 
-type RuntimeEvent = Event | SessionCwdEvent | SessionInstructionsEvent
+/** Custom durable session event carrying the active goal + latest judge verdict (not part of the SDK union). */
+export type SessionGoalEvent = {
+  id: string
+  type: "session.goal"
+  properties: {
+    timestamp: number
+    sessionID: string
+    goal?: { condition: string }
+    lastVerdict?: {
+      ok: boolean
+      impossible?: boolean
+      error?: boolean
+      reason: string
+      attempt: number
+    }
+  }
+}
+
+type RuntimeEvent = Event | SessionCwdEvent | SessionInstructionsEvent | SessionGoalEvent
 
 export function useEvent() {
   const sdk = useSDK()

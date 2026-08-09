@@ -113,6 +113,18 @@ export const {
       session_instructions: {
         [sessionID: string]: string[]
       }
+      session_goal: {
+        [sessionID: string]: {
+          condition: string
+          lastVerdict?: {
+            ok: boolean
+            impossible?: boolean
+            error?: boolean
+            reason: string
+            attempt: number
+          }
+        }
+      }
     }>({
       provider_next: {
         all: [],
@@ -145,6 +157,7 @@ export const {
       vcs: undefined,
       session_cwd: {},
       session_instructions: {},
+      session_goal: {},
     })
 
     const event = useEvent()
@@ -366,6 +379,31 @@ export const {
         case "session.instructions": {
           const { sessionID, files } = event.properties as { sessionID: string; files: string[] }
           setStore("session_instructions", sessionID, files)
+          break
+        }
+
+        case "session.goal": {
+          const properties = event.properties as {
+            sessionID: string
+            goal?: { condition: string }
+            lastVerdict?: {
+              ok: boolean
+              impossible?: boolean
+              error?: boolean
+              reason: string
+              attempt: number
+            }
+          }
+          if (properties.goal) {
+            setStore("session_goal", properties.sessionID, {
+              condition: properties.goal.condition,
+              lastVerdict: properties.lastVerdict,
+            })
+          } else {
+            setStore("session_goal", produce((draft) => {
+              delete draft[properties.sessionID]
+            }))
+          }
           break
         }
 
