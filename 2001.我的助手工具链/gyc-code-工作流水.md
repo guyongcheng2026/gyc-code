@@ -232,3 +232,6 @@
 
 - [OK] 2026-08-10 [5bcfa11] feat(magic-docs): register and refresh MAGIC DOC documentation files
   - [FILES] 3: src/gyccode/magic-docs.test.ts, src/gyccode/magic-docs.ts, src/gyccode/tool/read.ts
+
+- [OK] 2026-08-10 [eedeb47] feat(session): auto-inject 1M context beta header for Anthropic-lineage models
+  - [FILES] 3: src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context1m.test.ts, src/gyccode/session/llm/request.ts
