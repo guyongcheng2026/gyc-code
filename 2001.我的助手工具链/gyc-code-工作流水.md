@@ -169,3 +169,6 @@
 
 - [OK] 2026-08-10 [a35c2a0] feat(tool): track read state in read-cache for read-before-write
   - [FILES] 2: src/gyccode/tool/read-cache.test.ts, src/gyccode/tool/read-cache.ts
+
+- [OK] 2026-08-10 [d05a84d] feat(tool): mark files as read after successful Read tool calls
+  - [FILES] 1: src/gyccode/tool/read.ts
