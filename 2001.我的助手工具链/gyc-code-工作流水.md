@@ -247,3 +247,6 @@
 
 - [OK] 2026-08-10 [31c355d] docs(plan): implementation plan for 6 model-capability gaps closure (9 tasks, TDD)
   - [FILES] 1: docs/compose/plans/2026-08-10-model-capability-gaps-closure.md
+
+- [OK] 2026-08-10 [465de53] feat(config): add token_counting, llm.output caps, time-based MC and api context management schemas
+  - [FILES] 1: src/core/v1/config/config.ts
