@@ -286,3 +286,6 @@
 
 - [OK] 2026-08-10 [fbaa60b] fix(session): match rules against relative+absolute paths, dedup unconditional rules, os at system level, loadRules tests
   - [FILES] 3: src/gyccode/session/instruction.ts, src/gyccode/session/rules.test.ts, src/gyccode/session/rules.ts
+
+- [OK] 2026-08-10 [b5817ee] feat(session): time-based micro-compaction with configurable gap and keep, chained before usage-based
+  - [FILES] 3: src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
