@@ -352,3 +352,6 @@
 
 - [OK] 2026-08-10 [33a7da2] feat(compaction): post-compaction cache invalidation hook
   - [FILES] 2: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts
+
+- [OK] 2026-08-10 [7724cb6] feat(overflow): [1m] upgrade suggestion (maybeSuggest1mUpgrade)
+  - [FILES] 1: src/gyccode/session/overflow.ts
