@@ -277,3 +277,6 @@
 
 - [OK] 2026-08-10 [08c6e57] 修复子代理无限空转：通配权限识别 + 默认步数上限 + 连续空转快速失败
   - [FILES] 2: src/gyccode/agent/subagent-permissions.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [7d802b1] fix(session): align compaction budget with configurable output cap, add escalate helper, positive-int caps
+  - [FILES] 6: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/output-cap.test.ts, src/gyccode/session/llm/output-cap.ts, src/gyccode/session/prompt.ts
