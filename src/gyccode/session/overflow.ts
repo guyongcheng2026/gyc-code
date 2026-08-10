@@ -46,6 +46,25 @@ export function calculateTokenWarningState(input: {
   }
 }
 
+
+/**
+ * Suggest 1M context upgrade when usage exceeds 70% and model supports 1M.
+ * Mirrors Claude Code contextWindowUpgradeCheck.
+ */
+export function maybeSuggest1mUpgrade(input: {
+  used: number
+  cfg: ConfigV1.Info
+  model: Provider.Model
+  outputTokenMax?: number
+}): string | undefined {
+  const usableTokens = usable(input)
+  if (usableTokens <= 0) return undefined
+  const percentUsed = (input.used / usableTokens) * 100
+  if (percentUsed < 70) return undefined
+  const modelId = input.model.id.toLowerCase()
+  if (modelId.includes('[1m]')) return undefined
+  return 'Context usage at ' + Math.round(percentUsed) + '%. Consider upgrading to a 1M context model (append [1m] to model ID).'
+}
 export function isOverflow(input: {
   cfg: ConfigV1.Info
   tokens: SessionV1.Assistant["tokens"]
