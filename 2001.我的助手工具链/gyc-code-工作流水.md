@@ -280,3 +280,6 @@
 
 - [OK] 2026-08-10 [7d802b1] fix(session): align compaction budget with configurable output cap, add escalate helper, positive-int caps
   - [FILES] 6: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/output-cap.test.ts, src/gyccode/session/llm/output-cap.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [1eba1c5] feat(session): conditional rules with globs+language+os matching, system and nearby injection
+  - [FILES] 3: src/gyccode/session/instruction.ts, src/gyccode/session/rules.test.ts, src/gyccode/session/rules.ts
