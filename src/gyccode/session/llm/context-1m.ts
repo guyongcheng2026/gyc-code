@@ -8,7 +8,10 @@
  * the beta header is sent the Anthropic API still enforces the default 200K
  * limit — picking a 1M model would budget compaction for 1M while the API 413s
  * far earlier. This module closes that gap by injecting the beta header for
- * Anthropic-lineage providers whose advertised context is >= 1M.
+ * Anthropic-lineage providers whose advertised context is >= 1M, or whose model
+ * id carries an explicit `[1m]` opt-in suffix. Independently, the
+ * `GYCCODE_MAX_CONTEXT_TOKENS` env var caps the effective context window used
+ * for local compaction/overflow decisions regardless of the advertised window.
  */
 
 export const CONTEXT_1M_BETA_HEADER = "context-1m-2025-08-07" as const
@@ -16,7 +19,7 @@ const CONTEXT_1M_THRESHOLD = 1_000_000
 
 /** True when the model id carries an explicit `[1m]` opt-in suffix (case-insensitive). */
 export function parse1mSuffix(modelId: string): boolean {
-  return /\[1m\]/i.test(modelId)
+  return /\[1m\]\s*$/i.test(modelId)
 }
 
 const DEFAULT_CONTEXT_WINDOW = 200_000
@@ -32,8 +35,10 @@ export function effectiveContextWindow(
 ): number {
   const raw = env.GYCCODE_MAX_CONTEXT_TOKENS
   if (raw) {
-    const parsed = Number.parseInt(raw, 10)
-    if (Number.isFinite(parsed) && parsed > 0) return parsed
+    const parsed = Number(raw)
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return Math.min(parsed, model.context ?? parsed)
+    }
   }
   return model.context ?? DEFAULT_CONTEXT_WINDOW
 }
@@ -65,7 +70,8 @@ function isAnthropicNpm(npm: string): boolean {
  * context window. Returns `undefined` when the model is not 1M-capable on an
  * Anthropic-lineage transport so callers can leave the header untouched.
  *
- * @param model            Provider model (limit.context drives the decision).
+ * @param model            Provider model (limit.context drives the decision; a
+ *                         `[1m]` suffix on the model id opts in even below 1M).
  * @param existingBeta     Current `anthropic-beta` value, if any, to merge with.
  */
 export function context1MHeader(
@@ -73,11 +79,12 @@ export function context1MHeader(
     providerID: string
     api: { id: string; npm: string }
     limit: { context?: number }
+    id?: string
   },
   existingBeta = "",
 ): string | undefined {
   const context = model.limit?.context ?? 0
-  const id = (model as any).id ?? model.api.id
+  const id = model.id ?? model.api.id
   const suffix1M = parse1mSuffix(id)
   if (context < CONTEXT_1M_THRESHOLD && !suffix1M) return undefined
   if (!ANTHROPIC_BETA_PROVIDERS.has(model.providerID) && !isAnthropicNpm(model.api.npm)) return undefined
