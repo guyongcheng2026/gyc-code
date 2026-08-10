@@ -11,6 +11,7 @@ import {
 } from "@gyccode/llm/providers"
 import type { ModelMessage } from "ai"
 import type { Provider } from "@/provider/provider"
+import { strip1mSuffix } from "./context-1m"
 import { isRecord } from "@/util/record"
 
 type ToolInput = {
@@ -162,19 +163,22 @@ export const model = (input: Provider.Model | RequestInput, headers?: Record<str
       output: model.limit.output,
     },
   }
-  if (model.api.npm === "@ai-sdk/openai") return OpenAI.configure(options).responses(model.api.id)
+  // The `[1m]` opt-in suffix is a local compaction/header signal only; the wire
+  // model id must never carry it (Anthropic rejects unknown model ids).
+  const wireID = strip1mSuffix(model.api.id)
+  if (model.api.npm === "@ai-sdk/openai") return OpenAI.configure(options).responses(wireID)
   if (model.api.npm === "@ai-sdk/azure")
-    return Azure.configure({ ...options, baseURL: requireBaseURL(model, url) }).responses(model.api.id)
-  if (model.api.npm === "@ai-sdk/anthropic") return Anthropic.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/google") return Google.configure(options).model(model.api.id)
-  if (model.api.npm === "@ai-sdk/amazon-bedrock") return AmazonBedrock.configure(options).model(model.api.id)
+    return Azure.configure({ ...options, baseURL: requireBaseURL(model, url) }).responses(wireID)
+  if (model.api.npm === "@ai-sdk/anthropic") return Anthropic.configure(options).model(wireID)
+  if (model.api.npm === "@ai-sdk/google") return Google.configure(options).model(wireID)
+  if (model.api.npm === "@ai-sdk/amazon-bedrock") return AmazonBedrock.configure(options).model(wireID)
   if (model.api.npm === "@ai-sdk/openai-compatible")
     return OpenAICompatible.configure({
       ...options,
       provider: String(model.providerID),
       baseURL: requireBaseURL(model, url),
-    }).model(model.api.id)
-  if (model.api.npm === "@openrouter/ai-sdk-provider") return OpenRouter.configure(options).model(model.api.id)
+    }).model(wireID)
+  if (model.api.npm === "@openrouter/ai-sdk-provider") return OpenRouter.configure(options).model(wireID)
   throw new Error(`Native LLM request adapter does not support provider package ${model.api.npm}`)
 }
 

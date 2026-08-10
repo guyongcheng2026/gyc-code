@@ -94,4 +94,7 @@ describe("contextManagementOptions", () => {
   it("returns undefined when disabled", () => {
     expect(contextManagementOptions({ enabled: false })).toBeUndefined()
   })
+  it("returns undefined when enabled but both clears are disabled (no edits -> no beta header)", () => {
+    expect(contextManagementOptions({ enabled: true, clear_thinking: false, clear_tool_uses: false })).toBeUndefined()
+  })
 })

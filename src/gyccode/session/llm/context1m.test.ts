@@ -4,6 +4,7 @@ import {
   context1MHeader,
   mergeBetaHeader,
   parse1mSuffix,
+  strip1mSuffix,
   effectiveContextWindow,
 } from "./context-1m"
 
@@ -101,6 +102,16 @@ describe("parse1mSuffix", () => {
   it("rejects models without the suffix", () => {
     expect(parse1mSuffix("claude-sonnet-4-6")).toBe(false)
     expect(parse1mSuffix("")).toBe(false)
+  })
+})
+
+describe("strip1mSuffix", () => {
+  it("strips a trailing [1m]", () => {
+    expect(strip1mSuffix("claude-sonnet-4-6[1m]")).toBe("claude-sonnet-4-6")
+    expect(strip1mSuffix("claude-sonnet-4-6[1M]")).toBe("claude-sonnet-4-6")
+  })
+  it("leaves non-suffixed ids unchanged", () => {
+    expect(strip1mSuffix("claude-sonnet-4-6")).toBe("claude-sonnet-4-6")
   })
 })
 

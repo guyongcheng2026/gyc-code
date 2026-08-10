@@ -5,7 +5,7 @@ import { Session } from "./session"
 import { SessionID, MessageID, PartID } from "./schema"
 import { Provider } from "@/provider/provider"
 import { MessageV2 } from "./message-v2"
-import { Token } from "@/util/token"
+import { Token, estimateWithAPI } from "@/util/token"
 import { SessionProcessor } from "./processor"
 import { Agent } from "@/agent/agent"
 import { Plugin } from "@/plugin"
@@ -229,6 +229,57 @@ export class Service extends Context.Service<Service, Interface>()("@gyccode/Ses
 
 export const use = serviceUse(Service)
 
+/**
+ * Build an Anthropic countTokens adapter for API-backed token estimation, or
+ * throw when no usable base URL / API key is available so callers fall back to
+ * the local estimator. POSTs the serialized model messages to the Anthropic
+ * Messages `count_tokens` endpoint (guarded by the `count-tokens` beta header)
+ * using the model's own base URL and the provider's API key (provider options
+ * `apiKey` or the provider `key`). A missing key, a non-Anthropic provider, a
+ * network error, or an invalid response all surface as a throw, which
+ * `estimateWithAPI` converts into the local fallback.
+ *
+ * Limitation: the request body reuses the AI-SDK-shaped message array that
+ * `estimate` already serialized (JSON round-trip), which is close to but not
+ * byte-identical to the Anthropic wire format. Any rejection by the API falls
+ * back to the local estimator, so this only affects accuracy, never availability.
+ */
+function makeCountTokensAdapter(
+  model: Provider.Model,
+  apiModel: string,
+  providerInfo: Provider.Info | undefined,
+): { countTokens: (text: string) => Promise<number> } {
+  const baseURL = (model.api.url || "").replace(/\/+$/, "")
+  const apiKey =
+    (typeof providerInfo?.options?.apiKey === "string" && providerInfo.options.apiKey) || providerInfo?.key || undefined
+  if (!baseURL || !apiKey) {
+    throw new Error(`countTokens: no API key or base URL for ${model.providerID}/${model.api.id}`)
+  }
+  const url = baseURL.endsWith("/v1") ? `${baseURL}/messages/count_tokens` : `${baseURL}/v1/messages/count_tokens`
+  return {
+    countTokens: async (text: string) => {
+      const messages = JSON.parse(text)
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "count-tokens-2025-05-15",
+        },
+        body: JSON.stringify({ model: apiModel, messages }),
+      })
+      if (!res.ok) throw new Error(`countTokens request failed: ${res.status} ${res.statusText}`)
+      const data = (await res.json()) as { input_tokens?: unknown }
+      const n = data.input_tokens
+      if (typeof n !== "number" || !Number.isInteger(n) || n < 0) {
+        throw new Error("countTokens returned an invalid input_tokens value")
+      }
+      return n
+    },
+  }
+}
+
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
@@ -320,7 +371,24 @@ const layer = Layer.effect(
       model: Provider.Model
     }) {
       const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model)
-      return Token.estimate(JSON.stringify(msgs))
+      const text = JSON.stringify(msgs)
+      const cfgInfo = yield* config.get()
+      const mode = cfgInfo.token_counting?.mode ?? "local"
+      if (mode === "local") return Token.estimate(text)
+      // API-backed counting (mode "api" / "auto"): Anthropic countTokens with a
+      // local fallback on any failure (missing key, non-Anthropic provider,
+      // network error, invalid response). "auto" is exactly this behavior;
+      // "api" keeps the same fallback so a flaky endpoint can never block
+      // compaction.
+      const apiModel = cfgInfo.token_counting?.api_model ?? input.model.api.id
+      const providerInfo = yield* provider.getProvider(input.model.providerID)
+      const count = yield* Effect.tryPromise(() =>
+        estimateWithAPI(text, {
+          api: makeCountTokensAdapter(input.model, apiModel, providerInfo),
+          model: apiModel,
+        }),
+      ).pipe(Effect.catch(() => Effect.succeed(Token.estimate(text))))
+      return count
     })
 
     const select = Effect.fn("SessionCompaction.select")(function* (input: {

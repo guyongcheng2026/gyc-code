@@ -66,12 +66,25 @@ export function parseRuleFrontmatter(
   }
   if (langMatch || osMatch) {
     condition = {
-      ...(langMatch ? { language: langMatch[1]!.toLowerCase() } : {}),
+      ...(langMatch ? { language: normalizeLanguage(langMatch[1])! } : {}),
       ...(osMatch ? { os: osMatch[1]!.toLowerCase() } : {}),
     }
   }
 
   return { ...(globs ? { globs } : {}), ...(condition ? { condition } : {}), body: body.trim() }
+}
+
+/**
+ * Canonicalize a language tag to its family so `zh` / `zh-CN` / `zh-Hans` /
+ * `zh-TW` and `en` / `en-US` / `en-GB` all match the same rule condition.
+ * Unknown tags are returned lowercased (exact-match only).
+ */
+function normalizeLanguage(lang: string | undefined): string | undefined {
+  if (!lang) return undefined
+  const l = lang.toLowerCase()
+  if (l === "zh-cn" || l === "zh-hans" || l === "zh-sg" || l === "zh-tw" || l === "zh-hant") return "zh"
+  if (l === "en-us" || l === "en-gb" || l === "en-au" || l === "en-ca") return "en"
+  return l
 }
 
 /**
@@ -125,7 +138,7 @@ export interface MatchInput {
 
 /** Rules whose globs and conditions all match the input. */
 export function matchRules(rules: readonly Rule[], input: MatchInput): Rule[] {
-  const lang = input.language?.toLowerCase()
+  const lang = normalizeLanguage(input.language)
   const os = input.os?.toLowerCase()
   // Globs use `/` separators; normalize Windows separators so `src/**` + `/*.ts`
   // matches a real `C:\proj\src\app.ts` path too.
@@ -137,7 +150,7 @@ export function matchRules(rules: readonly Rule[], input: MatchInput): Rule[] {
       )
       if (!hit) return false
     }
-    if (rule.condition?.language && rule.condition.language !== lang) return false
+    if (rule.condition?.language && normalizeLanguage(rule.condition.language) !== lang) return false
     if (rule.condition?.os && rule.condition.os !== os) return false
     return true
   })

@@ -300,23 +300,18 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   // clears old thinking blocks / tool uses server-side. ProviderTransform
   // wraps params.options under the SDK key (e.g. `anthropic`) downstream, so
   // the AI SDK zod reads it from providerOptions.anthropic.contextManagement
-  // and the native path maps the same key into the raw body parameter. The
-  // header merge and the options attach are tested pure helpers, so the
-  // gating rules (Anthropic-only, config-enabled-only) live in one place.
-  const isAnthropic = isAnthropicLike(input.model)
-  const contextManagementBeta = contextManagementBetaHeader(
-    mergedHeaders["anthropic-beta"],
-    input.apiContextManagement?.enabled === true,
-    isAnthropic,
-  )
-  if (contextManagementBeta !== undefined) mergedHeaders["anthropic-beta"] = contextManagementBeta
-
-  if (isAnthropic) {
-    const contextManagement = input.apiContextManagement
-      ? contextManagementOptions(input.apiContextManagement)
-      : undefined
-    if (contextManagement) {
-      params.options = { ...params.options, ...contextManagement }
+  // and the native path maps the same key into the raw body parameter.
+  // The header merge and the options attach share one gate: only when
+  // `contextManagementOptions` yields non-empty edits (both clears disabled =>
+  // no edits => no header, no options) do we touch the request.
+  if (input.apiContextManagement?.enabled && isAnthropicLike(input.model)) {
+    const options = contextManagementOptions(input.apiContextManagement)
+    if (options) {
+      // `contextManagementBetaHeader(x, true, true)` always merges (returns a
+      // string); the undefined branch is unreachable but keeps TS narrowing.
+      const beta = contextManagementBetaHeader(mergedHeaders["anthropic-beta"], true, true)
+      if (beta !== undefined) mergedHeaders["anthropic-beta"] = beta
+      params.options = { ...params.options, ...options }
     }
   }
 

@@ -62,6 +62,21 @@ describe("matchRules", () => {
     const m = matchRules([ruleZh], { filepath: "src/app.ts", language: "en", os: "win32" })
     expect(m).toEqual([])
   })
+  it("matches zh-CN session language against a zh rule", () => {
+    const ruleZh = { filepath: "rules/zh.md", globs: ["src/**"], condition: { language: "zh" }, body: "x" }
+    const m = matchRules([ruleZh], { filepath: "src/app.ts", language: "zh-CN", os: "win32" })
+    expect(m).toHaveLength(1)
+  })
+  it("matches en-US session language against an en rule", () => {
+    const ruleEn = { filepath: "rules/en.md", globs: ["src/**"], condition: { language: "en" }, body: "x" }
+    const m = matchRules([ruleEn], { filepath: "src/app.ts", language: "en-US", os: "win32" })
+    expect(m).toHaveLength(1)
+  })
+  it("normalizes a zh-CN rule language against a zh session language", () => {
+    const ruleZhCN = { filepath: "rules/zh.md", globs: ["src/**"], condition: { language: "zh-CN" }, body: "x" }
+    const m = matchRules([ruleZhCN], { filepath: "src/app.ts", language: "zh", os: "win32" })
+    expect(m).toHaveLength(1)
+  })
   it("matches unconditioned rules regardless of language", () => {
     const m = matchRules([ruleAll], { filepath: "src/app.ts", language: "en", os: "win32" })
     expect(m.map((r) => r.filepath)).toContain("rules/all.md")

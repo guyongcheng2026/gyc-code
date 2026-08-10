@@ -1,1 +1,1 @@
-export { Token, estimate } from "@gyccode/core/util/token"
+export { Token, estimate, estimateWithAPI } from "@gyccode/core/util/token"

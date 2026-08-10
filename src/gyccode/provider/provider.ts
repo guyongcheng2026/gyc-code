@@ -31,6 +31,7 @@ import { ModelV2 } from "@gyccode/core/model"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
+import { strip1mSuffix } from "../session/llm/context-1m"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 // Default per-request timeouts applied when a provider does not configure its
@@ -1855,20 +1856,26 @@ const layer = Layer.effect(
       if (s.models.has(key)) return s.models.get(key)!
 
       const provider = s.providers[model.providerID]
+      // The `[1m]` opt-in suffix is a local compaction/header signal only; the
+      // model id handed to the SDK must never carry it (Anthropic rejects
+      // unknown model ids). Stripped once here so every AI SDK model resolves
+      // off the clean id, while `context1MHeader` still sees `model.id` for the
+      // beta-header injection.
+      const wireID = strip1mSuffix(model.api.id)
       return yield* EffectPromise.refineRejection(
         async () => {
           const sdk = await resolveSDK(model, s, envs)
           const language = s.modelLoaders[model.providerID]
             ? await s.modelLoaders[model.providerID](
                 sdk,
-                model.api.id,
+                wireID,
                 {
                   ...provider.options,
                   ...model.options,
                 },
                 model,
               )
-            : sdk.languageModel(model.api.id)
+            : sdk.languageModel(wireID)
           s.models.set(key, language)
           return language
         },

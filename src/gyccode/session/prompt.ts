@@ -1401,16 +1401,19 @@ const layer = Layer.effect(
             continue
           }
 
+          // Micro-compaction first: time-based (a long idle gap expired the
+          // prompt cache, so clear old tool results even when usage is below
+          // the overflow threshold) or usage-based (context near the 85%
+          // high-water mark). Returns true when it cleared tool outputs ->
+          // rebuild the prompt (now smaller). Nothing cleared -> fall through
+          // to the overflow check and full compaction.
+          if (yield* compaction.microcompactIfNeeded({ sessionID, model })) continue
+
           if (
             lastFinished &&
             lastFinished.summary !== true &&
             (yield* compaction.isOverflow({ tokens: lastFinished.tokens, model }))
           ) {
-            // Try micro-compaction first: clear middle tool outputs (keeping the
-            // cache prefix and recent turns) to free space before committing to a
-            // full summary compaction. This keeps more verbatim context and avoids
-            // an unnecessary API summarization call.
-            if (yield* compaction.microcompactIfNeeded({ sessionID, model })) continue
             yield* compaction.create({ sessionID, agent: lastUser.agent, model: lastUser.model, auto: true })
             continue
           }
