@@ -259,3 +259,6 @@
 
 - [OK] 2026-08-10 [5b52814] feat(core): route Token.estimate through local tokenizer, add estimateWithAPI fallback
   - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
+
+- [OK] 2026-08-10 [f0a93d2] fix(core): tokenizer-driven compaction split, integer API count guard, invalid-value fallback test
+  - [FILES] 3: src/core/session/compaction.ts, src/core/util/token.test.ts, src/core/util/token.ts
