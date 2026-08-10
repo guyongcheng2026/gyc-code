@@ -313,3 +313,6 @@
 
 - [OK] 2026-08-10 [a52c68e] fix(session): wire token_counting API calibration, strip [1m] from wire, hoist time-based MC, normalize rule language, gate CM beta on non-empty edits
   - [FILES] 11: src/gyccode/provider/provider.ts, src/gyccode/session/compaction.ts, src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context1m.test.ts, src/gyccode/session/llm/native-request.ts ...
+
+- [OK] 2026-08-10 [0570967] fix(session): add countTokens fetch timeout, skip non-anthropic api/auto estimation, align api_model doc
+  - [FILES] 2: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts
