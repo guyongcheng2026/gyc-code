@@ -49,3 +49,47 @@ export function selectMicrocompactParts(
   }
   return selected
 }
+
+/**
+ * Time-based micro-compaction: when the gap since the last main-loop assistant
+ * message exceeds `gapMinutes`, the server-side prompt cache has almost
+ * certainly expired, so the full prefix will be rewritten anyway. Clearing old
+ * tool results before the request shrinks what gets rewritten.
+ * (Aligned with Claude Code timeBasedMCConfig, but locally configurable.)
+ */
+export function selectTimeBasedParts(
+  msgs: readonly WithParts[],
+  opts: { now?: number; gapMinutes: number; keepRecent: number },
+): Array<SessionV1.ToolPart & { _msgIndex: number }> {
+  const now = opts.now ?? Date.now()
+  const gapMs = opts.gapMinutes * 60 * 1000
+  let lastAt = 0
+  for (const msg of msgs) {
+    if (msg.info.role !== "assistant") continue
+    for (const part of msg.parts) {
+      if (part.type === "tool" && part.state.status === "completed" && part.state.time.end) {
+        lastAt = Math.max(lastAt, part.state.time.end)
+      }
+    }
+  }
+  if (lastAt === 0 || now - lastAt < gapMs) return []
+  if (msgs.length <= opts.keepRecent) return []
+
+  // With fewer messages than the cache prefix plus the recent tail, protecting
+  // the prefix would leave nothing to compact. The cache is expired anyway, so
+  // clear everything except the keepRecent tail.
+  const start = msgs.length > CACHE_PREFIX_KEEP + opts.keepRecent ? CACHE_PREFIX_KEEP : 0
+
+  const selected: Array<SessionV1.ToolPart & { _msgIndex: number }> = []
+  for (let i = start; i < msgs.length - opts.keepRecent; i++) {
+    const msg = msgs[i]
+    for (const part of msg.parts) {
+      if (part.type !== "tool") continue
+      if (part.state.status !== "completed") continue
+      if (part.state.time.compacted) continue
+      if (PROTECTED_TOOLS.has(part.tool)) continue
+      selected.push({ ...part, _msgIndex: i })
+    }
+  }
+  return selected
+}

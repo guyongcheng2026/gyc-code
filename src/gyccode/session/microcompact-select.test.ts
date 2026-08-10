@@ -1,5 +1,10 @@
-﻿import { expect, test } from "bun:test"
-import { selectMicrocompactParts, MICROCOMPACT_THRESHOLD, CACHE_PREFIX_KEEP } from "./microcompact-select"
+﻿import { describe, expect, it, test } from "bun:test"
+import {
+  selectMicrocompactParts,
+  selectTimeBasedParts,
+  MICROCOMPACT_THRESHOLD,
+  CACHE_PREFIX_KEEP,
+} from "./microcompact-select"
 import type { SessionV1 } from "@gyccode/core/v1/session"
 
 function toolPart(callID: string, tool: string): SessionV1.Part {
@@ -70,5 +75,47 @@ test("selectMicrocompactParts protects skill tool outputs", () => {
   })) as any
   const selected = selectMicrocompactParts(msgs, 180_000, 200_000)
   expect(selected.length).toBe(0) // all skill outputs are protected
+})
+
+function toolMsg(id: string, at: number, tool = "read") {
+  return {
+    info: { role: "assistant", id },
+    parts: [
+      { type: "tool", tool, state: { status: "completed", time: { end: at } } } as any,
+    ],
+  }
+}
+
+describe("selectTimeBasedParts", () => {
+  const now = Date.now()
+  const old = now - 61 * 60 * 1000 // 61 min ago
+  const recent = now - 60 * 1000 // 1 min ago
+
+  it("clears middle tool outputs when gap exceeds threshold", () => {
+    const msgs = [toolMsg("m0", old), toolMsg("m1", old), toolMsg("m2", old)]
+    const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 1 })
+    const idx = selected.map((s) => s._msgIndex)
+    expect(idx).toContain(0)
+    expect(idx).not.toContain(2)
+  })
+
+  it("returns empty when gap is within threshold", () => {
+    const msgs = [toolMsg("m0", now - 30 * 60 * 1000)]
+    expect(selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
+  })
+
+  it("respects keepRecent and cache prefix", () => {
+    const msgs = Array.from({ length: 15 }, (_, i) => toolMsg(`m${i}`, old))
+    const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 3 })
+    const idx = selected.map((s) => s._msgIndex)
+    expect(idx).not.toContain(0) // cache prefix
+    expect(idx).not.toContain(14) // keepRecent tail
+    expect(idx.length).toBeGreaterThan(0)
+  })
+
+  it("returns empty when there are no completed tool parts", () => {
+    const msgs = [{ info: { role: "user", id: "u0" }, parts: [] }]
+    expect(selectTimeBasedParts(msgs as any, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
+  })
 })
 

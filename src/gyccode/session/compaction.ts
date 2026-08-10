@@ -22,7 +22,7 @@ import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"
 import { buildPrompt } from "@gyccode/core/session/compaction"
 import { SessionCompactionEvent } from "@gyccode/schema/session-compaction-event"
-import { selectMicrocompactParts } from "./microcompact-select"
+import { selectMicrocompactParts, selectTimeBasedParts } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 
 export const Event = SessionCompactionEvent
@@ -260,11 +260,36 @@ const layer = Layer.effect(
         .messages({ sessionID: input.sessionID })
         .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
       if (!msgs || msgs.length === 0) return false
+
+      // Time-based trigger first: a long idle gap means the prompt cache
+      // expired, so clear old tool results before the request shrinks what gets
+      // rewritten. (Aligned with Claude Code timeBasedMCConfig, but locally
+      // configurable.) Falls through to the usage-based check below (chaining).
+      const tbm = cfg.compaction?.time_based_microcompact
+      if (tbm?.enabled !== false) {
+        const tSelected = selectTimeBasedParts(msgs as any, {
+          gapMinutes: tbm?.gap_minutes ?? 60,
+          keepRecent: tbm?.keep_recent ?? 5,
+        })
+        if (tSelected.length > 0) {
+          yield* Effect.logInfo("microcompacting (time-based)", {
+            "session.id": input.sessionID,
+            count: tSelected.length,
+          })
+          for (const part of tSelected) {
+            if (part.state.status === "completed") {
+              part.state.time.compacted = Date.now()
+              yield* session.updatePart(part)
+            }
+          }
+        }
+      }
+
       const used = yield* estimate({ messages: msgs, model: input.model })
       const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
-      if (limit <= 0) return false
+      if (limit <= 0) return true
       const selected = selectMicrocompactParts(msgs as any, used, limit)
-      if (selected.length === 0) return false
+      if (selected.length === 0) return true
       yield* Effect.logInfo("microcompacting", {
         "session.id": input.sessionID,
         count: selected.length,
