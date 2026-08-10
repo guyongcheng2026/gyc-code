@@ -271,3 +271,6 @@
 
 - [OK] 2026-08-10 [615858c] fix(session): apply universal context cap to usable input branch, add overflow wiring tests, tighten suffix/parse
   - [FILES] 3: src/gyccode/session/llm/context-1m.ts, src/gyccode/session/overflow.test.ts, src/gyccode/session/overflow.ts
+
+- [OK] 2026-08-10 [9a6af32] feat(session): model-driven maxOutputTokens with configurable caps and escalate ceiling
+  - [FILES] 5: src/gyccode/provider/transform.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/gyccode/session/prompt.ts
