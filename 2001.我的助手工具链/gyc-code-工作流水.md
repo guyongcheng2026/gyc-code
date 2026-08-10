@@ -304,3 +304,6 @@
 
 - [OK] 2026-08-10 [76cb8c4] fix(session): make API context management effective on AI SDK and native paths (camelCase providerOptions + wire mapping)
   - [FILES] 4: src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context-management.ts, src/gyccode/session/llm/request.ts, src/llm/protocols/anthropic-messages.ts
+
+- [OK] 2026-08-10 [ae46349] fix(session): unify context-management wire types (input_tokens), faithful native lowering, extract tested prepare helpers
+  - [FILES] 6: src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context-management.ts, src/gyccode/session/llm/context1m.test.ts, src/gyccode/session/llm/request.ts, src/llm/protocols/anthropic-messages.ts
