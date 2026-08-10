@@ -1,5 +1,5 @@
-import { describe, expect, it } from "bun:test"
-import { usable } from "./overflow"
+﻿import { describe, expect, it } from "bun:test"
+import { usable, calculateTokenWarningState } from "./overflow"
 
 const baseCfg: any = { compaction: {} }
 
@@ -33,5 +33,57 @@ describe("usable", () => {
     } finally {
       if (prev) process.env.GYCCODE_MAX_CONTEXT_TOKENS = prev
     }
+  })
+})
+
+describe("calculateTokenWarningState", () => {
+  // Claude Code 分级阈值：warning buffer 20K（相对 usable）、error buffer 13K、
+  // blocking 3K。usable = effective window - reserved。
+  const model = { limit: { context: 200_000, output: 32_000 } } as any
+  const cfg: any = { compaction: {} }
+
+  it("returns blocking when usage exceeds usable - 3K", () => {
+    const u = usable({ cfg, model, outputTokenMax: 32_000 }) // 200_000 - 32_000 = 168_000
+    const s = calculateTokenWarningState({ used: u - 1_000, cfg, model, outputTokenMax: 32_000, limit: u })
+    expect(s.percentLeft).toBeLessThan(100)
+    expect(s.isAboveBlocking).toBe(true)
+    expect(s.isAboveError).toBe(true)
+    expect(s.isAboveWarning).toBe(true)
+  })
+
+  it("returns error only when usage crossed 13K buffer", () => {
+    const u = usable({ cfg, model, outputTokenMax: 32_000 })
+    // used below blocking (3K remaining) but above 13K remaining
+    const used = u - 10_000
+    const s = calculateTokenWarningState({ used, cfg, model, outputTokenMax: 32_000, limit: u })
+    expect(s.isAboveBlocking).toBe(false)
+    expect(s.isAboveError).toBe(true)
+    expect(s.isAboveWarning).toBe(true)
+  })
+
+  it("returns warning only when usage crossed 20K buffer", () => {
+    const u = usable({ cfg, model, outputTokenMax: 32_000 })
+    const used = u - 18_000
+    const s = calculateTokenWarningState({ used, cfg, model, outputTokenMax: 32_000, limit: u })
+    expect(s.isAboveBlocking).toBe(false)
+    expect(s.isAboveError).toBe(false)
+    expect(s.isAboveWarning).toBe(true)
+  })
+
+  it("returns none when usage is comfortably below warning buffer", () => {
+    const u = usable({ cfg, model, outputTokenMax: 32_000 })
+    const used = u - 50_000
+    const s = calculateTokenWarningState({ used, cfg, model, outputTokenMax: 32_000, limit: u })
+    expect(s.isAboveBlocking).toBe(false)
+    expect(s.isAboveError).toBe(false)
+    expect(s.isAboveWarning).toBe(false)
+    expect(s.percentLeft).toBeCloseTo((50_000 / u) * 100, 0)
+  })
+
+  it("caps percentLeft at 100 when used is 0", () => {
+    const u = usable({ cfg, model, outputTokenMax: 32_000 })
+    const s = calculateTokenWarningState({ used: 0, cfg, model, outputTokenMax: 32_000, limit: u })
+    expect(s.percentLeft).toBe(100)
+    expect(s.isAboveBlocking).toBe(false)
   })
 })

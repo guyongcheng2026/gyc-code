@@ -21,6 +21,31 @@ export function usable(input: { cfg: ConfigV1.Info; model: Provider.Model; outpu
     : Math.max(0, context - ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax))
 }
 
+export function calculateTokenWarningState(input: {
+  used: number
+  cfg: ConfigV1.Info
+  model: Provider.Model
+  outputTokenMax?: number
+  limit?: number
+}) {
+  // 对齐 Claude Code autoCompact.ts 三级告警：WARNING(20K)/ERROR(13K)/BLOCKING(3K)
+  // 缓冲相对 usable 有效窗口计算，percentLeft 表示剩余可用比例。
+  const WARNING_BUFFER = 20_000
+  const ERROR_BUFFER = 13_000
+  const BLOCKING_BUFFER = 3_000
+
+  const usableTokens = Math.max(0, input.limit ?? usable(input))
+  const remaining = Math.max(0, usableTokens - input.used)
+
+  return {
+    percentLeft: usableTokens <= 0 ? 0 : Math.min(100, (remaining / usableTokens) * 100),
+    isAboveWarning: remaining <= WARNING_BUFFER,
+    isAboveError: remaining <= ERROR_BUFFER,
+    isAboveBlocking: remaining <= BLOCKING_BUFFER,
+    remaining,
+  }
+}
+
 export function isOverflow(input: {
   cfg: ConfigV1.Info
   tokens: SessionV1.Assistant["tokens"]
