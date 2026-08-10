@@ -374,11 +374,21 @@ const layer = Layer.effect(
     // Mark the selected tool outputs as compacted and persist them. Shared by
     // the time-based and usage-based microcompact branches below.
     const markCompacted = Effect.fnUntraced(function* (parts: Array<SessionV1.ToolPart & { _msgIndex: number }>) {
+      let changed = false
       for (const part of parts) {
         if (part.state.status === "completed") {
           part.state.time.compacted = Date.now()
           yield* session.updatePart(part)
+          changed = true
         }
+      }
+      if (changed) {
+        // Compacting tool outputs invalidates the frozen per-callID truncation
+        // decisions: aggregateToolCaps skips compacted parts, so their callIDs
+        // leave stale entries behind in the module-level truncationDecisions map
+        // (unbounded growth across repeated compactions). Reset so the next
+        // serialization re-decides from the post-compaction tool set.
+        MessageV2.resetTruncationDecisions()
       }
     })
 
@@ -832,7 +842,15 @@ const layer = Layer.effect(
       // path mutates the same object via processor.message.
       if (msg.error) return "stop"
       if (result === "continue") {
-        yield* Effect.logInfo("compaction: cache invalidated", { sessionID: input.sessionID })
+        // A successful compaction rewrites the conversation head into a summary,
+        // so any frozen per-callID truncation decisions built from the
+        // pre-compaction tool outputs are stale. Drop them together with the
+        // compacted-part entries created by microcompact/prune so the cache
+        // stays bounded and the next serialization re-decides from the new
+        // context (this previously only logged "cache invalidated" without
+        // touching the actual session cache).
+        MessageV2.resetTruncationDecisions()
+        yield* Effect.logInfo("compaction: truncation cache cleared", { sessionID: input.sessionID })
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
       }
       return result

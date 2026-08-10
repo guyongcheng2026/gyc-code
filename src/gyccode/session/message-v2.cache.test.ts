@@ -47,3 +47,21 @@ test("aggregateToolCaps freezes decisions: same callID keeps same keep after re-
   const caps2 = aggregateToolCaps(p2 as any)
   expect(caps2!.get("c2")).toBe(keep2)
 })
+
+test("resetTruncationDecisions releases frozen caps after compaction", () => {
+  resetTruncationDecisions()
+  // First pass: both outputs 60K (total 120K > 100K) -> c1 truncated first
+  // (ascending callID), c2 kept intact at 60K.
+  const capsA = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(60_000))] as any)!
+  const keepA = capsA.get("c2")!
+  expect(keepA).toBe(60_000)
+  // Same callIDs, c2 grows to 200K: without reset the frozen cap (60K) wins,
+  // so the serialized prefix stays byte-stable (prompt-cache friendly).
+  const capsFrozen = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(200_000))] as any)!
+  expect(capsFrozen.get("c2")).toBe(keepA)
+  // After compaction resets the frozen decisions, the new output re-decides:
+  // c2 now absorbs the excess and is cut harder.
+  resetTruncationDecisions()
+  const capsB = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(200_000))] as any)!
+  expect(capsB.get("c2")!).toBeLessThan(keepA)
+})
