@@ -68,6 +68,10 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 
 const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
+/** 子代理未显式配置 steps 时的默认步数上限，防止无限空转。 */
+const SUBAGENT_MAX_STEPS = 20
+/** 连续纯工具调用（无可见文本输出）步数上限，工具权限受限时快速失败。 */
+const MAX_CONSECUTIVE_TOOL_ONLY_STEPS = 10
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
@@ -1150,6 +1154,7 @@ const layer = Layer.effect(
         // Output-length escalation: on the first finish="length" turn, retry the
         // request with a 64k output cap before falling back to resume messages.
         let escalatedOutputMax: number | undefined
+        let consecutiveToolOnlySteps = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1409,7 +1414,7 @@ const layer = Layer.effect(
             yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
-          const maxSteps = agent.steps ?? Infinity
+          const maxSteps = agent.steps ?? (agent.mode === "subagent" ? SUBAGENT_MAX_STEPS : Infinity)
           const isLastStep = step >= maxSteps
           msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
             Effect.provideService(RuntimeFlags.Service, flags),
@@ -1583,6 +1588,24 @@ const layer = Layer.effect(
                 auto: true,
                 overflow: !handle.message.finish,
               })
+            }
+            // 连续纯工具调用（无可见文本输出）保护：工具权限受限时模型可能反复空转，
+            // 达到上限后强制结束，避免会话无限循环占用。
+            const parts = yield* MessageV2.parts(handle.message.id).pipe(
+              Effect.provideService(Database.Service, database),
+            )
+            const hasVisibleText = parts.some(
+              (part) => part.type === "text" && !("synthetic" in part && part.synthetic),
+            )
+            const isToolOnlyStep = handle.message.finish === "tool-calls" && !hasVisibleText
+            consecutiveToolOnlySteps = isToolOnlyStep ? consecutiveToolOnlySteps + 1 : 0
+            if (consecutiveToolOnlySteps >= MAX_CONSECUTIVE_TOOL_ONLY_STEPS) {
+              handle.message.error = new NamedError.Unknown({
+                message: `Repeated tool calls produced no visible progress after ${MAX_CONSECUTIVE_TOOL_ONLY_STEPS} steps`,
+              }).toObject()
+              yield* sessions.updateMessage(handle.message)
+              yield* events.publish(Session.Event.Error, { sessionID, error: handle.message.error })
+              return "break" as const
             }
             return "continue" as const
           }).pipe(

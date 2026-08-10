@@ -2,6 +2,17 @@ import { PermissionV1 } from "@gyccode/core/v1/permission"
 import type { Agent } from "./agent"
 
 /**
+ * 判断规则集是否具备某类权限：按匹配顺序取最后一条匹配规则
+ * （显式同名规则或通配 * 规则），非 deny 即视为具备。
+ * 通配 allow（如 general 的默认 "*": "allow"）同样算数，
+ * 避免误判为无权限而注入全量 deny 导致子代理空转。
+ */
+function permits(ruleset: PermissionV1.Ruleset, permission: string): boolean {
+  const rule = ruleset.findLast((item) => item.permission === permission || item.permission === "*")
+  return rule !== undefined && rule.action !== "deny"
+}
+
+/**
  * Build the `permission` ruleset for a subagent's session when it's spawned
  * via the task tool. Combines:
  *
@@ -15,8 +26,8 @@ export function deriveSubagentSessionPermission(input: {
   parentSessionPermission: PermissionV1.Ruleset
   subagent: Agent.Info
 }): PermissionV1.Ruleset {
-  const canTask = input.subagent.permission.some((rule) => rule.permission === "task")
-  const canTodo = input.subagent.permission.some((rule) => rule.permission === "todowrite")
+  const canTask = permits(input.subagent.permission, "task")
+  const canTodo = permits(input.subagent.permission, "todowrite")
   return [
     ...input.parentSessionPermission.filter(
       (rule) => rule.permission === "external_directory" || rule.action === "deny",
