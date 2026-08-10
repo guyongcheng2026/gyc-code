@@ -213,7 +213,7 @@ export const Info = Schema.Struct({
         description: "Token counting mode: local (default, zero-cost), api (Anthropic countTokens), auto (api with local fallback)",
       }),
       api_model: Schema.optional(Schema.String).annotate({
-        description: "Model id used for API token counting, e.g. anthropic/claude-haiku-4-5 (default: provider small model)",
+        description: "Model id used for API token counting, e.g. anthropic/claude-haiku-4-5 (default: the model's own id)",
       }),
     }),
   ),

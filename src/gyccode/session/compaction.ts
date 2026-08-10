@@ -28,6 +28,7 @@ import {
   shouldContinueAfterMicrocompact,
 } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
+import { isAnthropicLike } from "./llm/context-1m"
 
 export const Event = SessionCompactionEvent
 
@@ -236,8 +237,8 @@ export const use = serviceUse(Service)
  * Messages `count_tokens` endpoint (guarded by the `count-tokens` beta header)
  * using the model's own base URL and the provider's API key (provider options
  * `apiKey` or the provider `key`). A missing key, a non-Anthropic provider, a
- * network error, or an invalid response all surface as a throw, which
- * `estimateWithAPI` converts into the local fallback.
+ * network error, an invalid response, or a 10s request timeout all surface as
+ * a throw, which `estimateWithAPI` converts into the local fallback.
  *
  * Limitation: the request body reuses the AI-SDK-shaped message array that
  * `estimate` already serialized (JSON round-trip), which is close to but not
@@ -268,6 +269,7 @@ function makeCountTokensAdapter(
           "anthropic-beta": "count-tokens-2025-05-15",
         },
         body: JSON.stringify({ model: apiModel, messages }),
+        signal: AbortSignal.timeout(10_000),
       })
       if (!res.ok) throw new Error(`countTokens request failed: ${res.status} ${res.statusText}`)
       const data = (await res.json()) as { input_tokens?: unknown }
@@ -375,11 +377,16 @@ const layer = Layer.effect(
       const cfgInfo = yield* config.get()
       const mode = cfgInfo.token_counting?.mode ?? "local"
       if (mode === "local") return Token.estimate(text)
+      // Non-Anthropic providers do not implement the Anthropic count_tokens
+      // endpoint; skip straight to the local estimator instead of paying a
+      // guaranteed-failing round trip.
+      if (!isAnthropicLike(input.model)) return Token.estimate(text)
       // API-backed counting (mode "api" / "auto"): Anthropic countTokens with a
       // local fallback on any failure (missing key, non-Anthropic provider,
       // network error, invalid response). "auto" is exactly this behavior;
       // "api" keeps the same fallback so a flaky endpoint can never block
       // compaction.
+      // api_model defaults to the model's own id when unset.
       const apiModel = cfgInfo.token_counting?.api_model ?? input.model.api.id
       const providerInfo = yield* provider.getProvider(input.model.providerID)
       const count = yield* Effect.tryPromise(() =>
