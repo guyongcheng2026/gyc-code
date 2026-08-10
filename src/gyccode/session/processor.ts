@@ -453,6 +453,7 @@ const layer = Layer.effect(
               model: ctx.model,
               usage: value.usage ?? new Usage({}),
               metadata: value.providerMetadata,
+              prevCacheRead: ctx.assistantMessage.tokens?.cache?.read ?? 0,
             })
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost

@@ -29,6 +29,7 @@ import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@gyccode/core/session/sql"
 import { ProjectTable } from "@gyccode/core/project/sql"
 import { MessageV2 } from "./message-v2"
+import { cacheDriftFromUsage } from "./cache-anchor"
 import { SessionCwd } from "./session-cwd"
 import { Goal } from "./goal"
 import type { InstanceContext } from "../project/instance-context"
@@ -337,7 +338,8 @@ export function plan(input: { slug: string; time: { created: number } }, instanc
   return path.join(base, [input.time.created, input.slug].join("-") + ".md")
 }
 
-export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?: ProviderMetadata }) => {
+export const getUsage = (input: { model: Provider.Model; usage: Usage; prevCacheRead?: number
+  metadata?: ProviderMetadata }) => {
   const safe = (value: number) => {
     if (!Number.isFinite(value)) return 0
     return Math.max(0, value)
@@ -367,6 +369,11 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   // tokens to get the non-cached input count for separate cost calculation.
   const adjustedInputTokens = safe(inputTokens - cacheReadInputTokens - cacheWriteInputTokens)
 
+  const cacheDrift = cacheDriftFromUsage(
+    input.prevCacheRead === undefined ? undefined : { cacheRead: input.prevCacheRead, inputTokens },
+    { cacheRead: cacheReadInputTokens, inputTokens },
+  )
+
   const total = input.usage.totalTokens
 
   const tokens = {
@@ -378,6 +385,7 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
       write: cacheWriteInputTokens,
       read: cacheReadInputTokens,
     },
+    cacheDrift,
   }
 
   const contextTokens = inputTokens
