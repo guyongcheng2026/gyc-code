@@ -274,3 +274,6 @@
 
 - [OK] 2026-08-10 [9a6af32] feat(session): model-driven maxOutputTokens with configurable caps and escalate ceiling
   - [FILES] 5: src/gyccode/provider/transform.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/request.test.ts, src/gyccode/session/llm/request.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-10 [08c6e57] 修复子代理无限空转：通配权限识别 + 默认步数上限 + 连续空转快速失败
+  - [FILES] 2: src/gyccode/agent/subagent-permissions.ts, src/gyccode/session/prompt.ts
