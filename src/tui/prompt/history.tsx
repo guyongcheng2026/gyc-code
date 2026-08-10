@@ -75,6 +75,10 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
     })
 
     return {
+      /** All retained history entries (already deduped by `input`, oldest first). */
+      list() {
+        return store.history
+      },
       move(direction: 1 | -1, input: string) {
         if (!store.history.length) return undefined
         const current = store.history.at(store.index)
@@ -120,6 +124,19 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
           return
         }
         appendText(historyPath, JSON.stringify(entry) + "\n").catch(() => {})
+      },
+      /** Remove a history entry by index (oldest-first ordering). Rewrites the backing file. */
+      remove(index: number) {
+        if (index < 0 || index >= store.history.length) return
+        setStore(
+          produce((draft) => {
+            draft.history.splice(index, 1)
+          }),
+        )
+        writeText(
+          historyPath,
+          store.history.length > 0 ? store.history.map((line) => JSON.stringify(line)).join("\n") + "\n" : "",
+        ).catch(() => {})
       },
     }
   },

@@ -196,6 +196,8 @@ export const Definitions = {
   input_delete_word_forward: keybind("alt+d,alt+delete,ctrl+delete", "Delete word forward in input"),
   input_delete_word_backward: keybind("ctrl+w,ctrl+backspace,alt+backspace", "Delete word backward in input"),
   input_select_all: keybind("super+a", "Select all in input"),
+  history_show: keybind("<leader>p", "Show prompt history"),
+  history_delete: keybind("ctrl+d", "Delete history item"),
   history_previous: keybind("up", "Previous history item"),
   history_next: keybind("down", "Next history item"),
 
@@ -399,6 +401,8 @@ export const CommandMap = {
   input_delete_word_forward: "input.delete.word.forward",
   input_delete_word_backward: "input.delete.word.backward",
   input_select_all: "input.select.all",
+  history_show: "prompt.history.show",
+  history_delete: "history.delete",
   history_previous: "prompt.history.previous",
   history_next: "prompt.history.next",
   terminal_suspend: "terminal.suspend",

@@ -35,6 +35,7 @@ import { computePromptTraits } from "../../prompt/traits"
 import { expandPastedTextPlaceholders, expandTrackedPastedText } from "../../prompt/part"
 import { usePromptStash } from "../../prompt/stash"
 import { DialogStash } from "../dialog-stash"
+import { DialogHistory } from "../dialog-history"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
@@ -536,6 +537,25 @@ title: "打开编辑器",
         },
       },
       {
+        title: "历史记录",
+        name: "prompt.history.show",
+        category: "提示词",
+        run: () => {
+          dialog.replace(() => (
+            <DialogHistory
+              onSelect={(entry) => {
+                input.setText(entry.input)
+                setStore("prompt", { input: entry.input, parts: entry.parts })
+                setStore("mode", entry.mode ?? "normal")
+                restoreExtmarksFromParts(entry.parts)
+                input.focus()
+                input.gotoBufferEnd()
+              }}
+            />
+          ))
+        },
+      },
+      {
         title: "工作区",
         desc: "更改会话的工作区",
         name: "workspace.set",
@@ -576,6 +596,7 @@ title: "打开编辑器",
       "prompt.stash.pop",
       "prompt.stash.list",
       "prompt.skills",
+      "prompt.history.show",
       "session.interrupt",
       "workspace.set",
       "session.move",
