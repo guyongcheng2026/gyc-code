@@ -119,6 +119,20 @@ const live: Layer.Layer<
         // Effective output-token cap: runtime flag wins, else the config
         // `llm.output_token_max` value (default 32k is applied downstream).
         outputTokenMax: resolveOutputTokenMax(flags, cfg),
+        // API-native context management: when `compaction.api_context_management`
+        // is configured, surface it to prepare so it can merge the beta header
+        // and attach the `context_management` request options for Anthropic-lineage
+        // providers.
+        apiContextManagement: cfg.compaction?.api_context_management
+          ? {
+              enabled: cfg.compaction.api_context_management.enabled ?? false,
+              trigger_threshold: cfg.compaction.api_context_management.trigger_threshold,
+              keep_target: cfg.compaction.api_context_management.keep_target,
+              clear_thinking: cfg.compaction.api_context_management.clear_thinking,
+              clear_tool_uses: cfg.compaction.api_context_management.clear_tool_uses,
+              thinking_turns: cfg.compaction.api_context_management.thinking_turns,
+            }
+          : undefined,
       })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls

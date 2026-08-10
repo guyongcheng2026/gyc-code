@@ -65,6 +65,14 @@ function isAnthropicNpm(npm: string): boolean {
   )
 }
 
+/** True when the provider is on an Anthropic-lineage transport (beta-header protocol). */
+export function isAnthropicLike(model: {
+  providerID: string
+  api: { npm: string }
+}): boolean {
+  return ANTHROPIC_BETA_PROVIDERS.has(model.providerID) || isAnthropicNpm(model.api.npm)
+}
+
 /**
  * Compute the `anthropic-beta` header value for a model that advertises a 1M
  * context window. Returns `undefined` when the model is not 1M-capable on an

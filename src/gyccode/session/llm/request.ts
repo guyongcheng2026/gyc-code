@@ -8,7 +8,8 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
-import { context1MHeader } from "./context-1m"
+import { context1MHeader, isAnthropicLike } from "./context-1m"
+import { CONTEXT_MANAGEMENT_BETA_HEADER, contextManagementEdits, type ContextManagementConfig } from "./context-management"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { Effect, Record } from "effect"
@@ -43,6 +44,13 @@ type PrepareInput = {
   readonly outputTokenMax?: number
   /** Override the max output tokens for this request (e.g. 64k escalate on output-length truncation). */
   readonly maxOutputTokensOverride?: number
+  /**
+   * API-native context management (Anthropic `context-management` beta): when
+   * enabled on an Anthropic-lineage provider, prepare merges the beta header
+   * and attaches the `context_management` request options so the API clears
+   * old thinking blocks / tool uses server-side.
+   */
+  readonly apiContextManagement?: ContextManagementConfig
 }
 
 export type Prepared = {
@@ -285,6 +293,23 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   // interleaved-thinking are preserved, never overwritten.
   const context1M = context1MHeader(input.model, mergedHeaders["anthropic-beta"])
   if (context1M !== undefined) mergedHeaders["anthropic-beta"] = context1M
+
+  // API-native context management: when configured and the provider is
+  // Anthropic-lineage, merge the context-management beta header and attach
+  // the context_management request options so the API clears old thinking
+  // blocks / tool uses server-side.
+  if (input.apiContextManagement?.enabled && isAnthropicLike(input.model)) {
+    const existing = mergedHeaders["anthropic-beta"]
+    const parts = existing ? existing.split(",").map((p) => p.trim()).filter(Boolean) : []
+    if (!parts.includes(CONTEXT_MANAGEMENT_BETA_HEADER)) parts.push(CONTEXT_MANAGEMENT_BETA_HEADER)
+    mergedHeaders["anthropic-beta"] = parts.join(",")
+
+    const edits = contextManagementEdits(input.apiContextManagement)
+    if (edits) {
+      options["context_management"] = { edits }
+      params.options = { ...params.options, context_management: { edits } }
+    }
+  }
 
   return {
     system,
