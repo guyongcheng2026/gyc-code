@@ -35,3 +35,46 @@ export const format = (value: number) => {
   if (value >= 1_000) return `${Math.round(value / 1_000)}K`
   return `${value}`
 }
+
+type AnthropicBlock =
+  | { type: "text"; text?: string }
+  | { type: "image"; source?: unknown }
+  | { type: "tool_use"; name?: string; input?: unknown }
+  | { type: "tool_result"; content?: unknown }
+  | { type: "thinking"; thinking?: string }
+
+// Per-block token estimation mirroring Claude Code's
+// roughTokenCountEstimationForBlock. A whole JSON.stringify pass over the
+// conversation can't distinguish block types (images cost ~2000 tokens each,
+// tool calls are JSON), so block-aware estimation is substantially more
+// accurate for mixed content.
+export const estimateBlocks = (blocks: readonly AnthropicBlock[]) => {
+  let total = 0
+  for (const block of blocks) {
+    switch (block.type) {
+      case "image":
+        total += 2000
+        break
+      case "text":
+        total += estimate(block.text ?? "")
+        break
+      case "thinking":
+        total += estimate(block.thinking ?? "")
+        break
+      case "tool_use": {
+        const input = block.input === undefined ? "" : JSON.stringify({ name: block.name, input: block.input })
+        total += Math.max(1, Math.ceil(input.length / 4))
+        break
+      }
+      case "tool_result": {
+        const raw = block.content
+        if (typeof raw === "string") total += estimate(raw)
+        else total += estimate(JSON.stringify(raw ?? ""))
+        break
+      }
+      default:
+        total += estimate(JSON.stringify(block))
+    }
+  }
+  return total
+}

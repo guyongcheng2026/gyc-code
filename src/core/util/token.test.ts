@@ -71,3 +71,57 @@ describe("estimateWithAPI", () => {
     expect(result).toBe(4)
   })
 })
+
+describe("estimateBlocks", () => {
+  // 镜像 Claude Code tokenEstimation.roughTokenCountEstimationForBlock：
+  // text→本地 tokenizer、image→2000、tool_use→JSON 长度/4、thinking→文本。
+  // 接受 Anthropic content block 数组（text/image/tool_use/tool_result/thinking）。
+
+  test("estimates empty blocks as 0", () => {
+    const { estimateBlocks } = require("./token") as typeof import("./token")
+    expect(estimateBlocks([] as any)).toBe(0)
+  })
+
+  test("text blocks use local tokenizer", () => {
+    const { estimateBlocks, estimate } = require("./token") as typeof import("./token")
+    const n = estimateBlocks([{ type: "text", text: "the quick brown fox" }] as any)
+    expect(n).toBe(estimate("the quick brown fox"))
+  })
+
+  test("image blocks cost 2000 tokens each (Claude convention)", () => {
+    const { estimateBlocks } = require("./token") as typeof import("./token")
+    const n = estimateBlocks([
+      { type: "text", text: "" },
+      { type: "image", source: { data: "x".repeat(10_000) } },
+    ] as any)
+    // one image = 2000
+    expect(n).toBe(2000)
+  })
+
+  test("tool_use blocks estimate JSON of name+input", () => {
+    const { estimateBlocks } = require("./token") as typeof import("./token")
+    const n = estimateBlocks([{ type: "tool_use", id: "x", name: "bash", input: { command: "pwd" } }] as any)
+    expect(n).toBeGreaterThan(0)
+    // 期望约等于 JSON.stringify({name:'bash',input:{...}}).length / 4
+  })
+
+  test("thinking blocks cost their text length via tokenizer", () => {
+    const { estimateBlocks, estimate } = require("./token") as typeof import("./token")
+    const n = estimateBlocks([{ type: "thinking", thinking: "think hard about this" }] as any)
+    expect(n).toBe(estimate("think hard about this"))
+  })
+
+  test("mixed blocks sum per-block costs", () => {
+    const { estimateBlocks, estimate } = require("./token") as typeof import("./token")
+    const text = "some important text"
+    const n = estimateBlocks([
+      { type: "text", text },
+      { type: "image", source: {} },
+      { type: "tool_use", id: "i", name: "read", input: { file_path: "a.ts" } },
+      { type: "thinking", thinking: "thinking chunk" },
+    ] as any)
+    const toolUseCost = Math.max(1, Math.ceil(JSON.stringify({ name: "read", input: { file_path: "a.ts" } }).length / 4))
+    expect(n).toBe(estimate(text) + 2000 + estimate("thinking chunk") + toolUseCost)
+    expect(n).toBeGreaterThan(estimate(text) + 2000)
+  })
+})
