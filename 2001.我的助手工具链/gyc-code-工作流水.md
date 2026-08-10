@@ -361,3 +361,6 @@
 
 - [OK] 2026-08-11 [034910f] fix(llm): repair request.ts structure and thinking budget injection
   - [FILES] 3: src/gyccode/provider/transform.test.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/request.ts
+
+- [OK] 2026-08-11 [165dbc1] docs(compose): add five-metrics capability closure plan and full-eval report
+  - [FILES] 2: docs/compose/plans/2026-08-10-model-capability-five-metrics-closure.md, docs/compose/reports/model-capability-five-metrics-full-eval-2026-08-10.md
