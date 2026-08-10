@@ -7,10 +7,12 @@ import { InstanceState } from "@/effect/instance-state"
 import { pathToFileURL } from "url"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@gyccode/core/fs-util"
+import { filterGitIgnoredLocations } from "./lsp_gitignore"
 
 // Guard against oversized files that could stall the LSP server
 // (aligned with Claude Code LSPTool MAX_LSP_FILE_SIZE_BYTES).
 const MAX_LSP_FILE_SIZE_BYTES = 10_000_000
+const MAX_RESULT_SIZE_CHARS = 100_000
 
 const operations = [
   "goToDefinition",
@@ -111,10 +113,12 @@ export const LspTool = Tool.define(
             }
           })()
 
+          const filteredResult = filterGitIgnoredLocations(result)
+
           return {
             title,
-            metadata: { result },
-            output: result.length === 0 ? `No results found for ${args.operation}` : JSON.stringify(result, null, 2),
+            metadata: { result: filteredResult },
+            output: filteredResult.length === 0 ? `No results found for ${args.operation}` : JSON.stringify(result, null, 2),
           }
         }).pipe(Effect.orDie),
     }
