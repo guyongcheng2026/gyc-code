@@ -17,7 +17,12 @@ const TAIL_KEEP = 5
 const PROTECTED_TOOLS = new Set(["skill"])
 
 export interface WithParts {
-  info: { role: string; id: string }
+  info: {
+    role: string
+    id: string
+    time?: { created?: number; completed?: number }
+    summary?: boolean
+  }
   parts: readonly SessionV1.Part[]
 }
 
@@ -63,21 +68,39 @@ export function selectTimeBasedParts(
 ): Array<SessionV1.ToolPart & { _msgIndex: number }> {
   const now = opts.now ?? Date.now()
   const gapMs = opts.gapMinutes * 60 * 1000
+  // Trigger time = the last main-loop assistant message timestamp, not the last
+  // tool end. Text-only turns (assistant answered without tools) refresh the
+  // cache too, so using max tool-end would over-fire when the most recent turns
+  // were text-only even though a long-ago tool call ended earlier.
   let lastAt = 0
   for (const msg of msgs) {
     if (msg.info.role !== "assistant") continue
-    for (const part of msg.parts) {
-      if (part.type === "tool" && part.state.status === "completed" && part.state.time.end) {
-        lastAt = Math.max(lastAt, part.state.time.end)
+    if (msg.info.summary === true) continue // not a main-loop message
+    const t = msg.info.time
+    if (t) {
+      const ts = t.completed ?? t.created
+      if (ts) lastAt = Math.max(lastAt, ts)
+    }
+  }
+  // Fall back to the latest completed tool end when no message timestamps exist
+  if (lastAt === 0) {
+    for (const msg of msgs) {
+      if (msg.info.role !== "assistant") continue
+      for (const part of msg.parts) {
+        if (part.type === "tool" && part.state.status === "completed" && part.state.time.end) {
+          lastAt = Math.max(lastAt, part.state.time.end)
+        }
       }
     }
   }
   if (lastAt === 0 || now - lastAt < gapMs) return []
   if (msgs.length <= opts.keepRecent) return []
 
-  // With fewer messages than the cache prefix plus the recent tail, protecting
-  // the prefix would leave nothing to compact. The cache is expired anyway, so
-  // clear everything except the keepRecent tail.
+  // Deliberate deviation from the literal "保留 cache 前缀" (keep the cache
+  // prefix) wording: with fewer messages than the cache prefix plus the recent
+  // tail, protecting the prefix would leave nothing to compact. The cache is
+  // expired anyway (the gap already exceeded), so clearing everything except
+  // the keepRecent tail is safe and is the only way this branch can do work.
   const start = msgs.length > CACHE_PREFIX_KEEP + opts.keepRecent ? CACHE_PREFIX_KEEP : 0
 
   const selected: Array<SessionV1.ToolPart & { _msgIndex: number }> = []

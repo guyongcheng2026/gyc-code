@@ -254,6 +254,17 @@ const layer = Layer.effect(
       })
     })
 
+    // Mark the selected tool outputs as compacted and persist them. Shared by
+    // the time-based and usage-based microcompact branches below.
+    const markCompacted = Effect.fnUntraced(function* (parts: Array<SessionV1.ToolPart & { _msgIndex: number }>) {
+      for (const part of parts) {
+        if (part.state.status === "completed") {
+          part.state.time.compacted = Date.now()
+          yield* session.updatePart(part)
+        }
+      }
+    })
+
     const microcompactIfNeeded = Effect.fn("SessionCompaction.microcompactIfNeeded")(function* (input: {
       sessionID: SessionID
       model: Provider.Model
@@ -283,12 +294,7 @@ const layer = Layer.effect(
             "session.id": input.sessionID,
             count: tSelected.length,
           })
-          for (const part of tSelected) {
-            if (part.state.status === "completed") {
-              part.state.time.compacted = Date.now()
-              yield* session.updatePart(part)
-            }
-          }
+          yield* markCompacted(tSelected)
           clearedAny = true
         }
       }
@@ -302,12 +308,7 @@ const layer = Layer.effect(
           count: selected.length,
           usage: Math.round((used / limit) * 100),
         })
-        for (const part of selected) {
-          if (part.state.status === "completed") {
-            part.state.time.compacted = Date.now()
-            yield* session.updatePart(part)
-          }
-        }
+        yield* markCompacted(selected)
       }
       // Did real work (time-based or usage-based) -> true so the caller
       // continues (overflow was reduced). Nothing cleared -> false so the caller

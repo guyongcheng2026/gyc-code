@@ -80,9 +80,9 @@ test("selectMicrocompactParts protects skill tool outputs", () => {
 
 function toolMsg(id: string, at: number, tool = "read") {
   return {
-    info: { role: "assistant", id },
+    info: { role: "assistant", id, time: { created: at, completed: at } },
     parts: [
-      { type: "tool", tool, state: { status: "completed", time: { end: at } } } as any,
+      { type: "tool", tool, state: { status: "completed", time: { start: at, end: at } } } as any,
     ],
   }
 }
@@ -98,6 +98,22 @@ describe("selectTimeBasedParts", () => {
     const idx = selected.map((s) => s._msgIndex)
     expect(idx).toContain(0)
     expect(idx).not.toContain(2)
+  })
+
+  it("uses the last assistant message time, not tool end (text-only recent turns don't over-fire)", () => {
+    const oldTool = {
+      info: { role: "assistant", id: "m0", time: { created: now - 120 * 60 * 1000 } },
+      parts: [{ type: "tool", tool: "read", state: { status: "completed", time: { start: 0, end: now - 120 * 60 * 1000 } } }],
+    }
+    const textOnly = {
+      info: { role: "assistant", id: "m1", time: { created: now - 5 * 60 * 1000 } },
+      parts: [{ type: "text", text: "here is the answer" }],
+    }
+    // Last main-loop assistant message was 5 min ago -> cache fresh, even though
+    // the most recent completed tool call ended 120 min ago (max tool-end would
+    // have over-fired here).
+    const selected = selectTimeBasedParts([oldTool as any, textOnly as any], { now, gapMinutes: 60, keepRecent: 1 })
+    expect(selected).toEqual([])
   })
 
   it("returns empty when gap is within threshold", () => {
@@ -118,9 +134,34 @@ describe("selectTimeBasedParts", () => {
     const msgs = [{ info: { role: "user", id: "u0" }, parts: [] }]
     expect(selectTimeBasedParts(msgs as any, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
   })
+
+  it("fires exactly at the gap boundary", () => {
+    // Exactly gapMinutes of idle time: the gap check only bails when
+    // now - lastAt < gapMs, so an idle time of exactly gapMinutes is still
+    // treated as "gap exceeded" (inclusive boundary). With a single message and
+    // keepRecent 1 there is nothing to clear (loop bound is empty), so the
+    // result is the empty array — the boundary itself does not short-circuit.
+    const msgs = [toolMsg("m0", now - 60 * 60 * 1000)] // exactly gapMinutes
+    const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 1 })
+    expect(selected).toEqual([])
+  })
+
+  it("handles keepRecent >= message count", () => {
+    const msgs = [toolMsg("m0", now - 61 * 60 * 1000)]
+    const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 5 })
+    expect(selected).toEqual([])
+  })
 })
 
-describe("shouldContinueAfterMicrocompact", () => {
+// Caller-visible escalation contract: `microcompactIfNeeded` returns this
+// helper's value, and the caller in prompt.ts does
+//   if (yield* compaction.microcompactIfNeeded({ sessionID, model })) continue
+//   yield* compaction.create({ sessionID, ... })  // full compaction fallback
+// So `false` MUST mean "escalate to full compaction" (never a busy-loop), and
+// `true` MUST mean "real work was done, re-check overflow and continue". These
+// tests lock that wiring contract at the pure-helper level (no Service harness
+// exists in this repo to drive the full `microcompactIfNeeded` decision path).
+describe("shouldContinueAfterMicrocompact (escalation contract for microcompactIfNeeded)", () => {
   it("returns true when anything was cleared", () => {
     expect(shouldContinueAfterMicrocompact(true, true, false)).toBe(true)
     expect(shouldContinueAfterMicrocompact(true, false, false)).toBe(true)
@@ -128,7 +169,7 @@ describe("shouldContinueAfterMicrocompact", () => {
   it("returns false when nothing cleared and limit invalid", () => {
     expect(shouldContinueAfterMicrocompact(false, false, false)).toBe(false)
   })
-  it("returns false when nothing cleared, limit ok, but nothing selectable (escalate to full compaction)", () => {
+  it("escalation lock: nothing cleared, limit ok, but nothing selectable -> false (caller falls through to compaction.create)", () => {
     expect(shouldContinueAfterMicrocompact(false, true, false)).toBe(false)
   })
   it("returns true when usage-based selected something", () => {
