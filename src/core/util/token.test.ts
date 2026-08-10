@@ -1,5 +1,6 @@
 ﻿import { describe, expect, test } from "bun:test"
 import { estimate, estimateWithAPI } from "./token"
+import { tokenize } from "./tokenizer"
 
 test("estimate returns 0 for empty input", () => {
   expect(estimate("")).toBe(0)
@@ -30,8 +31,7 @@ test("estimate handles mixed content deterministically", () => {
 })
 
 test("estimate matches tokenize length (parity)", () => {
-  const { tokenize } = require("./tokenizer")
-  const samples = ["hello world", "你好世界", '{"a":1}', "a{b}c", "  spaced  out  "]
+  const samples = ["hello world", "中文测试", '{"a":1}', "a{b}c", "  spaced  out  "]
   for (const s of samples) {
     expect(estimate(s)).toBe(tokenize(s).length)
   }
@@ -54,6 +54,16 @@ describe("estimateWithAPI", () => {
     } as any
     const result = await estimateWithAPI("some text", { api, model: "anthropic/claude-haiku-4-5" })
     expect(result).toBe(123)
+  })
+
+  test("falls back to local estimate when the API returns an invalid count", async () => {
+    for (const invalid of [-1, NaN]) {
+      const api = {
+        countTokens: async () => invalid,
+      } as any
+      const result = await estimateWithAPI("中文测试", { api, model: "anthropic/claude-haiku-4-5" })
+      expect(result).toBe(4) // local tokenize count
+    }
   })
 
   test("uses local estimate when no api/model provided", async () => {

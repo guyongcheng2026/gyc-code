@@ -16,12 +16,12 @@ export const estimate = (input: string) => {
 
 export async function estimateWithAPI(
   input: string,
-  opts: { api?: { countTokens: (text: string) => Promise<number> }; model?: string },
+  opts: { api?: { countTokens: (text: string) => Promise<number> }; model?: string } = {},
 ): Promise<number> {
   if (opts.api && opts.model) {
     try {
       const n = await opts.api.countTokens(input)
-      if (typeof n === "number" && Number.isFinite(n) && n >= 0) return n
+      if (typeof n === "number" && Number.isInteger(n) && n >= 0) return n
     } catch {
       // fall through to local
     }

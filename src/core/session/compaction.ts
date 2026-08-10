@@ -142,10 +142,23 @@ const select = (
   for (let index = conversation.length - 1; index >= 0; index--) {
     const next = total + Token.estimate(conversation[index])
     if (next > tokens) {
-      const remaining = Math.max(0, tokens - total) * 4
-      if (remaining > 0) {
-        splitPrefix = conversation[index].slice(0, -remaining)
-        splitSuffix = conversation[index].slice(-remaining)
+      // Split the overflowing message at the point that keeps at most
+      // `remainingTokens` worth of content on the head side, driven by the
+      // local tokenizer rather than a hardcoded chars/token heuristic.
+      const remainingTokens = Math.max(0, tokens - total)
+      if (remainingTokens > 0) {
+        // Binary search for the largest prefix with estimate(prefix) <= remainingTokens
+        // (estimate grows monotonically with slice length, so this is well-defined).
+        let lo = 0
+        let hi = conversation[index].length
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1
+          if (Token.estimate(conversation[index].slice(0, mid)) <= remainingTokens) lo = mid
+          else hi = mid - 1
+        }
+        const cut = lo
+        splitPrefix = conversation[index].slice(0, cut)
+        splitSuffix = conversation[index].slice(cut)
         split = index + 1
       }
       break
