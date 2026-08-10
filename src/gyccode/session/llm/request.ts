@@ -296,8 +296,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
 
   // API-native context management: when configured and the provider is
   // Anthropic-lineage, merge the context-management beta header and attach
-  // the context_management request options so the API clears old thinking
-  // blocks / tool uses server-side.
+  // the AI SDK providerOptions `contextManagement` (camelCase) so the API
+  // clears old thinking blocks / tool uses server-side. ProviderTransform
+  // wraps params.options under the SDK key (e.g. `anthropic`) downstream, so
+  // the AI SDK zod reads it from providerOptions.anthropic.contextManagement
+  // and the native path maps the same key into the raw body parameter.
   if (input.apiContextManagement?.enabled && isAnthropicLike(input.model)) {
     const existing = mergedHeaders["anthropic-beta"]
     const parts = existing ? existing.split(",").map((p) => p.trim()).filter(Boolean) : []
@@ -306,8 +309,7 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
 
     const edits = contextManagementEdits(input.apiContextManagement)
     if (edits) {
-      options["context_management"] = { edits }
-      params.options = { ...params.options, context_management: { edits } }
+      params.options = { ...params.options, contextManagement: { edits } }
     }
   }
 

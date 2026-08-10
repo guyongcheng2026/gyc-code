@@ -17,9 +17,22 @@ describe("contextManagementEdits", () => {
       { type: "clear_thinking_20251015", keep: { type: "thinking_turns", value: 1 } },
     ])
   })
+  it("defaults clear_thinking to on", () => {
+    const edits = contextManagementEdits({ enabled: true, clear_tool_uses: true, thinking_turns: 2 })
+    expect(edits).toEqual([
+      { type: "clear_thinking_20251015", keep: { type: "thinking_turns", value: 2 } },
+      {
+        type: "clear_tool_uses_20250919",
+        trigger: { type: "input_tokens", value: 180000 },
+        clearAtLeast: { type: "input_tokens", value: 140000 },
+        excludeTools: [],
+      },
+    ])
+  })
   it("builds clear_tool_uses edit with trigger", () => {
     const edits = contextManagementEdits({
       enabled: true,
+      clear_thinking: false,
       clear_tool_uses: true,
       trigger_threshold: 180000,
       keep_target: 40000,
@@ -27,9 +40,9 @@ describe("contextManagementEdits", () => {
     expect(edits).toEqual([
       {
         type: "clear_tool_uses_20250919",
-        trigger: { type: "token_threshold", value: 180000 },
-        clear_at_least: { type: "token_count", value: 140000 },
-        exclude_tools: [],
+        trigger: { type: "input_tokens", value: 180000 },
+        clearAtLeast: { type: "input_tokens", value: 140000 },
+        excludeTools: [],
       },
     ])
   })

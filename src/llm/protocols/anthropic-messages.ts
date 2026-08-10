@@ -153,6 +153,33 @@ const AnthropicThinking = Schema.Struct({
   budget_tokens: Schema.Number,
 })
 
+// `context_management` beta request parameter (snake_case wire shape). The
+// camelCase providerOptions `contextManagement` from @ai-sdk/anthropic is
+// lowered into this raw body form (token_threshold / token_count triggers).
+const AnthropicContextManagementEdit = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("clear_thinking_20251015"),
+    keep: Schema.optional(
+      Schema.Union([
+        Schema.Literal("all"),
+        Schema.Struct({ type: Schema.Literal("thinking_turns"), value: Schema.Number }),
+      ]),
+    ),
+  }),
+  Schema.Struct({
+    type: Schema.Literal("clear_tool_uses_20250919"),
+    trigger: Schema.optional(Schema.Struct({ type: Schema.Literal("token_threshold"), value: Schema.Number })),
+    clear_at_least: Schema.optional(Schema.Struct({ type: Schema.Literal("token_count"), value: Schema.Number })),
+    exclude_tools: Schema.optional(Schema.Array(Schema.String)),
+  }),
+])
+
+const AnthropicContextManagement = Schema.Struct({
+  edits: Schema.Array(AnthropicContextManagementEdit),
+})
+type AnthropicContextManagementEdit = Schema.Schema.Type<typeof AnthropicContextManagementEdit>
+type AnthropicContextManagement = Schema.Schema.Type<typeof AnthropicContextManagement>
+
 const AnthropicBodyFields = {
   model: Schema.String,
   system: optionalArray(AnthropicTextBlock),
@@ -166,6 +193,7 @@ const AnthropicBodyFields = {
   top_k: Schema.optional(Schema.Number),
   stop_sequences: optionalArray(Schema.String),
   thinking: Schema.optional(AnthropicThinking),
+  context_management: Schema.optional(AnthropicContextManagement),
 }
 const AnthropicMessagesBody = Schema.Struct(AnthropicBodyFields)
 export type AnthropicMessagesBody = Schema.Schema.Type<typeof AnthropicMessagesBody>
@@ -503,6 +531,44 @@ const lowerThinking = Effect.fn("AnthropicMessages.lowerThinking")(function* (re
   return { type: "enabled" as const, budget_tokens: budget }
 })
 
+// Lower the AI SDK providerOptions `contextManagement` (camelCase, e.g.
+// providerOptions.anthropic.contextManagement) into the raw Anthropic body
+// parameter `context_management` (snake_case wire shape). The camelCase edits
+// use input_tokens / tool_uses trigger types; the wire accepts token_threshold
+// / token_count, so this is a real translation, not identity.
+const lowerContextManagement = Effect.fn("AnthropicMessages.lowerContextManagement")(function* (request: LLMRequest) {
+  const cm = anthropicOptions(request)?.contextManagement
+  if (!ProviderShared.isRecord(cm) || !Array.isArray(cm.edits) || cm.edits.length === 0) return undefined
+  const edits: AnthropicContextManagementEdit[] = []
+  for (const rawEdit of cm.edits) {
+    if (!ProviderShared.isRecord(rawEdit)) continue
+    const edit = rawEdit as unknown as {
+      type?: string
+      keep?: "all" | { value?: number }
+      trigger?: { value?: number }
+      clearAtLeast?: { value?: number }
+      excludeTools?: string[]
+    }
+    if (edit.type === "clear_thinking_20251015") {
+      edits.push({
+        type: "clear_thinking_20251015",
+        keep: edit.keep === "all" ? "all" : { type: "thinking_turns", value: edit.keep?.value ?? 1 },
+      })
+      continue
+    }
+    if (edit.type === "clear_tool_uses_20250919") {
+      edits.push({
+        type: "clear_tool_uses_20250919",
+        trigger: { type: "token_threshold", value: edit.trigger?.value ?? 180_000 },
+        clear_at_least: { type: "token_count", value: edit.clearAtLeast?.value ?? 0 },
+        ...(edit.excludeTools && edit.excludeTools.length > 0 ? { exclude_tools: edit.excludeTools } : {}),
+      })
+      continue
+    }
+  }
+  return edits.length > 0 ? { edits } : undefined
+})
+
 const fromRequest = Effect.fn("AnthropicMessages.fromRequest")(function* (request: LLMRequest) {
   const toolChoice = request.toolChoice ? yield* lowerToolChoice(request.toolChoice) : undefined
   const generation = request.generation
@@ -549,6 +615,7 @@ const fromRequest = Effect.fn("AnthropicMessages.fromRequest")(function* (reques
     top_k: generation?.topK,
     stop_sequences: generation?.stop,
     thinking: yield* lowerThinking(request),
+    context_management: yield* lowerContextManagement(request),
   }
 })
 

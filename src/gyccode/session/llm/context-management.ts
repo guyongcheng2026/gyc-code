@@ -18,28 +18,33 @@ export interface ContextManagementConfig {
 }
 
 export type ContextManagementEdit =
-  | { type: "clear_thinking_20251015"; keep: { type: "thinking_turns"; value: number } }
+  | {
+      type: "clear_thinking_20251015"
+      keep?: "all" | { type: "thinking_turns"; value: number }
+    }
   | {
       type: "clear_tool_uses_20250919"
-      trigger: { type: "token_threshold"; value: number }
-      clear_at_least: { type: "token_count"; value: number }
-      exclude_tools: string[]
+      trigger?: { type: "input_tokens" | "tool_uses"; value: number }
+      keep?: { type: "tool_uses"; value: number }
+      clearAtLeast?: { type: "input_tokens"; value: number }
+      clearToolInputs?: boolean
+      excludeTools?: string[]
     }
 
 export function contextManagementEdits(cfg: ContextManagementConfig): ContextManagementEdit[] | undefined {
   if (!cfg.enabled) return undefined
   const edits: ContextManagementEdit[] = []
-  if (cfg.clear_thinking === true) {
+  if (cfg.clear_thinking !== false) {
     edits.push({ type: "clear_thinking_20251015", keep: { type: "thinking_turns", value: cfg.thinking_turns ?? 1 } })
   }
-  if (cfg.clear_tool_uses === true) {
+  if (cfg.clear_tool_uses) {
     const trigger = cfg.trigger_threshold ?? 180_000
     const keep = cfg.keep_target ?? 40_000
     edits.push({
       type: "clear_tool_uses_20250919",
-      trigger: { type: "token_threshold", value: trigger },
-      clear_at_least: { type: "token_count", value: Math.max(0, trigger - keep) },
-      exclude_tools: [],
+      trigger: { type: "input_tokens", value: trigger },
+      clearAtLeast: { type: "input_tokens", value: Math.max(0, trigger - keep) },
+      excludeTools: [],
     })
   }
   return edits.length > 0 ? edits : undefined
