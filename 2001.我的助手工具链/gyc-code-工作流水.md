@@ -340,3 +340,6 @@
 
 - [OK] 2026-08-10 [decf4c5] feat(provider): shouldEnableThinkingByDefault - reasoning-capable models default to thinking on
   - [FILES] 2: src/gyccode/provider/transform.test.ts, src/gyccode/provider/transform.ts
+
+- [OK] 2026-08-10 [68f2939] feat(session): prompt cache break detection (detectCacheDrift)
+  - [FILES] 4: src/gyccode/session/cache-anchor.test.ts, src/gyccode/session/cache-anchor.ts, src/gyccode/session/processor.ts, src/gyccode/session/session.ts
