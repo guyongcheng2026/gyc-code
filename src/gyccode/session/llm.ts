@@ -115,6 +115,9 @@ const live: Layer.Layer<
         flags,
         isWorkflow,
         language: cfg.language,
+        // Effective output-token cap: runtime flag wins, else the config
+        // `llm.output_token_max` value (default 32k is applied downstream).
+        outputTokenMax: flags.outputTokenMax ?? cfg.llm?.output_token_max,
       })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls

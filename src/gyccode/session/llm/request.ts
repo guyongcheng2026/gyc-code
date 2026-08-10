@@ -35,6 +35,12 @@ type PrepareInput = {
   readonly flags: RuntimeFlags.Info
   readonly isWorkflow: boolean
   readonly language?: string
+  /**
+   * Effective max output token cap for this request: runtime flag
+   * (`GYCCODE_EXPERIMENTAL_OUTPUT_TOKEN_MAX`) merged with the config
+   * `llm.output_token_max` value before the escalate override applies.
+   */
+  readonly outputTokenMax?: number
   /** Override the max output tokens for this request (e.g. 64k escalate on output-length truncation). */
   readonly maxOutputTokensOverride?: number
 }
@@ -154,15 +160,17 @@ const resolveProviderOptions = (
 
 /**
  * Resolve the max output tokens for a request. A caller-supplied override (e.g.
- * the 64k escalation on output-length truncation) wins; otherwise fall back to
- * the provider/model computed cap honoring the configured outputTokenMax.
+ * the escalate cap on output-length truncation) wins but is still bounded by
+ * the model's output limit; otherwise fall back to the provider/model computed
+ * cap honoring the configured outputTokenMax.
  */
 export function resolveMaxOutputTokens(
   model: Provider.Model,
   outputTokenMax: number | undefined,
   override: number | undefined,
 ): number {
-  return override ?? ProviderTransform.maxOutputTokens(model, outputTokenMax)
+  if (override !== undefined) return Math.min(model.limit.output, override)
+  return ProviderTransform.maxOutputTokens(model, outputTokenMax)
 }
 
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
@@ -197,7 +205,11 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         : undefined,
       topP: input.agent.topP ?? ProviderTransform.topP(input.model),
       topK: ProviderTransform.topK(input.model),
-      maxOutputTokens: resolveMaxOutputTokens(input.model, input.flags.outputTokenMax, input.maxOutputTokensOverride),
+      maxOutputTokens: resolveMaxOutputTokens(
+        input.model,
+        input.outputTokenMax ?? input.flags.outputTokenMax,
+        input.maxOutputTokensOverride,
+      ),
       options,
     },
   )

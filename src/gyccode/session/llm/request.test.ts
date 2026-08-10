@@ -61,4 +61,14 @@ describe("resolveMaxOutputTokens", () => {
   it("honors a configured outputTokenMax when no override is given", () => {
     expect(resolveMaxOutputTokens(model, 16_000, undefined)).toBe(16_000)
   })
+
+  it("escalates to min(model output, escalate cap)", () => {
+    const bigModel = { limit: { output: 128_000 } } as any
+    expect(resolveMaxOutputTokens(bigModel, 32_000, 64_000)).toBe(64_000)
+  })
+
+  it("caps escalate override by the model output limit", () => {
+    const smallModel = { limit: { output: 16_000 } } as any
+    expect(resolveMaxOutputTokens(smallModel, 32_000, 64_000)).toBe(16_000)
+  })
 })

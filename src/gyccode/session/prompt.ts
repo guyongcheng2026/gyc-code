@@ -1177,14 +1177,21 @@ const layer = Layer.effect(
 
           // 输出 token 上限命中：注入精炼接续指令，让模型不道歉不复述地继续写
           if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {
-            // First truncation: escalate the output cap to 64k and retry once
-            // (aligned with Claude Code max_output_tokens escalate) before
-            // falling back to resume-message continuation.
+            // First truncation: escalate the output cap (bounded by the model's
+            // output limit and the configurable escalate ceiling, default 64k)
+            // and retry once (aligned with Claude Code max_output_tokens
+            // escalate) before falling back to resume-message continuation.
             if (escalatedOutputMax === undefined) {
-              escalatedOutputMax = 64_000
-              yield* Effect.logInfo("output token limit hit, escalating output cap to 64k", {
+              const cfgInfo = yield* config.get()
+              const escalateModel = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
+              escalatedOutputMax = Math.min(
+                escalateModel.limit.output,
+                cfgInfo.llm?.escalate_output_token_max ?? 64_000,
+              )
+              yield* Effect.logInfo("output token limit hit, escalating output cap", {
                 "session.id": sessionID,
                 messageID: lastAssistant.id,
+                cap: escalatedOutputMax,
               })
               continue
             }
