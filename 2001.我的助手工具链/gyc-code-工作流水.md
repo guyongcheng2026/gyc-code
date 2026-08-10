@@ -301,3 +301,6 @@
 
 - [OK] 2026-08-10 [835fb48] feat(session): API-native context management via context-management beta, universally configurable
   - [FILES] 5: src/gyccode/session/llm.ts, src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context-management.ts, src/gyccode/session/llm/request.ts
+
+- [OK] 2026-08-10 [76cb8c4] fix(session): make API context management effective on AI SDK and native paths (camelCase providerOptions + wire mapping)
+  - [FILES] 4: src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context-management.ts, src/gyccode/session/llm/request.ts, src/llm/protocols/anthropic-messages.ts
