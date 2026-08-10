@@ -1,7 +1,7 @@
 ﻿import { describe, test, expect } from "bun:test"
-import type { Provider } from "../provider"
+import type { Provider } from "./provider"
 
-function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string; providerID?: string }): Provider.Model {
+function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string; providerID?: string }): any {
   return {
     id: over.id ?? "claude-sonnet-4-6",
     providerID: over.providerID ?? "anthropic",

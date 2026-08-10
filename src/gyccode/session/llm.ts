@@ -133,6 +133,7 @@ const live: Layer.Layer<
               thinking_turns: cfg.compaction.api_context_management.thinking_turns,
             }
           : undefined,
+        thinkingBudgetTokens: cfg.llm?.thinking_budget_tokens,
       })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls

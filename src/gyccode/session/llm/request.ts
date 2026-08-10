@@ -51,6 +51,8 @@ type PrepareInput = {
    * old thinking blocks / tool uses server-side.
    */
   readonly apiContextManagement?: ContextManagementConfig
+  /** Optional thinking budget (tokens) injected into Anthropic-style variants. */
+  readonly thinkingBudgetTokens?: number
 }
 
 export type Prepared = {
@@ -126,45 +128,66 @@ const assembleSystemPrompt = Effect.fn("LLMRequestPrep.assembleSystemPrompt")(fu
  * Resolve provider-specific options by merging base, model, agent, and variant options.
  * Handles Azure completion-URL cleanup and DeepSeek API key injection.
  */
-const resolveProviderOptions = (
-  input: Pick<PrepareInput, "small" | "model" | "sessionID" | "provider" | "agent" | "user" | "auth">,
-  system: string[],
-): { options: Record<string, any>; isOpenaiOauth: boolean; isDeepSeek: boolean; useInstructions: boolean } => {
-  const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
-  const isDeepSeek = input.provider.id === "deepseek"
-  // GYCCODE Zen 等 API 不接受 messages 中的 system role，要求使用 instructions 顶层字段。
-  // 通过 provider 配置 options.useInstructions 开启（见 gyccode.json 的 provider 配置）。
-  const useInstructions = isOpenaiOauth || isDeepSeek || input.provider.options?.["useInstructions"] === true
-
-  const variant =
-    !input.small && input.model.variants && input.user.model.variant
-      ? input.model.variants[input.user.model.variant]
-      : {}
-  const base = input.small
-    ? ProviderTransform.smallOptions(input.model)
-    : ProviderTransform.options({
-        model: input.model,
-        sessionID: input.sessionID,
-        providerOptions: input.provider.options,
-      })
-  const options = mergeOptions(mergeOptions(mergeOptions(base, input.model.options), input.agent.options), variant)
-  if (
-    input.model.api.npm === "@ai-sdk/azure" &&
-    (input.provider.options.useCompletionUrls || input.model.options.useCompletionUrls || options.useCompletionUrls)
+const resolveProviderOptions = Effect.fn("LLMRequestPrep.resolveProviderOptions")(
+  function* (
+    input: Pick<PrepareInput, "small" | "model" | "sessionID" | "provider" | "agent" | "user" | "auth" | "thinkingBudgetTokens">,
+    system: string[],
   ) {
-    delete options.reasoningSummary
-    delete options.include
+    const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
+    const isDeepSeek = input.provider.id === "deepseek"
+    // GYCCODE Zen 等 API 不接受 messages 中的 system role，要求使用 instructions 顶层字段。
+    // 通过 provider 配置 options.useInstructions 开启（见 gyccode.json 的 provider 配置）。
+    const useInstructions = isOpenaiOauth || isDeepSeek || input.provider.options?.["useInstructions"] === true
+
+    const variant =
+      !input.small && input.model.variants && input.user.model.variant
+        ? input.model.variants[input.user.model.variant]
+        : {}
+
+    // Inject thinking budget from config if configured
+    const thinkingBudget = input.thinkingBudgetTokens
+    if (thinkingBudget && variant && typeof variant === "object") {
+      // Inject budget into Anthropic-style thinking variants
+      for (const key of Object.keys(variant)) {
+        const v = variant[key]
+        if (v && typeof v === "object" && v.thinking && typeof v.thinking === "object") {
+          if (v.thinking.type === "enabled" || v.thinking.type === "adaptive") {
+            v.thinking.budget_tokens = thinkingBudget
+          }
+        }
+        // Also handle reasoning effort variants that might have budget
+        if (v && typeof v === "object" && v.reasoningConfig && typeof v.reasoningConfig === "object") {
+          v.reasoningConfig.budgetTokens = thinkingBudget
+        }
+      }
+    }
+
+    const base = input.small
+      ? ProviderTransform.smallOptions(input.model)
+      : ProviderTransform.options({
+          model: input.model,
+          sessionID: input.sessionID,
+          providerOptions: input.provider.options,
+        })
+    const options = mergeOptions(mergeOptions(mergeOptions(base, input.model.options), input.agent.options), variant)
+    if (
+      input.model.api.npm === "@ai-sdk/azure" &&
+      (input.provider.options.useCompletionUrls || input.model.options.useCompletionUrls || options.useCompletionUrls)
+    ) {
+      delete options.reasoningSummary
+      delete options.include
+    }
+    if (useInstructions) {
+      options.instructions = system.join("\n")
+      delete options.useInstructions
+    }
+    if (isDeepSeek && !options.apiKey) {
+      const deepseekKey = process.env.DEEPSEEK_API_KEY
+      if (deepseekKey) options.apiKey = deepseekKey
+    }
+    return { options, isOpenaiOauth, isDeepSeek, useInstructions }
   }
-  if (useInstructions) {
-    options.instructions = system.join("\n")
-    delete options.useInstructions
-  }
-  if (isDeepSeek && !options.apiKey) {
-    const deepseekKey = process.env.DEEPSEEK_API_KEY
-    if (deepseekKey) options.apiKey = deepseekKey
-  }
-  return { options, isOpenaiOauth, isDeepSeek, useInstructions }
-}
+)
 
 /**
  * Resolve the max output tokens for a request. A caller-supplied override (e.g.
@@ -183,7 +206,7 @@ export function resolveMaxOutputTokens(
 
 export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: PrepareInput) {
   const system = yield* assembleSystemPrompt(input)
-  const { options, isOpenaiOauth, isDeepSeek, useInstructions } = resolveProviderOptions(input, system)
+  const { options, isOpenaiOauth, isDeepSeek, useInstructions } = yield* resolveProviderOptions(input, system)
 
   const messages =
     isOpenaiOauth || isDeepSeek || useInstructions || input.isWorkflow
