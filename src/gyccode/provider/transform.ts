@@ -697,6 +697,23 @@ function googleThinkingVariants(model: Provider.Model): Record<string, Record<st
   )
 }
 
+// Whether user-facing thinking should be on by default for this model.
+// Mirrors Claude Code's shouldEnableThinkingByDefault: reasoning-capable
+// models default to thinking enabled unless the config explicitly disables it.
+// We gate solely on the declared reasoning capability (variants() is a heavier
+// lookup that re-derives the full per-provider matrix and depends on api.url).
+export function shouldEnableThinkingByDefault(
+  model: Provider.Model,
+  cfg?: {
+    llm?: { thinking?: { enabled?: boolean } }
+    user?: { disableThinkingByDefault?: boolean }
+  },
+): boolean {
+  if (cfg?.llm?.thinking?.enabled === false) return false
+  if (cfg?.user?.disableThinkingByDefault) return false
+  return model.capabilities.reasoning === true
+}
+
 export function variants(model: Provider.Model): Record<string, Record<string, any>> {
   if (!model.capabilities.reasoning) return {}
 
