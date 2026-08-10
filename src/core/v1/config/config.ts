@@ -219,10 +219,10 @@ export const Info = Schema.Struct({
   ),
   llm: Schema.optional(
     Schema.Struct({
-      output_token_max: Schema.optional(NonNegativeInt).annotate({
+      output_token_max: Schema.optional(PositiveInt).annotate({
         description: "Maximum output tokens per request (default: 32000)",
       }),
-      escalate_output_token_max: Schema.optional(NonNegativeInt).annotate({
+      escalate_output_token_max: Schema.optional(PositiveInt).annotate({
         description: "Output token cap after a finish=length escalation (default: 64000)",
       }),
     }),

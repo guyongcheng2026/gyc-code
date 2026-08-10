@@ -29,6 +29,7 @@ import * as OtelTracer from "@effect/opentelemetry/Tracer"
 import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
+import { resolveOutputTokenMax } from "./llm/output-cap"
 import { streamWithIdleTimeout, LLM_STREAM_IDLE_TIMEOUT_MS } from "./llm-timeout"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
@@ -117,7 +118,7 @@ const live: Layer.Layer<
         language: cfg.language,
         // Effective output-token cap: runtime flag wins, else the config
         // `llm.output_token_max` value (default 32k is applied downstream).
-        outputTokenMax: flags.outputTokenMax ?? cfg.llm?.output_token_max,
+        outputTokenMax: resolveOutputTokenMax(flags, cfg),
       })
 
       // Wire up toolExecutor for DWS workflow models so that tool calls

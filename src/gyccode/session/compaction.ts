@@ -23,6 +23,7 @@ import { ModelV2 } from "@gyccode/core/model"
 import { buildPrompt } from "@gyccode/core/session/compaction"
 import { SessionCompactionEvent } from "@gyccode/schema/session-compaction-event"
 import { selectMicrocompactParts } from "./microcompact-select"
+import { resolveOutputTokenMax } from "./llm/output-cap"
 
 export const Event = SessionCompactionEvent
 
@@ -240,11 +241,12 @@ const layer = Layer.effect(
       tokens: SessionV1.Assistant["tokens"]
       model: Provider.Model
     }) {
+      const cfg = yield* config.get()
       return overflow({
-        cfg: yield* config.get(),
+        cfg,
         tokens: input.tokens,
         model: input.model,
-        outputTokenMax: flags.outputTokenMax,
+        outputTokenMax: resolveOutputTokenMax(flags, cfg),
       })
     })
 
@@ -259,7 +261,7 @@ const layer = Layer.effect(
         .pipe(Effect.catchIf(NotFoundError.isInstance, () => Effect.succeed(undefined)))
       if (!msgs || msgs.length === 0) return false
       const used = yield* estimate({ messages: msgs, model: input.model })
-      const limit = usable({ cfg, model: input.model, outputTokenMax: flags.outputTokenMax })
+      const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
       if (limit <= 0) return false
       const selected = selectMicrocompactParts(msgs as any, used, limit)
       if (selected.length === 0) return false

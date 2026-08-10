@@ -62,6 +62,7 @@ import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract
 import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extraction-runner"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
+import { escalateOutputMax } from "./llm/output-cap"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -1152,7 +1153,8 @@ const layer = Layer.effect(
         let budget: BudgetState | undefined
         let budgetParsed = false
         // Output-length escalation: on the first finish="length" turn, retry the
-        // request with a 64k output cap before falling back to resume messages.
+        // request with the configurable escalate cap (default 64k) before falling
+        // back to resume messages.
         let escalatedOutputMax: number | undefined
         let consecutiveToolOnlySteps = 0
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
@@ -1188,10 +1190,17 @@ const layer = Layer.effect(
             // escalate) before falling back to resume-message continuation.
             if (escalatedOutputMax === undefined) {
               const cfgInfo = yield* config.get()
-              const escalateModel = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
-              escalatedOutputMax = Math.min(
-                escalateModel.limit.output,
-                cfgInfo.llm?.escalate_output_token_max ?? 64_000,
+              // Resolve the model for its output limit, but degrade to the
+              // escalate cap (default 64k) instead of aborting the recovery
+              // path if resolution fails.
+              const escalateModel = yield* getModel(
+                lastUser.model.providerID,
+                lastUser.model.modelID,
+                sessionID,
+              ).pipe(Effect.catchCause(() => Effect.succeed(undefined)))
+              escalatedOutputMax = escalateOutputMax(
+                escalateModel ?? { limit: { output: Number.POSITIVE_INFINITY } },
+                cfgInfo.llm?.escalate_output_token_max,
               )
               yield* Effect.logInfo("output token limit hit, escalating output cap", {
                 "session.id": sessionID,
