@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from "bun:test"
-import { CONTEXT_1M_BETA_HEADER, context1MHeader } from "./context-1m"
+import { CONTEXT_1M_BETA_HEADER, context1MHeader, parse1mSuffix, effectiveContextWindow } from "./context-1m"
 
 const M = 1_000_000
 
@@ -59,5 +59,39 @@ describe("context1MHeader", () => {
   it("defaults omitted beta to empty (only the 1M beta)", () => {
     const header = context1MHeader(modelWith({}))
     expect(header).toBe(CONTEXT_1M_BETA_HEADER)
+  })
+
+  it("injects header for a [1m]-suffixed model id even below 1M context", () => {
+    const header = context1MHeader(
+      modelWith({ api: { id: "claude-sonnet-4-6[1m]", npm: "@ai-sdk/anthropic" }, limit: { context: 200_000, input: 200_000, output: 64_000 } }),
+    )
+    expect(header).toBe(CONTEXT_1M_BETA_HEADER)
+  })
+})
+
+describe("parse1mSuffix", () => {
+  it("detects [1m] suffix case-insensitively", () => {
+    expect(parse1mSuffix("claude-sonnet-4-6[1m]")).toBe(true)
+    expect(parse1mSuffix("claude-sonnet-4-6[1M]")).toBe(true)
+  })
+  it("rejects models without the suffix", () => {
+    expect(parse1mSuffix("claude-sonnet-4-6")).toBe(false)
+    expect(parse1mSuffix("")).toBe(false)
+  })
+})
+
+describe("effectiveContextWindow", () => {
+  it("returns the env cap when set", () => {
+    expect(effectiveContextWindow({ context: 1_000_000 }, { GYCCODE_MAX_CONTEXT_TOKENS: "500000" })).toBe(500000)
+  })
+  it("returns model context when no env cap", () => {
+    expect(effectiveContextWindow({ context: 200_000 }, {})).toBe(200_000)
+  })
+  it("ignores invalid env values", () => {
+    expect(effectiveContextWindow({ context: 200_000 }, { GYCCODE_MAX_CONTEXT_TOKENS: "abc" })).toBe(200_000)
+    expect(effectiveContextWindow({ context: 200_000 }, { GYCCODE_MAX_CONTEXT_TOKENS: "-5" })).toBe(200_000)
+  })
+  it("falls back to 200k when context missing", () => {
+    expect(effectiveContextWindow({}, {})).toBe(200_000)
   })
 })

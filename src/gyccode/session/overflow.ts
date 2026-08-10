@@ -4,11 +4,12 @@ import { SessionV1 } from "@gyccode/core/v1/session"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import type { MessageV2 } from "./message-v2"
+import { effectiveContextWindow } from "./llm/context-1m"
 
 const COMPACTION_BUFFER = 20_000
 
 export function usable(input: { cfg: ConfigV1.Info; model: Provider.Model; outputTokenMax?: number }) {
-  const context = input.model.limit.context
+  const context = effectiveContextWindow(input.model.limit)
   if (context === 0) return 0
 
   const reserved =

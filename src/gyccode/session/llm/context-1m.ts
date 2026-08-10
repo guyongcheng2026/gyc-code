@@ -14,6 +14,30 @@
 export const CONTEXT_1M_BETA_HEADER = "context-1m-2025-08-07" as const
 const CONTEXT_1M_THRESHOLD = 1_000_000
 
+/** True when the model id carries an explicit `[1m]` opt-in suffix (case-insensitive). */
+export function parse1mSuffix(modelId: string): boolean {
+  return /\[1m\]/i.test(modelId)
+}
+
+const DEFAULT_CONTEXT_WINDOW = 200_000
+
+/**
+ * Effective context window for local decisions (compaction, overflow).
+ * `GYCCODE_MAX_CONTEXT_TOKENS` caps the window universally (Claude's
+ * equivalent is ant-only); invalid values are ignored.
+ */
+export function effectiveContextWindow(
+  model: { context?: number },
+  env: Record<string, string | undefined> = process.env,
+): number {
+  const raw = env.GYCCODE_MAX_CONTEXT_TOKENS
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  return model.context ?? DEFAULT_CONTEXT_WINDOW
+}
+
 /** Provider IDs that implement the Anthropic Messages beta-header protocol. */
 const ANTHROPIC_BETA_PROVIDERS = new Set([
   "anthropic",
@@ -53,7 +77,9 @@ export function context1MHeader(
   existingBeta = "",
 ): string | undefined {
   const context = model.limit?.context ?? 0
-  if (context < CONTEXT_1M_THRESHOLD) return undefined
+  const id = (model as any).id ?? model.api.id
+  const suffix1M = parse1mSuffix(id)
+  if (context < CONTEXT_1M_THRESHOLD && !suffix1M) return undefined
   if (!ANTHROPIC_BETA_PROVIDERS.has(model.providerID) && !isAnthropicNpm(model.api.npm)) return undefined
 
   const parts = existingBeta
