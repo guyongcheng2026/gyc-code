@@ -343,3 +343,6 @@
 
 - [OK] 2026-08-10 [68f2939] feat(session): prompt cache break detection (detectCacheDrift)
   - [FILES] 4: src/gyccode/session/cache-anchor.test.ts, src/gyccode/session/cache-anchor.ts, src/gyccode/session/processor.ts, src/gyccode/session/session.ts
+
+- [OK] 2026-08-10 [66ba02c] feat(lsp): git-ignore filter + 100K result truncation
+  - [FILES] 3: src/gyccode/tool/lsp.test.ts, src/gyccode/tool/lsp.ts, src/gyccode/tool/lsp_gitignore.ts
