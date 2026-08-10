@@ -337,3 +337,6 @@
 
 - [OK] 2026-08-10 [3d1b309] feat(token): per-block token estimation (estimateBlocks)
   - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
+
+- [OK] 2026-08-10 [decf4c5] feat(provider): shouldEnableThinkingByDefault - reasoning-capable models default to thinking on
+  - [FILES] 2: src/gyccode/provider/transform.test.ts, src/gyccode/provider/transform.ts
