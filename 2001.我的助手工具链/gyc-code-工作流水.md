@@ -358,3 +358,6 @@
 
 - [OK] 2026-08-11 [28f9702] fix(compaction): clear frozen truncation cache after compaction
   - [FILES] 2: src/gyccode/session/compaction.ts, src/gyccode/session/message-v2.cache.test.ts
+
+- [OK] 2026-08-11 [034910f] fix(llm): repair request.ts structure and thinking budget injection
+  - [FILES] 3: src/gyccode/provider/transform.test.ts, src/gyccode/session/llm.ts, src/gyccode/session/llm/request.ts
