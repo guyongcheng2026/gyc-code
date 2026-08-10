@@ -316,3 +316,6 @@
 
 - [OK] 2026-08-10 [0570967] fix(session): add countTokens fetch timeout, skip non-anthropic api/auto estimation, align api_model doc
   - [FILES] 2: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts
+
+- [OK] 2026-08-10 [0db1567] docs(report): final report for 6 model-capability gaps closure; mark spec and plan with NOTE pointer
+  - [FILES] 3: docs/compose/plans/2026-08-10-model-capability-gaps-closure.md, docs/compose/reports/model-capability-gaps-closure.md, docs/compose/specs/2026-08-10-model-capability-gaps-closure-design.md
