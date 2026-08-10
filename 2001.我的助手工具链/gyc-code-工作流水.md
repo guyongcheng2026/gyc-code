@@ -334,3 +334,6 @@
 
 - [OK] 2026-08-10 [de4529a] feat(session): three-tier context warning state (calculateTokenWarningState)
   - [FILES] 2: src/gyccode/session/overflow.test.ts, src/gyccode/session/overflow.ts
+
+- [OK] 2026-08-10 [3d1b309] feat(token): per-block token estimation (estimateBlocks)
+  - [FILES] 2: src/core/util/token.test.ts, src/core/util/token.ts
