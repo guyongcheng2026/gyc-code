@@ -89,7 +89,7 @@ describe("session projector usage broadcast", () => {
           .pipe(Effect.orDie)
         return row
       }),
-    )
+    )!
     expect(totals.cost).toBeCloseTo(1.25)
     expect(totals.tokensInput).toBe(100)
     expect(published).toHaveLength(1)
@@ -156,7 +156,7 @@ describe("session projector usage broadcast", () => {
           .pipe(Effect.orDie)
         return row
       }),
-    )
+    )!
     expect(totals.cost).toBeCloseTo(2.5)
     expect(totals.tokensInput).toBe(200)
     expect(published).toHaveLength(0)

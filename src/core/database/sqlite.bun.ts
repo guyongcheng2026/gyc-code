@@ -161,7 +161,18 @@ const nativeLayer = (config: Config) =>
         create: config.create ?? true,
       })
       yield* Effect.addFinalizer(() => Effect.sync(() => native.close()))
-      if (config.disableWAL !== true) native.run("PRAGMA journal_mode = WAL;")
+      if (config.disableWAL !== true) {
+        native.run("PRAGMA journal_mode = WAL;")
+        // WAL + synchronous=NORMAL avoids an fsync per commit (crash-safe;
+        // only the trailing WAL checkpoint can be lost on power failure).
+        // Slashes disk churn and write latency during sustained session use.
+        native.run("PRAGMA synchronous = NORMAL;")
+      }
+      // Wait for the WAL write lock instead of failing immediately under
+      // concurrent readers/writers.
+      native.run("PRAGMA busy_timeout = 5000;")
+      // 16MB page cache keeps repeated session/message reads off the disk.
+      native.run("PRAGMA cache_size = -16000;")
       return native
     }),
   )

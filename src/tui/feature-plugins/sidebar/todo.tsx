@@ -18,7 +18,7 @@ export function sortTodos<T extends { status: string }>(items: T[]): T[] {
 }
 
 /** Split into active (non-completed) and a recent-done tail. */
-export function splitTodos<T extends { status: string }>(items: T[], recentDone = RECENT_DONE_LIMIT) {
+export function splitTodos<T extends { status: string }>(items: readonly T[], recentDone = RECENT_DONE_LIMIT) {
   const active = items.filter((t) => t.status !== "completed" && t.status !== "cancelled")
   const done = items.filter((t) => t.status === "completed")
   const visibleDone = done.slice(0, recentDone)

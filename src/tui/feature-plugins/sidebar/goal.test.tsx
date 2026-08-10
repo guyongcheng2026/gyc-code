@@ -32,7 +32,16 @@ describe("goalStatus", () => {
 
 describe("session.goal adapter contract", () => {
   it("exposes a per-session goal getter backed by the sync store", () => {
-    const store = { session_goal: { s1: { condition: "write tests", lastVerdict: { ok: true, reason: "done", attempt: 1 } } } }
+    const store: {
+      session_goal: Record<
+        string,
+        | {
+            condition: string
+            lastVerdict?: { ok: boolean; impossible?: boolean; error?: boolean; reason: string; attempt: number }
+          }
+        | undefined
+      >
+    } = { session_goal: { s1: { condition: "write tests", lastVerdict: { ok: true, reason: "done", attempt: 1 } } } }
     const session = {
       goal: (id: string) => store.session_goal[id],
     }

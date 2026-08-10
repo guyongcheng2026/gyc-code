@@ -51,6 +51,10 @@ function locationKey(location: LocationRef) {
   return JSON.stringify([location.directory, location.workspaceID])
 }
 
+// Cap per-session v2 message history retained for autocomplete recall so a
+// long-running session cannot grow its in-memory array without bound.
+const MAX_SESSION_MESSAGES = 500
+
 function locationQuery(ref?: LocationRef) {
   return ref ? { directory: ref.directory, workspace: ref.workspaceID } : undefined
 }
@@ -90,6 +94,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       prepend(messages: SessionMessage[], item: SessionMessage) {
         if (messages.some((existing) => existing.id === item.id)) return
         messages.unshift(item)
+        if (messages.length > MAX_SESSION_MESSAGES) messages.length = MAX_SESSION_MESSAGES
       },
       activeAssistant(messages: SessionMessage[]) {
         const item = messages.find((item) => item.type === "assistant" && !item.time.completed)

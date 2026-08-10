@@ -23,22 +23,27 @@ export function NextStepHint(props: { sessionID: string }) {
     if (timer) clearTimeout(timer)
   })
 
-  event.on("message.part.updated", (evt) => {
-    const part = evt.properties.part
-    if (part.type !== "tool") return
-    if (part.sessionID !== props.sessionID) return
-    if (part.state.status !== "completed") return
+  // Unsubscribe on unmount: this component remounts on every session switch
+  // (Session is keyed by sessionID), so a leaked handler would accumulate
+  // unbounded listeners that run on every message.part.updated event.
+  onCleanup(
+    event.on("message.part.updated", (evt) => {
+      const part = evt.properties.part
+      if (part.type !== "tool") return
+      if (part.sessionID !== props.sessionID) return
+      if (part.state.status !== "completed") return
 
-    const output =
-      part.state.status === "completed" && typeof part.state.output === "string" ? part.state.output : ""
-    const todos = sync.data.todo[props.sessionID] ?? []
-    const prediction = predictNextStep({
-      todos,
-      lastToolName: part.tool,
-      lastToolOutput: output,
-    })
-    if (prediction) show(prediction)
-  })
+      const output =
+        part.state.status === "completed" && typeof part.state.output === "string" ? part.state.output : ""
+      const todos = sync.data.todo[props.sessionID] ?? []
+      const prediction = predictNextStep({
+        todos,
+        lastToolName: part.tool,
+        lastToolOutput: output,
+      })
+      if (prediction) show(prediction)
+    }),
+  )
 
   return (
     <Show when={hint()}>

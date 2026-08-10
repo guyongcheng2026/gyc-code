@@ -11,17 +11,17 @@ describe("streamingTPS", () => {
   })
 
   it("computes tokens/sec from estimated token count", () => {
-    // 16 chars / 4 chars-per-token = 4 tokens, elapsed 2s => 2 t/s
+    // "abcdefghij123456" (16 ASCII chars, no separator) -> 1 word token by tokenizer, elapsed 2s => 0.5 t/s
     const result = streamingTPS("abcdefghij123456", 0, 2000)
     expect(result).not.toBeNull()
-    expect(result!).toBeCloseTo(2, 5)
+    expect(result!).toBeCloseTo(0.5, 5)
   })
 
   it("handles JSON-shaped input (2 chars/token)", () => {
-    // JSON: starts with '{', 14 chars / 2 chars-per-token = 7 tokens, 1s => 7 t/s
+    // '{"key":"val"}' tokenizes to 9 tokens (braces/quotes/colon + word), 1s => 9 t/s
     const result = streamingTPS('{"key":"val"}', 0, 1000)
     expect(result).not.toBeNull()
-    expect(result!).toBeCloseTo(7, 5)
+    expect(result!).toBeCloseTo(9, 5)
   })
 })
 

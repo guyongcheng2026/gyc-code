@@ -21,7 +21,7 @@ describe("formatCwd", () => {
 
 describe("session.cwd adapter contract", () => {
   it("exposes a per-session cwd getter backed by the sync store", () => {
-    const store = { session_cwd: { s1: "/workspace/project" } }
+    const store: { session_cwd: Record<string, string | undefined> } = { session_cwd: { s1: "/workspace/project" } }
     const session = {
       cwd: (id: string) => store.session_cwd[id],
     }

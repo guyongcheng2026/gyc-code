@@ -171,7 +171,7 @@ export function Prompt(props: PromptProps) {
   const dimensions = useTerminalDimensions()
   const { theme, syntax } = useTheme()
   const kv = useKV()
-  const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
+  const animationsEnabled = createMemo(() => kv.get("animations_enabled", false))
   const list = createMemo(() => props.placeholders?.normal ?? [])
   const shell = createMemo(() => props.placeholders?.shell ?? [])
   const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", true))
@@ -234,18 +234,22 @@ export function Prompt(props: PromptProps) {
   let promptPartTypeId = 0
   const event = useEvent()
 
-  event.on("tui.prompt.append", (evt, { workspace }) => {
-    if (workspace !== project.workspace.current()) return
-    if (!input || input.isDestroyed) return
-    input.insertText(evt.properties.text)
-    setTimeout(() => {
-      // setTimeout is a workaround and needs to be addressed properly
+  // Prompt remounts per session switch (Session is keyed by sessionID);
+  // unsubscribe so navigation does not accumulate tui.prompt.append handlers.
+  onCleanup(
+    event.on("tui.prompt.append", (evt, { workspace }) => {
+      if (workspace !== project.workspace.current()) return
       if (!input || input.isDestroyed) return
-      input.getLayoutNode().markDirty()
-      input.gotoBufferEnd()
-      renderer.requestRender()
-    }, 0)
-  })
+      input.insertText(evt.properties.text)
+      setTimeout(() => {
+        // setTimeout is a workaround and needs to be addressed properly
+        if (!input || input.isDestroyed) return
+        input.getLayoutNode().markDirty()
+        input.gotoBufferEnd()
+        renderer.requestRender()
+      }, 0)
+    }),
+  )
 
   createEffect(() => {
     if (!input || input.isDestroyed) return
@@ -1518,7 +1522,7 @@ title: "打开编辑器",
               >
                 <box flexShrink={0} flexDirection="row" gap={1}>
                   <box marginLeft={1}>
-                    <Show when={kv.get("animations_enabled", true)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
+                    <Show when={kv.get("animations_enabled", false)} fallback={<text fg={theme.textMuted}>[⋯]</text>}>
                       <spinner color={spinnerDef().color} frames={spinnerDef().frames} interval={40} />
                     </Show>
                   </box>

@@ -174,6 +174,40 @@ export const {
       hydratingSessions.get(sessionID)?.parts.add(partID)
     }
 
+    // Bound the number of sessions whose hydrated message/part data is retained
+    // in memory. Per-session caps (100 messages) are not enough by themselves:
+    // over a long run with many visited sessions the session count grows without
+    // bound. Keep the most-recently-viewed MAX_HYDRATED_SESSIONS; evicted
+    // sessions re-hydrate from the local server on demand when revisited.
+    const MAX_HYDRATED_SESSIONS = 20
+    const hydratedOrder: string[] = []
+    const markRecent = (sessionID: string) => {
+      const index = hydratedOrder.indexOf(sessionID)
+      if (index >= 0) hydratedOrder.splice(index, 1)
+      hydratedOrder.push(sessionID)
+    }
+    const evictSessionData = (sessionID: string) => {
+      const messages = store.message[sessionID] ?? []
+      batch(() => {
+        setStore(
+          produce((draft) => {
+            for (const message of messages) delete draft.part[message.id]
+            delete draft.message[sessionID]
+            delete draft.todo[sessionID]
+            delete draft.session_diff[sessionID]
+          }),
+        )
+      })
+      fullSyncedSessions.delete(sessionID)
+    }
+    const pruneHydratedSessions = () => {
+      while (hydratedOrder.length > MAX_HYDRATED_SESSIONS) {
+        const oldest = hydratedOrder.shift()
+        if (oldest === undefined) break
+        evictSessionData(oldest)
+      }
+    }
+
     // Batch streaming text deltas (30ms) so high-frequency token updates collapse
     // into a single store write. Avoids re-parsing and re-highlighting the whole
     // markdown block (tree-sitter WASM) on every token for long assistant messages.
@@ -328,15 +362,35 @@ export const {
           break
 
         case "session.deleted": {
-          const result = search(store.session, event.properties.info.id, (s) => s.id)
-          if (result.found) {
+          const id = event.properties.info.id
+          const result = search(store.session, id, (s) => s.id)
+          batch(() => {
+            if (result.found) {
+              setStore(
+                "session",
+                produce((draft) => {
+                  draft.splice(result.index, 1)
+                }),
+              )
+            }
+            // Prune per-session maps so a long-running session cannot retain
+            // orphaned messages/parts/todos after a session is deleted.
             setStore(
-              "session",
               produce((draft) => {
-                draft.splice(result.index, 1)
+                const messages = draft.message[id] ?? []
+                for (const message of messages) delete draft.part[message.id]
+                delete draft.message[id]
+                delete draft.todo[id]
+                delete draft.session_diff[id]
+                delete draft.session_status[id]
+                delete draft.session_cwd[id]
+                delete draft.session_instructions[id]
+                delete draft.session_goal[id]
+                delete draft.permission[id]
+                delete draft.question[id]
               }),
             )
-          }
+          })
           break
         }
         case "session.updated": {
@@ -680,7 +734,12 @@ export const {
           return last.time.completed ? "idle" : "working"
         },
         async sync(sessionID: string) {
-          if (fullSyncedSessions.has(sessionID)) return
+          if (fullSyncedSessions.has(sessionID)) {
+            // Viewed again: refresh recency so the cap never evicts the
+            // session currently on screen.
+            markRecent(sessionID)
+            return
+          }
           const syncing = syncingSessions.get(sessionID)
           if (syncing) return syncing
           const tracker = { messages: new Set<string>(), parts: new Set<string>() }
@@ -745,6 +804,8 @@ export const {
               }),
             )
             fullSyncedSessions.add(sessionID)
+            markRecent(sessionID)
+            pruneHydratedSessions()
           })().finally(() => {
             syncingSessions.delete(sessionID)
             hydratingSessions.delete(sessionID)

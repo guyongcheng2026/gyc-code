@@ -21,7 +21,7 @@ describe("abbreviateInstruction", () => {
 
 describe("session.instructions adapter contract", () => {
   it("exposes a per-session instructions getter backed by the sync store", () => {
-    const store = { session_instructions: { s1: ["AGENTS.md", "CLAUDE.md"] } }
+    const store: { session_instructions: Record<string, string[]> } = { session_instructions: { s1: ["AGENTS.md", "CLAUDE.md"] } }
     const session = {
       instructions: (id: string) => store.session_instructions[id] ?? [],
     }

@@ -26,24 +26,33 @@ export type PromptInfo = {
 
 export const MAX_HISTORY_ENTRIES = 50
 
-export function parsePromptHistory(text: string) {
-  return text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      try {
-        return JSON.parse(line) as PromptInfo
-      } catch {
-        return undefined
-      }
-    })
-    .filter((line): line is PromptInfo => line !== undefined)
-    .slice(-MAX_HISTORY_ENTRIES)
+/** Merge entries with identical content (same `input`) into one, keeping the most recent occurrence. */
+export function dedupeHistory(entries: PromptInfo[]): PromptInfo[] {
+  const seen = new Set<string>()
+  const merged: PromptInfo[] = []
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]
+    if (seen.has(entry.input)) continue
+    seen.add(entry.input)
+    merged.push(entry)
+  }
+  return merged.reverse()
 }
 
-export function isDuplicateEntry(previous: PromptInfo | undefined, next: PromptInfo): boolean {
-  if (!previous) return false
-  return JSON.stringify(previous) === JSON.stringify(next)
+export function parsePromptHistory(text: string) {
+  return dedupeHistory(
+    text
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line) as PromptInfo
+        } catch {
+          return undefined
+        }
+      })
+      .filter((line): line is PromptInfo => line !== undefined),
+  ).slice(-MAX_HISTORY_ENTRIES)
 }
 
 export const { use: usePromptHistory, provider: PromptHistoryProvider } = createSimpleContext({
@@ -92,23 +101,21 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
       },
       append(item: PromptInfo) {
         const entry = structuredClone(unwrap(item))
-        if (isDuplicateEntry(store.history.at(-1), entry)) {
+        if (store.history.at(-1)?.input === entry.input) {
           setStore("index", 0)
           return
         }
-        let trimmed = false
+        let rewrite = false
         setStore(
           produce((draft) => {
-            draft.history.push(entry)
-            if (draft.history.length > MAX_HISTORY_ENTRIES) {
-              draft.history = draft.history.slice(-MAX_HISTORY_ENTRIES)
-              trimmed = true
-            }
+            const next = dedupeHistory([...draft.history, entry])
+            rewrite = next.length < draft.history.length + 1 || next.length > MAX_HISTORY_ENTRIES
+            draft.history = next.slice(-MAX_HISTORY_ENTRIES)
             draft.index = 0
           }),
         )
 
-        if (trimmed) {
+        if (rewrite) {
           writeText(historyPath, store.history.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
           return
         }

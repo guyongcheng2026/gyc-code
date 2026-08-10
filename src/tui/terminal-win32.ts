@@ -114,7 +114,6 @@ export function win32InstallCtrlCGuard() {
   // Some runtimes can re-apply console modes on the next tick; enforce twice.
   const later = () => {
     enforce()
-    setImmediate(enforce)
   }
 
   let wrapped: ReadStream["setRawMode"] | undefined
