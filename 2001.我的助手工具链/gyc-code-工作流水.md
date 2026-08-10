@@ -262,3 +262,6 @@
 
 - [OK] 2026-08-10 [f0a93d2] fix(core): tokenizer-driven compaction split, integer API count guard, invalid-value fallback test
   - [FILES] 3: src/core/session/compaction.ts, src/core/util/token.test.ts, src/core/util/token.ts
+
+- [OK] 2026-08-10 [61768a9] fix(core): bound compaction recent tail to remaining token budget, not the head
+  - [FILES] 1: src/core/session/compaction.ts
