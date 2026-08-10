@@ -74,6 +74,17 @@ export function isAnthropicLike(model: {
 }
 
 /**
+ * Merge a beta token into an existing `anthropic-beta` value (comma-separated,
+ * deduped by trimmed identity). Shared by the 1M-context and context-management
+ * header injection so the two never drift on merge semantics.
+ */
+export function mergeBetaHeader(existingBeta: string | undefined, token: string): string {
+  const parts = existingBeta ? existingBeta.split(",").map((p) => p.trim()).filter(Boolean) : []
+  if (!parts.includes(token)) parts.push(token)
+  return parts.join(",")
+}
+
+/**
  * Compute the `anthropic-beta` header value for a model that advertises a 1M
  * context window. Returns `undefined` when the model is not 1M-capable on an
  * Anthropic-lineage transport so callers can leave the header untouched.
@@ -97,10 +108,5 @@ export function context1MHeader(
   if (context < CONTEXT_1M_THRESHOLD && !suffix1M) return undefined
   if (!ANTHROPIC_BETA_PROVIDERS.has(model.providerID) && !isAnthropicNpm(model.api.npm)) return undefined
 
-  const parts = existingBeta
-    .split(",")
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0 && p !== CONTEXT_1M_BETA_HEADER)
-  parts.push(CONTEXT_1M_BETA_HEADER)
-  return parts.join(",")
+  return mergeBetaHeader(existingBeta, CONTEXT_1M_BETA_HEADER)
 }

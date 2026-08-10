@@ -1,5 +1,10 @@
 import { describe, expect, it } from "bun:test"
-import { CONTEXT_MANAGEMENT_BETA_HEADER, contextManagementEdits } from "./context-management"
+import {
+  CONTEXT_MANAGEMENT_BETA_HEADER,
+  contextManagementBetaHeader,
+  contextManagementEdits,
+  contextManagementOptions,
+} from "./context-management"
 
 describe("CONTEXT_MANAGEMENT_BETA_HEADER", () => {
   it("is the context-management beta", () => {
@@ -25,7 +30,6 @@ describe("contextManagementEdits", () => {
         type: "clear_tool_uses_20250919",
         trigger: { type: "input_tokens", value: 180000 },
         clearAtLeast: { type: "input_tokens", value: 140000 },
-        excludeTools: [],
       },
     ])
   })
@@ -42,9 +46,12 @@ describe("contextManagementEdits", () => {
         type: "clear_tool_uses_20250919",
         trigger: { type: "input_tokens", value: 180000 },
         clearAtLeast: { type: "input_tokens", value: 140000 },
-        excludeTools: [],
       },
     ])
+  })
+  it("omits excludeTools since no config path populates it", () => {
+    const edits = contextManagementEdits({ enabled: true, clear_thinking: false, clear_tool_uses: true })
+    expect(edits![0]).not.toHaveProperty("excludeTools")
   })
   it("combines both edits", () => {
     const edits = contextManagementEdits({
@@ -61,5 +68,30 @@ describe("contextManagementEdits", () => {
   })
   it("returns undefined when both clears disabled", () => {
     expect(contextManagementEdits({ enabled: true, clear_thinking: false, clear_tool_uses: false })).toBeUndefined()
+  })
+})
+
+describe("contextManagementBetaHeader", () => {
+  it("merges when enabled and anthropic", () => {
+    expect(contextManagementBetaHeader(undefined, true, true)).toBe(CONTEXT_MANAGEMENT_BETA_HEADER)
+    expect(contextManagementBetaHeader("interleaved-thinking-2025-05-14", true, true)).toBe(
+      `interleaved-thinking-2025-05-14,${CONTEXT_MANAGEMENT_BETA_HEADER}`,
+    )
+    expect(contextManagementBetaHeader(CONTEXT_MANAGEMENT_BETA_HEADER, true, true)).toBe(CONTEXT_MANAGEMENT_BETA_HEADER)
+  })
+  it("returns existing unchanged when disabled or non-anthropic", () => {
+    expect(contextManagementBetaHeader("x", false, true)).toBe("x")
+    expect(contextManagementBetaHeader("x", true, false)).toBe("x")
+    expect(contextManagementBetaHeader(undefined, false, false)).toBeUndefined()
+  })
+})
+
+describe("contextManagementOptions", () => {
+  it("returns edits when enabled", () => {
+    const o = contextManagementOptions({ enabled: true, clear_thinking: false, clear_tool_uses: true })
+    expect(o?.contextManagement.edits[0]!.type).toBe("clear_tool_uses_20250919")
+  })
+  it("returns undefined when disabled", () => {
+    expect(contextManagementOptions({ enabled: false })).toBeUndefined()
   })
 })

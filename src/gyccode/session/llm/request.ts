@@ -9,7 +9,7 @@ import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
 import { context1MHeader, isAnthropicLike } from "./context-1m"
-import { CONTEXT_MANAGEMENT_BETA_HEADER, contextManagementEdits, type ContextManagementConfig } from "./context-management"
+import { contextManagementBetaHeader, contextManagementOptions, type ContextManagementConfig } from "./context-management"
 import { SystemPrompt } from "../system"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { Effect, Record } from "effect"
@@ -300,16 +300,23 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
   // clears old thinking blocks / tool uses server-side. ProviderTransform
   // wraps params.options under the SDK key (e.g. `anthropic`) downstream, so
   // the AI SDK zod reads it from providerOptions.anthropic.contextManagement
-  // and the native path maps the same key into the raw body parameter.
-  if (input.apiContextManagement?.enabled && isAnthropicLike(input.model)) {
-    const existing = mergedHeaders["anthropic-beta"]
-    const parts = existing ? existing.split(",").map((p) => p.trim()).filter(Boolean) : []
-    if (!parts.includes(CONTEXT_MANAGEMENT_BETA_HEADER)) parts.push(CONTEXT_MANAGEMENT_BETA_HEADER)
-    mergedHeaders["anthropic-beta"] = parts.join(",")
+  // and the native path maps the same key into the raw body parameter. The
+  // header merge and the options attach are tested pure helpers, so the
+  // gating rules (Anthropic-only, config-enabled-only) live in one place.
+  const isAnthropic = isAnthropicLike(input.model)
+  const contextManagementBeta = contextManagementBetaHeader(
+    mergedHeaders["anthropic-beta"],
+    input.apiContextManagement?.enabled === true,
+    isAnthropic,
+  )
+  if (contextManagementBeta !== undefined) mergedHeaders["anthropic-beta"] = contextManagementBeta
 
-    const edits = contextManagementEdits(input.apiContextManagement)
-    if (edits) {
-      params.options = { ...params.options, contextManagement: { edits } }
+  if (isAnthropic) {
+    const contextManagement = input.apiContextManagement
+      ? contextManagementOptions(input.apiContextManagement)
+      : undefined
+    if (contextManagement) {
+      params.options = { ...params.options, ...contextManagement }
     }
   }
 

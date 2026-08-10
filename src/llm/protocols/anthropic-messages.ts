@@ -155,7 +155,11 @@ const AnthropicThinking = Schema.Struct({
 
 // `context_management` beta request parameter (snake_case wire shape). The
 // camelCase providerOptions `contextManagement` from @ai-sdk/anthropic is
-// lowered into this raw body form (token_threshold / token_count triggers).
+// lowered into this raw body form by identity pass-through of the camelCase
+// edit types (input_tokens / tool_uses) with only the field names lowered.
+// @ai-sdk/anthropic restricts trigger types to input_tokens / tool_uses and
+// passes them through verbatim, so keeping the same types on the native wire
+// makes both runtimes emit identical bytes.
 const AnthropicContextManagementEdit = Schema.Union([
   Schema.Struct({
     type: Schema.Literal("clear_thinking_20251015"),
@@ -168,8 +172,12 @@ const AnthropicContextManagementEdit = Schema.Union([
   }),
   Schema.Struct({
     type: Schema.Literal("clear_tool_uses_20250919"),
-    trigger: Schema.optional(Schema.Struct({ type: Schema.Literal("token_threshold"), value: Schema.Number })),
-    clear_at_least: Schema.optional(Schema.Struct({ type: Schema.Literal("token_count"), value: Schema.Number })),
+    trigger: Schema.optional(
+      Schema.Struct({ type: Schema.Literals(["input_tokens", "tool_uses"]), value: Schema.Number }),
+    ),
+    keep: Schema.optional(Schema.Struct({ type: Schema.Literal("tool_uses"), value: Schema.Number })),
+    clear_at_least: Schema.optional(Schema.Struct({ type: Schema.Literal("input_tokens"), value: Schema.Number })),
+    clear_tool_inputs: Schema.optional(Schema.Boolean),
     exclude_tools: Schema.optional(Schema.Array(Schema.String)),
   }),
 ])
@@ -534,8 +542,10 @@ const lowerThinking = Effect.fn("AnthropicMessages.lowerThinking")(function* (re
 // Lower the AI SDK providerOptions `contextManagement` (camelCase, e.g.
 // providerOptions.anthropic.contextManagement) into the raw Anthropic body
 // parameter `context_management` (snake_case wire shape). The camelCase edits
-// use input_tokens / tool_uses trigger types; the wire accepts token_threshold
-// / token_count, so this is a real translation, not identity.
+// already carry the wire-compatible edit types (input_tokens / tool_uses) —
+// the same ones @ai-sdk/anthropic passes through verbatim — so this is an
+// identity pass-through of the `type` values with only the field names lowered
+// (clearAtLeast → clear_at_least, excludeTools → exclude_tools, etc.).
 const lowerContextManagement = Effect.fn("AnthropicMessages.lowerContextManagement")(function* (request: LLMRequest) {
   const cm = anthropicOptions(request)?.contextManagement
   if (!ProviderShared.isRecord(cm) || !Array.isArray(cm.edits) || cm.edits.length === 0) return undefined
@@ -544,9 +554,10 @@ const lowerContextManagement = Effect.fn("AnthropicMessages.lowerContextManageme
     if (!ProviderShared.isRecord(rawEdit)) continue
     const edit = rawEdit as unknown as {
       type?: string
-      keep?: "all" | { value?: number }
-      trigger?: { value?: number }
-      clearAtLeast?: { value?: number }
+      keep?: "all" | { type?: "thinking_turns" | "tool_uses"; value?: number }
+      trigger?: { type?: "input_tokens" | "tool_uses"; value?: number }
+      clearAtLeast?: { type?: "input_tokens"; value?: number }
+      clearToolInputs?: boolean
       excludeTools?: string[]
     }
     if (edit.type === "clear_thinking_20251015") {
@@ -559,12 +570,19 @@ const lowerContextManagement = Effect.fn("AnthropicMessages.lowerContextManageme
     if (edit.type === "clear_tool_uses_20250919") {
       edits.push({
         type: "clear_tool_uses_20250919",
-        trigger: { type: "token_threshold", value: edit.trigger?.value ?? 180_000 },
-        clear_at_least: { type: "token_count", value: edit.clearAtLeast?.value ?? 0 },
+        trigger: { type: edit.trigger?.type ?? "input_tokens", value: edit.trigger?.value ?? 180_000 },
+        clear_at_least: { type: edit.clearAtLeast?.type ?? "input_tokens", value: edit.clearAtLeast?.value ?? 0 },
+        ...(edit.keep && typeof edit.keep === "object" && edit.keep.value !== undefined
+          ? { keep: { type: "tool_uses", value: edit.keep.value } }
+          : {}),
+        ...(edit.clearToolInputs ? { clear_tool_inputs: true } : {}),
         ...(edit.excludeTools && edit.excludeTools.length > 0 ? { exclude_tools: edit.excludeTools } : {}),
       })
       continue
     }
+    yield* Effect.logWarning(
+      `Anthropic Messages: unknown context_management edit type ${JSON.stringify(edit.type)}; skipping it.`,
+    )
   }
   return edits.length > 0 ? { edits } : undefined
 })

@@ -1,5 +1,11 @@
 ﻿import { describe, expect, it } from "bun:test"
-import { CONTEXT_1M_BETA_HEADER, context1MHeader, parse1mSuffix, effectiveContextWindow } from "./context-1m"
+import {
+  CONTEXT_1M_BETA_HEADER,
+  context1MHeader,
+  mergeBetaHeader,
+  parse1mSuffix,
+  effectiveContextWindow,
+} from "./context-1m"
 
 const M = 1_000_000
 
@@ -66,6 +72,24 @@ describe("context1MHeader", () => {
       modelWith({ api: { id: "claude-sonnet-4-6[1m]", npm: "@ai-sdk/anthropic" }, limit: { context: 200_000, input: 200_000, output: 64_000 } }),
     )
     expect(header).toBe(CONTEXT_1M_BETA_HEADER)
+  })
+})
+
+describe("mergeBetaHeader", () => {
+  it("returns only the token when no existing beta", () => {
+    expect(mergeBetaHeader(undefined, CONTEXT_1M_BETA_HEADER)).toBe(CONTEXT_1M_BETA_HEADER)
+    expect(mergeBetaHeader("", CONTEXT_1M_BETA_HEADER)).toBe(CONTEXT_1M_BETA_HEADER)
+  })
+  it("appends the token to existing betas separated by comma", () => {
+    expect(mergeBetaHeader("interleaved-thinking-2025-05-14", CONTEXT_1M_BETA_HEADER)).toBe(
+      `interleaved-thinking-2025-05-14,${CONTEXT_1M_BETA_HEADER}`,
+    )
+  })
+  it("does not duplicate an already-present token", () => {
+    expect(mergeBetaHeader(CONTEXT_1M_BETA_HEADER, CONTEXT_1M_BETA_HEADER)).toBe(CONTEXT_1M_BETA_HEADER)
+    expect(mergeBetaHeader(` a, ${CONTEXT_1M_BETA_HEADER} `, CONTEXT_1M_BETA_HEADER)).toBe(
+      `a,${CONTEXT_1M_BETA_HEADER}`,
+    )
   })
 })
 

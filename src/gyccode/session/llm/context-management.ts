@@ -6,6 +6,8 @@
  * clearing behind ant-only env flags).
  */
 
+import { mergeBetaHeader } from "./context-1m"
+
 export const CONTEXT_MANAGEMENT_BETA_HEADER = "context-management-2025-06-27"
 
 export interface ContextManagementConfig {
@@ -40,12 +42,31 @@ export function contextManagementEdits(cfg: ContextManagementConfig): ContextMan
   if (cfg.clear_tool_uses) {
     const trigger = cfg.trigger_threshold ?? 180_000
     const keep = cfg.keep_target ?? 40_000
+    // `excludeTools` is optional on the wire and no config path populates it,
+    // so the emitted edit omits it entirely.
     edits.push({
       type: "clear_tool_uses_20250919",
       trigger: { type: "input_tokens", value: trigger },
       clearAtLeast: { type: "input_tokens", value: Math.max(0, trigger - keep) },
-      excludeTools: [],
     })
   }
   return edits.length > 0 ? edits : undefined
+}
+
+/** Merge the context-management beta into an existing anthropic-beta value (comma, dedup). */
+export function contextManagementBetaHeader(
+  existingBeta: string | undefined,
+  enabled: boolean,
+  isAnthropic: boolean,
+): string | undefined {
+  if (!enabled || !isAnthropic) return existingBeta
+  return mergeBetaHeader(existingBeta, CONTEXT_MANAGEMENT_BETA_HEADER)
+}
+
+/** Context-management provider options for the request, or undefined when nothing applies. */
+export function contextManagementOptions(
+  cfg: ContextManagementConfig,
+): { contextManagement: { edits: ContextManagementEdit[] } } | undefined {
+  const edits = contextManagementEdits(cfg)
+  return edits ? { contextManagement: { edits } } : undefined
 }
