@@ -295,3 +295,6 @@
 
 - [OK] 2026-08-10 [a792281] fix(session): base time-based microcompact on last assistant message time, add escalation-contract and boundary tests
   - [FILES] 3: src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
+
+- [OK] 2026-08-10 [1b6ef1d] test(session): lock inclusive gap-boundary with 3-message fixture, skip summary in tool-end fallback
+  - [FILES] 2: src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
