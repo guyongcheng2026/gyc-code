@@ -22,7 +22,11 @@ import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"
 import { buildPrompt } from "@gyccode/core/session/compaction"
 import { SessionCompactionEvent } from "@gyccode/schema/session-compaction-event"
-import { selectMicrocompactParts, selectTimeBasedParts } from "./microcompact-select"
+import {
+  selectMicrocompactParts,
+  selectTimeBasedParts,
+  shouldContinueAfterMicrocompact,
+} from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 
 export const Event = SessionCompactionEvent
@@ -264,9 +268,12 @@ const layer = Layer.effect(
       // Time-based trigger first: a long idle gap means the prompt cache
       // expired, so clear old tool results before the request shrinks what gets
       // rewritten. (Aligned with Claude Code timeBasedMCConfig, but locally
-      // configurable.) Falls through to the usage-based check below (chaining).
+      // configurable.) Opt-in: only fires when `enabled` is explicitly true
+      // (the documented default is false). Falls through to the usage-based
+      // check below (chaining).
       const tbm = cfg.compaction?.time_based_microcompact
-      if (tbm?.enabled !== false) {
+      let clearedAny = false
+      if (tbm?.enabled === true) {
         const tSelected = selectTimeBasedParts(msgs as any, {
           gapMinutes: tbm?.gap_minutes ?? 60,
           keepRecent: tbm?.keep_recent ?? 5,
@@ -282,26 +289,30 @@ const layer = Layer.effect(
               yield* session.updatePart(part)
             }
           }
+          clearedAny = true
         }
       }
 
       const used = yield* estimate({ messages: msgs, model: input.model })
       const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
-      if (limit <= 0) return true
-      const selected = selectMicrocompactParts(msgs as any, used, limit)
-      if (selected.length === 0) return true
-      yield* Effect.logInfo("microcompacting", {
-        "session.id": input.sessionID,
-        count: selected.length,
-        usage: Math.round((used / limit) * 100),
-      })
-      for (const part of selected) {
-        if (part.state.status === "completed") {
-          part.state.time.compacted = Date.now()
-          yield* session.updatePart(part)
+      const selected = limit > 0 ? selectMicrocompactParts(msgs as any, used, limit) : []
+      if (selected.length > 0) {
+        yield* Effect.logInfo("microcompacting", {
+          "session.id": input.sessionID,
+          count: selected.length,
+          usage: Math.round((used / limit) * 100),
+        })
+        for (const part of selected) {
+          if (part.state.status === "completed") {
+            part.state.time.compacted = Date.now()
+            yield* session.updatePart(part)
+          }
         }
       }
-      return true
+      // Did real work (time-based or usage-based) -> true so the caller
+      // continues (overflow was reduced). Nothing cleared -> false so the caller
+      // escalates to full compaction instead of busy-looping.
+      return shouldContinueAfterMicrocompact(clearedAny, limit > 0, selected.length > 0)
     })
     const estimate = Effect.fn("SessionCompaction.estimate")(function* (input: {
       messages: SessionV1.WithParts[]

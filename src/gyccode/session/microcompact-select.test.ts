@@ -2,6 +2,7 @@
 import {
   selectMicrocompactParts,
   selectTimeBasedParts,
+  shouldContinueAfterMicrocompact,
   MICROCOMPACT_THRESHOLD,
   CACHE_PREFIX_KEEP,
 } from "./microcompact-select"
@@ -116,6 +117,22 @@ describe("selectTimeBasedParts", () => {
   it("returns empty when there are no completed tool parts", () => {
     const msgs = [{ info: { role: "user", id: "u0" }, parts: [] }]
     expect(selectTimeBasedParts(msgs as any, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
+  })
+})
+
+describe("shouldContinueAfterMicrocompact", () => {
+  it("returns true when anything was cleared", () => {
+    expect(shouldContinueAfterMicrocompact(true, true, false)).toBe(true)
+    expect(shouldContinueAfterMicrocompact(true, false, false)).toBe(true)
+  })
+  it("returns false when nothing cleared and limit invalid", () => {
+    expect(shouldContinueAfterMicrocompact(false, false, false)).toBe(false)
+  })
+  it("returns false when nothing cleared, limit ok, but nothing selectable (escalate to full compaction)", () => {
+    expect(shouldContinueAfterMicrocompact(false, true, false)).toBe(false)
+  })
+  it("returns true when usage-based selected something", () => {
+    expect(shouldContinueAfterMicrocompact(false, true, true)).toBe(true)
   })
 })
 

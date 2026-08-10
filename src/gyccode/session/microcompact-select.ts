@@ -93,3 +93,20 @@ export function selectTimeBasedParts(
   }
   return selected
 }
+
+/**
+ * Whether `microcompactIfNeeded` should tell the caller to continue the loop
+ * (i.e. it did real work that reduced the overflow) or let the caller escalate
+ * to full compaction.
+ *
+ * - Anything cleared (time-based or usage-based) -> true: overflow was reduced,
+ *   the caller re-checks and continues.
+ * - Nothing cleared and no usable limit -> false: cannot micro-compact.
+ * - Nothing cleared but a valid limit with nothing selectable -> false: escalate
+ *   to full compaction so the fallback stays reachable (no busy-loop).
+ */
+export function shouldContinueAfterMicrocompact(clearedAny: boolean, limitOk: boolean, selectedAny: boolean): boolean {
+  if (clearedAny) return true
+  if (!limitOk) return false
+  return selectedAny
+}
