@@ -233,6 +233,9 @@ export const Info = Schema.Struct({
         description:
           "Idle timeout (ms) for LLM streaming responses — resets on each token. Increase for deep-reasoning models like DeepSeek (default: 300000)",
       }),
+      thinking_budget_tokens: Schema.optional(PositiveInt).annotate({
+        description: "Thinking token budget for adaptive reasoning models (overrides provider default)",
+      }),
       max_consecutive_tool_only_steps: Schema.optional(NonNegativeInt).annotate({
         description:
           "Consecutive stalled tool-only turns (no visible text + tool failure/repeat) before the loop fails fast. 0 disables the guard (default: 10)",

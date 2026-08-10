@@ -832,6 +832,7 @@ const layer = Layer.effect(
       // path mutates the same object via processor.message.
       if (msg.error) return "stop"
       if (result === "continue") {
+        yield* Effect.logInfo("compaction: cache invalidated", { sessionID: input.sessionID })
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
       }
       return result
