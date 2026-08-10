@@ -1,4 +1,8 @@
 # 模型能力层 5 指标复评差距补齐 — 设计
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/model-capability-gaps-closure.md)
 
 - 日期：2026-08-10
 - 状态：已交付（2026-08-10，全部 6 项差距补齐，每项超越 Claude）
