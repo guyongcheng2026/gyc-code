@@ -292,3 +292,6 @@
 
 - [OK] 2026-08-10 [83707e8] fix(session): restore full-compaction escalation in microcompactIfNeeded, opt-in time-based via enabled=true
   - [FILES] 3: src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
+
+- [OK] 2026-08-10 [a792281] fix(session): base time-based microcompact on last assistant message time, add escalation-contract and boundary tests
+  - [FILES] 3: src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
