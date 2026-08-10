@@ -328,3 +328,6 @@
 
 - [OK] 2026-08-10 [84421e3] feat(session): session list content dedupe with cross-page mitigation
   - [FILES] 4: src/core/session/dedupe.test.ts, src/core/session/dedupe.ts, src/gyccode/cli/cmd/session.ts, src/server/handlers/session.ts
+
+- [OK] 2026-08-10 [a2485bb] feat(tui): prompt history dialog with dedupe, search, delete, and preset
+  - [FILES] 4: src/tui/component/dialog-history.tsx, src/tui/component/prompt/index.tsx, src/tui/config/keybind.ts, src/tui/prompt/history.tsx
