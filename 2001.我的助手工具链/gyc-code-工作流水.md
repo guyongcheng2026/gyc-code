@@ -319,3 +319,6 @@
 
 - [OK] 2026-08-10 [0db1567] docs(report): final report for 6 model-capability gaps closure; mark spec and plan with NOTE pointer
   - [FILES] 3: docs/compose/plans/2026-08-10-model-capability-gaps-closure.md, docs/compose/reports/model-capability-gaps-closure.md, docs/compose/specs/2026-08-10-model-capability-gaps-closure-design.md
+
+- [OK] 2026-08-10 [a2103ea] fix(test): update streamingTPS assertions to match real tokenizer
+  - [FILES] 20: src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/core/session/message-updater.ts, src/core/session/projector.test.ts, src/gyccode/permission/index.ts, src/gyccode/tool/shell.ts ...
