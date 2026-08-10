@@ -16,6 +16,7 @@ import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@gyccode/core/global"
 import { type SessionEventPublisher } from "./session-cwd"
 import { resolveIncludes, MAX_INCLUDE_DEPTH, TEXT_FILE_EXTENSIONS } from "./instruction-includes"
+import { matchRules, parseRuleFrontmatter, type Rule } from "./rules"
 import type { MessageV2 } from "./message-v2"
 import type { MessageID, SessionID } from "./schema"
 
@@ -114,6 +115,28 @@ const layer: Layer.Layer<
 
     const read = Effect.fnUntraced(function* (filepath: string) {
       return yield* fs.readFileString(filepath).pipe(Effect.catch(() => Effect.succeed("")))
+    })
+
+    // Discover + parse conditional rule files: `.claude/rules/` and project
+    // `rules/` (both recursive) under a root directory. Missing dirs yield no
+    // files; unparseable/empty files are skipped.
+    const loadRules = Effect.fnUntraced(function* (dir: string) {
+      const bases = [path.join(dir, ".claude", "rules"), path.join(dir, "rules")]
+      const files: string[] = []
+      for (const base of bases) {
+        const found = yield* fs
+          .glob("**/*.md", { cwd: base, absolute: true, include: "file" })
+          .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+        files.push(...found)
+      }
+      const rules: Rule[] = []
+      for (const f of files) {
+        const text = yield* read(f)
+        const parsed = parseRuleFrontmatter(text)
+        if (parsed) rules.push({ filepath: f, globs: parsed.globs, condition: parsed.condition, body: parsed.body })
+        else if (text.trim()) rules.push({ filepath: f, body: text.trim() })
+      }
+      return rules
     })
 
     // Recursively resolve `@include` references in an instruction file.
@@ -227,6 +250,16 @@ const layer: Layer.Layer<
       )
       const remoteParts = urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : []))
 
+      // System-level rules: with no concrete file in scope there is no filepath
+      // to run globs against, so only glob-less rules apply here. File-scoped
+      // rules are attached nearby in `resolve()`.
+      const ctx = yield* InstanceState.context
+      const rules = yield* loadRules(ctx.directory)
+      const sysRules = matchRules(rules, { filepath: "", language: config.language })
+      for (const r of sysRules) {
+        local.push(`Rules from: ${r.filepath}\n${r.body}`)
+      }
+
       return { files: [...local, ...remoteParts], paths }
     })
 
@@ -277,6 +310,15 @@ const layer: Layer.Layer<
         }
 
         current = path.dirname(current)
+      }
+
+      // Nearby rules: match the concrete file being read/edited against rule
+      // globs + language/os conditions and attach the hits.
+      const configInfo = yield* cfg.get()
+      const rules = yield* loadRules(root)
+      const matched = matchRules(rules, { filepath, language: configInfo.language, os: process.platform })
+      for (const r of matched) {
+        results.push({ filepath: r.filepath, content: `Rules from: ${r.filepath}\n${r.body}` })
       }
 
       return results
