@@ -355,3 +355,6 @@
 
 - [OK] 2026-08-10 [7724cb6] feat(overflow): [1m] upgrade suggestion (maybeSuggest1mUpgrade)
   - [FILES] 1: src/gyccode/session/overflow.ts
+
+- [OK] 2026-08-11 [28f9702] fix(compaction): clear frozen truncation cache after compaction
+  - [FILES] 2: src/gyccode/session/compaction.ts, src/gyccode/session/message-v2.cache.test.ts
