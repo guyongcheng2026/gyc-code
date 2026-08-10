@@ -346,3 +346,6 @@
 
 - [OK] 2026-08-10 [66ba02c] feat(lsp): git-ignore filter + 100K result truncation
   - [FILES] 3: src/gyccode/tool/lsp.test.ts, src/gyccode/tool/lsp.ts, src/gyccode/tool/lsp_gitignore.ts
+
+- [OK] 2026-08-10 [344c4af] feat(output-cap): 8K slot reservation -> 64K escalation
+  - [FILES] 2: src/gyccode/session/llm/output-cap.test.ts, src/gyccode/session/llm/output-cap.ts
