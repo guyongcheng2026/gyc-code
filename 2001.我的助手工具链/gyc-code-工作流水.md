@@ -322,3 +322,6 @@
 
 - [OK] 2026-08-10 [a2103ea] fix(test): update streamingTPS assertions to match real tokenizer
   - [FILES] 20: src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/core/session/message-updater.ts, src/core/session/projector.test.ts, src/gyccode/permission/index.ts, src/gyccode/tool/shell.ts ...
+
+- [OK] 2026-08-10 [ea9cf3b] feat(session): model capability gap closure — usage-anchor estimation, memory-summary fast path, thinking-keywords upgrade, tool-stall detection, configurable stream idle timeout, LSP 10MB guard, compaction budget carryover
+  - [FILES] 14: docs/claude-code-capability-gap-analysis.md, src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts ...
