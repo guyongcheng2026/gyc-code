@@ -331,3 +331,6 @@
 
 - [OK] 2026-08-10 [a2485bb] feat(tui): prompt history dialog with dedupe, search, delete, and preset
   - [FILES] 4: src/tui/component/dialog-history.tsx, src/tui/component/prompt/index.tsx, src/tui/config/keybind.ts, src/tui/prompt/history.tsx
+
+- [OK] 2026-08-10 [de4529a] feat(session): three-tier context warning state (calculateTokenWarningState)
+  - [FILES] 2: src/gyccode/session/overflow.test.ts, src/gyccode/session/overflow.ts
