@@ -1,10 +1,23 @@
 ﻿import { expect, test } from "bun:test"
 import { Effect, Exit, Stream } from "effect"
-import { streamWithIdleTimeout, LLM_STREAM_IDLE_TIMEOUT_MS } from "./llm-timeout"
+import { streamWithIdleTimeout, LLM_STREAM_IDLE_TIMEOUT_MS, resolveStreamIdleTimeout } from "./llm-timeout"
 
 test("LLM_STREAM_IDLE_TIMEOUT_MS is a positive finite value", () => {
   expect(LLM_STREAM_IDLE_TIMEOUT_MS).toBeGreaterThan(0)
   expect(Number.isFinite(LLM_STREAM_IDLE_TIMEOUT_MS)).toBe(true)
+})
+
+test("LLM_STREAM_IDLE_TIMEOUT_MS defaults to 300_000 (5 min) for deep-reasoning models", () => {
+  expect(LLM_STREAM_IDLE_TIMEOUT_MS).toBe(300_000)
+})
+
+test("resolveStreamIdleTimeout returns config value when provided", () => {
+  expect(resolveStreamIdleTimeout({ llm: { stream_idle_timeout_ms: 120_000 } })).toBe(120_000)
+})
+
+test("resolveStreamIdleTimeout falls back to default when config is absent", () => {
+  expect(resolveStreamIdleTimeout({})).toBe(LLM_STREAM_IDLE_TIMEOUT_MS)
+  expect(resolveStreamIdleTimeout({ llm: {} })).toBe(LLM_STREAM_IDLE_TIMEOUT_MS)
 })
 
 test("streamWithIdleTimeout passes through a stream that emits values", async () => {

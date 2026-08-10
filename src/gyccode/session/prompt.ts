@@ -63,6 +63,8 @@ import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extra
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
+import { thinkingKeywordTarget, resolveThinkingVariant } from "./thinking-keywords"
+import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -71,8 +73,10 @@ const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
 /** 子代理未显式配置 steps 时的默认步数上限，防止无限空转。 */
 const SUBAGENT_MAX_STEPS = 20
-/** 连续纯工具调用（无可见文本输出）步数上限，工具权限受限时快速失败。 */
+/** 连续空转步数上限（默认），工具失败/被拒或与历史完全重复时快速失败；0 表示关闭。 */
 const MAX_CONSECUTIVE_TOOL_ONLY_STEPS = 10
+/** 重复工具判定保留的历史轮数。 */
+const TOOL_REPEAT_HISTORY_ROUNDS = 20
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
@@ -708,13 +712,36 @@ const layer = Layer.effect(
 
       const model = input.model ?? ag.model ?? (yield* currentModel(input.sessionID))
       const same = ag.model && model.providerID === ag.model.providerID && model.modelID === ag.model.modelID
+
+      // Thinking-keyword detection first (cheap string scan) so we know whether a
+      // model lookup is warranted even when the agent declares no variant.
+      const userText = input.parts
+        .filter((p) => p.type === "text")
+        .map((p) => p.text)
+        .join(" ")
+      const thinkingTarget = thinkingKeywordTarget(userText)
+
+      // Resolve the model's declared variants lazily: only when no explicit variant
+      // was given AND (the agent declares a variant OR the user text requests deeper
+      // thinking). This lets the thinking-keyword upgrade work for any model that
+      // declares reasoning variants, not only agent-configured ones.
       const full =
-        !input.variant && ag.variant && same
+        !input.variant && (ag.variant || thinkingTarget)
           ? yield* provider
               .getModel(model.providerID, model.modelID)
               .pipe(Effect.catchIf(Provider.ModelNotFoundError.isInstance, () => Effect.succeed(undefined)))
           : undefined
-      const variant = input.variant ?? (ag.variant && full?.variants?.[ag.variant] ? ag.variant : undefined)
+
+      // Agent-configured variant applies only when we're actually on the agent's model.
+      const variant = input.variant ?? (ag.variant && same && full?.variants?.[ag.variant] ? ag.variant : undefined)
+
+      // Thinking-keyword upgrade (mirrors Claude Code hasUltrathinkKeyword): if the
+      // user explicitly asks for deeper reasoning in their text parts, upgrade the
+      // reasoning-effort variant to the strongest available tier. Only applies when
+      // no explicit variant was requested and the model declares reasoning variants.
+      const thinkingVariant =
+        !input.variant && full?.variants ? resolveThinkingVariant(thinkingTarget, full.variants) : undefined
+      const resolvedVariant = thinkingVariant ?? variant
 
       const info: SessionV1.User = {
         id: input.messageID ?? MessageID.ascending(),
@@ -726,7 +753,7 @@ const layer = Layer.effect(
         model: {
           providerID: model.providerID,
           modelID: model.modelID,
-          variant,
+          variant: resolvedVariant,
         },
         system: input.system,
         format: input.format,
@@ -1157,6 +1184,7 @@ const layer = Layer.effect(
         // back to resume messages.
         let escalatedOutputMax: number | undefined
         let consecutiveToolOnlySteps = 0
+        let recentToolRounds: string[][] = []
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1398,6 +1426,15 @@ const layer = Layer.effect(
               overflow: task.overflow,
             })
             if (result === "stop") break
+            // Compaction-boundary budget carryover (mirrors Claude Code
+            // finalContextTokensFromLastResponse): after a successful compaction
+            // the context is fresh, so reset the diminishing-returns counters.
+            // Otherwise a low increment from before compaction would prematurely
+            // end the token-budget run on the new context.
+            if (budget) {
+              budget.continuations = 0
+              budget.lastIncrement = 0
+            }
             continue
           }
 
@@ -1601,19 +1638,30 @@ const layer = Layer.effect(
                 overflow: !handle.message.finish,
               })
             }
-            // 连续纯工具调用（无可见文本输出）保护：工具权限受限时模型可能反复空转，
-            // 达到上限后强制结束，避免会话无限循环占用。
+            // 连续空转保护：仅当工具调用轮既无可见文本、又出现工具失败/被拒或与
+            // 历史完全重复时才计为空转。避免把「思考 + 成功执行工具」的正常工作流
+            // （Compose/DeepSeek 等工具轮通常不输出 text）误判为无进展。
             const parts = yield* MessageV2.parts(handle.message.id).pipe(
               Effect.provideService(Database.Service, database),
             )
-            const hasVisibleText = parts.some(
-              (part) => part.type === "text" && !("synthetic" in part && part.synthetic),
-            )
-            const isToolOnlyStep = handle.message.finish === "tool-calls" && !hasVisibleText
-            consecutiveToolOnlySteps = isToolOnlyStep ? consecutiveToolOnlySteps + 1 : 0
-            if (consecutiveToolOnlySteps >= MAX_CONSECUTIVE_TOOL_ONLY_STEPS) {
+            const stallLimit =
+              (yield* config.get()).llm?.max_consecutive_tool_only_steps ?? MAX_CONSECUTIVE_TOOL_ONLY_STEPS
+            const signatures = toolSignatures(parts)
+            const isStalled = isStalledToolOnlyStep({
+              finish: handle.message.finish,
+              parts,
+              historySignatures: new Set(recentToolRounds.flat()),
+            })
+            consecutiveToolOnlySteps = isStalled ? consecutiveToolOnlySteps + 1 : 0
+            recentToolRounds = [...recentToolRounds.slice(-(TOOL_REPEAT_HISTORY_ROUNDS - 1)), signatures]
+            if (stallLimit > 0 && consecutiveToolOnlySteps >= stallLimit) {
+              yield* Effect.logWarning("stall guard triggered", {
+                "session.id": sessionID,
+                messageID: handle.message.id,
+                consecutive: consecutiveToolOnlySteps,
+              })
               handle.message.error = new NamedError.Unknown({
-                message: `Repeated tool calls produced no visible progress after ${MAX_CONSECUTIVE_TOOL_ONLY_STEPS} steps`,
+                message: `Repeated tool calls produced no visible progress after ${stallLimit} steps`,
               }).toObject()
               yield* sessions.updateMessage(handle.message)
               yield* events.publish(Session.Event.Error, { sessionID, error: handle.message.error })

@@ -30,7 +30,7 @@ import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import { resolveOutputTokenMax } from "./llm/output-cap"
-import { streamWithIdleTimeout, LLM_STREAM_IDLE_TIMEOUT_MS } from "./llm-timeout"
+import { streamWithIdleTimeout, resolveStreamIdleTimeout } from "./llm-timeout"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -376,6 +376,7 @@ const live: Layer.Layer<
               (ctrl) => Effect.sync(() => ctrl.abort()),
             )
 
+            const cfg = yield* config.get()
             const result = yield* run({ ...input, abort: ctrl.signal })
 
             if (result.type === "native") return result.stream
@@ -390,7 +391,7 @@ const live: Layer.Layer<
                 Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),
                 Stream.flatMap((events) => Stream.fromIterable(events)),
               ),
-              LLM_STREAM_IDLE_TIMEOUT_MS,
+              resolveStreamIdleTimeout(cfg),
             )
           }),
         ),

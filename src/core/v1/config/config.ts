@@ -183,6 +183,10 @@ export const Info = Schema.Struct({
           }),
         }),
       ),
+      session_memory_compaction: Schema.optional(Schema.Boolean).annotate({
+        description:
+          "Try a fast compaction path using maintained session/hermes memories before falling back to a full LLM summary call (default: true)",
+      }),
       api_context_management: Schema.optional(
         Schema.Struct({
           enabled: Schema.optional(Schema.Boolean).annotate({
@@ -224,6 +228,14 @@ export const Info = Schema.Struct({
       }),
       escalate_output_token_max: Schema.optional(PositiveInt).annotate({
         description: "Output token cap after a finish=length escalation (default: 64000)",
+      }),
+      stream_idle_timeout_ms: Schema.optional(PositiveInt).annotate({
+        description:
+          "Idle timeout (ms) for LLM streaming responses — resets on each token. Increase for deep-reasoning models like DeepSeek (default: 300000)",
+      }),
+      max_consecutive_tool_only_steps: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Consecutive stalled tool-only turns (no visible text + tool failure/repeat) before the loop fails fast. 0 disables the guard (default: 10)",
       }),
     }),
   ),

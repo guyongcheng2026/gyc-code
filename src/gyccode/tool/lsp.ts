@@ -8,6 +8,10 @@ import { pathToFileURL } from "url"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@gyccode/core/fs-util"
 
+// Guard against oversized files that could stall the LSP server
+// (aligned with Claude Code LSPTool MAX_LSP_FILE_SIZE_BYTES).
+const MAX_LSP_FILE_SIZE_BYTES = 10_000_000
+
 const operations = [
   "goToDefinition",
   "findReferences",
@@ -73,6 +77,11 @@ export const LspTool = Tool.define(
 
           const exists = yield* fs.existsSafe(file)
           if (!exists) throw new Error(`File not found: ${file}`)
+
+          const stat = yield* fs.stat(file).pipe(Effect.catch(() => Effect.void))
+          if (stat && stat.size > MAX_LSP_FILE_SIZE_BYTES) {
+            throw new Error(`File is too large for LSP analysis (${stat.size} bytes > ${MAX_LSP_FILE_SIZE_BYTES}).`)
+          }
 
           const available = yield* lsp.hasClients(file)
           if (!available) throw new Error("No LSP server available for this file type.")

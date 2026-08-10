@@ -29,6 +29,7 @@ import {
 } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 import { isAnthropicLike } from "./llm/context-1m"
+import { readHermesMemories, type HermesMemoryEntry } from "../memory/hermes-bridge"
 
 export const Event = SessionCompactionEvent
 
@@ -84,6 +85,39 @@ export function microcompact(
   return result
 }
 
+/**
+ * Usage-anchored estimation (mirrors Claude Code tokenCountWithEstimation).
+ *
+ * Walks backwards to find the last assistant message whose final step-finish
+ * part carries real API usage. The anchor is the total context sent to the
+ * model at that step (input + cache.read + cache.write) plus the tokens it
+ * generated (output + reasoning), which become part of the next request's
+ * input. Everything after the anchor is returned for local estimation.
+ *
+ * Only valid for a full conversation list (not a subset), since the anchor
+ * measures cumulative context up to that step.
+ */
+export function findUsageAnchor(messages: SessionV1.WithParts[]): {
+  anchorTokens: number
+  toEstimate: SessionV1.WithParts[]
+} {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i]
+    if (msg.info.role !== "assistant") continue
+    const stepFinish = msg.parts.findLast((p): p is SessionV1.StepFinishPart => p.type === "step-finish")
+    if (!stepFinish) continue
+    const t = stepFinish.tokens
+    const contextAtStep = t.input + t.cache.read + t.cache.write
+    if (contextAtStep > 0) {
+      return {
+        anchorTokens: contextAtStep + t.output + t.reasoning,
+        toEstimate: messages.slice(i + 1),
+      }
+    }
+  }
+  return { anchorTokens: 0, toEstimate: messages }
+}
+
 type Turn = {
   start: number
   end: number
@@ -113,6 +147,36 @@ function summaryText(message: SessionV1.WithParts) {
   const summary = text.match(/<summary>([\s\S]*)<\/summary>/)
   const cleaned = (summary ? summary[1]! : text).trim()
   return cleaned || undefined
+}
+
+/** 剥离 hermes 记忆写入时残留的 "#memory_<key>" 首行，只保留实际内容。 */
+export function cleanMemoryValue(value: string): string {
+  const trimmed = value.trim()
+  const lines = trimmed.split("\n")
+  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
+    return lines.slice(1).join("\n").trim()
+  }
+  return trimmed
+}
+
+/**
+ * 会话记忆快速压缩路径（对齐 Claude Code trySessionMemoryCompaction）。
+ *
+ * 用后台已维护的 hermes 记忆直接拼装摘要，免去一次完整 LLM 摘要调用。
+ * 纯函数：记忆为空时返回 undefined，调用方回退到 LLM 摘要。
+ * 输出包裹 <summary> 标签，与 LLM 摘要格式及 summaryText 解析保持一致。
+ */
+export function buildMemorySummary(
+  memories: readonly HermesMemoryEntry[],
+  previousSummary?: string,
+): string | undefined {
+  const cleaned = memories.map((m) => cleanMemoryValue(m.value)).filter(Boolean)
+  if (cleaned.length === 0) return undefined
+  const memoryLines = cleaned.map((line) => `- ${line}`).join("\n")
+  const parts: string[] = []
+  if (previousSummary) parts.push(`Previous context:\n${previousSummary}`)
+  parts.push(`Key facts and decisions captured so far:\n${memoryLines}`)
+  return `<summary>\n${parts.join("\n\n")}\n</summary>`
 }
 
 function completedCompactions(messages: SessionV1.WithParts[]) {
@@ -352,7 +416,7 @@ const layer = Layer.effect(
         }
       }
 
-      const used = yield* estimate({ messages: msgs, model: input.model })
+      const used = yield* estimate({ messages: msgs, model: input.model, anchored: true })
       const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
       const selected = limit > 0 ? selectMicrocompactParts(msgs as any, used, limit) : []
       if (selected.length > 0) {
@@ -371,16 +435,29 @@ const layer = Layer.effect(
     const estimate = Effect.fn("SessionCompaction.estimate")(function* (input: {
       messages: SessionV1.WithParts[]
       model: Provider.Model
+      /** When true, use usage-anchored estimation (only for full conversation). */
+      anchored?: boolean
     }) {
-      const msgs = yield* MessageV2.toModelMessagesEffect(input.messages, input.model)
+      // Usage-anchored estimation (mirrors Claude Code tokenCountWithEstimation):
+      // find the last assistant message's step-finish part with real API usage as
+      // anchor, then only estimate messages after it locally. This avoids O(n)
+      // re-serialization of the entire conversation on every check.
+      // Only valid when estimating the full conversation (anchored=true).
+      const { anchorTokens, toEstimate } = input.anchored
+        ? findUsageAnchor(input.messages)
+        : { anchorTokens: 0, toEstimate: input.messages }
+
+      if (toEstimate.length === 0) return anchorTokens
+
+      const msgs = yield* MessageV2.toModelMessagesEffect(toEstimate, input.model)
       const text = JSON.stringify(msgs)
       const cfgInfo = yield* config.get()
       const mode = cfgInfo.token_counting?.mode ?? "local"
-      if (mode === "local") return Token.estimate(text)
+      if (mode === "local") return anchorTokens + Token.estimate(text)
       // Non-Anthropic providers do not implement the Anthropic count_tokens
       // endpoint; skip straight to the local estimator instead of paying a
       // guaranteed-failing round trip.
-      if (!isAnthropicLike(input.model)) return Token.estimate(text)
+      if (!isAnthropicLike(input.model)) return anchorTokens + Token.estimate(text)
       // API-backed counting (mode "api" / "auto"): Anthropic countTokens with a
       // local fallback on any failure (missing key, non-Anthropic provider,
       // network error, invalid response). "auto" is exactly this behavior;
@@ -395,7 +472,7 @@ const layer = Layer.effect(
           model: apiModel,
         }),
       ).pipe(Effect.catch(() => Effect.succeed(Token.estimate(text))))
-      return count
+      return anchorTokens + count
     })
 
     const select = Effect.fn("SessionCompaction.select")(function* (input: {
@@ -559,12 +636,23 @@ const layer = Layer.effect(
         { context: [], prompt: undefined },
       )
       const nextPrompt = compacting.prompt ?? buildPrompt({ previousSummary, context: compacting.context })
-      const msgs = structuredClone(selected.head)
-      yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
-      const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, {
-        stripMedia: true,
-        toolOutputMaxChars: TOOL_OUTPUT_MAX_CHARS,
-      })
+
+      // Session-memory fast compaction path (mirrors Claude Code trySessionMemoryCompaction):
+      // if hermes memories are available, build the summary directly from them and
+      // skip the full LLM summary call. Falls through to the LLM path when no
+      // memories exist or the feature is disabled.
+      let fastPathSummary: string | undefined
+      if (cfg.compaction?.session_memory_compaction !== false) {
+        const memories = yield* Effect.promise(() => readHermesMemories())
+        fastPathSummary = buildMemorySummary(memories, previousSummary)
+        if (fastPathSummary) {
+          yield* Effect.logInfo("compaction: using session-memory fast path", {
+            "session.id": input.sessionID,
+            memories: memories.length,
+          })
+        }
+      }
+
       const ctx = yield* InstanceState.context
       const msg: SessionV1.Assistant = {
         id: MessageID.ascending(),
@@ -593,36 +681,59 @@ const layer = Layer.effect(
         },
       }
       yield* session.updateMessage(msg)
-      const processor = yield* processors.create({
-        assistantMessage: msg,
-        sessionID: input.sessionID,
-        model,
-      })
-      const result = yield* processor.process({
-        user: userMessage,
-        agent,
-        sessionID: input.sessionID,
-        tools: {},
-        system: [],
-        messages: [
-          ...modelMessages,
-          {
-            role: "user",
-            content: [{ type: "text", text: nextPrompt }],
-          },
-        ],
-        model,
-      })
 
-      if (result === "compact") {
-        processor.message.error = new SessionV1.ContextOverflowError({
-          message: replay
-            ? "Conversation history too large to compact - exceeds model context limit"
-            : "Session too large to compact - context exceeds model limit even after stripping media",
-        }).toObject()
-        processor.message.finish = "error"
-        yield* session.updateMessage(processor.message)
-        return "stop"
+      let result: "compact" | "stop" | "continue"
+      if (fastPathSummary) {
+        // Fast path: write the memory-based summary directly, no LLM call.
+        yield* session.updatePart({
+          id: PartID.ascending(),
+          messageID: msg.id,
+          sessionID: input.sessionID,
+          type: "text",
+          text: fastPathSummary,
+          time: { start: Date.now(), end: Date.now() },
+        })
+        msg.finish = "stop"
+        yield* session.updateMessage(msg)
+        result = "continue"
+      } else {
+        const msgs = structuredClone(selected.head)
+        yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
+        const modelMessages = yield* MessageV2.toModelMessagesEffect(msgs, model, {
+          stripMedia: true,
+          toolOutputMaxChars: TOOL_OUTPUT_MAX_CHARS,
+        })
+        const processor = yield* processors.create({
+          assistantMessage: msg,
+          sessionID: input.sessionID,
+          model,
+        })
+        result = yield* processor.process({
+          user: userMessage,
+          agent,
+          sessionID: input.sessionID,
+          tools: {},
+          system: [],
+          messages: [
+            ...modelMessages,
+            {
+              role: "user",
+              content: [{ type: "text", text: nextPrompt }],
+            },
+          ],
+          model,
+        })
+
+        if (result === "compact") {
+          processor.message.error = new SessionV1.ContextOverflowError({
+            message: replay
+              ? "Conversation history too large to compact - exceeds model context limit"
+              : "Session too large to compact - context exceeds model limit even after stripping media",
+          }).toObject()
+          processor.message.finish = "error"
+          yield* session.updateMessage(processor.message)
+          return "stop"
+        }
       }
 
       if (compactionPart && selected.tail_start_id && compactionPart.tail_start_id !== selected.tail_start_id) {
@@ -717,7 +828,9 @@ const layer = Layer.effect(
         }
       }
 
-      if (processor.message.error) return "stop"
+      // msg.error covers both paths: the fast path never sets it, and the LLM
+      // path mutates the same object via processor.message.
+      if (msg.error) return "stop"
       if (result === "continue") {
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
       }
