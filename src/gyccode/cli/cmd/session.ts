@@ -13,6 +13,8 @@ import { NotFoundError } from "@/storage/storage"
 import { EOL } from "os"
 import path from "path"
 import { which } from "@gyccode/core/util/which"
+import { Database } from "@gyccode/core/database/database"
+import { dedupeByContent } from "@gyccode/core/session/dedupe"
 
 function pagerCmd(): string[] {
   const lessOptions = ["-R", "-S"]
@@ -84,11 +86,13 @@ export const SessionListCommand = effectCmd({
         default: "table",
       }),
   handler: Effect.fn("Cli.session.list")(function* (args) {
+    const { db } = yield* Database.Service
     const sessions = yield* Session.Service.use((svc) => svc.list({ roots: true, limit: args.maxCount }))
+    const deduped = yield* dedupeByContent(db, sessions, (s) => s.time.updated)
 
-    if (sessions.length === 0) return
+    if (deduped.length === 0) return
 
-    const output = args.format === "json" ? formatSessionJSON(sessions) : formatSessionTable(sessions)
+    const output = args.format === "json" ? formatSessionJSON(deduped) : formatSessionTable(deduped)
 
     const shouldPaginate = process.stdout.isTTY && !args.maxCount && args.format === "table"
 

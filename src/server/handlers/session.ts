@@ -12,6 +12,8 @@ import {
   UnknownError,
 } from "@gyccode/protocol/errors"
 import { AbsolutePath } from "@gyccode/core/schema"
+import { Database } from "@gyccode/core/database/database"
+import { dedupeByContent } from "@gyccode/core/session/dedupe"
 
 const DefaultSessionsLimit = 50
 const DefaultSessionHistoryLimit = 50
@@ -19,6 +21,7 @@ const DefaultSessionHistoryLimit = 50
 export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handlers) =>
   Effect.gen(function* () {
     const session = yield* SessionV2.Service
+    const { db } = yield* Database.Service
 
     return handlers
       .handle(
@@ -30,11 +33,21 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                   Effect.mapError(() => new InvalidCursorError({ message: "Invalid cursor" })),
                 )
               : ctx.query
-          const sessions = yield* session.list({
-            ...query,
-            workspaceID: query.workspace,
-            limit: ctx.query.limit ?? DefaultSessionsLimit,
-          })
+          const limit = ctx.query.limit ?? DefaultSessionsLimit
+          // Fetch 2× the requested limit before dedup to reduce cross-page
+          // duplicates: without the buffer, dedup shrinks a page and the next
+          // cursor may re-introduce duplicates that were removed from the
+          // current page.
+          const allSessions = yield* dedupeByContent(
+            db,
+            yield* session.list({
+              ...query,
+              workspaceID: query.workspace,
+              limit: limit * 2,
+            }),
+            (s) => DateTime.toEpochMillis(s.time.updated),
+          )
+          const sessions = allSessions.slice(0, limit)
           const first = sessions[0]
           const last = sessions.at(-1)
           return {
