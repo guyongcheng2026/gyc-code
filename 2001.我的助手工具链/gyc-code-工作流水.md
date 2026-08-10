@@ -283,3 +283,6 @@
 
 - [OK] 2026-08-10 [1eba1c5] feat(session): conditional rules with globs+language+os matching, system and nearby injection
   - [FILES] 3: src/gyccode/session/instruction.ts, src/gyccode/session/rules.test.ts, src/gyccode/session/rules.ts
+
+- [OK] 2026-08-10 [fbaa60b] fix(session): match rules against relative+absolute paths, dedup unconditional rules, os at system level, loadRules tests
+  - [FILES] 3: src/gyccode/session/instruction.ts, src/gyccode/session/rules.test.ts, src/gyccode/session/rules.ts
