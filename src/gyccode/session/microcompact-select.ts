@@ -79,13 +79,14 @@ export function selectTimeBasedParts(
     const t = msg.info.time
     if (t) {
       const ts = t.completed ?? t.created
-      if (ts) lastAt = Math.max(lastAt, ts)
+      if (ts != null) lastAt = Math.max(lastAt, ts)
     }
   }
   // Fall back to the latest completed tool end when no message timestamps exist
   if (lastAt === 0) {
     for (const msg of msgs) {
       if (msg.info.role !== "assistant") continue
+      if (msg.info.summary === true) continue
       for (const part of msg.parts) {
         if (part.type === "tool" && part.state.status === "completed" && part.state.time.end) {
           lastAt = Math.max(lastAt, part.state.time.end)

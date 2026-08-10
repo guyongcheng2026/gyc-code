@@ -135,15 +135,12 @@ describe("selectTimeBasedParts", () => {
     expect(selectTimeBasedParts(msgs as any, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
   })
 
-  it("fires exactly at the gap boundary", () => {
-    // Exactly gapMinutes of idle time: the gap check only bails when
-    // now - lastAt < gapMs, so an idle time of exactly gapMinutes is still
-    // treated as "gap exceeded" (inclusive boundary). With a single message and
-    // keepRecent 1 there is nothing to clear (loop bound is empty), so the
-    // result is the empty array — the boundary itself does not short-circuit.
-    const msgs = [toolMsg("m0", now - 60 * 60 * 1000)] // exactly gapMinutes
+  it("fires at the gap boundary (inclusive)", () => {
+    const at = now - 60 * 60 * 1000 // exactly gapMinutes
+    const msgs = [toolMsg("m0", at), toolMsg("m1", at), toolMsg("m2", at)]
     const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 1 })
-    expect(selected).toEqual([])
+    const idx = selected.map((s) => s._msgIndex)
+    expect(idx).toEqual([0, 1]) // m2 kept as keepRecent tail
   })
 
   it("handles keepRecent >= message count", () => {
