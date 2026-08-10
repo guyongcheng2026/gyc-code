@@ -50,8 +50,20 @@ export function parseRuleFrontmatter(
     }
   }
 
-  const langMatch = fm.match(/language:\s*["']?([A-Za-z-]+)["']?/m)
-  const osMatch = fm.match(/os:\s*["']?([A-Za-z0-9_-]+)["']?/m)
+  // `language:`/`os:` are only honored inside an explicit `condition:` block.
+  // Comment lines are stripped first so a commented `# language: en` elsewhere
+  // in the frontmatter can't leak into the parsed condition.
+  const fmNoComments = fm.replace(/^\s*#.*$/gm, "")
+  const conditionMatch = fmNoComments.match(/^condition\s*:\s*$/m)
+  let langMatch: RegExpMatchArray | null = null
+  let osMatch: RegExpMatchArray | null = null
+  if (conditionMatch) {
+    const rest = fmNoComments.slice(conditionMatch.index! + conditionMatch[0].length)
+    // The condition block ends at the next top-level (unindented) key.
+    const block = rest.split(/\n(?=\S)/)[0] ?? rest
+    langMatch = block.match(/language:\s*["']?([A-Za-z-]+)["']?/m)
+    osMatch = block.match(/os:\s*["']?([A-Za-z0-9_-]+)["']?/m)
+  }
   if (langMatch || osMatch) {
     condition = {
       ...(langMatch ? { language: langMatch[1]!.toLowerCase() } : {}),
@@ -98,6 +110,15 @@ export function globToRegExp(glob: string): RegExp {
 
 export interface MatchInput {
   filepath: string
+  /**
+   * Optional path relative to the project root (POSIX separators). Globs in
+   * rule files follow Claude Code's convention and are relative to the project
+   * root (e.g. a `src/**` glob), while the read tool hands `resolve()` an
+   * absolute path. Matching against BOTH the normalized absolute path and the
+   * relative path means the documented relative-glob convention actually fires
+   * for real reads.
+   */
+  rel?: string
   language?: string
   os?: string
 }
@@ -111,11 +132,41 @@ export function matchRules(rules: readonly Rule[], input: MatchInput): Rule[] {
   const filepath = input.filepath.replace(/\\/g, "/")
   return rules.filter((rule) => {
     if (rule.globs && rule.globs.length > 0) {
-      const hit = rule.globs.some((g) => globToRegExp(g).test(filepath))
+      const hit = rule.globs.some(
+        (g) => globToRegExp(g).test(filepath) || (input.rel ? globToRegExp(g).test(input.rel) : false),
+      )
       if (!hit) return false
     }
     if (rule.condition?.language && rule.condition.language !== lang) return false
     if (rule.condition?.os && rule.condition.os !== os) return false
     return true
   })
+}
+
+/**
+ * Load + parse rule files from the given directories (e.g. `.claude/rules`
+ * and project `rules/`). Missing dirs yield no files; unreadable files and
+ * frontmatter rules with an empty body are skipped.
+ */
+export async function loadRulesFromDirs(
+  dirs: string[],
+  readFile: (p: string) => Promise<string>,
+  listMd: (dir: string) => Promise<string[]>,
+): Promise<Rule[]> {
+  const rules: Rule[] = []
+  for (const dir of dirs) {
+    const files = await listMd(dir).catch(() => [] as string[])
+    for (const f of files) {
+      const text = await readFile(f).catch(() => "")
+      const parsed = parseRuleFrontmatter(text)
+      if (parsed && parsed.body) {
+        rules.push({ filepath: f, globs: parsed.globs, condition: parsed.condition, body: parsed.body })
+      } else if (!parsed && text.trim()) {
+        // No frontmatter: the whole non-empty text is the rule body.
+        // A frontmatter-only file (empty body) is skipped entirely.
+        rules.push({ filepath: f, body: text.trim() })
+      }
+    }
+  }
+  return rules
 }

@@ -16,7 +16,7 @@ import { withTransientReadRetry } from "@/util/effect-http-client"
 import { Global } from "@gyccode/core/global"
 import { type SessionEventPublisher } from "./session-cwd"
 import { resolveIncludes, MAX_INCLUDE_DEPTH, TEXT_FILE_EXTENSIONS } from "./instruction-includes"
-import { matchRules, parseRuleFrontmatter, type Rule } from "./rules"
+import { loadRulesFromDirs, matchRules, type Rule } from "./rules"
 import type { MessageV2 } from "./message-v2"
 import type { MessageID, SessionID } from "./schema"
 
@@ -118,25 +118,21 @@ const layer: Layer.Layer<
     })
 
     // Discover + parse conditional rule files: `.claude/rules/` and project
-    // `rules/` (both recursive) under a root directory. Missing dirs yield no
-    // files; unparseable/empty files are skipped.
+    // `rules/` (both recursive) under a root directory. Thin adapter over the
+    // pure `loadRulesFromDirs` helper; missing dirs yield no files and
+    // unparseable/empty files are skipped.
     const loadRules = Effect.fnUntraced(function* (dir: string) {
       const bases = [path.join(dir, ".claude", "rules"), path.join(dir, "rules")]
-      const files: string[] = []
-      for (const base of bases) {
-        const found = yield* fs
-          .glob("**/*.md", { cwd: base, absolute: true, include: "file" })
-          .pipe(Effect.catch(() => Effect.succeed([] as string[])))
-        files.push(...found)
-      }
-      const rules: Rule[] = []
-      for (const f of files) {
-        const text = yield* read(f)
-        const parsed = parseRuleFrontmatter(text)
-        if (parsed) rules.push({ filepath: f, globs: parsed.globs, condition: parsed.condition, body: parsed.body })
-        else if (text.trim()) rules.push({ filepath: f, body: text.trim() })
-      }
-      return rules
+      const readFile = (p: string) => Effect.runPromise(read(p))
+      const listMd = (d: string) =>
+        Effect.runPromise(
+          fs
+            .glob("**/*.md", { cwd: d, absolute: true, include: "file" })
+            .pipe(Effect.catch(() => Effect.succeed([] as string[]))),
+        )
+      return yield* Effect.tryPromise(() => loadRulesFromDirs(bases, readFile, listMd)).pipe(
+        Effect.catch(() => Effect.succeed([] as Rule[])),
+      )
     })
 
     // Recursively resolve `@include` references in an instruction file.
@@ -255,7 +251,7 @@ const layer: Layer.Layer<
       // rules are attached nearby in `resolve()`.
       const ctx = yield* InstanceState.context
       const rules = yield* loadRules(ctx.directory)
-      const sysRules = matchRules(rules, { filepath: "", language: config.language })
+      const sysRules = matchRules(rules, { filepath: "", language: config.language, os: process.platform })
       for (const r of sysRules) {
         local.push(`Rules from: ${r.filepath}\n${r.body}`)
       }
@@ -313,10 +309,21 @@ const layer: Layer.Layer<
       }
 
       // Nearby rules: match the concrete file being read/edited against rule
-      // globs + language/os conditions and attach the hits.
+      // globs + language/os conditions and attach the hits. Rules are tested
+      // against BOTH the absolute read path and the path relative to the
+      // project root, so the documented relative-glob convention (`src/**`)
+      // fires for real absolute read paths. Glob-less rules are already in the
+      // system prompt, so only globbed rules are attached nearby (avoids
+      // duplicating an unconditional rule for every read in a message).
       const configInfo = yield* cfg.get()
       const rules = yield* loadRules(root)
-      const matched = matchRules(rules, { filepath, language: configInfo.language, os: process.platform })
+      const rel = path.relative(root, filepath).replace(/\\/g, "/")
+      const matched = matchRules(rules, {
+        filepath,
+        rel,
+        language: configInfo.language,
+        os: process.platform,
+      }).filter((r) => r.globs && r.globs.length > 0)
       for (const r of matched) {
         results.push({ filepath: r.filepath, content: `Rules from: ${r.filepath}\n${r.body}` })
       }
