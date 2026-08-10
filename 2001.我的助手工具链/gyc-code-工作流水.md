@@ -265,3 +265,6 @@
 
 - [OK] 2026-08-10 [61768a9] fix(core): bound compaction recent tail to remaining token budget, not the head
   - [FILES] 1: src/core/session/compaction.ts
+
+- [OK] 2026-08-10 [b1a46cf] feat(session): support [1m] suffix opt-in and universal GYCCODE_MAX_CONTEXT_TOKENS window cap
+  - [FILES] 3: src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context1m.test.ts, src/gyccode/session/overflow.ts
