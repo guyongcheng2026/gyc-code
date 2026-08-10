@@ -298,3 +298,6 @@
 
 - [OK] 2026-08-10 [1b6ef1d] test(session): lock inclusive gap-boundary with 3-message fixture, skip summary in tool-end fallback
   - [FILES] 2: src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts
+
+- [OK] 2026-08-10 [835fb48] feat(session): API-native context management via context-management beta, universally configurable
+  - [FILES] 5: src/gyccode/session/llm.ts, src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.test.ts, src/gyccode/session/llm/context-management.ts, src/gyccode/session/llm/request.ts
