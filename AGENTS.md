@@ -22,6 +22,17 @@ gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\Users\谷勇
 - 复用率口径：(重复行/总行)
 - 不臆造：只看真实代码，未覆盖的明确标注"未检"
 
+## 铁律：任务完成后的自我总结、归纳、学习与进化（强制）
+
+每次任务完成后（无论成功、部分成功或失败），必须执行以下 4 步，不得跳过：
+
+1. **总结**：用 3-5 句话概括本次任务的做了什么、结果如何、留下什么文件/命令/配置。
+2. **归纳**：提炼出可复用的规律——哪些方法有效、哪些踩坑、哪些假设被验证或推翻。
+3. **学习**：把关键经验沉淀为记忆/知识（写入 `docs/` 或 Obsidian 知识库，或更新本规则/相关 SKILL），让下一次同类任务直接受益。
+4. **进化**：如果有可改进的流程、配置、脚本或规则，立即落地改动；如果本轮没机会，记录为待办。
+
+触发时机：任何子任务结束、会话结束、commit 之前，都必须自检是否完成了上述 4 步。缺失即视为任务未完成。
+
 ## 工作流同步约定（每次代码改动完成后必须执行）
 1. **GitHub**：提交 commit 后 `.githooks/post-commit` 自动 `git push origin HEAD`（origin 走 gh-proxy：`https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git`），无需手动 push。
 2. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit + push vault 仓库（gitee `wwkceldn/gu-yongchengs-knowledge-base`）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
