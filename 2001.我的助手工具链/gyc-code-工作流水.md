@@ -409,3 +409,6 @@
 
 - [OK] 2026-08-11 [7db72f9] 修复26处TS类型错误+底部区对齐+provider向导简化：编码/BOM/prompt/消息/向导类型清零，subagent-footer统一usage limit格式并补状态显示，custom-provider保存即用，compose同步脚本与上下文侧边栏增强
   - [FILES] 23: build.mjs, scripts/sync-compose.mjs, src/core/util/text-encoding.test.ts, src/gyccode/effect/runtime-flags.ts, src/gyccode/session/message-v2.date.test.ts, src/gyccode/session/message-v2.ts ...
+
+- [OK] 2026-08-11 [a198a62] 极简主义清理：删除无生产引用的 src/ui 组件库（157文件），仅保留 TUI 音效包 @gyccode/ui/audio，修复 jsxDEV 测试崩溃，全量测试 353 全绿
+  - [FILES] 1559: src/ui/assets.d.ts, src/ui/assets/favicon/apple-touch-icon-v3.png, src/ui/assets/favicon/apple-touch-icon.png, src/ui/assets/favicon/favicon-96x96-v3.png, src/ui/assets/favicon/favicon-96x96.png, src/ui/assets/favicon/favicon-v3.ico ...
