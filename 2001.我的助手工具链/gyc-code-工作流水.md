@@ -391,3 +391,6 @@
 
 - [OK] 2026-08-11 [943527c] 缓存增量预算护栏：小上下文窗口模型(DeepSeek 128K)单条工具输出注入≤1.5K字符/单消息≤24K字符，冻结决策保前缀稳定；cache-probe 支持 toolRows 参数，实测120轮小增量综合命中率98.31%达标
   - [FILES] 4: scripts/cache-probe.mjs, src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-11 [798a458] feat(ops): 新增数据目录维护脚本 maintain-data（dry-run/checkpoint/clean）并记录 2026-08-11 资源优化过程（记忆提取失败冷却+small_model 修复已在并行提交落地）
+  - [FILES] 2: docs/RESOURCE-OPTIMIZATION-2026-08-11.md, scripts/maintain-data.mjs
