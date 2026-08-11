@@ -385,3 +385,6 @@
 
 - [OK] 2026-08-11 [d8c8444] 优化 DeepSeek 官方通道缓存命中：日期移出前缀+记忆会话级固定+微压缩阈值0.9/前缀保留20，新增 cache-probe 实测脚本
   - [FILES] 6: scripts/cache-probe.mjs, src/gyccode/session/compaction.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/microcompact-select.ts, src/gyccode/session/prompt.ts, src/gyccode/session/system.ts
+
+- [OK] 2026-08-11 [9799f73] 修正日期缓存方案：DeepSeek 对 system 任何变化整段失效，日期改为注入最新 user 消息（实测跨天轮 92.9% vs 0%），新增 cache-compare 对照脚本
+  - [FILES] 3: scripts/cache-compare.mjs, src/gyccode/session/prompt.ts, src/gyccode/session/system.ts
