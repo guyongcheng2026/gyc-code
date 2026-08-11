@@ -41,6 +41,7 @@ import { SessionID, MessageID, PartID } from "./schema"
 
 import type { Provider } from "@/provider/provider"
 import { Global } from "@gyccode/core/global"
+import { formatSessionTitleDate } from "@gyccode/core/util/date"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { NonNegativeInt, optional } from "@gyccode/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -53,7 +54,7 @@ const childTitlePrefix = "Child session - "
 
 export function isDefaultTitle(title: string) {
   return new RegExp(
-    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$`,
+    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}(Z|[+-]\\d{2}:\\d{2})?$`,
   ).test(title)
 }
 
@@ -530,7 +531,8 @@ const layer: Layer.Layer<
         path: input.path,
         workspaceID: input.workspaceID,
         parentID: input.parentID,
-        title: input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + new Date().toISOString(),
+        title:
+          input.title ?? (input.parentID ? childTitlePrefix : parentTitlePrefix) + formatSessionTitleDate(new Date()),
         agent: input.agent,
         model: input.model,
         metadata: input.metadata,
