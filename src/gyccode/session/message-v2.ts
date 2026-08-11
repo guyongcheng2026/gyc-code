@@ -54,7 +54,20 @@ function truncateToolOutput(text: string, maxChars?: number) {
 
 const MAX_AGGREGATED_TOOL_CHARS = 100_000
 const MIN_AGGREGATED_TOOL_KEEP_CHARS = 1_024
+/** 缓存增量预算（小上下文窗口模型，如 DeepSeek v4-flash 128K）：
+ * 综合命中率 ≈ 1 - 2/N（N=压缩前轮数），98.2% 需 N ≥ 112，
+ * 即每轮增量 ≤ 0.9×128K/112 ≈ 1.03K token。单条工具输出注入上限 1.5K 字符
+ * （约 400 token），单条 assistant 消息合计 24K 字符（约 6K token），
+ * 保证长会话每轮增量可控、压缩前可跑 100+ 轮。 */
+export const CACHE_FRIENDLY_TOOL_CHARS = 1_500
+export const CACHE_FRIENDLY_AGGREGATE_CHARS = 24_000
+export const CACHE_FRIENDLY_CONTEXT_LIMIT = 200_000
 
+/** 按模型上下文窗口返回缓存友好预算；大窗口模型不额外收紧（返回 undefined）。 */
+export function cacheFriendlyBudget(contextLimit: number | undefined) {
+  if (contextLimit === undefined || contextLimit <= 0 || contextLimit > CACHE_FRIENDLY_CONTEXT_LIMIT) return undefined
+  return { maxPerChar: CACHE_FRIENDLY_TOOL_CHARS, maxTotalChars: CACHE_FRIENDLY_AGGREGATE_CHARS }
+}
 /**
  * Frozen truncation decisions keyed by tool callID. Once a callID has been
  * decided (truncated or kept intact), the decision is recorded here and never
@@ -77,36 +90,45 @@ export function resetTruncationDecisions(): void {
  * cache prefix. Returns a map of callID -> cap chars, or undefined if under
  * budget.
  */
-export function aggregateToolCaps(parts: readonly SessionV1.Part[]) {
+export function aggregateToolCaps(
+  parts: readonly SessionV1.Part[],
+  opts?: { maxPerChar?: number; maxTotalChars?: number },
+) {
   const caps = new Map<string, number>()
+  const lens = new Map<string, number>()
   const callIDs: string[] = []
   let total = 0
+  const maxPerChar = opts?.maxPerChar
+  const maxTotalChars = opts?.maxTotalChars ?? MAX_AGGREGATED_TOOL_CHARS
   for (const part of parts) {
     if (part.type !== "tool") continue
     if (part.state.status !== "completed" || part.state.time.compacted) continue
     const callID = part.callID
     const text = part.state.output
     callIDs.push(callID)
-    total += text.length
-    caps.set(callID, text.length)
+    lens.set(callID, text.length)
+    const cap = maxPerChar !== undefined && text.length > maxPerChar ? maxPerChar : text.length
+    caps.set(callID, cap)
+    total += cap
   }
   if (callIDs.length === 0) return undefined
   // All callIDs already decided? Reuse the frozen decision set exactly.
   const allDecided = callIDs.every((id) => truncationDecisions.has(id))
   if (allDecided) {
-    for (const [id, keep] of truncationDecisions) {
-      if (keep !== undefined && caps.has(id)) caps.set(id, keep)
+    for (const id of callIDs) {
+      const keep = truncationDecisions.get(id)
+      caps.set(id, keep ?? lens.get(id) ?? 0)
     }
     return caps
   }
-  if (total <= MAX_AGGREGATED_TOOL_CHARS) {
-    // Under budget: record "not truncated" for each callID so later calls freeze.
+  if (total <= maxTotalChars) {
+    // Under budget: freeze each callID (cap when maxPerChar applies, else "not truncated").
     for (const id of callIDs) {
-      if (!truncationDecisions.has(id)) truncationDecisions.set(id, undefined)
+      if (!truncationDecisions.has(id)) truncationDecisions.set(id, maxPerChar !== undefined ? caps.get(id) : undefined)
     }
-    return undefined
+    return maxPerChar !== undefined ? caps : undefined
   }
-  let excess = total - MAX_AGGREGATED_TOOL_CHARS
+  let excess = total - maxTotalChars
   // Deterministic order: largest length first, then ascending callID.
   const entries = [...caps.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
   for (const [callID, length] of entries) {

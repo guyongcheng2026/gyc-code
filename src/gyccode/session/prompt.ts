@@ -1577,7 +1577,7 @@ const layer = Layer.effect(
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               sys.memory(memoryQuery, sessionID),
-              MessageV2.toModelMessagesEffect(msgs, model),
+              MessageV2.toModelMessagesEffect(msgs, model, { cacheBudget: MessageV2.cacheFriendlyBudget(model.limit.context) }),
             ])
             const instructions = instructionResolved.files
             // Publish session.instructions with exactly the resolved instruction paths in play

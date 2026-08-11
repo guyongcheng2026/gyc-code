@@ -1,5 +1,5 @@
 ﻿import { expect, test } from "bun:test"
-import { aggregateToolCaps, resetTruncationDecisions } from "./message-v2"
+import { aggregateToolCaps, resetTruncationDecisions, cacheFriendlyBudget } from "./message-v2"
 
 function toolPart(callID: string, output: string) {
   return {
@@ -64,4 +64,31 @@ test("resetTruncationDecisions releases frozen caps after compaction", () => {
   resetTruncationDecisions()
   const capsB = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(200_000))] as any)!
   expect(capsB.get("c2")!).toBeLessThan(keepA)
+})
+
+test("aggregateToolCaps caps per-tool output with maxPerChar (cache budget)", () => {
+  resetTruncationDecisions()
+  const parts = [toolPart("c1", "x".repeat(5_000))]
+  const caps = aggregateToolCaps(parts as any, { maxPerChar: 1_500, maxTotalChars: 24_000 })
+  expect(caps).toBeDefined()
+  expect(caps!.get("c1")).toBe(1_500)
+})
+
+test("aggregateToolCaps freezes maxPerChar decisions across repeated calls", () => {
+  resetTruncationDecisions()
+  const p1 = [toolPart("c1", "x".repeat(5_000)), toolPart("c2", "y".repeat(300))]
+  const caps1 = aggregateToolCaps(p1 as any, { maxPerChar: 1_500, maxTotalChars: 24_000 })!
+  expect(caps1.get("c1")).toBe(1_500)
+  expect(caps1.get("c2")).toBe(300)
+  // Later call with the same callIDs must keep the frozen cap (prefix byte-stable).
+  const caps2 = aggregateToolCaps(p1 as any, { maxPerChar: 1_500, maxTotalChars: 24_000 })!
+  expect(caps2.get("c1")).toBe(1_500)
+  expect(caps2.get("c2")).toBe(300)
+})
+
+test("cacheFriendlyBudget applies only to small context windows", () => {
+  expect(cacheFriendlyBudget(128_000)).toEqual({ maxPerChar: 1_500, maxTotalChars: 24_000 })
+  expect(cacheFriendlyBudget(200_000)).toEqual({ maxPerChar: 1_500, maxTotalChars: 24_000 })
+  expect(cacheFriendlyBudget(1_000_000)).toBeUndefined()
+  expect(cacheFriendlyBudget(undefined)).toBeUndefined()
 })

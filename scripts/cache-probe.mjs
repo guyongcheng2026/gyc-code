@@ -28,6 +28,8 @@ if (!API_KEY) {
 const rounds = Number(process.argv[2] || 40)
 const model = process.argv[3] || "deepseek-v4-flash"
 const effort = process.argv[4] || "high"
+// 每轮工具输出行数（默认 40 行 ≈ 1.5K token；小增量场景可用 15 行 ≈ 0.6K token）
+const toolRows = Number(process.argv[5] || 40)
 
 async function call(body) {
   const res = await fetch(BASE + "/chat/completions", {
@@ -65,10 +67,10 @@ const SYSTEM = [
   "Today's date: " + new Date().toDateString(),
 ].join("\n")
 
-// 每轮 ~1.5K token 的工具输出（模拟真实 read/glob 结果，增量远大于 128 对齐粒度）
-function bigToolOutput(i) {
+// 每轮工具输出（模拟真实 read/glob 结果；行数决定增量大小）
+function bigToolOutput(i, rows) {
   const lines = []
-  for (let k = 0; k < 40; k++) {
+  for (let k = 0; k < rows; k++) {
     lines.push("src/core/module" + i + "_" + k + ".ts:  export function handler" + i + "_" + k + "(input: Input, ctx: Ctx) { return process(input, { mode: 'strict', depth: " + (i + k) + " }); } // L" + (k * 5 + 10) + " 校验通过")
   }
   return lines.join("\n")
@@ -82,7 +84,7 @@ const messages = [
 let totalHit = 0
 let totalMiss = 0
 let firstMiss = 0
-console.log("模型=" + model + " effort=" + effort + " 轮数=" + rounds + "（每轮含一次 tool_calls + ~1.5K 工具结果）\n")
+console.log("模型=" + model + " effort=" + effort + " 轮数=" + rounds + " 工具输出行数=" + toolRows + "（约 " + Math.round(toolRows * 38) + " token/轮）\n")
 
 for (let r = 0; r < rounds; r++) {
   const body = { model, messages, tools: TOOLS, stream: false, max_tokens: 300 }
@@ -100,7 +102,7 @@ for (let r = 0; r < rounds; r++) {
   if (r < rounds - 1) {
     const text = data.choices?.[0]?.message?.content || ""
     messages.push({ role: "assistant", content: text || "Checking next file.", tool_calls: [{ id: "call_" + r, type: "function", function: { name: "read", arguments: JSON.stringify({ path: "src/core/module" + r + ".ts" }) } }] })
-    messages.push({ role: "tool", tool_call_id: "call_" + r, content: bigToolOutput(r) })
+    messages.push({ role: "tool", tool_call_id: "call_" + r, content: bigToolOutput(r, toolRows) })
     messages.push({ role: "user", content: "Continue. Examine " + (r + 1) + " more area, then summarize progress in one short paragraph." })
   }
 }
