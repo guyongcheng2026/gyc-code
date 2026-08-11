@@ -406,3 +406,6 @@
 
 - [OK] 2026-08-11 [4b4bb19] P0-2 方案A落地：iconv-lite 编码感知写回，GBK/GB18030 文件读改写不再乱码
   - [FILES] 10: package.json, src/core/file-mutation.ts, src/core/tool/apply-patch.ts, src/core/tool/edit.ts, src/core/util/text-encoding.test.ts, src/core/util/text-encoding.ts ...
+
+- [OK] 2026-08-11 [7db72f9] 修复26处TS类型错误+底部区对齐+provider向导简化：编码/BOM/prompt/消息/向导类型清零，subagent-footer统一usage limit格式并补状态显示，custom-provider保存即用，compose同步脚本与上下文侧边栏增强
+  - [FILES] 23: build.mjs, scripts/sync-compose.mjs, src/core/util/text-encoding.test.ts, src/gyccode/effect/runtime-flags.ts, src/gyccode/session/message-v2.date.test.ts, src/gyccode/session/message-v2.ts ...
