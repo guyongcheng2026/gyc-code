@@ -236,9 +236,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       const pluginRuntime = createPluginRuntime()
 
       yield* Effect.tryPromise(async () => {
-        // Prewarm palette before ThemeProvider mounts so `system` theme avoids a first-paint fallback flash.
-        void renderer.getPalette({ size: 16 }).catch(() => undefined)
-        const mode = (await renderer.waitForThemeMode(1000)) ?? "dark"
+        // 固定 dark 模式立即渲染，避免等待终端主题探测导致启动闪烁；手动切换由 theme_mode_lock 记住并优先。
+        const mode = "dark"
         if (renderer.isDestroyed) return
 
         await render(() => {

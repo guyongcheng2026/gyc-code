@@ -14,7 +14,6 @@ import {
   setCustomThemes,
   setSystemTheme,
   subscribeThemes,
-  terminalMode,
   tint,
   upsertTheme,
   type ThemeJson,
@@ -71,7 +70,6 @@ export {
   isTheme,
   resolveTheme,
   selectedForeground,
-  terminalMode,
   tint,
   upsertTheme,
   type Theme,
@@ -114,7 +112,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     setStore(
       produce((draft) => {
         const lock = pick(kv.get("theme_mode_lock"))
-        const mode = lock ?? pick(renderer.themeMode) ?? props.mode
+        const mode = lock ?? props.mode
         if (!lock && pick(kv.get("theme_mode")) !== undefined) kv.set("theme_mode", undefined)
         draft.mode = mode
         draft.lock = lock
@@ -162,7 +160,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
             if (store.active === "system") setStore("active", "gyccode")
             return
           }
-          const next = store.lock ?? terminalMode(colors) ?? mode
+          const next = store.lock ?? mode
           if (store.mode !== next) setStore("mode", next)
           const signature = JSON.stringify(colors)
           hasResolvedSystemTheme = true
