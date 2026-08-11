@@ -85,6 +85,27 @@ export function microcompact(
   return result
 }
 
+export interface PivotSelection {
+  head: SessionV1.WithParts[]
+  tail_start_id: MessageID
+}
+
+/** Select pivot-based partial compaction (up_to direction): compact everything
+ * before the pivot message and keep the pivot plus everything after it. Returns
+ * undefined when the pivot is missing or is the first message (nothing to
+ * compact before it), so callers fall back to standard tail-turns selection. */
+export function pivotTail(
+  messages: readonly SessionV1.WithParts[],
+  pivotMessageID: MessageID,
+): PivotSelection | undefined {
+  const pivotIndex = messages.findIndex((m) => m.info.id === pivotMessageID)
+  if (pivotIndex <= 0) return undefined
+  return {
+    head: messages.slice(0, pivotIndex),
+    tail_start_id: messages[pivotIndex]!.info.id,
+  }
+}
+
 /**
  * Usage-anchored estimation (mirrors Claude Code tokenCountWithEstimation).
  *
@@ -287,6 +308,7 @@ export interface Interface {
     model: { providerID: ProviderV2.ID; modelID: ModelV2.ID }
     auto: boolean
     overflow?: boolean
+    pivot?: MessageID
   }) => Effect.Effect<void>
 }
 
@@ -489,7 +511,13 @@ const layer = Layer.effect(
       messages: SessionV1.WithParts[]
       cfg: ConfigV1.Info
       model: Provider.Model
+      pivot?: MessageID
     }) {
+      if (input.pivot) {
+        const selected = pivotTail(input.messages, input.pivot)
+        if (selected) return selected
+        yield* Effect.logInfo("compaction: pivot fallback to tail-turns", { "pivot.id": input.pivot })
+      }
       const limit = input.cfg.compaction?.tail_turns ?? DEFAULT_TAIL_TURNS
       if (limit <= 0) return { head: input.messages, tail_start_id: undefined }
       const budget = preserveRecentBudget({ cfg: input.cfg, model: input.model })
@@ -638,6 +666,7 @@ const layer = Layer.effect(
         messages: history.filter((_, index) => !hidden.has(index)),
         cfg,
         model,
+        pivot: compactionPart?.pivot_message_id,
       })
       // Allow plugins to inject context or replace compaction prompt.
       const compacting = yield* plugin.trigger(
@@ -862,6 +891,7 @@ const layer = Layer.effect(
       model: { providerID: ProviderV2.ID; modelID: ModelV2.ID }
       auto: boolean
       overflow?: boolean
+      pivot?: MessageID
     }) {
       const msg = yield* session.updateMessage({
         id: MessageID.ascending(),
@@ -878,6 +908,7 @@ const layer = Layer.effect(
         type: "compaction",
         auto: input.auto,
         overflow: input.overflow,
+        pivot_message_id: input.pivot,
       })
     })
 
