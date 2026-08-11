@@ -400,3 +400,6 @@
 
 - [OK] 2026-08-11 [e7babdc] 编码治理：read/子进程/ripgrep 编码探测与自适应解码（UTF-8 严格失败回退 GB18030），配置解析统一剥离 BOM，worklog 兼容 GBK；新增 core/util/text-encoding 工具与测试
   - [FILES] 16: README.md, scripts/worklog-sync.mjs, src/core/config.ts, src/core/process.ts, src/core/ripgrep.ts, src/core/ripgrep/binary.ts ...
+
+- [OK] 2026-08-11 [1462ef9] docs(ops): 记录 event 保留期 8h 实际裁剪（12h 不裁 9h 空闲会话，改 8h 回收 9MB→3.6MB）与多实例收敛（3→1，仅留当前实例 6544）
+  - [FILES] 1: docs/RESOURCE-OPTIMIZATION-2026-08-11.md
