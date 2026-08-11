@@ -397,3 +397,6 @@
 
 - [OK] 2026-08-11 [dc5f2ce] feat(ops): maintain-data 新增 --prune-events 事件增量保留（空闲>24h 会话裁剪 part.updated 中间快照，保留每 part 最新一条）；删除 571MB 备份残留并记录
   - [FILES] 2: docs/RESOURCE-OPTIMIZATION-2026-08-11.md, scripts/maintain-data.mjs
+
+- [OK] 2026-08-11 [e7babdc] 编码治理：read/子进程/ripgrep 编码探测与自适应解码（UTF-8 严格失败回退 GB18030），配置解析统一剥离 BOM，worklog 兼容 GBK；新增 core/util/text-encoding 工具与测试
+  - [FILES] 16: README.md, scripts/worklog-sync.mjs, src/core/config.ts, src/core/process.ts, src/core/ripgrep.ts, src/core/ripgrep/binary.ts ...
