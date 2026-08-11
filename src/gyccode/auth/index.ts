@@ -4,6 +4,8 @@ import { Effect, Layer, Record, Result, Schema, Context } from "effect"
 import { NonNegativeInt } from "@gyccode/core/schema"
 import { Global } from "@gyccode/core/global"
 import { FSUtil } from "@gyccode/core/fs-util"
+import { Credential } from "@gyccode/core/credential"
+import { Integration } from "@gyccode/schema/integration"
 
 export const OAUTH_DUMMY_KEY = "gyccode-oauth-dummy-key"
 
@@ -53,6 +55,7 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fsys = yield* FSUtil.Service
+    const credentials = yield* Credential.Service
     const decode = Schema.decodeUnknownOption(Info)
 
     const all = Effect.fn("Auth.all")(function* () {
@@ -78,6 +81,18 @@ const layer = Layer.effect(
       yield* fsys
         .writeJson(file, { ...data, [norm]: info }, 0o600)
         .pipe(Effect.mapError(fail("Failed to write auth data")))
+      // 同步数据库凭据表：provider 可用性判断（catalog available 基于 integration connections）依赖 credential 表
+      if (info.type === "api") {
+        yield* credentials.create({
+          integrationID: Integration.ID.make(norm),
+          value: Credential.Key.make({
+            type: "key",
+            key: info.key,
+            ...(info.metadata ? { metadata: info.metadata } : {}),
+          }),
+          label: "default",
+        })
+      }
     })
 
     const remove = Effect.fn("Auth.remove")(function* (key: string) {
@@ -86,12 +101,17 @@ const layer = Layer.effect(
       delete data[key]
       delete data[norm]
       yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
+      // 同步删除数据库凭据表记录
+      const stored = yield* credentials.list(Integration.ID.make(norm))
+      for (const credential of stored) {
+        yield* credentials.remove(credential.id)
+      }
     })
 
     return Service.of({ get, all, set, remove })
   }),
 )
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [FSUtil.node] })
+export const node = LayerNode.make({ service: Service, layer: layer, deps: [FSUtil.node, Credential.node] })
 
 export * as Auth from "."

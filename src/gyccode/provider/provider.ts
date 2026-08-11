@@ -1620,7 +1620,11 @@ const layer = Layer.effect(
 
         for (const [id, provider] of Object.entries(providers)) {
           const providerID = ProviderV2.ID.make(id)
-          if (!isProviderAllowed(providerID)) {
+          // Authenticated providers stay available even when they are missing
+          // from enabled_providers: the user has explicitly connected them and
+          // the provider.list handler already merges "connected" over the
+          // enabled filter. disabled_providers remains a hard exclusion.
+          if (disabled.has(providerID) || (enabled && !enabled.has(providerID) && !Object.hasOwn(auths, id))) {
             delete providers[providerID]
             continue
           }
