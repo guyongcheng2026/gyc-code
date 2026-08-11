@@ -388,3 +388,6 @@
 
 - [OK] 2026-08-11 [9799f73] 修正日期缓存方案：DeepSeek 对 system 任何变化整段失效，日期改为注入最新 user 消息（实测跨天轮 92.9% vs 0%），新增 cache-compare 对照脚本
   - [FILES] 3: scripts/cache-compare.mjs, src/gyccode/session/prompt.ts, src/gyccode/session/system.ts
+
+- [OK] 2026-08-11 [943527c] 缓存增量预算护栏：小上下文窗口模型(DeepSeek 128K)单条工具输出注入≤1.5K字符/单消息≤24K字符，冻结决策保前缀稳定；cache-probe 支持 toolRows 参数，实测120轮小增量综合命中率98.31%达标
+  - [FILES] 4: scripts/cache-probe.mjs, src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/prompt.ts
