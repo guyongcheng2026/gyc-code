@@ -79,9 +79,13 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
         )
           .then((result) => {
             models = result.models
-            return Object.fromEntries(
-              Object.entries(result.models).filter(([, model]) => result.pickerEnabled.has(model.api.id)),
+            const pickable = Object.entries(result.models).filter(([, model]) =>
+              result.pickerEnabled.has(model.api.id),
             )
+            // Copilot Free plans only expose default models whose
+            // `model_picker_enabled` is false. Fall back to all usable models so
+            // the provider is not discarded as empty.
+            return Object.fromEntries(pickable.length > 0 ? pickable : Object.entries(result.models))
           })
           .catch((error) => {
             models = {}
