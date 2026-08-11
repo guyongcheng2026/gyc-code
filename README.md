@@ -103,3 +103,11 @@ src/
 ## License
 
 MIT License — 详见 LICENSE 文件。
+
+## 编码策略（Windows 中文环境）
+
+- 所有生成/写入的文件统一 **UTF-8 无 BOM**（日志、快照、配置、工具输出落盘）。
+- 修改用户既有文件时**保留原 BOM**：write/edit/apply-patch 均按源文件 BOM 状态写回。
+- `read` 工具自动探测文件编码：UTF-8 BOM → UTF-8；无 BOM 时 UTF-8 严格解码失败 → 按 GB18030 解码（兼容 GBK 存量文件），探测结果记入会话缓存供后续写回还原。
+- 子进程输出（shell/hook/git/ripgrep）自适应解码：UTF-8 严格失败自动回退 GB18030，Windows 下兼容 GBK 程序输出。
+- 配置解析统一剥离 BOM（JSONC/JSON 入口），避免带 BOM 配置被静默跳过或解析失败。

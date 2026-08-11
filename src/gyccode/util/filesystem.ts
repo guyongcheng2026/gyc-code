@@ -1,4 +1,5 @@
 import { chmod, mkdir, readFile, stat as statFile, writeFile } from "fs/promises"
+import { stripBom } from "@gyccode/core/util/text-encoding"
 import { createWriteStream, existsSync, statSync } from "fs"
 import { realpathSync } from "fs"
 import { dirname, isAbsolute, join, resolve as pathResolve, win32 } from "path"
@@ -42,7 +43,7 @@ export async function readText(p: string): Promise<string> {
 }
 
 export async function readJson<T = unknown>(p: string): Promise<T> {
-  return JSON.parse(await readFile(p, "utf-8"))
+  return JSON.parse(stripBom(await readFile(p, "utf-8")))
 }
 
 export async function readBytes(p: string): Promise<Buffer> {

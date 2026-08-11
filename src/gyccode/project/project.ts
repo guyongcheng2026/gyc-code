@@ -1,4 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
 import { and, eq, sql } from "drizzle-orm"
 import { Database } from "@gyccode/core/database/database"
 import { ProjectDirectoryTable, ProjectTable } from "@gyccode/core/project/sql"
@@ -120,7 +121,7 @@ const layer = Layer.effect(
           ChildProcess.make("git", args, { cwd: opts?.cwd, extendEnv: true, stdin: "ignore" }),
         )
         const [text, stderr] = yield* Effect.all(
-          [Stream.mkString(Stream.decodeText(handle.stdout)), Stream.mkString(Stream.decodeText(handle.stderr))],
+          [Stream.mkString(decodeSubprocessStream(handle.stdout)), Stream.mkString(decodeSubprocessStream(handle.stderr))],
           { concurrency: 2 },
         )
         const code = yield* handle.exitCode

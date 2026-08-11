@@ -1,4 +1,5 @@
 import { Context, Duration, Effect, Fiber, Layer, Schema, Stream } from "effect"
+import { decodeBufferText, decodeSubprocessStream } from "./util/text-encoding"
 import type { PlatformError } from "effect/PlatformError"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
@@ -221,11 +222,11 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const handle = yield* spawner.spawn(command)
           const stderrFiber = yield* Effect.forkScoped(
-            collectStream(handle.stderr, options?.maxErrorBytes).pipe(Effect.map((x) => x.buffer.toString("utf8"))),
+            collectStream(handle.stderr, options?.maxErrorBytes).pipe(Effect.map((x) => decodeBufferText(x.buffer))),
           )
           const source = options?.includeStderr === true ? handle.all : handle.stdout
           const lines = source.pipe(
-            Stream.decodeText,
+            decodeSubprocessStream,
             Stream.splitLines,
             Stream.filter((line) => line.length > 0),
           )

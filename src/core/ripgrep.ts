@@ -1,6 +1,7 @@
 export * as Ripgrep from "./ripgrep"
 
 import { Context, Effect, Fiber, Layer, Schema, Stream } from "effect"
+import { decodeBufferText, decodeSubprocessStream } from "./util/text-encoding"
 import { ChildProcess } from "effect/unstable/process"
 import { Entry, Match } from "@gyccode/schema/filesystem"
 import { makeGlobalNode } from "./effect/app-node"
@@ -110,11 +111,11 @@ const layer = Layer.effect(
             ChildProcess.make(yield* binary.filepath, input.args, { cwd: input.cwd, extendEnv: true, stdin: "ignore" }),
           )
           const stderrFiber = yield* collectStream(handle.stderr, ERROR_BYTES).pipe(
-            Effect.map((output) => output.buffer.toString("utf8")),
+            Effect.map((output) => decodeBufferText(output.buffer)),
             Effect.forkScoped,
           )
           let observed = 0
-          const rows = yield* Stream.decodeText(handle.stdout).pipe(
+          const rows = yield* decodeSubprocessStream(handle.stdout).pipe(
             Stream.splitLines,
             Stream.filter((line) => line.length > 0),
             Stream.mapEffect(input.parse),

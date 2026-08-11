@@ -1,4 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import path from "path"
 import { SessionV1 } from "@gyccode/core/v1/session"
@@ -641,7 +642,7 @@ const layer = Layer.effect(
                 forceKillAfter: "3 seconds",
               })
               const handle = yield* spawner.spawn(cmd)
-              yield* Stream.runForEach(Stream.decodeText(handle.all), (chunk) =>
+              yield* Stream.runForEach(decodeSubprocessStream(handle.all), (chunk) =>
                 Effect.gen(function* () {
                   output += chunk
                   if (part.state.status === "running") {

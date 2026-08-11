@@ -1,4 +1,5 @@
 import { Effect, Schema, Stream } from "effect"
+import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
 import os from "os"
 import { createWriteStream } from "node:fs"
 import * as Tool from "./tool"
@@ -487,7 +488,7 @@ export const ShellTool = Tool.define(
           const handle = yield* spawner.spawn(cmd(input.shell, input.command, input.cwd, input.env))
 
           yield* Effect.forkScoped(
-            Stream.runForEach(Stream.decodeText(handle.all), (chunk) => {
+            Stream.runForEach(decodeSubprocessStream(handle.all), (chunk) => {
               const size = Buffer.byteLength(chunk, "utf-8")
               list.push({ text: chunk, size })
               used += size

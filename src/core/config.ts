@@ -1,6 +1,7 @@
 export * as Config from "./config"
 
 import { makeLocationNode } from "./effect/app-node"
+import { stripBom } from "./util/text-encoding"
 import path from "path"
 import { type ParseError, parse } from "jsonc-parser"
 import { Context, Effect, Layer, Option, Schema } from "effect"
@@ -147,9 +148,10 @@ const layer = Layer.effect(
     const loadFile = Effect.fnUntraced(function* (filepath: string) {
       const text = yield* fs.readFileStringSafe(filepath)
       if (!text) return
+      const trimmed = stripBom(text)
 
       const errors: ParseError[] = []
-      const input: unknown = parse(text, errors, { allowTrailingComma: true })
+      const input: unknown = parse(trimmed, errors, { allowTrailingComma: true })
       if (errors.length) return
 
       const info = Option.getOrUndefined(

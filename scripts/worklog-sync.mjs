@@ -21,6 +21,16 @@ const REPO = process.cwd()
 const LOGFILE = path.join(REPO, ".git", "worklog-sync.log")
 
 const glog = (m) => { try { fs.appendFileSync(LOGFILE, `[${new Date().toISOString()}] ${m}\n`, "utf8") } catch {} }
+// 读取既有日志文件：UTF-8 严格解码失败（如被记事本另存为 GBK）则按 GB18030 读入，
+// 追加后统一写回 UTF-8 无 BOM（Obsidian 正常渲染），避免追加内容混合乱码。
+function decodeTextFile(file) {
+  const bytes = fs.readFileSync(file)
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+  } catch {
+    return new TextDecoder("gb18030").decode(bytes)
+  }
+}
 
 function git(root, args, opts = {}) {
   const res = spawnSync("git", ["-C", root, ...args], {
@@ -36,7 +46,7 @@ function main() {
   const head = git(REPO, ["rev-parse", "--short", "HEAD"])
   glog("HEAD=" + head)
   fs.mkdirSync(path.dirname(worklog), { recursive: true })
-  if (fs.existsSync(worklog) && fs.readFileSync(worklog, "utf8").includes("[" + head + "]")) {
+  if (fs.existsSync(worklog) && decodeTextFile(worklog).includes("[" + head + "]")) {
     glog("already recorded, skip")
     return
   }
@@ -53,7 +63,7 @@ function main() {
   if (!fs.existsSync(worklog)) {
     body = [W.title, "", "> " + W.about, "> " + W.repo, "", W.h2, ""].join("\n")
   } else {
-    body = fs.readFileSync(worklog, "utf8")
+    body = decodeTextFile(worklog)
   }
   body += entry
   fs.writeFileSync(worklog, body, "utf8")

@@ -1,5 +1,7 @@
 // Simple in-memory read cache for file contents
 
+import type { TextFileEncoding } from "@gyccode/core/util/text-encoding"
+
 export const FILE_UNCHANGED_STUB = "<file unchanged>"
 
 // Bound the cache so a long-running session cannot grow memory without limit.
@@ -19,7 +21,7 @@ export type StatLike = {
 // Shared singleton maps. All callers share the same underlying map + read-set,
 // so the cache is effectively a singleton across tools (and the read-before-write
 // guard is consistent across read/write/edit in the same session).
-const map = new Map<string, { content: string; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
+const map = new Map<string, { content: string; encoding: TextFileEncoding; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
 const readSet = new Set<string>()
 
 /**
@@ -39,13 +41,13 @@ export const ReadCache = () => {
       return entry?.stat as StatLike | typeof FILE_UNCHANGED_STUB | undefined
     },
     /** Store a file's content and stat */
-    set(filepath: string, content: string, stat: StatLike | typeof FILE_UNCHANGED_STUB) {
+    set(filepath: string, content: string, stat: StatLike | typeof FILE_UNCHANGED_STUB, encoding: TextFileEncoding = "utf-8") {
       // Evict the oldest entry when the cache exceeds its bound (and the key is new).
       if (map.size >= MAX_ENTRIES && !map.has(filepath)) {
         const oldest = map.keys().next().value
         if (oldest !== undefined) map.delete(oldest)
       }
-      map.set(filepath, { content, stat })
+      map.set(filepath, { content, encoding, stat })
       // Reading (or writing) a file means the model has seen its current content.
       readSet.add(filepath)
     },

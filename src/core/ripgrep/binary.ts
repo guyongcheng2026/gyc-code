@@ -1,4 +1,5 @@
 import path from "path"
+import { decodeSubprocessStream } from "../util/text-encoding"
 import { Context, Effect, Layer, Stream } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 import { ChildProcess } from "effect/unstable/process"
@@ -39,8 +40,8 @@ export namespace RipgrepBinary {
         const handle = yield* spawner.spawn(ChildProcess.make(command, args, { extendEnv: true, stdin: "ignore" }))
         const [stdout, stderr, code] = yield* Effect.all(
           [
-            Stream.mkString(Stream.decodeText(handle.stdout)),
-            Stream.mkString(Stream.decodeText(handle.stderr)),
+            Stream.mkString(decodeSubprocessStream(handle.stdout)),
+            Stream.mkString(decodeSubprocessStream(handle.stderr)),
             handle.exitCode,
           ],
           { concurrency: "unbounded" },

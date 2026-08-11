@@ -1,5 +1,6 @@
 ﻿import { Effect, Scope } from "effect"
 import { ChildProcess } from "effect/unstable/process"
+import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import * as Stream from "effect/Stream"
 import { HookConfig, HookEvent, HookResult } from "./types"
@@ -21,12 +22,12 @@ export function executeHooks(
       const handle = yield* spawner.spawn(cmd)
       let stdout = ""
       let stderr = ""
-      yield* Stream.runForEach(Stream.decodeText(handle.stdout), (chunk) =>
+      yield* Stream.runForEach(decodeSubprocessStream(handle.stdout), (chunk) =>
         Effect.sync(() => {
           stdout += chunk
         }),
       )
-      yield* Stream.runForEach(Stream.decodeText(handle.stderr), (chunk) =>
+      yield* Stream.runForEach(decodeSubprocessStream(handle.stderr), (chunk) =>
         Effect.sync(() => {
           stderr += chunk
         }),
