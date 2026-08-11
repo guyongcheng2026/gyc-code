@@ -31,7 +31,7 @@ export const readFile = Effect.fn("Bom.readFile")(function* (fs: FSUtil.Interfac
   const encoding = detectTextEncoding(bytes)
   const text = new TextDecoder(encoding, { ignoreBOM: true }).decode(bytes)
   return { ...split(text), encoding }
-} as (fs: FSUtil.Interface, filePath: string) => Effect.Effect<BomMeta>)
+})
 
 /** 按源编码写回：utf-8 保留 BOM 逻辑；gb18030 编码为字节（无 BOM）。 */
 export const writeFileEncoded = Effect.fn("Bom.writeFileEncoded")(function* (

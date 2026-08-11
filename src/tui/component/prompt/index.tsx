@@ -38,6 +38,8 @@ import { DialogStash } from "../dialog-stash"
 import { DialogHistory } from "../dialog-history"
 import { type AutocompleteRef, Autocomplete } from "./autocomplete"
 import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
+import * as Model from "../../util/model"
+import { Token } from "@/util/token"
 import type { AssistantMessage, FilePart, UserMessage } from "@opencode-ai/sdk/v2"
 import { Locale } from "../../util/locale"
 import { errorMessage } from "../../util/error"
@@ -277,10 +279,19 @@ export function Prompt(props: PromptProps) {
     if (tokens <= 0) return
 
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
-    const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
+    const win = Model.contextWindow(sync.data.config, last.providerID, last.modelID, model)
+    const percent = win ? Math.round((tokens / win.effective) * 100) : undefined
+    const pct = percent !== undefined ? `${percent}%` : undefined
     const cost = session?.cost ?? 0
     return {
-      context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
+      context:
+        pct && win
+          ? `${Token.format(tokens)}/${Token.format(win.effective)} (${pct})`
+          : pct
+            ? `${Locale.number(tokens)} (${pct})`
+            : Locale.number(tokens),
+      percent,
+      compacting: session?.time.compacting !== undefined,
       cost: cost > 0 ? money.format(cost) : undefined,
     }
   })
@@ -1683,23 +1694,50 @@ title: "打开编辑器",
               </Show>
               <Switch>
                 <Match when={store.mode === "normal"}>
-                  <Switch>
-                    <Match when={usage()}>
-                      {(item) => (
-                        <text fg={theme.textMuted} wrapMode="none">
-                          {[item().context, item().cost].filter(Boolean).join(" · ")}
-                        </text>
-                      )}
-                    </Match>
-                    <Match when={true}>
+                  <box gap={2} flexDirection="row">
+                    <Show when={usage()}>
+                      {(item) => {
+                        const u = item()
+                        const percent = u.percent
+                        const full = percent !== undefined && percent >= 95
+                        const warn = percent !== undefined && percent >= 80
+                        return (
+                          <text
+                            fg={full ? theme.error : warn ? theme.warning : theme.textMuted}
+                            wrapMode="none"
+                          >
+                            {[
+                              u.context,
+                              u.compacting ? "compacting…" : undefined,
+                              full ? "上下文将满" : undefined,
+                              u.cost,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </text>
+                        )
+                      }}
+                    </Show>
+                    <text fg={theme.text}>
+                      {agentShortcut()} <span style={{ fg: theme.textMuted }}>切换模式</span>
+                    </text>
+                    <text fg={theme.text}>
+                      {paletteShortcut()} <span style={{ fg: theme.textMuted }}>设置</span>
+                    </text>
+                  </box>
+                  <Show when={status().type === "idle"}>
+                    <box gap={2} flexDirection="row">
                       <text fg={theme.text}>
-                        {agentShortcut()} <span style={{ fg: theme.textMuted }}>agents</span>
+                        @ <span style={{ fg: theme.textMuted }}>添加文件</span>
                       </text>
-                    </Match>
-                  </Switch>
-                  <text fg={theme.text}>
-                    {paletteShortcut()} <span style={{ fg: theme.textMuted }}>commands</span>
-                  </text>
+                      <text fg={theme.text}>
+                        $ <span style={{ fg: theme.textMuted }}>子代理</span>
+                      </text>
+                      <text fg={theme.text}>
+                        / <span style={{ fg: theme.textMuted }}>命令</span>
+                      </text>
+                    </box>
+                  </Show>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>

@@ -82,6 +82,31 @@ export function resetTruncationDecisions(): void {
 }
 
 /**
+ * Prepend a date (or any prefix) text part to the latest user model message,
+ * preserving the ModelMessage shape ({ role, content }). The prefix is injected
+ * at the incremental tail of the conversation so the prompt-cache prefix stays
+ * byte-stable across days (DeepSeek invalidates the whole prefix whenever the
+ * system block changes). Returns a new array; the input is not mutated.
+ */
+export function prependTodayDate<TMsg extends { role: string; content: string | readonly unknown[] }>(
+  modelMsgs: readonly TMsg[],
+  todayPrefix: string,
+): TMsg[] {
+  const lastUserModelIdx = modelMsgs.findLastIndex((m) => m.role === "user")
+  if (lastUserModelIdx < 0) return [...modelMsgs]
+  const lastUserModel = modelMsgs[lastUserModelIdx]
+  const todayPart = { type: "text" as const, text: todayPrefix }
+  const next = [...modelMsgs]
+  next[lastUserModelIdx] = {
+    ...lastUserModel,
+    content: Array.isArray(lastUserModel.content)
+      ? [todayPart, ...lastUserModel.content]
+      : [todayPart, { type: "text" as const, text: lastUserModel.content }],
+  }
+  return next
+}
+
+/**
  * Compute per-tool-result character caps for one assistant message tool
  * results: when the aggregate output exceeds the budget, truncate from the
  * largest output down, keeping at least 1KB of each. Truncation decisions are

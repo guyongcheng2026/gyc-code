@@ -1,18 +1,40 @@
-import type { AssistantMessage } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, Message, Part } from "@opencode-ai/sdk/v2"
 import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { completedTPS, formatTPS, streamingTPS } from "./tps"
 import { Token } from "@/util/token"
 import * as Model from "../../util/model"
+import { DialogContext } from "../../component/dialog-context"
 
 const id = "internal:sidebar-context"
-const REFRESH_MS = 1000
+const REFRESH_MS = 2000
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 })
+
+function estimatePart(part: Part): number {
+  if (part.type === "text" || part.type === "reasoning") return Token.estimate(part.text)
+  if (part.type === "tool") {
+    return Math.max(1, Math.ceil(JSON.stringify({ tool: part.tool, state: part.state }).length / 4))
+  }
+  return 0
+}
+
+function estimateMessage(message: Message, partOf: (id: string) => ReadonlyArray<Part>): number {
+  if (message.role === "assistant" && message.time.completed) {
+    return (
+      message.tokens.input +
+      message.tokens.output +
+      message.tokens.reasoning +
+      message.tokens.cache.read +
+      message.tokens.cache.write
+    )
+  }
+  return partOf(message.id).reduce((sum, part) => sum + estimatePart(part), 0)
+}
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
@@ -30,8 +52,18 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     return m !== undefined && !m.time.completed
   })
 
+  const session = createMemo(() => props.api.state.session.get(props.session_id))
+  const isCompacting = createMemo(() => session()?.time.compacting !== undefined)
+  const isBusy = createMemo(() => {
+    if (isCompacting()) return true
+    const last = msg().at(-1)
+    if (!last) return false
+    if (last.role === "user") return true
+    return last.time.completed === undefined
+  })
+
   createEffect(() => {
-    if (!isStreaming()) return
+    if (!isStreaming() && !isBusy()) return
     const handle = setInterval(() => setTick(Date.now()), REFRESH_MS)
     onCleanup(() => clearInterval(handle))
   })
@@ -68,33 +100,51 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   const tpsLabel = createMemo(() => formatTPS(tps()))
 
   const state = createMemo(() => {
-    const last = msg().findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
+    const msgs = msg()
+    const last = msgs.findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
     if (!last) {
       return {
         tokens: 0,
         percent: null,
         limit: null,
+        compacting: isCompacting(),
       }
     }
 
-    const tokens =
+    let tokens =
       last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
     const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
-    const win = Model.contextWindow(props.api.state.config, model)
+    const win = Model.contextWindow(props.api.state.config, last.providerID, last.modelID, model)
+    if (isBusy()) {
+      tick() // 忙碌态由 2s 节流驱动实时估算
+      tokens = msgs.reduce((sum, message) => sum + estimateMessage(message, (id) => props.api.state.part(id)), 0)
+    }
     return {
       tokens,
       percent: win ? Math.round((tokens / win.effective) * 100) : null,
       limit: win,
+      compacting: isCompacting(),
     }
   })
 
+  const contextColor = createMemo(() => {
+    const pct = state().percent
+    if (pct === null) return theme().textMuted
+    if (pct >= 95) return theme().error
+    if (pct >= 80) return theme().warning
+    return theme().textMuted
+  })
+
   return (
-    <box>
+    <box onMouseDown={() => props.api.ui.dialog.replace(() => <DialogContext api={props.api} session_id={props.session_id} />)}>
       <text fg={theme().text}>
         <b>Context</b>
       </text>
-      <text fg={theme().textMuted}>{state().tokens.toLocaleString()} tokens</text>
-      <text fg={theme().textMuted}>{state().percent ?? 0}% used</text>
+      <Show when={state().compacting}>
+        <text fg={theme().warning}>compacting…</text>
+      </Show>
+      <text fg={contextColor()}>{state().tokens.toLocaleString()} tokens</text>
+      <text fg={contextColor()}>{state().percent ?? 0}% used</text>
       <Show when={state().limit}>
         {(win) => (
           <text fg={theme().textMuted}>

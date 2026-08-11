@@ -15,6 +15,7 @@ import { isConsoleManagedProvider } from "../util/provider-origin"
 import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
+import { DialogCustomProvider } from "./dialog-custom-provider"
 
 function normalizeApiKey(raw: string, providerID: string) {
   let value = raw.trim()
@@ -32,7 +33,7 @@ const PROVIDER_PRIORITY: Record<string, number> = {
 }
 
 const CUSTOM_PROVIDER_OPTION_VALUE = "__gyccode_custom_provider__"
-const CUSTOM_PROVIDER_ID = /^[a-z0-9][a-z0-9-_]*$/
+
 
 type ProviderOptionBase = {
   title: string
@@ -83,12 +84,6 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
   ]
 }
 
-export function normalizeCustomProviderID(value: string) {
-  const providerID = value.trim().replace(/^@ai-sdk\//, "")
-  if (!CUSTOM_PROVIDER_ID.test(providerID)) return
-  return providerID
-}
-
 export function createDialogProviderOptions() {
   const sync = useSync()
   const dialog = useDialog()
@@ -96,28 +91,6 @@ export function createDialogProviderOptions() {
   const toast = useToast()
   const { theme } = useTheme()
   const onboarded = useConnected()
-
-  async function promptCustomProviderID(): Promise<string | undefined> {
-    const value = await DialogPrompt.show(dialog, "其他", {
-      placeholder: "提供商 ID",
-      description: () => (
-        <text fg={theme.textMuted}>
-          这只会存储凭证。请在 gyccode.json 中配置提供商以使用它。
-        </text>
-      ),
-    })
-    if (value === null) return
-
-    const providerID = normalizeCustomProviderID(value)
-    if (providerID) return providerID
-
-    toast.show({
-      variant: "error",
-      message:
-        "提供商 ID 必须以小写字母或数字开头，仅能使用小写字母、数字、连字符和下划线",
-    })
-    return promptCustomProviderID()
-  }
 
   const options = createMemo(() => {
     return pipe(
@@ -130,9 +103,7 @@ export function createDialogProviderOptions() {
             description: provider.description,
             category: provider.category,
             async onSelect() {
-              const providerID = await promptCustomProviderID()
-              if (!providerID) return
-              return dialog.replace(() => <ApiMethod providerID={providerID} title="API key" custom />)
+              return dialog.replace(() => <DialogCustomProvider />)
             },
           }
         }
@@ -359,7 +330,6 @@ interface ApiMethodProps {
   providerID: string
   title: string
   metadata?: Record<string, string>
-  custom?: boolean
 }
 function ApiMethod(props: ApiMethodProps) {
   const dialog = useDialog()
@@ -418,14 +388,6 @@ function ApiMethod(props: ApiMethodProps) {
         }
         await sdk.client.instance.dispose()
         await sync.bootstrap()
-        if (props.custom && !sync.data.provider_next.all.some((provider) => provider.id === props.providerID)) {
-          toast.show({
-            variant: "info",
-            message: `已保存凭据：${props.providerID}。请在 gyccode.json 中配置后使用。`,
-          })
-          dialog.clear()
-          return
-        }
         dialog.replace(() => <DialogModel providerID={props.providerID} />)
       }}
     />

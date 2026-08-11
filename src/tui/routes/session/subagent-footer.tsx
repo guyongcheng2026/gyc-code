@@ -5,6 +5,8 @@ import { useTheme } from "../../context/theme"
 import { SplitBorder } from "../../ui/border"
 import type { AssistantMessage } from "@opencode-ai/sdk/v2"
 import { Locale } from "../../util/locale"
+import { Token } from "@/util/token"
+import * as Model from "../../util/model"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useCommandShortcut, useGyccodeKeymap } from "../../keymap"
 
@@ -16,18 +18,19 @@ export function SubagentFooter() {
 
   const subagentInfo = createMemo(() => {
     const s = session()
-    if (!s) return { label: "Subagent", index: 0, total: 0 }
+    if (!s) return { label: "Subagent", index: 0, total: 0, status: "idle" }
+    const status = sync.session.status(route.sessionID)
     const agentMatch = s.title.match(/@(\w+) subagent/)
     const label = agentMatch ? Locale.titlecase(agentMatch[1]) : "Subagent"
 
-    if (!s.parentID) return { label, index: 0, total: 0 }
+    if (!s.parentID) return { label, index: 0, total: 0, status }
 
     const siblings = sync.data.session
       .filter((x) => x.parentID === s.parentID)
       .toSorted((a, b) => a.time.created - b.time.created)
     const index = siblings.findIndex((x) => x.id === s.id)
 
-    return { label, index: index + 1, total: siblings.length }
+    return { label, index: index + 1, total: siblings.length, status }
   })
 
   const usage = createMemo(() => {
@@ -40,7 +43,9 @@ export function SubagentFooter() {
     if (tokens <= 0) return
 
     const model = sync.data.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
-    const pct = model?.limit.context ? `${Math.round((tokens / model.limit.context) * 100)}%` : undefined
+    const win = Model.contextWindow(sync.data.config, last.providerID, last.modelID, model)
+    const percent = win ? Math.round((tokens / win.effective) * 100) : undefined
+    const pct = percent !== undefined ? `${percent}%` : undefined
     const cost = session()?.cost ?? 0
 
     const money = new Intl.NumberFormat("en-US", {
@@ -49,7 +54,12 @@ export function SubagentFooter() {
     })
 
     return {
-      context: pct ? `${Locale.number(tokens)} (${pct})` : Locale.number(tokens),
+      context:
+        pct && win
+          ? `${Token.format(tokens)}/${Token.format(win.effective)} (${pct})`
+          : pct
+            ? `${Locale.number(tokens)} (${pct})`
+            : Locale.number(tokens),
       cost: cost > 0 ? money.format(cost) : undefined,
     }
   })
@@ -83,6 +93,7 @@ export function SubagentFooter() {
             <Show when={subagentInfo().total > 0}>
               <text style={{ fg: theme.textMuted }}>
                 ({subagentInfo().index} of {subagentInfo().total})
+                <Show when={subagentInfo().status}>{` · ${subagentInfo().status}`}</Show>
               </text>
             </Show>
             <Show when={usage()}>

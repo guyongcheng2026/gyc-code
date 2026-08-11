@@ -4,6 +4,8 @@ import { Effect } from "effect"
 import matter from "gray-matter"
 import { Global } from "@gyccode/core/global"
 import { FSUtil } from "@gyccode/core/fs-util"
+import { InstallationLocal, InstallationVersion } from "@gyccode/core/installation/version"
+import { ConfigMarkdown } from "@/config/markdown"
 import { COMPOSE_BUNDLE } from "./bundle.gen"
 
 // Compose skill bundle - the built-in compose:* skills that power the
@@ -12,11 +14,12 @@ import { COMPOSE_BUNDLE } from "./bundle.gen"
 // The bundle is compiled into bundle.gen.ts at build time and extracted to the
 // global data directory on first run so the `skill` tool can read each skill's
 // real files (SKILL.md + companion scripts).
-
-export const ComposeBundleVersion = "1"
+//
+// 提取目录按安装版本号版本化：升级后自动重新提取最新技能；
+// 本地开发（local channel）每次启动强制重提取，保证改动即时生效。
 
 export function composeRoot(): string {
-  return path.join(Global.Path.data, "compose", ComposeBundleVersion)
+  return path.join(Global.Path.data, "compose", InstallationVersion)
 }
 
 export interface ComposeSkillMeta {
@@ -27,14 +30,23 @@ export interface ComposeSkillMeta {
 }
 
 function parseSkillBody(content: string) {
-  try {
-    const parsed = matter(content)
+  const parse = (source: string) => {
+    const parsed = matter(source)
     const name = parsed.data?.name
     const description = parsed.data?.description
     if (typeof name !== "string" || typeof description !== "string") return undefined
     return { name, description, content: parsed.content }
+  }
+  try {
+    return parse(content)
   } catch {
-    return undefined
+    // 其他编码代理允许 frontmatter 中出现未加引号的冒号；
+    // 先走宽松 sanitize 再解析，避免单个损坏 SKILL.md 导致整个块缺失。
+    try {
+      return parse(ConfigMarkdown.fallbackSanitization(content))
+    } catch {
+      return undefined
+    }
   }
 }
 
@@ -47,7 +59,7 @@ export const extractComposeSkills = Effect.fn("Skill.compose.extract")(function*
   const root = composeRoot()
   const marker = path.join(root, ".extracted")
 
-  if (yield* fsys.existsSafe(marker)) return
+  if (!InstallationLocal && (yield* fsys.existsSafe(marker))) return
 
   for (const [skillName, files] of Object.entries(COMPOSE_BUNDLE)) {
     const skillDir = path.join(root, "skills", skillName)
@@ -55,7 +67,7 @@ export const extractComposeSkills = Effect.fn("Skill.compose.extract")(function*
       yield* fsys.writeWithDirs(path.join(skillDir, relPath), content)
     }
   }
-  yield* fsys.writeWithDirs(marker, ComposeBundleVersion)
+  yield* fsys.writeWithDirs(marker, InstallationVersion)
 })
 
 /** `<compose_skills>` block listing compose-only skills, for prompt injection. */

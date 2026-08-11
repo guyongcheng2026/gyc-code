@@ -52,7 +52,9 @@ export const WriteTool = Tool.define(
               `File has not been read in this session: ${filepath}. Read it first with the read tool to confirm current content before writing.`,
             )
           }
-          const source = exists ? yield* Bom.readFile(fs, filepath) : { bom: false, text: "", encoding: "utf-8" }
+          const source = exists
+            ? yield* Bom.readFile(fs, filepath)
+            : { bom: false, text: "", encoding: "utf-8" as const }
           const next = Bom.split(params.content)
           const desiredBom = source.bom || next.bom
           const contentOld = source.text

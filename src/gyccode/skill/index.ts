@@ -21,6 +21,8 @@ import { escapeHtml } from "@/util/html"
 
 const CLAUDE_EXTERNAL_DIR = ".claude"
 const AGENTS_EXTERNAL_DIR = ".agents"
+const CODEX_EXTERNAL_DIR = ".codex"
+const OPENCODE_EXTERNAL_DIR = ".opencode"
 const EXTERNAL_SKILL_PATTERN = "skills/**/SKILL.md"
 const GYCCODE_SKILL_PATTERN = "{skill,skills}/**/SKILL.md"
 const SKILL_PATTERN = "**/SKILL.md"
@@ -188,6 +190,8 @@ const discoverSkills = Effect.fnUntraced(function* (
   global: Global.Interface,
   disableExternalSkills: boolean,
   disableClaudeCodeSkills: boolean,
+  disableCodexSkills: boolean,
+  disableOpenCodeSkills: boolean,
   disableComposeSkills: boolean,
   directory: string,
   worktree: string,
@@ -198,6 +202,8 @@ const discoverSkills = Effect.fnUntraced(function* (
   if (!disableExternalSkills) {
     if (!disableClaudeCodeSkills) externalDirs.push(CLAUDE_EXTERNAL_DIR)
     externalDirs.push(AGENTS_EXTERNAL_DIR)
+    if (!disableCodexSkills) externalDirs.push(CODEX_EXTERNAL_DIR)
+    if (!disableOpenCodeSkills) externalDirs.push(OPENCODE_EXTERNAL_DIR)
 
     for (const dir of externalDirs) {
       const root = path.join(global.home, dir)
@@ -289,6 +295,8 @@ const layer = Layer.effect(
           global,
           flags.disableExternalSkills,
           flags.disableClaudeCodeSkills,
+          flags.disableCodexSkills,
+          flags.disableOpenCodeSkills,
           flags.disableComposeSkills,
           ctx.directory,
           ctx.worktree,

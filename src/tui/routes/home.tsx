@@ -12,6 +12,37 @@ import { useEditorContext } from "../context/editor"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTuiConfig } from "../config"
 import { HomeSessionDestinationProvider } from "./home/session-destination"
+import { useTheme } from "../context/theme"
+
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+})
+
+function WorkspaceContextSummary() {
+  const sync = useSync()
+  const theme = useTheme().theme
+  const sessions = createMemo(() => sync.data.session)
+  const total = createMemo(() => {
+    let tokens = 0
+    let cost = 0
+    for (const s of sessions()) {
+      if (s.tokens) {
+        tokens += s.tokens.input + s.tokens.output + s.tokens.reasoning + s.tokens.cache.read + s.tokens.cache.write
+      }
+      cost += s.cost ?? 0
+    }
+    return { tokens, cost }
+  })
+  const activeCount = createMemo(() => sessions().filter((s) => s.parentID === undefined).length)
+  if (total().tokens <= 0 && total().cost <= 0) return null
+  return (
+    <text fg={theme.textMuted}>
+      工作区 Context：{total().tokens.toLocaleString()} tokens · {activeCount()} 个会话 · {money.format(total().cost)}{" "}
+      spent
+    </text>
+  )
+}
 
 let once = false
 const placeholder = {
@@ -77,6 +108,8 @@ export function Home() {
             <Logo />
           </pluginRuntime.Slot>
         </box>
+        <box height={1} minHeight={0} flexShrink={1} />
+        <WorkspaceContextSummary />
         <box height={1} minHeight={0} flexShrink={1} />
         <box width="100%" maxWidth={promptMaxWidth()} zIndex={1000} paddingTop={1} flexShrink={0}>
           <pluginRuntime.Slot name="home_prompt" mode="replace" ref={bind}>

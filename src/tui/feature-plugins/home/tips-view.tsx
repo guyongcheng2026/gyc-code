@@ -164,7 +164,7 @@ export function Tips(props: { api: TuiPluginApi; connected?: boolean }) {
 const TIPS: Tip[] = [
   "输入 {highlight}@{/highlight} 加文件名可模糊搜索并附加文件",
   "以 {highlight}!{/highlight} 开头可执行 Shell 命令（例如 {highlight}!ls -la{/highlight}）",
-  (shortcuts) => press(shortcuts.agentCycle(), "在 Build 与 Plan 代理之间切换"),
+  (shortcuts) => press(shortcuts.agentCycle(), "在 Build、Plan 与 Compose 代理之间切换"),
   "使用 {highlight}/undo{/highlight} 撤回上一条消息及文件改动",
   "使用 {highlight}/redo{/highlight} 恢复已撤回的消息及文件改动",
   "运行 {highlight}/share{/highlight} 创建公开分享链接",
@@ -199,6 +199,7 @@ const TIPS: Tip[] = [
   (shortcuts) => press(shortcuts.inputClear(), "输入时清空输入框"),
   (shortcuts) => press(shortcuts.sessionInterrupt(), "在 AI 回答中途停止"),
   "切换到 {highlight}Plan{/highlight} 代理获取建议而不做改动",
+  "切换到 {highlight}Compose{/highlight} 代理编排内置技能工作流",
   "在提示词中使用 {highlight}@agent-name{/highlight} 调用专用子代理",
   (shortcuts) => {
     const items = [

@@ -35,11 +35,11 @@ test("createFileDecoder: utf-8 自动剥离 BOM", () => {
 })
 
 test("encodeForWrite: gb18030 写回字节与 GBK 原始字节一致", () => {
-  expect(Array.from(encodeForWrite("中文", "gb18030", false))).toEqual([0xd6, 0xd0, 0xce, 0xc4])
+  expect(encodeForWrite("中文", "gb18030", false)).toEqual(new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]))
 })
 
 test("encodeForWrite: gb18030 剥离内容自带 BOM 后再编码", () => {
-  expect(Array.from(encodeForWrite("\uFEFF中文", "gb18030", false))).toEqual([0xd6, 0xd0, 0xce, 0xc4])
+  expect(encodeForWrite("\uFEFF中文", "gb18030", false)).toEqual(new Uint8Array([0xd6, 0xd0, 0xce, 0xc4]))
 })
 
 test("encodeForWrite: utf-8 无 BOM 返回字符串", () => {
@@ -55,5 +55,5 @@ test("GBK 字节 roundtrip：探测->解码->编码->字节一致", () => {
   const bytes = new Uint8Array([0xd6, 0xd0, 0xce, 0xc4, 0x0a, 0x68, 0x69])
   const encoding = detectTextEncoding(bytes)
   const text = new TextDecoder(encoding, { ignoreBOM: true }).decode(bytes)
-  expect(Array.from(encodeForWrite(text, encoding, false))).toEqual(Array.from(bytes))
+  expect(encodeForWrite(text, encoding, false)).toEqual(bytes)
 })

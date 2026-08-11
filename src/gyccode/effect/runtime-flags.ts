@@ -29,6 +29,8 @@ export class Service extends ConfigService.Service<Service>()("@gyccode/RuntimeF
     broad: bool("GYCCODE_DISABLE_CLAUDE_CODE"),
     direct: bool("GYCCODE_DISABLE_CLAUDE_CODE_SKILLS"),
   }).pipe(Config.map((flags) => flags.broad || flags.direct)),
+  disableCodexSkills: bool("GYCCODE_DISABLE_CODEX_SKILLS"),
+  disableOpenCodeSkills: bool("GYCCODE_DISABLE_OPENCODE_SKILLS"),
   enableExa: Config.all({
     experimental,
     enabled: bool("GYCCODE_ENABLE_EXA"),
