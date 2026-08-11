@@ -14,7 +14,7 @@
 |------|------------|---------|------|
 | 1. 上下文长度 | 200K/1M + usage 锚定估算 + 分级输出上限 + 有效窗口 + 三级告警 | 200K/1M + usage 锚定估算 + 本地精确 tokenizer + 通用上限 | **基本持平**，gap：三级告警/P1、per-block 估算/P1、槽位预留/P2 |
 | 2. 代码理解深度 | LSPTool 9 操作 + git-ignore 过滤 + 结果截断 + 诊断回灌 | LSP 9 操作 + 38 内置 LSP + 编辑后诊断注入 + 10MB 护栏 | **超越**，gap：git-ignore 过滤/P2、结果截断/P2 |
-| 3. 推理能力 | Anthropic 自适应思考 + ultrathink + 默认开启 + thinkback | 多 provider 推理矩阵 + 关键词升档 + 加密推理 + 流式落盘 | **超越**，gap：默认开启/P1、thinking 预算/P2 |
+| 3. 推理能力 | Anthropic 自适应思考 + ultrathink + 默认开启 | 多 provider 推理矩阵 + 关键词升档 + 加密推理 + 流式落盘 | **超越**，gap：默认开启/P1、thinking 预算/P2 |
 | 4. 多语言支持 | 插件式 LSP + LanguagePicker | 38 内置 LSP + 121 扩展名映射 + 自定义注入 | **显著超越**，无 gap |
 | 5. 长会话稳定性 | 全量压缩 + 三路微压缩 + 会话记忆后台分叉 + 熔断 + 缓存破坏检测 + 部分压缩 | 全量压缩 + 双路微压缩 + 记忆快速路径 + 熔断 + 空闲超时 + 工具停滞检测 | **超越**，gap：缓存破坏检测/P1、部分压缩/P2、压缩后清理/P2 |
 
@@ -94,7 +94,7 @@
 - **模型能力探测**：`thinking.ts:90` `modelSupportsThinking`（Claude 4+ 全支持）、`:113` `modelSupportsAdaptiveThinking`（opus-4-6/sonnet-4-6）
 - **默认开启**：`thinking.ts:146` `shouldEnableThinkingByDefault` 除非显式禁用；`MAX_THINKING_TOKENS` 环境变量覆盖
 - **思考预算**：`context.ts:219-221` `getMaxThinkingTokensForModel()` = upperLimit - 1
-- **thinkback 回放**：`commands/thinkback/thinkback.tsx`（60KB）
+- **thinkback 回放**：`commands/thinkback/thinkback.tsx`（60KB）——实为**插件命令**（安装 thinkback 插件播放“年度回顾”动画），**并非思考过程回放**（2026-08-11 经源码核实，见下）
 - **思考流**：`thinking-start/thinking-delta/thinking-end` 流事件
 
 ### gyc cli 实现（全面）
@@ -110,7 +110,7 @@
 |------|------|------|------|
 | P1 | Claude `thinking.ts:146` shouldEnableThinkingByDefault | gyc 依赖 agent/模型变体显式配置；模型支持自适应思考时无「默认自动开启」逻辑，用户不配 variant 则走非思考路径 | 在 request prep 增加：模型 support adaptive/thinking 时默认启用（除非 config.user 显式关闭） |
 | P2 | Claude `context.ts:219-221` 思考预算 = 输出上限−1 | gyc 无面向思考模型的显式思考预算字段（依赖 provider 默认） | 可选：支持 `thinking.budget_tokens` 配置注入 adaptive 模型 |
-| P3 | Claude `commands/thinkback/` | gyc 无思考回放命令 | 低优先，TUI 已有 reasoning 展示 |
+| - | Claude `commands/thinkback/` | 误标：实为**插件/动画命令**（安装 thinkback 插件播放“年度回顾”动画），非思考回放 | 移除（gyc TUI 已有 reasoning 展示；动画命令价值低，依赖 Claude 插件市场生态） |
 
 ### 结论：**超越**。多 provider 矩阵 + 关键词升档 + 加密推理远超 Claude 仅 Anthropic；P1 默认开启为行为对齐缺口。
 

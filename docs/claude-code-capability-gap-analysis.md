@@ -73,7 +73,7 @@
 - 模型能力探测：`modelSupportsThinking`（行 90，Claude 4+ 全支持）、`modelSupportsAdaptiveThinking`（行 113，opus-4-6/sonnet-4-6）
 - 默认开启：`shouldEnableThinkingByDefault`（行 146）除非显式禁用；`MAX_THINKING_TOKENS` 环境变量覆盖
 - 思考预算 = 输出上限 − 1：`utils/context.ts:219-221`
-- thinkback 回放：`commands/thinkback/thinkback.tsx`（60KB）
+- thinkback 回放：`commands/thinkback/thinkback.tsx`（60KB）——实为**插件命令**（安装 `thinkback@claude-code-marketplace` 插件并播放“年度回顾”动画 year_in_review），**并非思考过程回放**（2026-08-11 经源码核实）
 
 ### gyc cli 实现
 - `src/gyccode/provider/transform.ts:700+` `variants()`：**跨 provider 推理变体矩阵** —
@@ -88,7 +88,7 @@
 | 级别 | 锚点 | 问题 | 建议 |
 |------|------|------|------|
 | P2 | Claude `thinking.ts:29` ultrathink 关键词 → 思考预算升级 | gyc 无提示词关键词→推理档位升级映射（"think hard/think harder/ultrathink" 不会自动升档），仅在 skill bundle 文本中出现 | 在 `session/prompt.ts` 或 request prep 中解析关键词并映射到 variant effort |
-| P2 | Claude `commands/thinkback/` | gyc 无思考过程回放命令 | 低优先，TUI 已有 reasoning 展示 |
+| - | Claude `commands/thinkback/` | 误标：实为**插件/动画命令**（安装 thinkback 插件播放“年度回顾”动画），非思考回放 | 移除（gyc TUI 已有 reasoning 展示；动画命令价值低，依赖 Claude 插件市场生态） |
 
 ---
 
