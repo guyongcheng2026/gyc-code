@@ -376,3 +376,6 @@
 
 - [OK] 2026-08-11 [8d66918] fix(copilot): fall back to all usable models when picker set is empty (free plans)
   - [FILES] 1: src/gyccode/plugin/github-copilot/copilot.ts
+
+- [OK] 2026-08-11 [81b5226] 修复 Windows 控制台乱码并打通 provider 凭据可用性
+  - [FILES] 3: src/gyccode/auth/index.ts, src/gyccode/provider/provider.ts, src/tui/terminal-win32.ts
