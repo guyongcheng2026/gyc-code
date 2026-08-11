@@ -434,9 +434,9 @@ mimo <命令>                   # 执行子命令
 
 ## 相关笔记
 
-- [[Hermes Agent 使用笔记]]
-- [[CodeBuddy CLI 使用经验]]
-- [[AI 编码代理对比分析]]
+- [[Hermes Agent使用笔记]]
+- [[CodeBuddy CLI使用经验]]
+- [[AI编码代理对比分析]]
 
 ---
 

@@ -12,8 +12,8 @@
 
 ### 相关链接
 - [[04-技术栈/AI-CLI工具命令参考|AI CLI工具命令参考]]
-- [[Hermes Agent 使用笔记|Hermes Agent 使用笔记]]
-- [[CodeBuddy CLI 使用经验|CodeBuddy CLI 使用经验]]
+- [[Hermes Agent使用笔记|Hermes Agent 使用笔记]]
+- [[CodeBuddy CLI使用经验|CodeBuddy CLI 使用经验]]
 
 ---
 
