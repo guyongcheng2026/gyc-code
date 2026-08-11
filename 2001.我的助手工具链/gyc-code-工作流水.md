@@ -412,3 +412,6 @@
 
 - [OK] 2026-08-11 [a198a62] 极简主义清理：删除无生产引用的 src/ui 组件库（157文件），仅保留 TUI 音效包 @gyccode/ui/audio，修复 jsxDEV 测试崩溃，全量测试 353 全绿
   - [FILES] 1559: src/ui/assets.d.ts, src/ui/assets/favicon/apple-touch-icon-v3.png, src/ui/assets/favicon/apple-touch-icon.png, src/ui/assets/favicon/favicon-96x96-v3.png, src/ui/assets/favicon/favicon-96x96.png, src/ui/assets/favicon/favicon-v3.ico ...
+
+- [OK] 2026-08-11 [72f46be] 修复TUI启动抖动：固定dark模式立即渲染，不再等待终端主题探测
+  - [FILES] 2: src/tui/app.tsx, src/tui/context/theme.tsx
