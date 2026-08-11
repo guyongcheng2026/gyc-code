@@ -64,3 +64,20 @@
 2. **event 表保留策略**：建议对已完成会话的 `message.part.updated` 事件加保留期（如 30 天），可回收 ~34MB 及未来增量；涉及同步架构，需专项设计
 3. **多实例收敛**：3 个 bun 实例（PID 2672/6544/6676）为内存主因，确认无活动会话后可关闭陈旧实例（6676 自 08-09 运行）
 4. **并行会话提示**：会话期间检测到另一 gyc 会话在同一仓库提交（d8c8444/9799f73，DeepSeek 缓存优化），其 cache-probe.mjs 仍在工作区未提交，注意协调
+
+## 五、后续执行（用户确认后）
+### 1. 删除 571MB 备份残留（已完成）
+- 确认当前 DB 正常（integrity ok）后，删除 `gyccode-local.db.bak-sessionclean-20260811`（544.6MB）
+- 数据目录从 ~650MB 降至 ~119MB（含工具输出等）
+
+### 2. event 表保留策略（已完成）
+新增 `maintain-data.mjs --prune-events[=H]`（默认 24h）：
+- 仅针对 `message.part.updated.*` 流式中间快照；会话最近事件超过 H 小时才裁剪
+- **始终保留每 part 最新一条事件**（最终状态保全；TUI 以物化 part/message 表为准，sync/replay 不受影响）
+- dry-run 默认只报告；`--clean` 才真正删除
+- 实测：24h 保留期删除 1,885 行 / 8.8MB；完整性 ok；无孤儿；活跃会话未触碰
+- 建议定期执行：`bun scripts/maintain-data.mjs --prune-events --clean --checkpoint`
+
+### 3. 遗留建议（未执行）
+- 更短保留期可回收更多（如 12h 会把 8.8h 前的 9MB 会话也裁剪）；由用户权衡
+- 多实例收敛（3 个 bun 实例）为内存主因，确认无活动会话后可关闭陈旧实例
