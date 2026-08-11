@@ -4,10 +4,10 @@ import { Database } from "../database/database"
 import { ProjectTable } from "../project/sql"
 import { ProjectV2 } from "../project"
 import { SessionSchema } from "./schema"
-import { SessionMessageTable, SessionTable } from "./sql"
+import { MessageTable, PartTable, SessionTable } from "./sql"
 import { dedupeByContent } from "./dedupe"
 import { AbsolutePath } from "../schema"
-import * as SessionMessage from "./message"
+import { MessageID, PartID } from "../v1/session"
 
 const projectA = ProjectV2.ID.make("prj_dedupe_a")
 const projectB = ProjectV2.ID.make("prj_dedupe_b")
@@ -52,19 +52,29 @@ const seedSession = (id: SessionSchema.ID, projectID: ProjectV2.ID, updated: num
       .run()
   })
 
-const seedMessages = (id: SessionSchema.ID, msgs: Array<{ type: string; seq: number; data: unknown }>) =>
+const seedParts = (id: SessionSchema.ID, parts: Array<{ data: unknown; time?: number }>) =>
   Effect.gen(function* () {
     const { db } = yield* Database.Service
-    for (const [i, m] of msgs.entries()) {
+    for (const [i, m] of parts.entries()) {
+      const messageID = MessageID.ascending()
       yield* db
-        .insert(SessionMessageTable)
+        .insert(MessageTable)
         .values({
-          id: SessionMessage.ID.create(),
+          id: messageID,
           session_id: id,
-          type: m.type as SessionMessage.Type,
-          seq: m.seq,
-          time_created: 1_000 + i,
-          time_updated: 1_000 + i,
+          time_created: m.time ?? 1_000 + i,
+          time_updated: m.time ?? 1_000 + i,
+          data: { role: "user" } as never,
+        })
+        .run()
+      yield* db
+        .insert(PartTable)
+        .values({
+          id: PartID.ascending(),
+          message_id: messageID,
+          session_id: id,
+          time_created: m.time ?? 1_000 + i,
+          time_updated: m.time ?? 1_000 + i,
           data: m.data as never,
         })
         .run()
@@ -78,8 +88,8 @@ const dedupe = (sessions: SessionLike[]) =>
   })
 
 const msgs = [
-  { type: "user", seq: 0, data: { prompt: "hi" } },
-  { type: "assistant", seq: 1, data: { text: "hello" } },
+  { data: { type: "text", text: "hi" }, time: 1_000 },
+  { data: { type: "text", text: "hello" }, time: 1_001 },
 ]
 
 describe("dedupeByContent", () => {
@@ -93,8 +103,8 @@ describe("dedupeByContent", () => {
         yield* seedProject(projectA)
         yield* seedSession(sid(1), projectA, 100)
         yield* seedSession(sid(2), projectA, 200)
-        yield* seedMessages(sid(1), msgs)
-        yield* seedMessages(sid(2), msgs)
+        yield* seedParts(sid(1), msgs)
+        yield* seedParts(sid(2), msgs)
         return yield* dedupe(sessions)
       }),
     )!
@@ -113,8 +123,8 @@ describe("dedupeByContent", () => {
         yield* seedProject(projectB)
         yield* seedSession(sid(1), projectA, 100)
         yield* seedSession(sid(2), projectB, 200)
-        yield* seedMessages(sid(1), msgs)
-        yield* seedMessages(sid(2), msgs)
+        yield* seedParts(sid(1), msgs)
+        yield* seedParts(sid(2), msgs)
         return yield* dedupe(sessions)
       }),
     )!
@@ -126,21 +136,21 @@ describe("dedupeByContent", () => {
       { id: sid(1), projectID: projectA, timeUpdated: 100 },
       { id: sid(2), projectID: projectA, timeUpdated: 200 },
     ]
-    const other = [{ type: "user", seq: 0, data: { prompt: "different" } }]
+    const other = [{ data: { type: "text", text: "different" } }]
     const result = runInDb(
       Effect.gen(function* () {
         yield* seedProject(projectA)
         yield* seedSession(sid(1), projectA, 100)
         yield* seedSession(sid(2), projectA, 200)
-        yield* seedMessages(sid(1), msgs)
-        yield* seedMessages(sid(2), other)
+        yield* seedParts(sid(1), msgs)
+        yield* seedParts(sid(2), other)
         return yield* dedupe(sessions)
       }),
     )!
     expect(result).toHaveLength(2)
   })
 
-  it("消息 seq 乱序插入时指纹仍按 seq 升序一致", () => {
+  it("消息乱序插入时指纹仍按 time_created 升序一致", () => {
     const sessions = [
       { id: sid(1), projectID: projectA, timeUpdated: 100 },
       { id: sid(2), projectID: projectA, timeUpdated: 200 },
@@ -151,8 +161,8 @@ describe("dedupeByContent", () => {
         yield* seedProject(projectA)
         yield* seedSession(sid(1), projectA, 100)
         yield* seedSession(sid(2), projectA, 200)
-        yield* seedMessages(sid(1), msgs)
-        yield* seedMessages(sid(2), reversed)
+        yield* seedParts(sid(1), msgs)
+        yield* seedParts(sid(2), reversed)
         return yield* dedupe(sessions)
       }),
     )!
@@ -166,16 +176,16 @@ describe("dedupeByContent", () => {
       { id: sid(2), projectID: projectA, timeUpdated: 200 },
       { id: sid(3), projectID: projectA, timeUpdated: 100 },
     ]
-    const other = [{ type: "user", seq: 0, data: { prompt: "other" } }]
+    const other = [{ data: { type: "text", text: "other" } }]
     const result = runInDb(
       Effect.gen(function* () {
         yield* seedProject(projectA)
         yield* seedSession(sid(1), projectA, 300)
         yield* seedSession(sid(2), projectA, 200)
         yield* seedSession(sid(3), projectA, 100)
-        yield* seedMessages(sid(1), other)
-        yield* seedMessages(sid(2), msgs)
-        yield* seedMessages(sid(3), msgs)
+        yield* seedParts(sid(1), other)
+        yield* seedParts(sid(2), msgs)
+        yield* seedParts(sid(3), msgs)
         return yield* dedupe(sessions)
       }),
     )!

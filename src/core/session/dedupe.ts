@@ -8,7 +8,7 @@
  * 4. 同项目内指纹相同的会话视为重复，保留 time_updated 最大的那条
  */
 import { Database } from "../database/database"
-import { SessionMessageTable } from "./sql"
+import { PartTable } from "./sql"
 import { inArray, asc } from "drizzle-orm"
 import { createHash } from "node:crypto"
 import type { SessionSchema } from "./schema"
@@ -57,14 +57,12 @@ export function dedupeByContent<T extends DedupSession>(
       // 一条 SQL 批量加载所有候选会话的消息（按 session_id, seq 升序）
       const rows = yield* db
         .select({
-          session_id: SessionMessageTable.session_id,
-          seq: SessionMessageTable.seq,
-          type: SessionMessageTable.type,
-          data: SessionMessageTable.data,
+          session_id: PartTable.session_id,
+          data: PartTable.data,
         })
-        .from(SessionMessageTable)
-        .where(inArray(SessionMessageTable.session_id, ids))
-        .orderBy(asc(SessionMessageTable.session_id), asc(SessionMessageTable.seq))
+        .from(PartTable)
+        .where(inArray(PartTable.session_id, ids))
+        .orderBy(asc(PartTable.session_id), asc(PartTable.time_created), asc(PartTable.id))
         .all()
         .pipe(Effect.orDie)
 
@@ -80,7 +78,7 @@ export function dedupeByContent<T extends DedupSession>(
       const fingerprints = new Map<string, string[]>() // hash -> sessionIDs
       for (const sid of ids) {
         const msgs = bySession.get(sid) ?? []
-        const canonical = msgs.map((m) => `${m.type}:${JSON.stringify(m.data)}`).join("\n")
+        const canonical = msgs.map((m) => JSON.stringify(m.data)).join("\n")
         const hash = createHash("sha256").update(canonical).digest("hex")
         const arr = fingerprints.get(hash) ?? []
         arr.push(sid)
