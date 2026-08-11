@@ -394,3 +394,6 @@
 
 - [OK] 2026-08-11 [798a458] feat(ops): 新增数据目录维护脚本 maintain-data（dry-run/checkpoint/clean）并记录 2026-08-11 资源优化过程（记忆提取失败冷却+small_model 修复已在并行提交落地）
   - [FILES] 2: docs/RESOURCE-OPTIMIZATION-2026-08-11.md, scripts/maintain-data.mjs
+
+- [OK] 2026-08-11 [dc5f2ce] feat(ops): maintain-data 新增 --prune-events 事件增量保留（空闲>24h 会话裁剪 part.updated 中间快照，保留每 part 最新一条）；删除 571MB 备份残留并记录
+  - [FILES] 2: docs/RESOURCE-OPTIMIZATION-2026-08-11.md, scripts/maintain-data.mjs
