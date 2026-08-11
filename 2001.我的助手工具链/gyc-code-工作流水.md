@@ -364,3 +364,6 @@
 
 - [OK] 2026-08-11 [165dbc1] docs(compose): add five-metrics capability closure plan and full-eval report
   - [FILES] 2: docs/compose/plans/2026-08-10-model-capability-five-metrics-closure.md, docs/compose/reports/model-capability-five-metrics-full-eval-2026-08-10.md
+
+- [OK] 2026-08-11 [ad0c429] feat(compaction): pivot partial compaction (up_to) via summarize API
+  - [FILES] 6: docs/compose/specs/2026-08-11-pivot-partial-compaction-design.md, src/gyccode/server/routes/instance/httpapi/groups/session.ts, src/gyccode/server/routes/instance/httpapi/handlers/session.ts, src/gyccode/session/compaction-pivot.test.ts, src/gyccode/session/compaction.ts, src/schema/v1/session.ts
