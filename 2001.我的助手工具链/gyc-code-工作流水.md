@@ -403,3 +403,6 @@
 
 - [OK] 2026-08-11 [1462ef9] docs(ops): 记录 event 保留期 8h 实际裁剪（12h 不裁 9h 空闲会话，改 8h 回收 9MB→3.6MB）与多实例收敛（3→1，仅留当前实例 6544）
   - [FILES] 1: docs/RESOURCE-OPTIMIZATION-2026-08-11.md
+
+- [OK] 2026-08-11 [4b4bb19] P0-2 方案A落地：iconv-lite 编码感知写回，GBK/GB18030 文件读改写不再乱码
+  - [FILES] 10: package.json, src/core/file-mutation.ts, src/core/tool/apply-patch.ts, src/core/tool/edit.ts, src/core/util/text-encoding.test.ts, src/core/util/text-encoding.ts ...
