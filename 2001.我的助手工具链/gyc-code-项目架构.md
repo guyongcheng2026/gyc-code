@@ -47,6 +47,7 @@
 | nvidia | NVIDIA NIM API | 96 个模型；key 可用，验证通过 |
 
 - 启用开关：`gyccode.json` → `enabled_providers: ["opencode","openrouter","nvidia"]`
+- 可用性判定：auth.json 已认证的 provider（alibaba / openai / openrouter / deepseek 等）自动可用，不受 `enabled_providers` 限制；`Auth.set/remove` 同步写 SQLite `credential` 表（catalog.available 据此判定）
 - 模型目录缓存：`C:\Users\谷勇成\.cache\gyccode\models.json`（禁用拉取：`GYCCODE_DISABLE_MODELS_FETCH=1`）
 - 默认模型：`opencode/deepseek-v4-flash-free`（`gyccode.json` 的 `model` 字段）
 - 认证：OpenCode Zen 拒绝 system role → opencode provider 开启 `options.useInstructions: true`，system 走 `instructions` 顶层字段
@@ -59,7 +60,7 @@
 | 用户配置 | `C:\Users\谷勇成\.config\gyccode\gyccode.json`（model / language: zh-CN / enabled_providers / provider options） |
 | 环境变量 | `C:\Users\谷勇成\.gyc\.env`（12 个变量：OPENCODE/OPENROUTER/NVIDIA key 等） |
 | 模型缓存 | `C:\Users\谷勇成\.cache\gyccode\models.json` |
-| 会话数据 | `~/.local/share/gyccode`（会话 SQLite 等） |
+| 会话数据 | `~/.local/share/gyccode`（会话 SQLite：session / message / todo / credential 凭据表） |
 
 ## 五、构建与运行
 
