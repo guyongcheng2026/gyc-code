@@ -418,3 +418,6 @@
 
 - [OK] 2026-08-11 [8f79e8e] 修复会话默认标题UTC时间与本机不一致：改用本地时间格式化，兼容旧Z格式标题识别
   - [FILES] 4: src/core/session.ts, src/core/util/date.ts, src/gyccode/session/session.ts, src/tui/util/session.ts
+
+- [OK] 2026-08-12 [da08605] 修复 LLM 流空闲超时：默认 300s 提升至 600s，idle timeout 错误改为可自动重试
+  - [FILES] 9: src/core/util/date.test.ts, src/core/util/date.ts, src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/retry.test.ts ...
