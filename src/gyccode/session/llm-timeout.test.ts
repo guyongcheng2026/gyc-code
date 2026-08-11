@@ -7,8 +7,8 @@ test("LLM_STREAM_IDLE_TIMEOUT_MS is a positive finite value", () => {
   expect(Number.isFinite(LLM_STREAM_IDLE_TIMEOUT_MS)).toBe(true)
 })
 
-test("LLM_STREAM_IDLE_TIMEOUT_MS defaults to 300_000 (5 min) for deep-reasoning models", () => {
-  expect(LLM_STREAM_IDLE_TIMEOUT_MS).toBe(300_000)
+test("LLM_STREAM_IDLE_TIMEOUT_MS defaults to 600_000 (10 min) for deep-reasoning models", () => {
+  expect(LLM_STREAM_IDLE_TIMEOUT_MS).toBe(600_000)
 })
 
 test("resolveStreamIdleTimeout returns config value when provided", () => {

@@ -41,7 +41,7 @@ import { SessionID, MessageID, PartID } from "./schema"
 
 import type { Provider } from "@/provider/provider"
 import { Global } from "@gyccode/core/global"
-import { formatSessionTitleDate } from "@gyccode/core/util/date"
+import { formatSessionTitleDate, isDefaultTitle, parentTitlePrefix, childTitlePrefix } from "@gyccode/core/util/date"
 import { Effect, Layer, Option, Context, Schema, Types } from "effect"
 import { NonNegativeInt, optional } from "@gyccode/core/schema"
 import { RuntimeFlags } from "@/effect/runtime-flags"
@@ -49,14 +49,7 @@ import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"
 import { SessionMessage } from "@gyccode/schema/session-message"
 
-const parentTitlePrefix = "New session - "
-const childTitlePrefix = "Child session - "
-
-export function isDefaultTitle(title: string) {
-  return new RegExp(
-    `^(${parentTitlePrefix}|${childTitlePrefix})\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}(Z|[+-]\\d{2}:\\d{2})?$`,
-  ).test(title)
-}
+export { isDefaultTitle }
 
 type SessionRow = typeof SessionTable.$inferSelect
 

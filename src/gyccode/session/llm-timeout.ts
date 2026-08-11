@@ -14,11 +14,12 @@
  * thinking is unaffected. When no value arrives within the window we switch to
  * a failing stream so the processor's error/retry path fires promptly.
  *
- * The default is 300s (5 min) to accommodate deep-reasoning models like
- * DeepSeek V4 Pro whose first-token latency can exceed 90s under heavy load.
- * Users can override via `llm.stream_idle_timeout_ms` in gyccode.json.
+ * The default is 600s (10 min) to accommodate deep-reasoning models like
+ * DeepSeek V4 (Flash/Pro) whose first-token latency can exceed 90s under
+ * heavy load or when routed through a proxy/queue. Users can override via
+ * `llm.stream_idle_timeout_ms` in gyccode.json.
  */
-export const LLM_STREAM_IDLE_TIMEOUT_MS = 300_000
+export const LLM_STREAM_IDLE_TIMEOUT_MS = 600_000
 
 /**
  * Resolve the effective stream idle timeout from config, falling back to the
