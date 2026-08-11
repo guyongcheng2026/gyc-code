@@ -1571,13 +1571,12 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
-            const [skills, env, instructionResolved, mcpInstructions, memories, date, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructionResolved, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               sys.memory(memoryQuery, sessionID),
-              sys.date(),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
             const instructions = instructionResolved.files
@@ -1587,12 +1586,23 @@ const layer = Layer.effect(
             const staticPrompt = buildStaticPrompt(skills)
             const semiPrompt = buildSemiStaticPrompt(env, mcpInstructions)
             const dynamicPrompt = buildDynamicPrompt(instructions)
+            // 日期注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
+            // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期放 user
+            // 增量处，跨天继续会话只影响当轮增量，不破坏历史前缀。
+            const todayPrefix = `Today's date: ${new Date().toDateString()}\n`
+            const lastUserModelIdx = modelMsgs.findLastIndex((m) => m.role === "user")
+            if (lastUserModelIdx >= 0) {
+              const lastUserModel = modelMsgs[lastUserModelIdx]
+              modelMsgs[lastUserModelIdx] = {
+                ...lastUserModel,
+                parts: [{ type: "text" as const, text: todayPrefix }, ...lastUserModel.parts],
+              }
+            }
             const system = [
               ...semiPrompt,
               ...dynamicPrompt,
               staticPrompt,
               ...(memories ? [memories] : []),
-              ...(date ? [date] : []),
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
