@@ -42,8 +42,8 @@ const MIN_PRESERVE_RECENT_TOKENS = 2_000
 const MAX_PRESERVE_RECENT_TOKENS = 8_000
 
 // --- Microcompact ---
-export const MICROCOMPACT_THRESHOLD = 0.85 // Start microcompact at 85% context usage
-export const CACHE_PREFIX_KEEP = 10 // Keep first 10 messages for cache preservation
+export const MICROCOMPACT_THRESHOLD = 0.9 // Start microcompact at 90% context usage
+export const CACHE_PREFIX_KEEP = 20 // Keep first 20 messages for cache preservation
 export const MAX_CONSECUTIVE_COMPACTION_FAILURES = 3 // Auto-compaction circuit breaker
 
 export interface MicrocompactBlock {

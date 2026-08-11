@@ -69,6 +69,16 @@ import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
+// 记忆提取失败冷却：当 small model 未授权/不可用（如 opencode 上的 gemini-3.6-flash 返回
+// Unauthorized）时，避免每个 loop 周期重复发起注定失败的 LLM 调用并刷 ERROR 日志。
+// 冷却期内跳过，冷却结束仍会重试，瞬态故障可自愈。
+const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
+const extractionCooldowns = new Map<string, number>()
+const recordExtractionFailure = (sessionID: string) => {
+  if (extractionCooldowns.size >= 1000) extractionCooldowns.clear()
+  extractionCooldowns.set(sessionID, Date.now() + MEMORY_EXTRACTION_COOLDOWN_MS)
+}
+
 const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
 /** 子代理未显式配置 steps 时的默认步数上限，防止无限空转。 */
@@ -1355,7 +1365,12 @@ const layer = Layer.effect(
           // Non-blocking: failures never interrupt the main loop.
           const memoryCfg = (yield* config.get()).memory?.extraction
           if (memoryCfg?.enabled !== false && step % (memoryCfg?.min_turns ?? 3) === 0) {
+            const coolingDown = Date.now() < (extractionCooldowns.get(sessionID) ?? 0)
             yield* Effect.gen(function* () {
+              if (coolingDown) {
+                yield* Effect.logInfo("memory extraction skipped (cooldown)", { "session.id": sessionID })
+                return
+              }
               const recent = msgs
                 .filter((m) => m.info.role === "user")
                 .flatMap((m) => m.parts)
@@ -1406,7 +1421,14 @@ const layer = Layer.effect(
                 },
               })
               yield* Effect.logInfo("memory extraction complete", { "session.id": sessionID, count: result.length })
-            }).pipe(Effect.ignore, Effect.forkIn(scope))
+            }).pipe(
+              Effect.catch(() =>
+                Effect.sync(() => recordExtractionFailure(sessionID)).pipe(
+                  Effect.andThen(Effect.logInfo("memory extraction failed; backing off", { "session.id": sessionID })),
+                ),
+              ),
+              Effect.forkIn(scope),
+            )
           }
 
           const model = yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)
@@ -1549,12 +1571,13 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
-            const [skills, env, instructionResolved, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructionResolved, mcpInstructions, memories, date, modelMsgs] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
-              sys.memory(memoryQuery),
+              sys.memory(memoryQuery, sessionID),
+              sys.date(),
               MessageV2.toModelMessagesEffect(msgs, model),
             ])
             const instructions = instructionResolved.files
@@ -1569,6 +1592,7 @@ const layer = Layer.effect(
               ...dynamicPrompt,
               staticPrompt,
               ...(memories ? [memories] : []),
+              ...(date ? [date] : []),
             ]
             const format = lastUser.format ?? { type: "text" as const }
             if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)

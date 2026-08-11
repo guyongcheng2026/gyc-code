@@ -11,8 +11,8 @@
  * touches skill outputs (they carry instructions the model still needs).
  */
 
-export const MICROCOMPACT_THRESHOLD = 0.85
-export const CACHE_PREFIX_KEEP = 10
+export const MICROCOMPACT_THRESHOLD = 0.9
+export const CACHE_PREFIX_KEEP = 20
 const TAIL_KEEP = 5
 const PROTECTED_TOOLS = new Set(["skill"])
 

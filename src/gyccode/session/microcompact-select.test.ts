@@ -21,8 +21,8 @@ function userMsg(id: string): SessionV1.Part {
 }
 
 test("thresholds are exported and sane", () => {
-  expect(MICROCOMPACT_THRESHOLD).toBe(0.85)
-  expect(CACHE_PREFIX_KEEP).toBe(10)
+  expect(MICROCOMPACT_THRESHOLD).toBe(0.9)
+  expect(CACHE_PREFIX_KEEP).toBe(20)
 })
 
 test("selectMicrocompactParts returns empty when usage is below threshold", () => {
@@ -34,12 +34,12 @@ test("selectMicrocompactParts returns empty when usage is below threshold", () =
 })
 
 test("selectMicrocompactParts marks middle tool outputs when usage >= threshold", () => {
-  const msgs = Array.from({ length: 20 }, (_, i) => ({
+  const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
     parts: [i % 2 === 1 ? toolPart(`c${i}`, "bash") : userMsg(`u${i}`)],
   })) as any
   const selected = selectMicrocompactParts(msgs, 180_000, 200_000)
-  // Cache prefix (first 10 messages) and last 5 messages are protected.
+  // Cache prefix (first 20 messages) and last 5 messages are protected.
   expect(selected.length).toBeGreaterThan(0)
   for (const part of selected) {
     expect(part.state.status).toBe("completed")
@@ -70,7 +70,7 @@ test("selectMicrocompactParts never touches the cache prefix or the tail", () =>
 })
 
 test("selectMicrocompactParts protects skill tool outputs", () => {
-  const msgs = Array.from({ length: 20 }, (_, i) => ({
+  const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
     parts: [i % 2 === 1 ? toolPart(`c${i}`, "skill") : userMsg(`u${i}`)],
   })) as any
@@ -122,7 +122,7 @@ describe("selectTimeBasedParts", () => {
   })
 
   it("respects keepRecent and cache prefix", () => {
-    const msgs = Array.from({ length: 15 }, (_, i) => toolMsg(`m${i}`, old))
+    const msgs = Array.from({ length: 30 }, (_, i) => toolMsg(`m${i}`, old))
     const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 3 })
     const idx = selected.map((s) => s._msgIndex)
     expect(idx).not.toContain(0) // cache prefix

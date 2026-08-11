@@ -49,9 +49,10 @@ export function provider(model: Provider.Model) {
 
 export interface Interface {
   readonly environment: (model: Provider.Model) => Effect.Effect<string[]>
+  readonly date: () => Effect.Effect<string>
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
-  readonly memory: (query: string) => Effect.Effect<string | undefined>
+  readonly memory: (query: string, sessionID: string) => Effect.Effect<string | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/SystemPrompt") {}
@@ -62,6 +63,12 @@ const layer = Layer.effect(
     const skill = yield* Skill.Service
     const mcp = yield* MCP.Service
     const locations = yield* LocationServiceMap.Service
+
+    // 会话级记忆缓存：同一会话内固定记忆注入，避免随每条消息的检索 query
+    // 变化破坏系统提示的字节稳定性（prompt-cache 前缀友好）。
+    const memoryCache = new Map<string, { time: number; value: string | undefined }>()
+    const MEMORY_CACHE_TTL_MS = 30 * 60 * 1000
+    const MEMORY_CACHE_MAX = 64
 
     return Service.of({
       environment: Effect.fn("SystemPrompt.environment")(function* (model: Provider.Model) {
@@ -78,7 +85,6 @@ const layer = Layer.effect(
             `  Workspace root folder: ${ctx.worktree}`,
             `  Is directory a git repo: ${ctx.project.vcs === "git" ? "yes" : "no"}`,
             `  Platform: ${process.platform}`,
-            `  Today's date: ${new Date().toDateString()}`,
             `</env>`,
           ].join("\n"),
           references.length === 0
@@ -100,6 +106,10 @@ const layer = Layer.effect(
                 "</available_references>",
               ].join("\n"),
         ].filter((part): part is string => part !== undefined)
+      }),
+
+      date: Effect.fn("SystemPrompt.date")(function* () {
+        return `Today's date: ${new Date().toDateString()}`
       }),
 
       skills: Effect.fn("SystemPrompt.skills")(function* (agent: Agent.Info) {
@@ -146,7 +156,9 @@ const layer = Layer.effect(
         ].join("\n")
       }),
 
-      memory: Effect.fn("SystemPrompt.memory")(function* (query: string) {
+      memory: Effect.fn("SystemPrompt.memory")(function* (query: string, sessionID: string) {
+        const cached = memoryCache.get(sessionID)
+        if (cached && Date.now() - cached.time < MEMORY_CACHE_TTL_MS) return cached.value
         if (!query.trim()) return
         const entries = yield* Effect.promise(() => searchHermesMemories(query))
         if (entries.length > 0) {
@@ -154,7 +166,10 @@ const layer = Layer.effect(
           yield* Effect.logDebug("SystemPrompt.memory", { query: query.slice(0, 80), hits: entries.length })
         }
         const ageMs = yield* Effect.promise(() => getHermesMemoryAgeMs())
-        return formatMemoriesForPrompt(entries, MEMORY_INJECTION_BUDGET, ageMs)
+        const value = formatMemoriesForPrompt(entries, MEMORY_INJECTION_BUDGET, ageMs)
+        if (memoryCache.size >= MEMORY_CACHE_MAX) memoryCache.clear()
+        memoryCache.set(sessionID, { time: Date.now(), value })
+        return value
       }),
     })
   }),
