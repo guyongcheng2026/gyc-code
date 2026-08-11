@@ -15,6 +15,7 @@ import { FileMutation } from "../file-mutation"
 import { FSUtil } from "../fs-util"
 import { LocationMutation } from "../location-mutation"
 import { PermissionV2 } from "../permission"
+import { detectTextEncoding, encodeForWrite } from "../util/text-encoding"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
@@ -46,10 +47,10 @@ const convertToLineEnding = (text: string, ending: "\n" | "\r\n") =>
 
 const splitBom = (text: string) =>
   text.startsWith("\uFEFF") ? { bom: true, text: text.slice(1) } : { bom: false, text }
-const joinBom = (text: string, bom: boolean) => (bom ? `\uFEFF${text}` : text)
-const decodeUtf8 = (content: Uint8Array) => {
+const decodeText = (content: Uint8Array) => {
+  const encoding = detectTextEncoding(content)
   const bom = content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf
-  return { bom, content, text: new TextDecoder().decode(bom ? content.slice(3) : content) }
+  return { bom, encoding, content, text: new TextDecoder(encoding, { ignoreBOM: true }).decode(content) }
 }
 
 const countOccurrences = (content: string, search: string) => {
@@ -158,7 +159,7 @@ const layer = Layer.effectDiscard(
                     source: permissionSource,
                   }),
                 )
-                const source = decodeUtf8(yield* unableToEdit(fs.readFile(target.canonical)))
+                const source = decodeText(yield* unableToEdit(fs.readFile(target.canonical)))
                 const ending = detectLineEnding(source.text)
                 const oldString = convertToLineEnding(input.oldString, ending)
                 const newString = convertToLineEnding(input.newString, ending)
@@ -192,7 +193,7 @@ const layer = Layer.effectDiscard(
                   files.writeIfUnchanged({
                     target,
                     expected: source.content,
-                    content: joinBom(next.text, source.bom || next.bom),
+                    content: encodeForWrite(next.text, source.encoding, source.bom || next.bom),
                   }),
                 )
                 return {

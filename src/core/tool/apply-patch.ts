@@ -10,6 +10,7 @@ import { FSUtil } from "../fs-util"
 import { LocationMutation } from "../location-mutation"
 import { Patch } from "../patch"
 import { PermissionV2 } from "../permission"
+import { detectTextEncoding, encodeForWrite, type TextFileEncoding } from "../util/text-encoding"
 import { ToolRegistry } from "./registry"
 import { Tool } from "./tool"
 import { Tools } from "./tools"
@@ -52,6 +53,8 @@ type Prepared =
       readonly target: LocationMutation.Target
       readonly source: Uint8Array
       readonly content: string
+      readonly encoding: TextFileEncoding
+      readonly bom: boolean
       readonly before: string
       readonly after: string
     })
@@ -137,7 +140,8 @@ const layer = Layer.effectDiscard(
                     }
                     if ((yield* fs.stat(target.canonical)).type !== "File") yield* fail(hunk.path)
                     const source = yield* fs.readFile(target.canonical)
-                    const original = new TextDecoder("utf-8", { ignoreBOM: true }).decode(source)
+                    const encoding = detectTextEncoding(source)
+                    const original = new TextDecoder(encoding, { ignoreBOM: true }).decode(source)
                     const before = original.replace(/^\uFEFF/, "")
                     if (hunk.type === "delete") {
                       prepared.push({ ...hunk, target, before, after: "" })
@@ -149,6 +153,8 @@ const layer = Layer.effectDiscard(
                       target,
                       source,
                       content: Patch.joinBom(update.content, update.bom),
+                      encoding,
+                      bom: update.bom,
                       before,
                       after: update.content,
                     })
@@ -179,7 +185,7 @@ const layer = Layer.effectDiscard(
                       const result = yield* files.writeIfUnchanged({
                         target: change.target,
                         expected: change.source,
-                        content: change.content,
+                        content: encodeForWrite(change.content, change.encoding, change.bom),
                       })
                       applied.push({ type: change.type, resource: result.resource, target: result.target })
                     }).pipe(Effect.mapError(() => fail(change.path))),

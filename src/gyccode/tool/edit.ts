@@ -111,7 +111,7 @@ export const EditTool = Tool.define(
                     diff,
                   },
                 })
-                yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
+                yield* Bom.writeFileEncoded(afs, filePath, contentNew, { bom: desiredBom, encoding: "utf-8" })
                 if (yield* format.file(filePath)) {
                   contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
                 }
@@ -172,7 +172,7 @@ export const EditTool = Tool.define(
                               throw new Error(`File ${filePath} was modified externally during approval. Please re-read and try again.`)
                             }
 
-                            yield* afs.writeWithDirs(filePath, Bom.join(contentNew, desiredBom))
+                            yield* Bom.writeFileEncoded(afs, filePath, contentNew, { bom: desiredBom, encoding: source.encoding })
               if (yield* format.file(filePath)) {
                 contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
               }

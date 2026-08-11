@@ -1,4 +1,5 @@
 import { Effect, Stream } from "effect"
+import iconv from "iconv-lite"
 
 // 文本文件编码探测与解码（Windows 中文环境 GBK 兼容）
 //
@@ -99,4 +100,12 @@ export function decodeSubprocessStream<R, E>(stream: Stream.Stream<Uint8Array, E
       )
     }),
   )
+}
+
+/** 写回前的统一编码入口：剥离内容自带 BOM，按目标编码与 BOM 状态返回字符串（utf-8）或字节（gb18030）。
+ * writeWithDirs / writeIfUnchanged 均接受 string | Uint8Array，各写链路可直接使用。 */
+export function encodeForWrite(text: string, encoding: TextFileEncoding, bom: boolean): string | Uint8Array {
+  const stripped = text.replace(/^\uFEFF+/, "")
+  if (encoding === "utf-8") return bom ? `\uFEFF${stripped}` : stripped
+  return iconv.encode(stripped, "gb18030")
 }

@@ -5,6 +5,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { dirname } from "path"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { FSUtil } from "./fs-util"
+import { detectTextEncoding, encodeForWrite } from "./util/text-encoding"
 
 export interface Target {
   readonly canonical: string
@@ -112,9 +113,10 @@ const layer = Layer.effect(
           const current = yield* fs
             .readFile(input.target.canonical)
             .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
+          const encoding = current === undefined ? "utf-8" : detectTextEncoding(current)
           yield* fs.writeWithDirs(
             input.target.canonical,
-            joinBom(next.text, Boolean(current && hasUtf8Bom(current)) || next.bom),
+            encodeForWrite(next.text, encoding, Boolean(current && hasUtf8Bom(current)) || next.bom),
           )
           return writeResult(input.target, current !== undefined)
         }),
@@ -177,10 +179,6 @@ function splitBom(text: string) {
   return { bom: stripped.length !== text.length, text: stripped }
 }
 
-function joinBom(text: string, bom: boolean) {
-  const stripped = splitBom(text).text
-  return bom ? `\uFEFF${stripped}` : stripped
-}
 
 function hasUtf8Bom(content: Uint8Array) {
   return content[0] === 0xef && content[1] === 0xbb && content[2] === 0xbf

@@ -1,4 +1,5 @@
 import * as path from "path"
+import type { TextFileEncoding } from "@gyccode/core/util/text-encoding"
 import { Effect, Schema } from "effect"
 import * as Tool from "./tool"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -65,6 +66,7 @@ export const ApplyPatchTool = Tool.define(
         additions: number
         deletions: number
         bom: boolean
+        encoding: TextFileEncoding
       }> = []
 
       let totalDiff = ""
@@ -104,6 +106,7 @@ export const ApplyPatchTool = Tool.define(
               additions,
               deletions,
               bom: next.bom,
+              encoding: "utf-8",
             })
 
             totalDiff += diff + "\n"
@@ -164,6 +167,7 @@ export const ApplyPatchTool = Tool.define(
               additions,
               deletions,
               bom,
+              encoding: source.encoding,
             })
 
             totalDiff += diff + "\n"
@@ -194,6 +198,7 @@ export const ApplyPatchTool = Tool.define(
               additions: 0,
               deletions,
               bom: source.bom,
+              encoding: source.encoding,
             })
 
             totalDiff += deleteDiff + "\n"
@@ -235,12 +240,12 @@ export const ApplyPatchTool = Tool.define(
           case "add":
             // Create parent directories (recursive: true is safe on existing/root dirs)
 
-            yield* afs.writeWithDirs(change.filePath, Bom.join(change.newContent, change.bom))
+            yield* Bom.writeFileEncoded(afs, change.filePath, change.newContent, { bom: change.bom, encoding: change.encoding })
             updates.push({ file: change.filePath, event: "add" })
             break
 
           case "update":
-            yield* afs.writeWithDirs(change.filePath, Bom.join(change.newContent, change.bom))
+            yield* Bom.writeFileEncoded(afs, change.filePath, change.newContent, { bom: change.bom, encoding: change.encoding })
             updates.push({ file: change.filePath, event: "change" })
             break
 
@@ -248,7 +253,7 @@ export const ApplyPatchTool = Tool.define(
             if (change.movePath) {
               // Create parent directories (recursive: true is safe on existing/root dirs)
 
-              yield* afs.writeWithDirs(change.movePath!, Bom.join(change.newContent, change.bom))
+              yield* Bom.writeFileEncoded(afs, change.movePath!, change.newContent, { bom: change.bom, encoding: change.encoding })
               yield* afs.remove(change.filePath)
               updates.push({ file: change.filePath, event: "unlink" })
               updates.push({ file: change.movePath, event: "add" })
