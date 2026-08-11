@@ -30,7 +30,7 @@
 2. 新增 `src/gyccode/cli/cmd/cli.ts`：逐行 REPL 命令（$0），核心为 readline 循环 + 复用 run.ts 的 client / 事件流渲染
 3. REPL 功能清单（对齐主流 AI CLI 形态）：
    - 提示行、历史记录（readline 原生）
-   - 斜杠命令：/model /exit /help /resume 等（列表来自 SDK command.list）
+   - 斜杠命令：/model /agent（含 compose agent 切换） /exit /help /resume 等（列表来自 SDK command.list）
    - 每轮事件流式输出到 stdout（复用 run.ts 的 tool/block/inline 渲染）
    - 权限请求文本化处理
 4. `gyc --tui` 完整保留现有 TUI 代码，零改动
@@ -41,6 +41,14 @@
 - 多行粘贴：P2 后补（首行后超时或缩进续行检测）
 - Ctrl-C：空行退出、输入中取消当前轮；已有 win32InstallCtrlCGuard 先例
 - 乱码：win32EnableUtf8Console() 启动时已全局调用，REPL 直接受益，无新增风险
+
+
+## compose 模式兼容性（已核实，2026-08-11）
+- compose 模式 = 会话使用 compose agent（agent.name === "compose"），由服务端 reminders.ts 在提示词构建时注入 PROMPT_COMPOSE + <compose_skills> 块，与前端界面（TUI/REPL/run）完全解耦
+- 方案 A 后 compose 三个入口均可用：
+  1. REPL：gyc --agent compose 或 REPL 内 /agent 切换（REPL 需实现 agent 参数透传，run 已支持 --agent，成本低）
+  2. gyc compose plan <message> / gyc compose skills 子命令保留，不依赖 TUI
+  3. gyc --tui 全屏 TUI 原样保留，现有 compose 使用方式不变
 
 ## 内存影响
 逐行 REPL 不加载 OpenTUI renderer/solid 组件栈（footer 系列 30+ TSX 模块），启动内存预计从 TUI 约 89MB 降至 30MB 量级（接近 gyc run 非交互水平），与内存精简目标一致。
