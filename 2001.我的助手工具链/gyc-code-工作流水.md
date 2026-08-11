@@ -373,3 +373,6 @@
 
 - [OK] 2026-08-11 [d73432c] docs(agents): add mandatory post-task reflection/learning rule
   - [FILES] 1: AGENTS.md
+
+- [OK] 2026-08-11 [8d66918] fix(copilot): fall back to all usable models when picker set is empty (free plans)
+  - [FILES] 1: src/gyccode/plugin/github-copilot/copilot.ts
