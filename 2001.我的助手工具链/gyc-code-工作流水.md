@@ -415,3 +415,6 @@
 
 - [OK] 2026-08-11 [72f46be] 修复TUI启动抖动：固定dark模式立即渲染，不再等待终端主题探测
   - [FILES] 2: src/tui/app.tsx, src/tui/context/theme.tsx
+
+- [OK] 2026-08-11 [8f79e8e] 修复会话默认标题UTC时间与本机不一致：改用本地时间格式化，兼容旧Z格式标题识别
+  - [FILES] 4: src/core/session.ts, src/core/util/date.ts, src/gyccode/session/session.ts, src/tui/util/session.ts
