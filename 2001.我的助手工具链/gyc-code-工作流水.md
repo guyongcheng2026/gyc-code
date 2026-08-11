@@ -370,3 +370,6 @@
 
 - [OK] 2026-08-11 [6657a3c] docs(eval): correct thinkback mislabel
   - [FILES] 2: docs/claude-code-capability-gap-analysis.md, docs/compose/reports/model-capability-five-metrics-full-eval-2026-08-10.md
+
+- [OK] 2026-08-11 [d73432c] docs(agents): add mandatory post-task reflection/learning rule
+  - [FILES] 1: AGENTS.md
