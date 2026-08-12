@@ -493,3 +493,6 @@
 
 - [OK] 2026-08-12 [a379b5d] perf: 第三轮架构审查修复 - 缓存反模式/记忆搜索/死依赖清理
   - [FILES] 20: build.mjs, docs/architecture-review-2026-08-12-round2.md, docs/architecture-review-2026-08-12-round3.md, package.json, scripts/verify-external.mjs, src/core/database/database.ts ...
+
+- [OK] 2026-08-12 [f4c0aa5] build: 构建前清理 dist 目录，避免多轮构建产物残留叠加
+  - [FILES] 1: build.mjs
