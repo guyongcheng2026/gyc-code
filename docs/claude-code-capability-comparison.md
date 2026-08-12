@@ -5,6 +5,8 @@
 **对照基准**: Claude Code（官方能力清单，2026-08 版）
 **结论分级**: ⭐ = 优势 / ⭐⭐ = 显著优势 / 持平 / 差距
 
+> **修正记录（2026-08-12，AI 独立视角复核）**: 原稿对 Claude 侧 4 处打分失实，已修正——口#7 Shell 沙箱低估（OS 沙箱 vs 命令正则是代差，Claude ⭐→⭐⭐）；口#15 多步自主（Claude 实际支持并行 subagents，gyc ⭐→持平）；口#24 可回滚性（Claude 有自动 checkpoint + /rewind，gyc ⭐⭐→持平）；口#27 Token 消耗（Claude 原生 prompt caching，gyc ⭐→持平）。修正后统计：**gyc 占优 18 项 / 持平 10 项 / Claude 占优 1 项**（原 21/7/1）。
+
 ---
 
 ## 总览表
@@ -17,7 +19,7 @@
 | 4 | 模型 | 多语言支持 | 插件式 LSP | 38 内置 LSP + 100+ 扩展名 | gyc ⭐⭐ |
 | 5 | 模型 | 长会话稳定性 | 压缩+记忆 | 三层压缩+记忆+熔断 | gyc ⭐ |
 | 6 | 工具 | 文件操作 | 精确 patch | 换行/BOM/并发锁/读缓存 | gyc ⭐ |
-| 7 | 工具 | Shell 执行 | OS 沙箱 | 四层命令分类+blocked 硬拦截 | **Claude ⭐**（隔离深度） |
+| 7 | 工具 | Shell 执行 | OS 沙箱 | 四层命令分类+blocked 硬拦截 | **Claude ⭐⭐**（OS 沙箱是内核级隔离，命令正则可绕过） |
 | 8 | 工具 | Git 集成 | 自动 commit | 服务级封装 + Windows 专项 | 各有千秋 |
 | 9 | 工具 | 搜索能力 | ripgrep | ripgrep + LSP 符号搜索 | gyc ⭐ |
 | 10 | 工具 | MCP 扩展 | 生态成熟 | 5 传输超集 + 完整 OAuth | gyc 工程/Claude 生态 |
@@ -25,7 +27,7 @@
 | 12 | Agent | 任务拆解 | PLAN→执行 | 多 agent + swarm + plan→build | gyc ⭐ |
 | 13 | Agent | 错误恢复 | 重试 | 重试引擎（retry-after/上限/熔断） | gyc ⭐ |
 | 14 | Agent | 危险操作防护 | destructive 确认 | 四层分类+通配符规则+blocked | gyc ⭐ |
-| 15 | Agent | 多步自主 | 单线程自主 | 后台并行+子 agent 会话续接 | gyc ⭐ |
+| 15 | Agent | 多步自主 | 并行 subagents | 后台并行+子 agent 会话续接 | 持平 |
 | 16 | Agent | 代码质量自觉 | 默认较好 | review 命令+LSP 诊断 | gyc ⭐ |
 | 17 | 工作流 | 测试驱动 | TDD 配合好 | 测试基建完整+task 子 agent | 持平 |
 | 18 | 工作流 | 代码审查 | 强 | review 模板最完善 | gyc ⭐⭐ |
@@ -34,10 +36,10 @@
 | 21 | 工作流 | 项目级理解 | 读 monorepo | 多 root LSP (monorepo) | gyc ⭐ |
 | 22 | 可靠 | 幻觉率 | 低（旗舰模型） | 记忆去重/TF-IDF/LSP 三重防线 | 模型决定，防线补齐 |
 | 23 | 可靠 | 破坏性风险 | 中低 | blocked 硬拦截+外部目录保护 | gyc ⭐ |
-| 24 | 可靠 | 可回滚性 | git diff 撤销 | 自动快照+revert | gyc ⭐⭐ |
+| 24 | 可靠 | 可回滚性 | 自动 checkpoint + /rewind | 自动快照+revert | 持平 |
 | 25 | 可靠 | 审计日志 | 会话记录 | 事件溯源全量 | gyc ⭐⭐ |
 | 26 | 成本 | 速度 | 中（模型偏重） | 本地 LSP 省推理+懒加载+21MB | gyc ⭐ |
-| 27 | 成本 | Token 消耗 | 中高（订阅制） | prefix 稳定+三层压缩+记忆快路径 | gyc ⭐ |
+| 27 | 成本 | Token 消耗 | 原生 prompt caching | prefix 稳定+三层压缩+记忆快路径 | 持平 |
 | 28 | 成本 | 成本可视化 | 中：usage 统计 | stats 完整仪表盘 | gyc ⭐⭐ |
 | 29 | 成本 | 免费可用性 | ❌ 付费 | ✅ 零订阅+免费模型+自带 key | **gyc 碾压** ⭐⭐⭐ |
 
@@ -85,11 +87,11 @@
 - **gyc-cli**: 双工具 `edit`（old/new 精确替换）+ `apply_patch`（多 hunk 批量）；**换行智能**（`edit.ts:23-34` normalizeLineEndings/detectLineEnding/convertToLineEnding 自动保留 CRLF/LF）；**BOM 处理**（`edit.ts:20`）；**并发锁**（`edit.ts:36-48` 每文件 Semaphore）；diff 校验（`edit.ts:10`）；读缓存（`read-cache.ts`）；外部目录保护（`external-directory.ts`）
 - **结论**: Windows/多编码环境下准确性保障超 Claude
 
-### 7. Shell 执行 — **Claude ⭐**（隔离深度）
+### 7. Shell 执行 — **Claude ⭐⭐**（OS 沙箱代差）
 
-- **Claude Code**: OS 级沙箱（seccomp/容器）
+- **Claude Code**: OS 级沙箱（macOS Seatbelt / Linux bubblewrap 容器，默认开启；内核级强制隔离，含文件系统/网络限制）
 - **gyc-cli**: **四层安全分级**（`shell/security.ts:3-7` safe/warning/dangerous/blocked）；**13 种危险模式**（`security.ts:9-24`，`rm -rf /`/fork bomb/`/dev/tcp`/mkfs 直接 blocked）；命令分类白名单（`shell.ts:36-74` FILES/CWD/CMD_FILES 跨平台别名归一化）；跨平台 bash/PowerShell/cmd
-- **差距**: gyc 是命令级审查，无 OS 沙箱隔离。对"误操作"防护足够，对"恶意命令运行"Claude 更强
+- **差距（代差）**: gyc 是**命令级正则审查**（启发式模式匹配，存在 shell 混淆/变体绕过的空间）；Claude 是**内核级 OS 沙箱**（seccomp/bwrap 强制隔离，不可绕过）。对“误操作”两者都够用；对“恶意命令执行”Claude 是结构性优势，非同一技术层级
 
 ### 8. Git 集成 — 各有千秋
 
@@ -137,11 +139,11 @@
 - **gyc-cli**: 权限规则引擎（`permission/index.ts:28-38` 通配符匹配+多规则集 allow/deny/ask+**永久批准记忆**）；挂起请求 Deferred（`index.ts:18-21`）；四层安全分类（`shell/security.ts`）；13 种危险模式（`security.ts:9-24`）；子 agent 权限降级（`subagent-permissions.ts`）
 - **结论**: blocked 硬拦截比"确认"更安全
 
-### 15. 多步自主 — gyc ⭐
+### 15. 多步自主 — 持平
 
-- **Claude Code**: 一口气完成小 feature
+- **Claude Code**: 支持**并行 subagents**（task 工具可同时 spawn 多个子 agent 并行执行，子任务间隔离上下文）
 - **gyc-cli**: `task.ts` 前台/后台双模式（`task.ts:26-35`）+ **子 agent 会话续接**（`task.ts:47-49` task_id）+ 防重复指导（`task.ts:31-41`）+ 专属权限（`task.ts:10`）
-- **结论**: 后台并行 + 会话续接，超 Claude
+- **结论**: 双方均支持并行子 agent 与自主多步执行，能力同级；gyc 的会话续接（task_id 恢复）略有工程增量
 
 ### 16. 代码质量自觉 — gyc ⭐
 
@@ -199,11 +201,11 @@
 - **gyc-cli**: blocked 硬拦截（`security.ts:36-38` rm -rf / 等直接拒绝）；dangerous 询问（`security.ts:40-42`）；外部目录保护（`edit.ts:18` assertExternalDirectoryEffect）；文件锁（`edit.ts:36-48`）
 - **结论**: 防护更细，blocked 硬拦比"确认"更安全
 
-### 24. 可回滚性 — gyc ⭐⭐
+### 24. 可回滚性 — 持平
 
-- **Claude Code**: git diff 撤销
+- **Claude Code**: **自动 checkpoint**（每次工具调用前自动快照）+ `/rewind` 命令可回滚到任意 checkpoint；`/undo` 撤销最近编辑
 - **gyc-cli**: snapshot 自动快照（`snapshot/index.ts:39` track 每次执行前打点）；diff 恢复（`index.ts:41-44` restore/revert/diff 按 hash 精确回滚）；7 天 pruning（`index.ts:23`）；2MB 限制（`index.ts:24`）
-- **结论**: 自动快照 + 精确 revert 超 Claude 的 git 手动 diff
+- **结论**: 机制同级（均自动打点+精确回滚）；gyc 快照有 7 天保留策略，Claude checkpoint 生命周期由会话管理
 
 ### 25. 审计日志 — gyc ⭐⭐
 
@@ -221,11 +223,11 @@
 - **gyc-cli**: 冷启动 <3.5s（命令懒加载 `index.ts:156-171`）；dist 21MB（245→21MB，-91%）；**本地 LSP 加速**（代码理解用本地符号查询，不消耗模型 token）；工具输出截断（30K/grep100/2MB 防炸弹）
 - **结论**: 同模型下 gyc 更快（本地 LSP 省模型推理）
 
-### 27. Token 消耗 — gyc ⭐
+### 27. Token 消耗 — 持平
 
-- **Claude Code**: 中高（订阅制）
+- **Claude Code**: **原生 prompt caching**（Anthropic 缓存自动生效，cache read 价为输入的 1/10；长期上下文场景自动缓存命中）+ 自动压缩
 - **gyc-cli**: **Prompt cache 前缀稳定**（`prompt-shard.ts` static→semi→dynamic→memories 变化频率递增，cache read 价=输入 1/10）；**三层压缩**（`compaction.ts`）；**记忆快路径**（`compaction.ts:185` 免 LLM 摘要调用）；精确 cost 计算（`session.ts:386-408` tiered pricing+cache 分价+reasoning 单列）；cache 锚定（`cache-anchor.ts` cacheDriftFromUsage）
-- **结论**: 同任务比 Claude 更省，且按量付费不买订阅
+- **结论**: 双方均有原生级缓存机制与压缩策略，能力同级；gyc 的成本计算更透明（按量付费明细），Claude 订阅制包干
 
 ### 28. 成本可视化 — gyc ⭐⭐
 
@@ -248,10 +250,10 @@
 | 维度 | Claude Code | gyc-cli |
 |------|-------------|---------|
 | 模型能力 | Claude 旗舰模型 | 取决于所选模型（可上 Claude 同级） |
-| 工程兜底 | 单 agent + 重试 | 多 agent/swarm + 重试引擎 + LSP + snapshot + review |
+| 工程兜底 | 并行 subagents + 自动 checkpoint + OS 沙箱 | 多 agent/swarm + 重试引擎 + LSP + snapshot + review |
 | 结论 | 中-高 | **工程兜底更强，上限取决于模型** |
 
-**判断**: gyc 用同等模型时成功率不低于 Claude Code——多 agent 编排、LSP 语义、snapshot 回滚、review 纪律都是"做对"的保障。用开源模型时 gyc 的工程兜底价值更大。
+**判断**: gyc 用同等模型时成功率不低于 Claude Code——多 agent 编排、LSP 语义、snapshot 回滚（与 Claude checkpoint 同级）、review 纪律都是“做对”的保障。用开源模型时 gyc 的工程兜底价值更大。
 
 ### ② 幻觉率
 
@@ -279,15 +281,15 @@
 
 ## 八、总结与建议
 
-### 优势区（gyc 全面领先）
-- **多 agent 编排**：plan→build 切换 + swarm 角色分派 + 子 agent 会话续接
+### 优势区（gyc 占优）
+- **多 agent 编排**：plan→build 切换 + swarm 角色分派 + 子 agent 会话续接（同级项：并行 subagents 已持平）
 - **代码理解**：38 内置 LSP + 编辑后诊断注入 + 调用层级
-- **安全防护**：四层命令分类 + blocked 硬拦 + 通配符权限规则 + snapshot 回滚
-- **成本**：零订阅 + 自由选模型 + prefix 稳定省 token + stats 仪表盘
+- **安全防护**：四层命令分类 + blocked 硬拦 + 通配符权限规则（snapshot 回滚与 Claude checkpoint 持平）
+- **成本**：零订阅 + 自由选模型 + stats 仪表盘（Token 效率与 Claude 原生 caching 持平）
 - **工程细节**：换行/BOM/并发锁/Windows Git 专项/多 root LSP
 
 ### 差距区（Claude Code 占优）
-- **Shell OS 级沙箱**：Claude 有 seccomp/容器隔离，gyc 是命令级审查
+- **Shell OS 级沙箱（代差）**：Claude 有内核级隔离（Seatbelt/bwrap），gyc 是命令级正则审查，存在绕过空间——这是本次复核后确认的结构性差距
 - **MCP 生态**：Claude MCP 市场更成熟，gyc 传输面虽超集但生态待积累
 - **Claude 系深度调优**：Claude Code+Claude 全家桶调优，gyc 是开放底座
 - **1M 稳定性实测**：Claude 有海量压测，gyc 待验证
