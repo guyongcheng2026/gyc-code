@@ -454,3 +454,6 @@
 
 - [OK] 2026-08-12 [6d25c24] 新增 db cleanup 子命令：清理孤儿事件 + VACUUM + WAL checkpoint
   - [FILES] 1: src/gyccode/cli/cmd/db.ts
+
+- [OK] 2026-08-12 [617a687] 优化 TUI 流式渲染：scrollback commit 30ms 时间节流
+  - [FILES] 1: src/gyccode/cli/cmd/run/footer.ts
