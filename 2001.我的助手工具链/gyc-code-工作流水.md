@@ -460,3 +460,6 @@
 
 - [OK] 2026-08-12 [ab240ed] 内存优化: scrollback 语法高亮默认关闭（GYCCODE_SYNTAX_HIGHLIGHT=1 恢复）
   - [FILES] 1: src/gyccode/cli/cmd/run/theme.ts
+
+- [OK] 2026-08-12 [ee269ce] 内存优化: markdown/code 渲染降为纯文本（GYCCODE_SYNTAX_HIGHLIGHT=1 恢复）
+  - [FILES] 1: src/gyccode/cli/cmd/run/scrollback.surface.ts
