@@ -31,7 +31,7 @@ import {
 } from "@agentclientprotocol/sdk"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { AppNodeBuilder } from "@gyccode/core/effect/app-node-builder"
-import type { AssistantMessage, Message, OpencodeClient as GyccodeClient, SessionMessageResponse } from "@opencode-ai/sdk/v2"
+import type { AssistantMessage, Message, GyccodeClient, SessionMessageResponse } from "@gyccode/protocol/v2"
 import { Context, Effect, Layer, ManagedRuntime } from "effect"
 import * as ACPError from "./error"
 import { buildConfigOptions, parseModelSelection } from "./config-option"

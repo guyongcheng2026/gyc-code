@@ -1,4 +1,4 @@
-import type { Provider } from "@opencode-ai/sdk/v2"
+import type { Provider } from "@gyccode/protocol/v2"
 import { isRecord } from "./record"
 
 export type ContextWindow = {

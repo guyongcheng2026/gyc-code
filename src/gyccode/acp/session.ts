@@ -1,5 +1,5 @@
 import type { McpServer } from "@agentclientprotocol/sdk"
-import type { Message, Part } from "@opencode-ai/sdk/v2"
+import type { Message, Part } from "@gyccode/protocol/v2"
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"

@@ -12,7 +12,7 @@
 //   3. starts the stream transport (SDK event subscription), lazily for fresh
 //      local sessions,
 //   4. runs the prompt queue until the footer closes.
-import { createOpencodeClient as createGyccodeClient } from "@opencode-ai/sdk/v2"
+import { createGyccodeClient } from "@gyccode/protocol/v2"
 import { Flag } from "@gyccode/core/flag/flag"
 import { MessageID } from "@/session/schema"
 import { createRunDemo } from "./demo"

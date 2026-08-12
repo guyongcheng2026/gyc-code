@@ -35,6 +35,7 @@ import { McpCatalog } from "./catalog"
 import { McpEvent } from "@gyccode/schema/mcp-event"
 import { McpBrowser } from "./browser"
 import { WSTransport } from "./transport-ws"
+import { Process } from "@/util/process"
 
 const DEFAULT_TIMEOUT = 30_000
 const CLIENT_OPTIONS = {
@@ -454,7 +455,8 @@ const layer = Layer.effect(
 
     const descendants = Effect.fnUntraced(
       function* (pid: number) {
-        if (process.platform === "win32") return [] as number[]
+        // win32 无 pgrep，进程树终止由调用方用 taskkill /T /F 完成
+        if (process.platform === "win32") return undefined as number[] | undefined
         const pids: number[] = []
         const queue = [pid]
         for (let index = 0; index < queue.length; index++) {
@@ -576,9 +578,14 @@ const layer = Layer.effect(
               (client) =>
                 Effect.gen(function* () {
                   const pid = client.transport instanceof StdioClientTransport ? client.transport.pid : null
-                  if (typeof pid === "number") {
+                  if (typeof pid === "number" && process.platform === "win32") {
+                    // Windows 无 pgrep/SIGTERM 语义，用 taskkill /T /F 强杀整棵进程树
+                    yield* Effect.tryPromise(() =>
+                      Process.run(["taskkill", "/pid", String(pid), "/T", "/F"], { nothrow: true }),
+                    ).pipe(Effect.ignore)
+                  } else if (typeof pid === "number") {
                     const pids = yield* descendants(pid)
-                    for (const dpid of pids) {
+                    for (const dpid of pids ?? []) {
                       try {
                         process.kill(dpid, "SIGTERM")
                       } catch {}

@@ -1,5 +1,5 @@
-import { createOpencodeClient as createGyccodeClient } from "@opencode-ai/sdk/v2"
-import type { GlobalEvent } from "@opencode-ai/sdk/v2"
+import { createGyccodeClient } from "@gyccode/protocol/v2"
+import type { GlobalEvent } from "@gyccode/protocol/v2"
 import { Flag } from "@gyccode/core/flag/flag"
 import { createSimpleContext } from "./helper"
 import { batch, onCleanup, onMount } from "solid-js"

@@ -41,9 +41,12 @@ function generateID(prefix: keyof typeof prefixes, direction: "descending" | "as
 function randomBase62(length: number): string {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
   let result = ""
+  // 拒绝采样：256 % 62 = 8，丢弃 [248, 256) 的字节以消除模偏差
   const bytes = randomBytes(length)
   for (let i = 0; i < length; i++) {
-    result += chars[bytes[i] % 62]
+    let byte = bytes[i]
+    while (byte >= 248) byte = randomBytes(1)[0]!
+    result += chars[byte % 62]
   }
   return result
 }
@@ -51,13 +54,19 @@ function randomBase62(length: number): string {
 export function create(prefix: string, direction: "descending" | "ascending", timestamp?: number): string {
   const currentTimestamp = timestamp ?? Date.now()
 
-  if (currentTimestamp !== lastTimestamp) {
+  // 同毫秒内最多 4096 个 ID（12bit 计数器空间）。超限时进位到下一毫秒，
+  // 保证 timestamp() 反解出的毫秒值始终单调（不随 counter 溢出污染时间字段）。
+  if (currentTimestamp > lastTimestamp) {
     lastTimestamp = currentTimestamp
     counter = 0
   }
   counter++
+  if (counter > 0xfff) {
+    counter = 0
+    lastTimestamp++
+  }
 
-  let now = BigInt(currentTimestamp) * BigInt(0x1000) + BigInt(counter)
+  let now = BigInt(lastTimestamp) * BigInt(0x1000) + BigInt(counter)
 
   now = direction === "descending" ? ~now : now
 

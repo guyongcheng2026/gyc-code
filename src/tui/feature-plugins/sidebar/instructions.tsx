@@ -1,4 +1,4 @@
-import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { TuiPlugin, TuiPluginApi } from "@gyccode/protocol/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { For, Show, createMemo } from "solid-js"
 

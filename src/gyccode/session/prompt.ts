@@ -460,7 +460,7 @@ const layer = Layer.effect(
               error,
               agent: task.agent,
               description: task.description,
-            })
+            }).pipe(Effect.as(undefined))
           }),
           Effect.onInterrupt(() =>
             Effect.gen(function* () {

@@ -1,4 +1,4 @@
-import { createOpencodeClient as createGyccodeClient } from "@opencode-ai/sdk/v2"
+import { createGyccodeClient } from "@gyccode/protocol/v2"
 import { SessionID } from "@/session/schema"
 import { Schema } from "effect"
 

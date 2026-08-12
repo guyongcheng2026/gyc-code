@@ -1,6 +1,6 @@
 export * as VariantPlugin from "./variant"
 
-import type { ModelV2Info } from "@opencode-ai/sdk/v2/types"
+import type { ModelV2Info } from "@gyccode/protocol/v2/types.gen"
 import { Effect } from "effect"
 import { define } from "./internal"
 

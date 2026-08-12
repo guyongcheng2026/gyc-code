@@ -1,5 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
-import type { AuthOAuthResult, Hooks } from "@opencode-ai/plugin"
+import type { AuthOAuthResult, Hooks } from "@gyccode/protocol/plugin"
 import { serviceUse } from "@gyccode/core/effect/service-use"
 import { Auth } from "@/auth"
 import { InstanceState } from "@/effect/instance-state"

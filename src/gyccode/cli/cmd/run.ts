@@ -22,7 +22,7 @@ import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { EOL } from "os"
 import { Filesystem } from "@/util/filesystem"
-import { createOpencodeClient as createGyccodeClient, type OpencodeClient as GyccodeClient, type ToolPart } from "@opencode-ai/sdk/v2"
+import { createGyccodeClient, type GyccodeClient, type ToolPart } from "@gyccode/protocol/v2"
 import { FormatError, FormatUnknownError } from "../error"
 import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.stdin"
 

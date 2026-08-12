@@ -17,7 +17,17 @@ for (const file of ENV_FILES) {
   if (!existsSync(file)) continue
   for (const line of readFileSync(file, "utf-8").split(/\r?\n/)) {
     const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line)
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+    if (!m || process.env[m[1]] !== undefined) continue
+    // 贪婪 (.*) 会吞掉行尾空白，先 trim；再按 dotenv 惯例剥离成对首尾引号
+    // （API_KEY="sk-xxx" → sk-xxx），否则引号会原样进入环境变量导致认证失败
+    let value = m[2].trim()
+    if (
+      value.length >= 2 &&
+      ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
+    ) {
+      value = value.slice(1, -1)
+    }
+    process.env[m[1]] = value
   }
 }
 // Windows conhost 默认按系统 ANSI 代码页（如 936/GBK）解码 UTF-8 字节流，

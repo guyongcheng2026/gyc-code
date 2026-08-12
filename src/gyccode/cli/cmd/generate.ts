@@ -18,7 +18,7 @@ export const GenerateCommand = {
           {
             lang: "js",
             source: [
-              `import { createOpencodeClient as createGyccodeClient } from "@opencode-ai/sdk`,
+              `import { createGyccodeClient } from "@gyccode/protocol/v1`,
               ``,
               `const client = createGyccodeClient()`,
               `await client.${operation.operationId}({`,

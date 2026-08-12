@@ -3,11 +3,11 @@ import type {
   Event,
   EventMessagePartDelta,
   EventMessagePartUpdated,
-  OpencodeClient as GyccodeClient,
+  GyccodeClient,
   Part,
   SessionMessageResponse,
   ToolPart,
-} from "@opencode-ai/sdk/v2"
+} from "@gyccode/protocol/v2"
 import { Effect } from "effect"
 import { ACPSession } from "./session"
 import { ACPPermission } from "./permission"

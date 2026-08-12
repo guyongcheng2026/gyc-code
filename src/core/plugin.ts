@@ -2,7 +2,7 @@ export * as PluginV2 from "./plugin"
 
 import { makeLocationNode } from "./effect/app-node"
 import { Context, Deferred, Effect, Exit, Layer, Scope } from "effect"
-import type { Plugin as PluginRuntime } from "@opencode-ai/plugin/v2/effect"
+import type { Plugin as PluginRuntime } from "@gyccode/protocol/plugin/v2/effect"
 import { Plugin } from "@gyccode/schema/plugin"
 import { AgentV2 } from "./agent"
 import { AISDK } from "./aisdk"

@@ -1,5 +1,5 @@
-import type { AssistantMessage, Message, Part } from "@opencode-ai/sdk/v2"
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { AssistantMessage, Message, Part } from "@gyccode/protocol/v2"
+import type { TuiPluginApi } from "@gyccode/protocol/plugin/tui"
 import { createMemo, For, Show } from "solid-js"
 import { Token } from "@/util/token"
 import * as Model from "../util/model"

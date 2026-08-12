@@ -23,7 +23,7 @@ import { useFrecency } from "../../prompt/frecency"
 import { usePromptHistory } from "../../prompt/history"
 import { useBindings, useCommandSlashes, useGyccodeModeStack } from "../../keymap"
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
-import type { FileSystemEntry } from "@opencode-ai/sdk/v2"
+import type { FileSystemEntry } from "@gyccode/protocol/v2"
 
 function removeLineRange(input: string) {
   const hashIndex = input.lastIndexOf("#")

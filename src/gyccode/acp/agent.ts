@@ -17,7 +17,7 @@ import {
   type SetSessionModeRequest,
 } from "@agentclientprotocol/sdk"
 import { Effect } from "effect"
-import type { OpencodeClient as GyccodeClient } from "@opencode-ai/sdk/v2"
+import type { GyccodeClient } from "@gyccode/protocol/v2"
 import * as ACPError from "./error"
 import * as ACPService from "./service"
 

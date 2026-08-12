@@ -1,5 +1,5 @@
-import type { AssistantMessage, Message, Part } from "@opencode-ai/sdk/v2"
-import type { TuiPlugin, TuiPluginApi } from "@opencode-ai/plugin/tui"
+import type { AssistantMessage, Message, Part } from "@gyccode/protocol/v2"
+import type { TuiPlugin, TuiPluginApi } from "@gyccode/protocol/plugin/tui"
 import type { BuiltinTuiPlugin } from "../builtins"
 import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
 import { completedTPS, formatTPS, streamingTPS } from "./tps"

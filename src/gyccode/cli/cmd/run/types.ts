@@ -11,7 +11,7 @@
 //     → stream.ts bridges to footer API
 //       → footer.ts queues commits and patches the footer view
 //         → OpenTUI split-footer renderer writes to terminal
-import type { OpencodeClient as GyccodeClient, PermissionRequest, QuestionRequest, ToolPart } from "@opencode-ai/sdk/v2"
+import type { GyccodeClient, PermissionRequest, QuestionRequest, ToolPart } from "@gyccode/protocol/v2"
 import type { TuiConfig } from "@gyccode/tui/config"
 
 export type RunFilePart = {
