@@ -1,4 +1,7 @@
-﻿import { expect, test } from "bun:test"
+import { expect, test } from "bun:test"
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { ReadCache } from "./read-cache"
 
 test("hasRead is false for unseen file, true after markRead", () => {
@@ -20,4 +23,16 @@ test("invalidate clears content but keeps read state", () => {
   cache.invalidate("C:/proj/c.ts")
   expect(cache.get("C:/proj/c.ts")).toBeUndefined()
   expect(cache.hasRead("C:/proj/c.ts")).toBe(true)
+})
+
+
+test("backslash and forward-slash paths share the same cache key", () => {
+  const cache = ReadCache()
+  const dir = mkdtempSync(join(tmpdir(), "readcache-"))
+  const f = join(dir, "x.ts")
+  writeFileSync(f, "content")
+  cache.markRead(f)
+  // read.ts normalizes on Windows (backslash->slash); write/edit must match
+  expect(cache.hasRead(f.replace(/\\/g, "/"))).toBe(true)
+  rmSync(dir, { recursive: true, force: true })
 })
