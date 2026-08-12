@@ -502,3 +502,6 @@
 
 - [OK] 2026-08-12 [c8e4dad] 重构: 剥离 opencode 外部依赖，SDK/plugin 客户端本地化（纯自研化第一阶段）
   - [FILES] 242: docs/BUG-REVIEW-2026-08-12-round2.md, docs/BUG-REVIEW-2026-08-12.md, package.json, src/core/config/plugin/external.ts, src/core/plugin.ts, src/core/plugin/host.ts ...
+
+- [OK] 2026-08-12 [43cd794] 品牌: 阶段 3 品牌清理——替换 30 处品牌暴露字符串（纯自研化收尾）
+  - [FILES] 17: scripts/brand-clean.py, src/core/plugin/provider/kilo.ts, src/core/plugin/provider/llmgateway.ts, src/core/plugin/provider/nvidia.ts, src/core/plugin/provider/openrouter.ts, src/core/plugin/provider/vercel.ts ...
