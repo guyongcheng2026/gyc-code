@@ -430,3 +430,6 @@
 
 - [OK] 2026-08-12 [bfcec9d] 修复 Session.patch read-modify-write 竞态：新增 per-session keyed lock
   - [FILES] 3: src/gyccode/session/keyed-lock.test.ts, src/gyccode/session/keyed-lock.ts, src/gyccode/session/session.ts
+
+- [OK] 2026-08-12 [a11497d] 激活 dream 记忆合成 + wrapSSE 去重 + 死代码清理
+  - [FILES] 8: src/core/aisdk.ts, src/gyccode/memory/dream-runner.test.ts, src/gyccode/memory/dream-runner.ts, src/gyccode/memory/team.ts, src/gyccode/provider/provider.ts, src/gyccode/session/proactive.ts ...
