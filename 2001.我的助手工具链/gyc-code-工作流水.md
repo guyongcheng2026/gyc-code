@@ -520,3 +520,6 @@
 
 - [OK] 2026-08-12 [7e71567] 基础设施: P1 剩余三项全部落地——自建账号/分享/额度服务 + 客户端全端点可配置
   - [FILES] 9: README.md, docs/ROADMAP-2026-08-12.md, services/README.md, services/account/server.ts, services/share/server.ts, src/core/plugin/provider/gyccode.ts ...
+
+- [OK] 2026-08-12 [13d9b88] 基础设施: 补最后两处漏网——CLI 登录 URL 可配置 + 社交卡片自建 SVG
+  - [FILES] 3: services/share/server.ts, src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/github.handler.ts
