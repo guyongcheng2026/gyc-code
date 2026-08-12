@@ -100,9 +100,22 @@ src/
   ui/          UI 组件与资源
 ```
 
+## 出身与许可（开源合规声明）
+
+gyc-code 基于 **opencode 1.18（MIT）** 派生：
+
+- **承继内核**：`src/core`、`src/tui`、`src/llm`、`src/schema`、`src/protocol`、`src/server`、`src/codemode` 等目录来自 opencode，版权归 opencode（2025），许可见 **LICENSE**（MIT，依法保留不得删除）。
+- **自研层**：`src/gyccode/` 及 gyc-code 贡献者新增代码为 gyc-code 原创，版权归 gyc-code（2026），许可见 **LICENSE-gyc**（MIT）。
+- **依赖本地化**：原 `@opencode-ai/sdk` / `@opencode-ai/plugin` 已本地化为 `@gyccode/protocol/v1|v2|plugin`（零外部依赖）；`bun.lock` 无 opencode 依赖包。
+- **品牌**：类名 `GyccodeClient`、请求头 `x-gyccode-*`、配置 schema `gyccode.ai`；代码中残留的 `opencode.ai` 外部 URL 为功能性第三方服务调用（模型目录/账号控制台/升级页等），非品牌展示。
+- **生态兼容**：`.opencode` skill 目录用于兼容 opencode 4 生态的 skill 格式，属功能特性。
+
 ## License
 
-MIT License — 详见 LICENSE 文件。
+双许可结构：
+
+- **LICENSE** — opencode MIT（覆盖承继内核，Copyright (c) 2025 opencode）
+- **LICENSE-gyc** — gyc-code MIT（覆盖自研层，Copyright (c) 2026 gyc-code contributors）
 
 ## 编码策略（Windows 中文环境）
 
