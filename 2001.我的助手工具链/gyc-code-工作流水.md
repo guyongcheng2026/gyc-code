@@ -532,3 +532,6 @@
 
 - [OK] 2026-08-12 [641fbf0] P0-2 前缀稳定: memories 从 system 移出, 注入最后 user 消息增量（对齐 pi CH 99.9% 机制）
   - [FILES] 1: src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-12 [c849c9e] P1-1a deepseek 链路观测增强: CH 趋势视图 + 超时审计日志
+  - [FILES] 2: src/gyccode/cli/cmd/db.ts, src/gyccode/provider/provider.ts
