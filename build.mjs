@@ -1,5 +1,6 @@
 import { build } from "bun"
 import { spawnSync } from "node:child_process"
+import { rmSync } from "node:fs"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
 // 构建前重新生成 compose 技能 bundle，保证运行产物与 .bundle 目录一致。
@@ -8,6 +9,9 @@ const gen = spawnSync(process.execPath, ["scripts/gen-compose-bundle.mjs"], {
   windowsHide: true,
 })
 if (gen.status !== 0) process.exit(gen.status ?? 1)
+
+// bun build 不清空 outdir，先清掉旧产物避免多轮构建残留叠加（曾致 dist 虚高 54MB/985 文件）。
+rmSync("./dist", { recursive: true, force: true })
 
 await build({
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
