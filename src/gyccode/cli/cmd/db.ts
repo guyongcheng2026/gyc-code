@@ -6,8 +6,8 @@ import { sql } from "drizzle-orm"
 import { effectCmd } from "../effect-cmd"
 
 const QueryCommand = effectCmd({
-  command: "$0 [query]",
-  describe: "open an interactive sqlite3 shell or run a query",
+  command: "query [query]",
+  describe: "run a SQL query or open an interactive sqlite3 shell",
   instance: false,
   builder: (yargs: Argv) => {
     return yargs
@@ -51,12 +51,29 @@ const PathCommand = effectCmd({
   }),
 })
 
+const CleanupCommand = effectCmd({
+  command: "cleanup",
+  describe: "delete orphaned durable events (sessions that no longer exist) and VACUUM",
+  instance: false,
+  handler: Effect.fn("Cli.db.cleanup")(function* () {
+    const { db } = yield* Database.Service
+    // Orphaned events: event aggregates (session ids) with no matching session row.
+    yield* db.run(sql.raw(`DELETE FROM event WHERE aggregate_id NOT IN (SELECT id FROM session)`)).pipe(Effect.orDie)
+    yield* db.run(sql.raw(`DELETE FROM event_sequence WHERE aggregate_id NOT IN (SELECT id FROM session)`)).pipe(
+      Effect.orDie,
+    )
+    yield* db.run(sql.raw(`VACUUM`)).pipe(Effect.orDie)
+    // VACUUM in WAL mode grows the -wal file; checkpoint it back into the main db.
+    yield* db.run(sql.raw(`PRAGMA wal_checkpoint(TRUNCATE)`)).pipe(Effect.orDie)
+    console.log("deleted orphaned events; vacuumed")
+  }),
+})
 export const DbCommand = effectCmd({
   command: "db",
   describe: "database tools",
   instance: false,
   builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).demandCommand()
+    return yargs.command(QueryCommand).command(PathCommand).command(CleanupCommand).demandCommand()
   },
   handler: Effect.fn("Cli.db")(function* () {}),
 })
