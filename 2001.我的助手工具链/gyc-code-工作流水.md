@@ -469,3 +469,6 @@
 
 - [OK] 2026-08-12 [59b2472] 更新硬件性能审计报告：记录内存专项（降级渲染）+ 缓存闭环结论
   - [FILES] 1: docs/compose/reports/2026-08-12-hardware-perf-audit.md
+
+- [OK] 2026-08-12 [f2949e6] 幻觉率优化: beast/trinity/gpt 提示词补充统一幻觉防护段落
+  - [FILES] 3: src/gyccode/session/prompt/beast.txt, src/gyccode/session/prompt/gpt.txt, src/gyccode/session/prompt/trinity.txt
