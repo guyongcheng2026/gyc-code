@@ -22,6 +22,16 @@
 export const LLM_STREAM_IDLE_TIMEOUT_MS = 600_000
 
 /**
+ * Max number of LLM streams that may run concurrently across all sessions
+ * (main session + subagents + summaries). Ten parallel subagents would
+ * otherwise open 10+ concurrent streams against the provider at once; free /
+ * queued channels interpret that as load and reply slowly or reset, which is
+ * the #1 cause of the idle-timeout errors seen in logs. Extra streams queue
+ * for a permit instead of hammering the provider.
+ */
+export const LLM_MAX_CONCURRENT_STREAMS = 6
+
+/**
  * Resolve the effective stream idle timeout from config, falling back to the
  * default constant. Mirrors the pattern of `resolveOutputTokenMax`.
  */
@@ -29,6 +39,16 @@ export function resolveStreamIdleTimeout(
   cfg: { llm?: { stream_idle_timeout_ms?: number } },
 ): number {
   return cfg.llm?.stream_idle_timeout_ms ?? LLM_STREAM_IDLE_TIMEOUT_MS
+}
+
+/**
+ * Resolve the effective LLM concurrency limit from config, falling back to
+ * the default constant.
+ */
+export function resolveMaxConcurrentStreams(
+  cfg: { llm?: { max_concurrent_streams?: number } },
+): number {
+  return cfg.llm?.max_concurrent_streams ?? LLM_MAX_CONCURRENT_STREAMS
 }
 
 /**

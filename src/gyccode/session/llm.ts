@@ -4,7 +4,7 @@ import { PermissionV1 } from "@gyccode/core/v1/permission"
 import { Provider } from "@/provider/provider"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { serviceUse } from "@gyccode/core/effect/service-use"
-import { Context, Effect, Layer } from "effect"
+import { Context, Effect, Layer, Semaphore } from "effect"
 import * as Stream from "effect/Stream"
 import { streamText, wrapLanguageModel, type ModelMessage, type Tool } from "ai"
 import type { LLMEvent } from "@gyccode/llm"
@@ -30,7 +30,7 @@ import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import { resolveOutputTokenMax } from "./llm/output-cap"
-import { streamWithIdleTimeout, resolveStreamIdleTimeout } from "./llm-timeout"
+import { streamWithIdleTimeout, resolveStreamIdleTimeout, resolveMaxConcurrentStreams } from "./llm-timeout"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 
@@ -85,6 +85,14 @@ const live: Layer.Layer<
     const events = yield* EventV2Bridge.Service
     const llmClient = yield* LLMClient.Service
     const flags = yield* RuntimeFlags.Service
+
+    // Global concurrency gate for LLM streams. Ten parallel subagents would
+    // otherwise open 10+ concurrent streams against the provider at once;
+    // free/queued channels reply slowly or reset, causing idle timeouts and
+    // CPU spikes. Extra streams wait for a permit instead of hammering the API.
+    const maxStreams = resolveMaxConcurrentStreams(yield* config.get())
+    const semaphore = yield* Semaphore.make(maxStreams)
+    yield* Effect.logInfo("llm concurrency limit", { maxStreams })
 
     const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
       yield* Effect.logInfo("stream", {
@@ -378,7 +386,13 @@ const live: Layer.Layer<
             )
 
             const cfg = yield* config.get()
-            const result = yield* run({ ...input, abort: ctrl.signal })
+            // Hold a permit for the whole stream lifetime (acquireRelease is
+            // scoped to the Stream.scoped wrapper, so the permit is released
+            // only after the stream is drained or interrupted).
+            const result = yield* Effect.acquireRelease(
+              semaphore.take(1),
+              () => semaphore.release(1),
+            ).pipe(Effect.flatMap(() => run({ ...input, abort: ctrl.signal })))
 
             if (result.type === "native") return result.stream
 

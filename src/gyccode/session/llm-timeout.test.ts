@@ -1,6 +1,12 @@
 ﻿import { expect, test } from "bun:test"
 import { Effect, Exit, Stream } from "effect"
-import { streamWithIdleTimeout, LLM_STREAM_IDLE_TIMEOUT_MS, resolveStreamIdleTimeout } from "./llm-timeout"
+import {
+  streamWithIdleTimeout,
+  LLM_STREAM_IDLE_TIMEOUT_MS,
+  LLM_MAX_CONCURRENT_STREAMS,
+  resolveStreamIdleTimeout,
+  resolveMaxConcurrentStreams,
+} from "./llm-timeout"
 
 test("LLM_STREAM_IDLE_TIMEOUT_MS is a positive finite value", () => {
   expect(LLM_STREAM_IDLE_TIMEOUT_MS).toBeGreaterThan(0)
@@ -18,6 +24,20 @@ test("resolveStreamIdleTimeout returns config value when provided", () => {
 test("resolveStreamIdleTimeout falls back to default when config is absent", () => {
   expect(resolveStreamIdleTimeout({})).toBe(LLM_STREAM_IDLE_TIMEOUT_MS)
   expect(resolveStreamIdleTimeout({ llm: {} })).toBe(LLM_STREAM_IDLE_TIMEOUT_MS)
+})
+
+test("LLM_MAX_CONCURRENT_STREAMS is a positive finite value", () => {
+  expect(LLM_MAX_CONCURRENT_STREAMS).toBeGreaterThan(0)
+  expect(Number.isFinite(LLM_MAX_CONCURRENT_STREAMS)).toBe(true)
+})
+
+test("resolveMaxConcurrentStreams returns config value when provided", () => {
+  expect(resolveMaxConcurrentStreams({ llm: { max_concurrent_streams: 3 } })).toBe(3)
+})
+
+test("resolveMaxConcurrentStreams falls back to default when config is absent", () => {
+  expect(resolveMaxConcurrentStreams({})).toBe(LLM_MAX_CONCURRENT_STREAMS)
+  expect(resolveMaxConcurrentStreams({ llm: {} })).toBe(LLM_MAX_CONCURRENT_STREAMS)
 })
 
 test("streamWithIdleTimeout passes through a stream that emits values", async () => {

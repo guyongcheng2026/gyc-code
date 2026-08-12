@@ -233,6 +233,10 @@ export const Info = Schema.Struct({
         description:
           "Idle timeout (ms) for LLM streaming responses — resets on each token. Increase for deep-reasoning models like DeepSeek (default: 600000)",
       }),
+      max_concurrent_streams: Schema.optional(PositiveInt).annotate({
+        description:
+          "Maximum concurrent LLM streams across all sessions (default: 6). Extra streams (e.g. parallel subagents) wait for a slot, preventing provider rate-limit timeouts and CPU spikes",
+      }),
       thinking_budget_tokens: Schema.optional(PositiveInt).annotate({
         description: "Thinking token budget for adaptive reasoning models (overrides provider default)",
       }),
