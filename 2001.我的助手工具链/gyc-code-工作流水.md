@@ -490,3 +490,6 @@
 
 - [OK] 2026-08-12 [e3546d8] 稳定性: LLM首事件快速失败+重试总时长上限, 修复provider超时导致runLoop静默阻塞数分钟
   - [FILES] 5: src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts, src/gyccode/session/retry.test.ts, src/gyccode/session/retry.ts
+
+- [OK] 2026-08-12 [a379b5d] perf: 第三轮架构审查修复 - 缓存反模式/记忆搜索/死依赖清理
+  - [FILES] 20: build.mjs, docs/architecture-review-2026-08-12-round2.md, docs/architecture-review-2026-08-12-round3.md, package.json, scripts/verify-external.mjs, src/core/database/database.ts ...
