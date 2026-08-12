@@ -478,3 +478,6 @@
 
 - [OK] 2026-08-12 [8300e4f] 架构ROUND3: 中间态事件不落库治本DB膨胀+幻觉防护全模型覆盖+bun直跑冷启动1.26s+ERROR日志限流
   - [FILES] 11: bin/gyc, docs/compose/reports/2026-08-12-arch-round3.md, src/core/observability/logging.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt/anthropic.txt, src/gyccode/session/prompt/codex.txt ...
+
+- [OK] 2026-08-12 [b3ad5cc] UI调整: 工作区Context摘要从首页移至会话侧边栏展示
+  - [FILES] 2: src/tui/routes/home.tsx, src/tui/routes/session/sidebar.tsx
