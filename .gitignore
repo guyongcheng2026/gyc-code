@@ -39,3 +39,7 @@ gyc-cli-src-backup/
 # Local runtime state
 .hermes/
 .workbuddy/
+
+# Local debug scripts
+.temp-*.cjs
+.temp-*.js
