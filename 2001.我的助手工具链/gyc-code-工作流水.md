@@ -436,3 +436,6 @@
 
 - [OK] 2026-08-12 [56491fa] 清理幽灵目录与废弃代码，修复 benchmark 并行 flaky
   - [FILES] 41: src/gyccode/benchmark/benchmark.test.ts, src/gyccode/cli/keybindings.ts, src/gyccode/effect/bootstrap-runtime.ts, src/plugin/example-workspace.ts, src/plugin/example.ts, src/plugin/index.ts ...
+
+- [OK] 2026-08-12 [b8d69e1] 修正 benchmark 测试过时路径
+  - [FILES] 1: src/gyccode/benchmark/benchmark.test.ts
