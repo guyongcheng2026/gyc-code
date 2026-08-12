@@ -32,6 +32,7 @@ import { MessageV2 } from "./message-v2"
 import { cacheDriftFromUsage } from "./cache-anchor"
 import { SessionCwd } from "./session-cwd"
 import { Goal } from "./goal"
+import { makeKeyedLock } from "./keyed-lock"
 import type { InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
 import { Snapshot } from "@/snapshot"
@@ -502,6 +503,8 @@ const layer: Layer.Layer<
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
 
+    const patchLock = makeKeyedLock()
+
     const createNext = Effect.fn("Session.createNext")(function* (input: {
       id?: SessionID
       title?: string
@@ -753,19 +756,22 @@ const layer: Layer.Layer<
     })
 
     const patch = (sessionID: SessionID, info: Patch) =>
-      Effect.gen(function* () {
-        const current = yield* get(sessionID)
-        const next = {
-          ...current,
-          ...info,
-          time: info.time ? { ...current.time, ...info.time } : current.time,
-          share: info.share === null ? undefined : info.share ? { ...current.share, ...info.share } : current.share,
-          summary: info.summary === null ? undefined : (info.summary ?? current.summary),
-          revert: info.revert === null ? undefined : (info.revert ?? current.revert),
-          permission: info.permission === null ? undefined : (info.permission ?? current.permission),
-        } as Info
-        yield* events.publish(SessionV1.Event.Updated, { sessionID, info: next })
-      })
+      patchLock.withLock(
+        SessionID.make(sessionID),
+        Effect.gen(function* () {
+          const current = yield* get(sessionID)
+          const next = {
+            ...current,
+            ...info,
+            time: info.time ? { ...current.time, ...info.time } : current.time,
+            share: info.share === null ? undefined : info.share ? { ...current.share, ...info.share } : current.share,
+            summary: info.summary === null ? undefined : (info.summary ?? current.summary),
+            revert: info.revert === null ? undefined : (info.revert ?? current.revert),
+            permission: info.permission === null ? undefined : (info.permission ?? current.permission),
+          } as Info
+          yield* events.publish(SessionV1.Event.Updated, { sessionID, info: next })
+        }),
+      )
 
     const touch = Effect.fn("Session.touch")(function* (sessionID: SessionID) {
       yield* patch(sessionID, { time: { updated: Date.now() } }).pipe(Effect.orDie)
