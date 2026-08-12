@@ -463,3 +463,6 @@
 
 - [OK] 2026-08-12 [ee269ce] 内存优化: markdown/code 渲染降为纯文本（GYCCODE_SYNTAX_HIGHLIGHT=1 恢复）
   - [FILES] 1: src/gyccode/cli/cmd/run/scrollback.surface.ts
+
+- [OK] 2026-08-12 [9d55434] 缓存命中率闭环: 新增 db cache 诊断命令
+  - [FILES] 1: src/gyccode/cli/cmd/db.ts
