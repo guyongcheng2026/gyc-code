@@ -508,3 +508,6 @@
 
 - [OK] 2026-08-12 [2c41ae7] 文档: 修正能力对比报告 4 处失实（AI 独立复核）——gyc 占优 21→18，持平 7→10
   - [FILES] 1: docs/claude-code-capability-comparison.md
+
+- [OK] 2026-08-12 [aeaba1a] 合规: 双 LICENSE 落地 + README 派生关系披露（纯自研化 P0）
+  - [FILES] 2: LICENSE-gyc, README.md
