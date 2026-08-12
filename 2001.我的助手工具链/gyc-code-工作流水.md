@@ -529,3 +529,6 @@
 
 - [OK] 2026-08-12 [e437d0b] 内核升级: vendored opencode 基线 v1.18.14 → 1.18.16（11 文件 TUI 层补丁，保留全部本地化）
   - [FILES] 12: docs/OPENCODE-KERNEL-EVALUATION-2026-08-12.md, src/tui/clipboard.ts, src/tui/component/prompt/index.tsx, src/tui/config/index.tsx, src/tui/context/sync.tsx, src/tui/routes/session/index.tsx ...
+
+- [OK] 2026-08-12 [641fbf0] P0-2 前缀稳定: memories 从 system 移出, 注入最后 user 消息增量（对齐 pi CH 99.9% 机制）
+  - [FILES] 1: src/gyccode/session/prompt.ts
