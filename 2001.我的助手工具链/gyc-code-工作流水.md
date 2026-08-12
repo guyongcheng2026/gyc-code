@@ -526,3 +526,6 @@
 
 - [OK] 2026-08-12 [6a8652f] 文档: 内核依赖评估——vendored opencode 代码（8.98 万行）规模/风险/选项分析
   - [FILES] 1: docs/OPENCODE-KERNEL-EVALUATION-2026-08-12.md
+
+- [OK] 2026-08-12 [e437d0b] 内核升级: vendored opencode 基线 v1.18.14 → 1.18.16（11 文件 TUI 层补丁，保留全部本地化）
+  - [FILES] 12: docs/OPENCODE-KERNEL-EVALUATION-2026-08-12.md, src/tui/clipboard.ts, src/tui/component/prompt/index.tsx, src/tui/config/index.tsx, src/tui/context/sync.tsx, src/tui/routes/session/index.tsx ...
