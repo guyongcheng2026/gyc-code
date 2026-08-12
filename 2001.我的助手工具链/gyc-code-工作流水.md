@@ -427,3 +427,6 @@
 
 - [OK] 2026-08-12 [3e4813b] 修复 SSE wrapSSE 定时器泄漏与 mDNS 错误静默
   - [FILES] 4: src/core/aisdk.test.ts, src/core/aisdk.ts, src/gyccode/provider/provider.ts, src/gyccode/server/mdns.ts
+
+- [OK] 2026-08-12 [bfcec9d] 修复 Session.patch read-modify-write 竞态：新增 per-session keyed lock
+  - [FILES] 3: src/gyccode/session/keyed-lock.test.ts, src/gyccode/session/keyed-lock.ts, src/gyccode/session/session.ts
