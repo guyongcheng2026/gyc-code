@@ -676,13 +676,17 @@ export async function resolveRunTheme(renderer: CliRenderer): Promise<RunTheme> 
       ...scrollbackTheme,
       _hasSelectedListItemText: true,
     }
-    const syntax = shared.generateSyntax(syntaxTheme)
+    // Memory-saving default: scrollback renders without tree-sitter syntax
+    // highlighting (avoids per-entry highlight data + grammar memory in long
+    // sessions). Set GYCCODE_SYNTAX_HIGHLIGHT=1 to re-enable.
+    const hl = process.env.GYCCODE_SYNTAX_HIGHLIGHT === "1"
+    const syntax = hl ? shared.generateSyntax(syntaxTheme) : undefined
     return map(
       footerTheme,
       scrollbackTheme,
       splashTheme(scrollbackTheme, indexed),
       syntax,
-      shared.generateSubtleSyntax(syntaxTheme),
+      hl ? shared.generateSubtleSyntax(syntaxTheme) : undefined,
     )
   } catch {
     return RUN_THEME_FALLBACK
