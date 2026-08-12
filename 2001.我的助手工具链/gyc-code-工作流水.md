@@ -481,3 +481,6 @@
 
 - [OK] 2026-08-12 [b3ad5cc] UI调整: 工作区Context摘要从首页移至会话侧边栏展示
   - [FILES] 2: src/tui/routes/home.tsx, src/tui/routes/session/sidebar.tsx
+
+- [OK] 2026-08-12 [463fd17] 配置: LLM流增加first_token_timeout_ms首token超时配置, 空流快速失败不再阻塞主循环
+  - [FILES] 7: .temp-stab.cjs, src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts, src/gyccode/session/retry.test.ts ...
