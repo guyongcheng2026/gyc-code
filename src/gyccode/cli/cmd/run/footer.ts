@@ -170,10 +170,11 @@ export class RunFooter implements FooterApi {
   private prompts = new Set<(input: RunPrompt) => void>()
   private queuedRemoves = new Set<(messageID: string) => boolean | Promise<boolean>>()
   private closes = new Set<() => void>()
-  // Microtask-coalesced commit queue. Flushed on next microtask or on close/destroy.
+  // Time-throttled commit queue (30ms). Streaming deltas coalesce into bounded\n  // render batches; flushed on the timer or synchronously on close()/idle().
   private queue: StreamCommit[] = []
   private pending = false
   private flushing: Promise<void> = Promise.resolve()
+  private flushTimer: ReturnType<typeof setTimeout> | undefined
   private flushError: unknown
   // Fixed portion of footer height above the textarea.
   private base: number
@@ -557,10 +558,10 @@ export class RunFooter implements FooterApi {
     }
 
     this.pending = true
-    queueMicrotask(() => {
+    this.flushTimer = setTimeout(() => {
       this.pending = false
       this.flush()
-    })
+    }, 30)
   }
 
   public idle(): Promise<void> {
@@ -619,6 +620,10 @@ export class RunFooter implements FooterApi {
   public close(): void {
     if (this.closed) {
       return
+    }
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = undefined
     }
 
     this.flush()
