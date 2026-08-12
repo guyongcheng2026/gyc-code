@@ -421,3 +421,6 @@
 
 - [OK] 2026-08-12 [da08605] 修复 LLM 流空闲超时：默认 300s 提升至 600s，idle timeout 错误改为可自动重试
   - [FILES] 9: src/core/util/date.test.ts, src/core/util/date.ts, src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/retry.test.ts ...
+
+- [OK] 2026-08-12 [4656ac6] 稳定性：全局 LLM 流并发闸，解决 10 子代理并行打爆通道与 CPU 峰值
+  - [FILES] 4: src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts
