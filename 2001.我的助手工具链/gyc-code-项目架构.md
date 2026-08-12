@@ -98,7 +98,7 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - **出身**：gyc-cli 为 opencode 1.18 monorepo 派生（vendored 内核约 8.7 万行：core/tui/llm/schema/protocol/server）+ 自研 gyccode 层（约 8.9 万行）
 - **许可**：保留原 MIT 版权声明（LICENSE 归 opencode 2025），自研层属 gyc-code 定制，采用双 LICENSE 思路
 - **依赖本地化**（commit `c8e4dad`）：原 `@opencode-ai/sdk`/`@opencode-ai/plugin` 已 vendored 为 `@gyccode/protocol/v1|v2|plugin`，自研 `createGyccodeClient` 客户端；bun.lock 已无 opencode；源码仅 v1/v2 入口注释披露来源
-- **品牌**：类名 `GyccodeClient`、header `x-gyccode-*`；遗留约 30 处 `opencode.ai` 外部 URL 待阶段 3 清理
+- **品牌清理**（commit `43cd794`）：Referer/`$schema`/插件脚手架/注释文案 30 处 → gyccode；类名 `GyccodeClient`、header `x-gyccode-*`；仅剩 13 处功能性第三方服务 URL（models/console/api/app/install/go）属 API 调用，非品牌展示
 - **纯自研边界**：L1 品牌 ✓、L2 依赖 ✓ 已完成；L3 内核重写不划算（否决）；L4 法律层不可行（MIT 铁律保留版权）
 
 ---
