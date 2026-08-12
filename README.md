@@ -108,6 +108,7 @@ gyc-code 基于 **opencode 1.18（MIT）** 派生：
 - **自研层**：`src/gyccode/` 及 gyc-code 贡献者新增代码为 gyc-code 原创，版权归 gyc-code（2026），许可见 **LICENSE-gyc**（MIT）。
 - **依赖本地化**：原 `@opencode-ai/sdk` / `@opencode-ai/plugin` 已本地化为 `@gyccode/protocol/v1|v2|plugin`（零外部依赖）；`bun.lock` 无 opencode 依赖包。
 - **品牌**：类名 `GyccodeClient`、请求头 `x-gyccode-*`、配置 schema `gyccode.ai`；代码中残留的 `opencode.ai` 外部 URL 为功能性第三方服务调用（模型目录/账号控制台/升级页等），非品牌展示。
+- **去 opencode 化路线**：Web UI 可配置（`GYCCODE_UI_UPSTREAM`）、安装链路已自持（`scripts/install.sh`）、GitHub App 检测已本地化；剩余三项（账号/分享/额度）自建后端规划见 **docs/ROADMAP-2026-08-12.md**。
 - **生态兼容**：`.opencode` skill 目录用于兼容 opencode 4 生态的 skill 格式，属功能特性。
 
 ## License
