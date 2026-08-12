@@ -144,7 +144,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
     const upgradeCurl = Effect.fnUntraced(
       function* (target: string) {
-        const response = yield* httpOk.execute(HttpClientRequest.get("https://opencode.ai/install"))
+        const response = yield* httpOk.execute(HttpClientRequest.get("https://raw.githubusercontent.com/guyongcheng2026/gyc-code/main/scripts/install.sh"))
         const body = yield* response.text
         const bodyBytes = new TextEncoder().encode(body)
         const shell = yield* upgradeScriptShell()
@@ -255,7 +255,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         }
 
         const response = yield* httpOk.execute(
-          HttpClientRequest.get("https://api.github.com/repos/anomalyco/gyccode/releases/latest").pipe(
+          HttpClientRequest.get("https://api.github.com/repos/guyongcheng2026/gyc-code/releases/latest").pipe(
             HttpClientRequest.acceptJson,
           ),
         )

@@ -281,11 +281,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
         const s = prompts.spinner()
         s.start("Installing GitHub app")
 
-        // Get installation
-        const installation = await getInstallation()
-        if (installation) return s.stop("GitHub app already installed")
-
-        // Open browser
+        // 打开安装页
         const url = "https://github.com/apps/gyccode-agent"
         const command =
           process.platform === "darwin"
@@ -300,32 +296,11 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
           }
         })
 
-        // Wait for installation
-        s.message("Waiting for GitHub app to be installed")
-        const MAX_RETRIES = 120
-        let retries = 0
-        do {
-          const installation = await getInstallation()
-          if (installation) break
+        // 等待用户完成浏览器安装（无第三方检测 API，改为手动确认）
+        s.stop(`请在浏览器中为 \`${app.owner}/${app.repo}\` 安装 GitHub App，完成后按 Enter 继续`)
+        await prompts.confirm({ message: "安装完成后按 Enter 继续" })
 
-          if (retries > MAX_RETRIES) {
-            s.stop(
-              `Failed to detect GitHub app installation. Make sure to install the app for the \`${app.owner}/${app.repo}\` repository.`,
-            )
-            throw new UI.CancelledError()
-          }
-
-          retries++
-          await sleep(1000)
-        } while (true) // oxlint-disable-line no-constant-condition
-
-        s.stop("Installed GitHub app")
-
-        async function getInstallation() {
-          return await fetch(`https://api.opencode.ai/get_github_app_installation?owner=${app.owner}&repo=${app.repo}`)
-            .then((res) => res.json())
-            .then((data) => data.installation)
-        }
+        s.message("Installed GitHub app")
       }
 
       async function addWorkflowFiles() {
