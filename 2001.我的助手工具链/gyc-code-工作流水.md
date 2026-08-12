@@ -487,3 +487,6 @@
 
 - [OK] 2026-08-12 [795db12] 清理: 移除误提交的.temp-stab.cjs临时调试脚本并加入gitignore
   - [FILES] 2: .gitignore, .temp-stab.cjs
+
+- [OK] 2026-08-12 [e3546d8] 稳定性: LLM首事件快速失败+重试总时长上限, 修复provider超时导致runLoop静默阻塞数分钟
+  - [FILES] 5: src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts, src/gyccode/session/retry.test.ts, src/gyccode/session/retry.ts
