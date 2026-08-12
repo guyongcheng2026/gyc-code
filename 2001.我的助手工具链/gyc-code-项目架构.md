@@ -1,6 +1,6 @@
 # gyc-code 项目架构
 
-> 更新：2026-08-08
+> 更新：2026-08-12
 > 项目：gyc-code（AI 编码 CLI，品牌 gyc / GYCCODE / GycCode）
 > 本地仓库：`C:\Users\谷勇成\gyc-cli`
 > GitHub：`guyongcheng2026/gyc-code`（经 gh-proxy.com 代理同步）
@@ -34,6 +34,7 @@
 | `src/gyccode/effect/` | Effect 服务（`instance-state.ts` 实例上下文回退） |
 | `src/gyccode/memory/` | 记忆系统（`hermes-bridge.ts` 桥接本地记忆文件） |
 | `src/core/` | 核心框架层（v1 config / flag / v1 config 解析） |
+| `src/protocol/` | 协议层：`v1`/`v2` 自研协议客户端 + `plugin` 插件类型（原 opencode SDK/plugin 本地化，2026-08-12 起零外部依赖） |
 | `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`） |
 | `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker） |
 | `dist/` | 构建产物（`index.js` + 分包 + WASM 资产） |
@@ -91,6 +92,14 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - openrouter 免费模型每日额度用尽（429）
 - NVIDIA 正常（本次全流程验证用 `nvidia/meta/llama-3.1-8b-instruct`）
 - GitHub 直连被墙，需经 `https://gh-proxy.com/` 代理；push 靠 `.githooks/post-commit` 自动执行
+
+## 七·五、opencode 派生关系与本地化（2026-08-12）
+
+- **出身**：gyc-cli 为 opencode 1.18 monorepo 派生（vendored 内核约 8.7 万行：core/tui/llm/schema/protocol/server）+ 自研 gyccode 层（约 8.9 万行）
+- **许可**：保留原 MIT 版权声明（LICENSE 归 opencode 2025），自研层属 gyc-code 定制，采用双 LICENSE 思路
+- **依赖本地化**（commit `c8e4dad`）：原 `@opencode-ai/sdk`/`@opencode-ai/plugin` 已 vendored 为 `@gyccode/protocol/v1|v2|plugin`，自研 `createGyccodeClient` 客户端；bun.lock 已无 opencode；源码仅 v1/v2 入口注释披露来源
+- **品牌**：类名 `GyccodeClient`、header `x-gyccode-*`；遗留约 30 处 `opencode.ai` 外部 URL 待阶段 3 清理
+- **纯自研边界**：L1 品牌 ✓、L2 依赖 ✓ 已完成；L3 内核重写不划算（否决）；L4 法律层不可行（MIT 铁律保留版权）
 
 ---
 
