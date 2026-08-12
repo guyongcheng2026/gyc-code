@@ -1,9 +1,11 @@
 import type { Plugin } from "@opencode-ai/plugin"
 import { rename, writeFile } from "node:fs/promises"
 import { randomInt } from "node:crypto"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { setTimeout as sleep } from "node:timers/promises"
 
-const DEV_DATA_FILE = "/tmp/gyccode-workspace-dev-data.json"
+const DEV_DATA_FILE = join(tmpdir(), "gyccode-workspace-dev-data.json")
 const DEV_DATA_TEMP_FILE = `${DEV_DATA_FILE}.tmp`
 
 async function waitForHealth(port: number) {
