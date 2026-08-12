@@ -523,3 +523,6 @@
 
 - [OK] 2026-08-12 [13d9b88] 基础设施: 补最后两处漏网——CLI 登录 URL 可配置 + 社交卡片自建 SVG
   - [FILES] 3: services/share/server.ts, src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/github.handler.ts
+
+- [OK] 2026-08-12 [6a8652f] 文档: 内核依赖评估——vendored opencode 代码（8.98 万行）规模/风险/选项分析
+  - [FILES] 1: docs/OPENCODE-KERNEL-EVALUATION-2026-08-12.md
