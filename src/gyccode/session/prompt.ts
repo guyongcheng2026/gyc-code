@@ -58,12 +58,12 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
-import { readHermesMemories, writeHermesMemoryFile } from "../memory/hermes-bridge"
+import { readHermesMemories, writeHermesMemoryFile, syncHermesMemories } from "../memory/hermes-bridge"
 import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
 import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extraction-runner"
 import { maybeDream, readDreamState, writeDreamState, type DreamSynthesizer } from "../memory/dream-runner"
 import { LLMEvent } from "@gyccode/llm"
-import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
+import { ShardCache, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
 import { thinkingKeywordTarget, resolveThinkingVariant } from "./thinking-keywords"
 import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
@@ -77,7 +77,10 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
 const extractionCooldowns = new Map<string, number>()
 const recordExtractionFailure = (sessionID: string) => {
-  if (extractionCooldowns.size >= 1000) extractionCooldowns.clear()
+  if (extractionCooldowns.size >= 1000) {
+    const oldest = extractionCooldowns.keys().next().value
+    if (oldest !== undefined) extractionCooldowns.delete(oldest)
+  }
   extractionCooldowns.set(sessionID, Date.now() + MEMORY_EXTRACTION_COOLDOWN_MS)
 }
 
@@ -122,12 +125,35 @@ function buildStaticPrompt(skills: string | undefined): string {
 }
 
 function buildSemiStaticPrompt(env: string[], mcpInstructions: string | undefined): string[] {
+  // Semi-static tier joins the shard cache (alongside static): within a session
+  // the working directory / project references / MCP instructions rarely change,
+  // so caching the assembled segment (keyed by content hash) avoids re-joining
+  // the array on every request and keeps prompt-cache prefix bytes stable until
+  // an actual change occurs. `clearPromptCache()` invalidates this tier when env
+  // or MCP instructions change.
   const content = [...env, ...(mcpInstructions ? [mcpInstructions] : [])]
+  const joined = content.join("\n")
+  const h = hashShard(joined)
+  const cached = shardCache.get("semi")
+  if (cached?.hash === h) return cached.segments
+  const shard = { tier: "semi" as const, content: joined, hash: h, segments: content }
+  shardCache.set(shard)
   return content
 }
 
 function buildDynamicPrompt(instructions: string[]): string[] {
-  return instructions
+  // Dynamic tier joins the shard cache (alongside static/semi): instructions
+  // change per turn, but caching the assembled segment (keyed by content hash)
+  // keeps prompt-cache prefix bytes stable until an actual change occurs and
+  // avoids re-joining the array on every request.
+  const content = instructions
+  const joined = content.join("\n")
+  const h = hashShard(joined)
+  const cached = shardCache.get("dynamic")
+  if (cached?.hash === h) return cached.segments ?? []
+  const shard = { tier: "dynamic" as const, content: joined, hash: h, segments: content }
+  shardCache.set(shard)
+  return content
 }
 
 export function clearPromptCache(): void {
@@ -1423,6 +1449,12 @@ const layer = Layer.effect(
                 },
               })
               yield* Effect.logInfo("memory extraction complete", { "session.id": sessionID, count: result.length })
+              // Compact the memory file after extraction: dedup normalized
+              // content and enforce the entry cap so the file does not grow
+              // unboundedly. Failures are swallowed (best-effort maintenance).
+              yield* Effect.promise(() => syncHermesMemories()).pipe(
+                Effect.catchCause(() => Effect.logWarning("memory sync failed; skipping compaction")),
+              )
               // Dream synthesis: when the accumulated memory volume crosses the
               // threshold, ask the cheap model to synthesize a structured
               // summary and persist it back to the hermes file. Same LLM path as
@@ -1635,22 +1667,19 @@ const layer = Layer.effect(
             // Publish session.instructions with exactly the resolved instruction paths in play
             // (the same set `instruction.system()` used to build the prompt).
             yield* instruction.publishResolved(sessionID, instructionResolved.paths).pipe(Effect.orDie)
-            const staticPrompt = buildStaticPrompt(skills)
-            const semiPrompt = buildSemiStaticPrompt(env, mcpInstructions)
-            const dynamicPrompt = buildDynamicPrompt(instructions)
+            buildStaticPrompt(skills)
+            buildSemiStaticPrompt(env, mcpInstructions)
+            buildDynamicPrompt(instructions)
             // 日期注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
             // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期放 user
             // 增量处，跨天继续会话只影响当轮增量，不破坏历史前缀。
             const todayPrefix = `Today's date: ${new Date().toDateString()}\n`
             const modelMsgsWithDate = MessageV2.prependTodayDate(modelMsgs, todayPrefix)
-            const system = [
-              ...semiPrompt,
-              ...dynamicPrompt,
-              staticPrompt,
-              ...(memories ? [memories] : []),
-            ]
             const format = lastUser.format ?? { type: "text" as const }
-            if (format.type === "json_schema") system.push(STRUCTURED_OUTPUT_SYSTEM_PROMPT)
+            const system = shardCache.buildSystem([
+              ...(memories ? [memories] : []),
+              ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
+            ])
             const result = yield* handle.process({
               user: lastUser,
               agent,

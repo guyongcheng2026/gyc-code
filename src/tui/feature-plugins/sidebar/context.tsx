@@ -23,6 +23,9 @@ function estimatePart(part: Part): number {
   return 0
 }
 
+// Only in-flight messages need estimation; completed assistant messages have
+// exact persisted token counts. Estimating is far more expensive than reading
+// the four persisted integers, so prefer the latter on the hot path.
 function estimateMessage(message: Message, partOf: (id: string) => ReadonlyArray<Part>): number {
   if (message.role === "assistant" && message.time.completed) {
     return (
@@ -34,6 +37,23 @@ function estimateMessage(message: Message, partOf: (id: string) => ReadonlyArray
     )
   }
   return partOf(message.id).reduce((sum, part) => sum + estimatePart(part), 0)
+}
+
+// Sum the persisted token counters across all messages — O(1) per message,
+// no tokenization. Used for completed sessions and idle context windows.
+function persistedTokens(msgs: ReadonlyArray<Message>): number {
+  let total = 0
+  for (const message of msgs) {
+    if (message.role === "assistant" && message.time.completed) {
+      total +=
+        message.tokens.input +
+        message.tokens.output +
+        message.tokens.reasoning +
+        message.tokens.cache.read +
+        message.tokens.cache.write
+    }
+  }
+  return total
 }
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
@@ -117,7 +137,15 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
     const win = Model.contextWindow(props.api.state.config, last.providerID, last.modelID, model)
     if (isBusy()) {
       tick() // 忙碌态由 2s 节流驱动实时估算
-      tokens = msgs.reduce((sum, message) => sum + estimateMessage(message, (id) => props.api.state.part(id)), 0)
+      // Only in-flight messages are tokenized; completed assistant messages
+      // reuse their exact persisted counters, so the 2s refresh never re-runs
+      // the tokenizer over the whole (potentially large) conversation.
+      tokens = persistedTokens(msgs)
+      for (const message of msgs) {
+        if (!(message.role === "assistant" && message.time.completed)) {
+          tokens += estimateMessage(message, (id) => props.api.state.part(id))
+        }
+      }
     }
     return {
       tokens,

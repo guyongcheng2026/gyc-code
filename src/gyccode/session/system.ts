@@ -153,7 +153,15 @@ const layer = Layer.effect(
 
       memory: Effect.fn("SystemPrompt.memory")(function* (query: string, sessionID: string) {
         const cached = memoryCache.get(sessionID)
-        if (cached && Date.now() - cached.time < MEMORY_CACHE_TTL_MS) return cached.value
+        if (cached) {
+          if (Date.now() - cached.time < MEMORY_CACHE_TTL_MS) {
+            // LRU refresh: move the hit entry to the most-recently-used slot.
+            memoryCache.delete(sessionID)
+            memoryCache.set(sessionID, cached)
+            return cached.value
+          }
+          memoryCache.delete(sessionID) // expired entry; drop before recompute
+        }
         if (!query.trim()) return
         const entries = yield* Effect.promise(() => searchHermesMemories(query))
         if (entries.length > 0) {
@@ -162,7 +170,12 @@ const layer = Layer.effect(
         }
         const ageMs = yield* Effect.promise(() => getHermesMemoryAgeMs())
         const value = formatMemoriesForPrompt(entries, MEMORY_INJECTION_BUDGET, ageMs)
-        if (memoryCache.size >= MEMORY_CACHE_MAX) memoryCache.clear()
+        // LRU eviction: drop only the least-recently-used entry instead of
+        // clearing the whole cache, which would tank the hit rate.
+        if (memoryCache.size >= MEMORY_CACHE_MAX) {
+          const oldest = memoryCache.keys().next().value
+          if (oldest !== undefined) memoryCache.delete(oldest)
+        }
         memoryCache.set(sessionID, { time: Date.now(), value })
         return value
       }),

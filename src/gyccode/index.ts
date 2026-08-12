@@ -70,32 +70,19 @@ const COMMANDS: Record<string, CommandLoader> = {
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.
-const COMMAND_KEYS = [
-  "acp",
-  "mcp",
-  "attach",
-  "run",
-  "generate",
-  "debug",
-  "console",
-  "providers",
-  "agent",
-  "upgrade",
-  "uninstall",
-  "serve",
-  "web",
-  "models",
-  "stats",
-  "export",
-  "import",
-  "github",
-  "pr",
-  "session",
-  "plugin",
-  "compose",
-  "memory",
-  "db",
-]
+// Derived from COMMANDS by keeping the first key for each unique loader — aliases
+// (e.g. `auth`→providers, `plug`→plugin) share a loader reference and are skipped.
+// Single source of truth: the list cannot drift when commands or aliases change.
+const COMMAND_KEYS = (() => {
+  const seen = new Set<CommandLoader>()
+  const keys: string[] = []
+  for (const [key, loader] of Object.entries(COMMANDS)) {
+    if (seen.has(loader)) continue
+    seen.add(loader)
+    keys.push(key)
+  }
+  return keys
+})()
 
 async function registerCommand(cli: Argv, loader: CommandLoader) {
   const mod = await loader.load()

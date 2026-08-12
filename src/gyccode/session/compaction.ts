@@ -29,7 +29,7 @@ import {
 } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 import { isAnthropicLike } from "./llm/context-1m"
-import { readHermesMemories, type HermesMemoryEntry } from "../memory/hermes-bridge"
+import { readHermesMemories, stripKeyHeader, type HermesMemoryEntry } from "../memory/hermes-bridge"
 
 export const Event = SessionCompactionEvent
 
@@ -172,12 +172,7 @@ function summaryText(message: SessionV1.WithParts) {
 
 /** 剥离 hermes 记忆写入时残留的 "#memory_<key>" 首行，只保留实际内容。 */
 export function cleanMemoryValue(value: string): string {
-  const trimmed = value.trim()
-  const lines = trimmed.split("\n")
-  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
-    return lines.slice(1).join("\n").trim()
-  }
-  return trimmed
+  return stripKeyHeader(value)
 }
 
 /**

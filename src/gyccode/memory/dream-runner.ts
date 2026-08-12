@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { mkdir, readFile, writeFile } from "fs/promises"
+import { mkdir, readFile, rename, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 import { shouldDream, formatDreamPrompt, analyzeDreamResult, DEFAULT_DREAM_CONFIG, type DreamConfig, type DreamState } from "./dream"
@@ -10,6 +10,13 @@ const DREAM_STATE_PATH = path.join(
   "memory",
   "dream-state.json",
 )
+
+/** 原子写：先写临时文件再 rename，避免进程中断时产生半写损坏的 JSON。 */
+async function atomicWriteFile(filePath: string, content: string): Promise<void> {
+  const tmpPath = `${filePath}.tmp.${Date.now()}`
+  await writeFile(tmpPath, content, "utf-8")
+  await rename(tmpPath, filePath)
+}
 
 export async function readDreamState(): Promise<DreamState> {
   try {
@@ -27,7 +34,7 @@ export async function readDreamState(): Promise<DreamState> {
 
 export async function writeDreamState(state: DreamState): Promise<void> {
   await mkdir(path.dirname(DREAM_STATE_PATH), { recursive: true })
-  await writeFile(DREAM_STATE_PATH, JSON.stringify(state, null, 2), "utf-8")
+  await atomicWriteFile(DREAM_STATE_PATH, JSON.stringify(state, null, 2) + "\n")
 }
 
 /** Injected: turns the synthesized-summary prompt into a summary (LLM call). */

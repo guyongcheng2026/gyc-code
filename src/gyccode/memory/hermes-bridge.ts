@@ -1,7 +1,7 @@
 // Hermes memory bridge — gyc-cli ↔ Hermes bidirectional sync
 // Based on @yunguang/memory UnifiedMemoryManager
 
-import { readFile, stat, writeFile } from "fs/promises"
+import { readFile, rename, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 
@@ -35,28 +35,84 @@ export async function readHermesMemories(): Promise<HermesMemoryEntry[]> {
   }
 }
 
-/** Write a single entry to Hermes memory file */
+/** Maximum number of memory entries to retain (FIFO eviction of oldest). */
+export const MEMORY_MAX_ENTRIES = 200
+
+/** Normalize a memory value for dedup comparison (lowercase, collapse whitespace). */
+function normalizeForDedupe(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim()
+}
+
+/** Strip the "#memory_<key>" header line, returning only the content. */
+export function stripKeyHeader(block: string): string {
+  const lines = block.split("\n")
+  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
+    return lines.slice(1).join("\n").trim()
+  }
+  return block.trim()
+}
+
+/** Atomic write: write to temp file then rename to avoid partial/corrupt writes. */
+async function atomicWriteFile(filePath: string, content: string): Promise<void> {
+  const tmpPath = `${filePath}.tmp.${Date.now()}`
+  await writeFile(tmpPath, content, "utf-8")
+  await rename(tmpPath, filePath)
+}
+
+/** Write a single entry to Hermes memory file with dedup and cap enforcement. */
 export async function writeHermesMemoryFile(
   entry: HermesMemoryEntry,
   append = true,
 ): Promise<void> {
-  const line = `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`
-  if (append) {
-    const existing = await readFile(HERMES_MEMORY_PATH, "utf-8").catch(() => "")
-    await writeFile(HERMES_MEMORY_PATH, existing + line, "utf-8")
-  } else {
-    await writeFile(HERMES_MEMORY_PATH, line, "utf-8")
+  const existing = await readFile(HERMES_MEMORY_PATH, "utf-8").catch(() => "")
+
+  if (!append) {
+    await atomicWriteFile(HERMES_MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
+    return
   }
+
+  // Dedup: skip if normalized content already exists in the file.
+  const normalizedNew = normalizeForDedupe(entry.value)
+  const existingBlocks = existing.split(SEP).filter(Boolean)
+  const isDuplicate = existingBlocks.some(
+    (block) => normalizeForDedupe(stripKeyHeader(block)) === normalizedNew,
+  )
+  if (isDuplicate) return
+
+  // Cap enforcement: FIFO-evict oldest entries when at capacity.
+  let blocks = existingBlocks
+  if (blocks.length >= MEMORY_MAX_ENTRIES) {
+    blocks = blocks.slice(blocks.length - MEMORY_MAX_ENTRIES + 1)
+  }
+
+  const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
+  const content = [...blocks, newBlock].join(SEP) + SEP
+  await atomicWriteFile(HERMES_MEMORY_PATH, content)
 }
 
-/** Sync all Hermes memories (experimental) */
+/** Compact Hermes memories: dedup existing entries and enforce the cap. */
 export async function syncHermesMemories(): Promise<HermesMemoryEntry[]> {
   const entries = await readHermesMemories()
-  const content = entries.map((e) => e.value).join(SEP)
-  if (content) {
-    await writeFile(HERMES_MEMORY_PATH, content, "utf-8")
+  if (entries.length === 0) return entries
+
+  // Dedup by normalized content, keeping the first occurrence.
+  const seen = new Set<string>()
+  const unique: HermesMemoryEntry[] = []
+  for (const entry of entries) {
+    const normalized = normalizeForDedupe(stripKeyHeader(entry.value))
+    if (seen.has(normalized)) continue
+    seen.add(normalized)
+    unique.push(entry)
   }
-  return entries
+
+  // Enforce cap: keep the most recent entries.
+  const capped = unique.length > MEMORY_MAX_ENTRIES ? unique.slice(unique.length - MEMORY_MAX_ENTRIES) : unique
+
+  // readHermesMemories returns value = full block (header line included),
+  // so write the values back as-is without prepending another header.
+  const content = capped.map((e) => e.value).join(SEP) + SEP
+  await atomicWriteFile(HERMES_MEMORY_PATH, content)
+  return capped
 }
 
 /** 记忆注入系统提示的字符预算（与 MCP 指令预算一致，4KB） */
@@ -80,7 +136,7 @@ async function readHermesMemoriesCached(): Promise<HermesMemoryEntry[]> {
   }
 }
 
-function tokenize(input: string): string[] {
+function tokenizeForSearch(input: string): string[] {
   const tokens: string[] = []
   for (const word of input.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
     if (word.length < 2) continue
@@ -99,17 +155,34 @@ function tokenize(input: string): string[] {
 
 /** 剥离写入时残留的 "#memory_<key>" 首行，只保留实际记忆内容 */
 function cleanEntryValue(entry: HermesMemoryEntry): string {
-  const value = entry.value.trim()
-  const lines = value.split("\n")
-  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
-    return lines.slice(1).join("\n").trim()
-  }
-  return value
+  return stripKeyHeader(entry.value)
+}
+
+// 停用词：中英文高频词不计分，避免"我/你/文件/使用"等泛化词命中大量无关记忆，
+// 注入噪音稀释相关度。汉停用词为会话/代码场景高频词，英停用词为通用闭集。
+const STOPWORDS = new Set([
+  // 中文
+  "我的", "我们", "你们", "他们", "这个", "那个", "这些", "那些", "什么", "怎么", "为什么",
+  "可以", "需要", "应该", "可能", "如果", "因为", "所以", "但是", "然后", "而且", "或者",
+  "还有", "一个", "一些", "没有", "不要", "不是", "就是", "都是", "是", "了", "在", "和",
+  "文件", "使用", "进行", "以及", "对于", "关于", "通过", "当前", "项目", "代码", "功能",
+  "问题", "时候", "自己", "现在", "已经", "里面", "那边", "这边", "这里", "那里",
+  // English
+  "the", "and", "that", "this", "with", "for", "you", "your", "have", "has", "not",
+  "are", "was", "were", "but", "from", "they", "them", "their", "will", "would", "can",
+  "could", "should", "also", "just", "then", "than", "there", "which", "when", "where",
+  "what", "why", "how", "about", "into", "onto", "been", "being", "more", "most",
+  "file", "files", "use", "using", "code", "project", "click", "need", "know", "make",
+])
+
+/** 候选词中剔除停用词与纯数字，保留有区分度的检索词。 */
+function filterSearchTerms(terms: string[]): string[] {
+  return terms.filter((t) => !STOPWORDS.has(t) && !/^\d+$/.test(t))
 }
 
 /**
- * 按关键词/标签粗筛记忆条目：标签命中×2、内容命中×1，按分数降序返回。
- * 纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
+ * 按 TF-IDF 评分：标签命中×2、内容命中×1，再乘 IDF（词在越少记忆中出现越稀有、越该加权）。
+ * 停用词不计分。纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
  * 同一会话的连续循环 query 相同，命中结果按 query 短 TTL 缓存，避免重复遍历。
  */
 const searchCache = new Map<string, { time: number; entries: HermesMemoryEntry[] }>()
@@ -124,17 +197,41 @@ export async function searchHermesMemories(query: string, limit = 20): Promise<H
   const entries = await readHermesMemoriesCached()
   if (entries.length === 0) return []
 
-  const terms = tokenize(query)
+  const terms = filterSearchTerms(tokenizeForSearch(query))
   if (terms.length === 0) return []
 
+  // IDF 统计：每个词出现在多少条记忆里（docFrequency）。语料小（≤200 条），
+  // 每次查询全量扫描一次成本可忽略，且与 readHermesMemoriesCached 共享缓存。
+  const texts = entries.map((entry) => ({
+    entry,
+    text: cleanEntryValue(entry).toLowerCase(),
+    tags: (entry.tags ?? []).join(" ").toLowerCase(),
+  }))
+  const docFrequency = new Map<string, number>()
+  for (const { text, tags } of texts) {
+    const seen = new Set<string>()
+    for (const term of terms) {
+      if (text.includes(term) || tags.includes(term)) {
+        if (!seen.has(term)) {
+          seen.add(term)
+          docFrequency.set(term, (docFrequency.get(term) ?? 0) + 1)
+        }
+      }
+    }
+  }
+  const totalDocs = texts.length
+  const idf = (term: string): number => {
+    const df = docFrequency.get(term) ?? 0
+    // 平滑 IDF：log(1 + N/(1+df))，避免除零；df 越大权重越低。
+    return Math.log(1 + totalDocs / (1 + df))
+  }
+
   const scored: Array<{ entry: HermesMemoryEntry; score: number }> = []
-  for (const entry of entries) {
-    const text = cleanEntryValue(entry).toLowerCase()
-    const tagText = (entry.tags ?? []).join(" ").toLowerCase()
+  for (const { entry, text, tags } of texts) {
     let score = 0
     for (const term of terms) {
-      if (tagText.includes(term)) score += 2
-      if (text.includes(term)) score += 1
+      if (tags.includes(term)) score += 2 * idf(term)
+      if (text.includes(term)) score += 1 * idf(term)
     }
     if (score > 0) scored.push({ entry, score })
   }
@@ -184,8 +281,8 @@ export function formatMemoriesForPrompt(
   return header
 }
 
-/** Memories older than this are flagged as potentially stale (default: 7 days). */
-export const MEMORY_FRESHNESS_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000
+/** Memories older than this are flagged as potentially stale (default: 3 days). */
+export const MEMORY_FRESHNESS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000
 
 
 /**

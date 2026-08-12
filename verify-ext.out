@@ -1,0 +1,26 @@
+OK   @ai-sdk/amazon-bedrock -> node_modules\.bun\@ai-sdk+amazon-bedrock@4.0.112+68a1e3a0c4588df3\node_modules\@ai-sdk\amazon-bedrock\dist\index.js
+OK   @ai-sdk/anthropic -> node_modules\.bun\@ai-sdk+anthropic@3.0.82+68a1e3a0c4588df3\node_modules\@ai-sdk\anthropic\dist\index.js
+OK   @ai-sdk/azure -> node_modules\.bun\@ai-sdk+azure@3.0.88+68a1e3a0c4588df3\node_modules\@ai-sdk\azure\dist\index.js
+OK   @ai-sdk/google -> node_modules\.bun\@ai-sdk+google@3.0.73+68a1e3a0c4588df3\node_modules\@ai-sdk\google\dist\index.js
+OK   @ai-sdk/google-vertex -> node_modules\.bun\@ai-sdk+google-vertex@4.0.128+aba109abb764d6ce\node_modules\@ai-sdk\google-vertex\dist\index.js
+OK   @ai-sdk/openai -> node_modules\.bun\@ai-sdk+openai@3.0.84+68a1e3a0c4588df3\node_modules\@ai-sdk\openai\dist\index.js
+OK   @ai-sdk/openai-compatible -> node_modules\.bun\@ai-sdk+openai-compatible@2.0.41+68a1e3a0c4588df3\node_modules\@ai-sdk\openai-compatible\dist\index.js
+OK   @ai-sdk/xai -> node_modules\.bun\@ai-sdk+xai@3.0.102+68a1e3a0c4588df3\node_modules\@ai-sdk\xai\dist\index.js
+OK   @ai-sdk/mistral -> node_modules\.bun\@ai-sdk+mistral@3.0.51+68a1e3a0c4588df3\node_modules\@ai-sdk\mistral\dist\index.js
+OK   @ai-sdk/groq -> node_modules\.bun\@ai-sdk+groq@3.0.31+68a1e3a0c4588df3\node_modules\@ai-sdk\groq\dist\index.js
+OK   @ai-sdk/deepinfra -> node_modules\.bun\@ai-sdk+deepinfra@2.0.41+68a1e3a0c4588df3\node_modules\@ai-sdk\deepinfra\dist\index.js
+OK   @ai-sdk/cerebras -> node_modules\.bun\@ai-sdk+cerebras@2.0.60+68a1e3a0c4588df3\node_modules\@ai-sdk\cerebras\dist\index.js
+OK   @ai-sdk/cohere -> node_modules\.bun\@ai-sdk+cohere@3.0.27+68a1e3a0c4588df3\node_modules\@ai-sdk\cohere\dist\index.js
+OK   @ai-sdk/gateway -> node_modules\.bun\@ai-sdk+gateway@3.0.104+68a1e3a0c4588df3\node_modules\@ai-sdk\gateway\dist\index.js
+OK   @ai-sdk/togetherai -> node_modules\.bun\@ai-sdk+togetherai@2.0.41+68a1e3a0c4588df3\node_modules\@ai-sdk\togetherai\dist\index.js
+OK   @ai-sdk/perplexity -> node_modules\.bun\@ai-sdk+perplexity@3.0.26+68a1e3a0c4588df3\node_modules\@ai-sdk\perplexity\dist\index.js
+OK   @ai-sdk/vercel -> node_modules\.bun\@ai-sdk+vercel@2.0.39+68a1e3a0c4588df3\node_modules\@ai-sdk\vercel\dist\index.js
+OK   @ai-sdk/alibaba -> node_modules\.bun\@ai-sdk+alibaba@1.0.17+68a1e3a0c4588df3\node_modules\@ai-sdk\alibaba\dist\index.js
+OK   @openrouter/ai-sdk-provider -> node_modules\.bun\@openrouter+ai-sdk-provider@2.9.0+abc2e6d73d5b94c2\node_modules\@openrouter\ai-sdk-provider\dist\index.js
+OK   venice-ai-sdk-provider -> node_modules\.bun\venice-ai-sdk-provider@2.1.1+abc2e6d73d5b94c2\node_modules\venice-ai-sdk-provider\dist\index.js
+OK   ai-gateway-provider -> node_modules\.bun\ai-gateway-provider@3.1.2+dcb2b31fd1036172\node_modules\ai-gateway-provider\dist\index.js
+OK   @aws-sdk/credential-providers -> node_modules\.bun\@aws-sdk+credential-providers@3.1057.0\node_modules\@aws-sdk\credential-providers\dist-cjs\index.js
+OK   [core-inline] ai
+OK   [core-inline] @ai-sdk/provider
+OK   [core-inline] @ai-sdk/provider-utils
+ALL RESOLVED

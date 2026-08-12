@@ -1,17 +1,19 @@
 ﻿export * as Token from "./token"
 
-import { tokenize } from "./tokenizer"
+import { count, tokenize } from "./tokenizer"
 
 // Token estimation is backed by the local tokenizer: `estimate` runs the same
 // deterministic, linear-time tokenize pass that `tokenize` exposes, so counts
 // are consistent everywhere (CJK = 1 token/char, code symbols tokenize
-// individually, ASCII runs cluster into word-ish tokens). `estimateWithAPI`
-// delegates to an injected Anthropic countTokens when available and falls back
-// to the local `estimate` on any failure.
+// individually, ASCII runs cluster into word-ish tokens). It counts without
+// materializing the token array to keep hot paths (sidebar refresh, prompt
+// build) free of per-call allocations. `estimateWithAPI` delegates to an
+// injected Anthropic countTokens when available and falls back to the local
+// `estimate` on any failure.
 
 export const estimate = (input: string) => {
   if (!input) return 0
-  return tokenize(input).length
+  return count(input)
 }
 
 export async function estimateWithAPI(

@@ -9,6 +9,8 @@ export interface PromptShard {
   tier: ShardTier
   content: string
   hash: string
+  /** Optional array segmentation (e.g. semi-static env + MCP segments). */
+  segments?: string[]
 }
 
 export function hashShard(content: string): string {
@@ -39,11 +41,27 @@ export class ShardCache {
     }
   }
 
-  buildPrompt(): string {
+  /**
+   * Build the ordered system-prompt parts (static → semi → dynamic) plus
+   * extras (memories, structured-output hint). Semi/dynamic tiers expand their
+   * segments; static contributes its single content string. Empty tiers and
+   * empty segments are skipped so the result is a minimal non-empty parts list.
+   */
+  buildSystem(extra?: string[]): string[] {
     const order: ShardTier[] = ["static", "semi", "dynamic"]
-    return order
-      .map(tier => this.cache.get(tier)?.content ?? "")
-      .filter(Boolean)
-      .join("\n\n")
+    const parts: string[] = []
+    for (const tier of order) {
+      const shard = this.cache.get(tier)
+      if (!shard) continue
+      if (shard.segments && shard.segments.length > 0) parts.push(...shard.segments)
+      else if (shard.content) parts.push(shard.content)
+    }
+    if (extra) parts.push(...extra)
+    return parts
+  }
+
+  /** Join cached shard contents into a single diagnostic string. */
+  buildPrompt(): string {
+    return this.buildSystem().join("\n\n")
   }
 }

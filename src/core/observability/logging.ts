@@ -12,20 +12,30 @@ const ROTATE_CHECK_INTERVAL_MS = 5000
 // Serialize appends so log lines stay ordered (fire-and-forget would interleave).
 let writeQueue: Promise<void> = Promise.resolve()
 
-// Throttle repeated ERROR lines so a failing provider (e.g. a 60s header
-// timeout retried 3x per step) cannot flood the log file with identical
-// entries. Same run + message within the window is collapsed to one line.
-const ERROR_THROTTLE_MS = 60_000
-const ERROR_THROTTLE_MAX_KEYS = 200
-const errorThrottle = new Map<string, { time: number }>()
+// Throttle repeated log lines so a failing provider (e.g. a 60s header
+// timeout retried 3x per step) or a busy loop cannot flood the log file with
+// identical entries. Same run + level + message within the window collapses
+// to one line. Applied to WARN and above, where repeated noise is most costly.
+const THROTTLE_MS = 60_000
+const THROTTLE_MAX_KEYS = 200
+const lineThrottle = new Map<string, { time: number }>()
 
-function suppressedError(key: string): boolean {
+function suppressedLine(key: string): boolean {
   const now = Date.now()
-  const hit = errorThrottle.get(key)
-  if (hit && now - hit.time < ERROR_THROTTLE_MS) return true
-  if (errorThrottle.size >= ERROR_THROTTLE_MAX_KEYS) errorThrottle.clear()
-  errorThrottle.set(key, { time: now })
+  const hit = lineThrottle.get(key)
+  if (hit && now - hit.time < THROTTLE_MS) return true
+  if (lineThrottle.size >= THROTTLE_MAX_KEYS) {
+    const oldest = lineThrottle.keys().next().value
+    if (oldest !== undefined) lineThrottle.delete(oldest)
+  }
+  lineThrottle.set(key, { time: now })
   return false
+}
+
+// INFO-level noise (e.g. per-step lifecycle logs) is bounded by default INFO
+// level filtering; WARN/ERROR get the throttle on top.
+function shouldThrottle(level: string): boolean {
+  return level === "Error" || level === "Warning"
 }
 
 function formatter(id: string = runID) {
@@ -71,15 +81,29 @@ function format(input: unknown) {
   return /^[^\s="\\]+$/.test(value) ? value : JSON.stringify(value)
 }
 
+// Batch log lines in memory and flush them with a single appendFile every
+// FLUSH_INTERVAL_MS (or when the buffer fills). Collapsing many small writes
+// into one large write drastically cuts disk activity, which matters on
+// spinning disks where each write triggers an audible head seek. The trailing
+// <1s of logs may be lost on exit (timer is unref'd); acceptable for
+// diagnostics.
+const FLUSH_INTERVAL_MS = 1000
+const FLUSH_MAX_LINES = 500
+
 export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id: string = runID) {
   const fmt = formatter(id)
   let lastCheck = 0
-  return Logger.make((options) => {
-    if (options.logLevel === "Error") {
-      const key = `${id}:${String(options.message)}`
-      if (suppressedError(key)) return
+  let pending: string[] = []
+  let flushTimer: NodeJS.Timeout | undefined
+
+  const drain = () => {
+    if (flushTimer) {
+      clearTimeout(flushTimer)
+      flushTimer = undefined
     }
-    const line = fmt.log(options) + "\n"
+    if (pending.length === 0) return
+    const chunk = pending.join("")
+    pending = []
     writeQueue = writeQueue.then(async () => {
       const now = Date.now()
       if (now - lastCheck > ROTATE_CHECK_INTERVAL_MS) {
@@ -93,10 +117,27 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
           // File may not exist yet; nothing to rotate.
         }
       }
-      await appendFile(file, line).catch(() => {
+      await appendFile(file, chunk).catch(() => {
         // Never let a logging failure crash the session.
       })
     })
+  }
+
+  return Logger.make((options) => {
+    if (shouldThrottle(options.logLevel)) {
+      const key = `${id}:${options.logLevel}:${String(options.message)}`
+      if (suppressedLine(key)) return
+    }
+    pending.push(fmt.log(options) + "\n")
+    if (pending.length >= FLUSH_MAX_LINES) {
+      drain()
+      return
+    }
+    if (!flushTimer) {
+      flushTimer = setTimeout(drain, FLUSH_INTERVAL_MS)
+      // Do not keep the process alive just to flush trailing log lines.
+      flushTimer.unref?.()
+    }
   })
 }
 
