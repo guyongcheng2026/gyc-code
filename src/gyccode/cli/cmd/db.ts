@@ -68,12 +68,54 @@ const CleanupCommand = effectCmd({
     console.log("deleted orphaned events; vacuumed")
   }),
 })
+const CacheCommand = effectCmd({
+  command: "cache",
+  describe: "report recent prompt-cache hit rate from persisted message tokens",
+  instance: false,
+  handler: Effect.fn("Cli.db.cache")(function* () {
+    const { db } = yield* Database.Service
+    const rows = yield* db
+      .all<{ data: string }>(sql.raw(`SELECT data FROM message ORDER BY time_created DESC LIMIT 50`))
+      .pipe(Effect.orDie)
+    let input = 0
+    let cacheRead = 0
+    let withTokens = 0
+    for (const row of rows) {
+      try {
+        const data = JSON.parse(row.data)
+        const t = data.tokens
+        if (!t) continue
+        // total = full input tokens (incl. cached); cache.read = served from cache
+        const totalInput = typeof t.total === "number" ? t.total : (typeof t.input === "number" ? t.input : 0)
+        if (totalInput <= 0) continue
+        withTokens++
+        input += totalInput
+        cacheRead += t.cache?.read ?? 0
+      } catch {
+        // skip malformed rows
+      }
+    }
+    if (withTokens === 0) {
+      console.log("no token usage persisted in the last 50 messages")
+      return
+    }
+    const rate = input > 0 ? ((cacheRead / input) * 100).toFixed(1) : "0.0"
+    console.log(`messages with usage: ${withTokens}`)
+    console.log(`non-cached input tokens: ${input}`)
+    console.log(`cache-read tokens: ${cacheRead}`)
+    console.log(`prompt-cache hit rate: ${rate}%`)
+    if (rate === "0.0" && input > 0) {
+      console.log("note: 0% suggests the current model/provider does not report prompt caching,")
+      console.log("or the system-prompt prefix changes between requests.")
+    }
+  }),
+})
 export const DbCommand = effectCmd({
   command: "db",
   describe: "database tools",
   instance: false,
   builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).command(CleanupCommand).demandCommand()
+    return yargs.command(QueryCommand).command(PathCommand).command(CleanupCommand).command(CacheCommand).demandCommand()
   },
   handler: Effect.fn("Cli.db")(function* () {}),
 })
