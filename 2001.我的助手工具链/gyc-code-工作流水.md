@@ -517,3 +517,6 @@
 
 - [OK] 2026-08-12 [8ef59c7] 文档: 新增去 opencode 化 Roadmap（自建后端三项：账号/分享/额度）+ README 引用
   - [FILES] 2: README.md, docs/ROADMAP-2026-08-12.md
+
+- [OK] 2026-08-12 [7e71567] 基础设施: P1 剩余三项全部落地——自建账号/分享/额度服务 + 客户端全端点可配置
+  - [FILES] 9: README.md, docs/ROADMAP-2026-08-12.md, services/README.md, services/account/server.ts, services/share/server.ts, src/core/plugin/provider/gyccode.ts ...
