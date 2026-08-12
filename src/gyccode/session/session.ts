@@ -463,6 +463,16 @@ export interface Interface {
     partID: PartID
   }) => Effect.Effect<SessionV1.Part | undefined>
   readonly updatePart: <T extends SessionV1.Part>(part: T) => Effect.Effect<T>
+  /**
+   * Update a part in its *intermediate* state (created / running / streaming):
+   * broadcasts live for realtime consumers and projects the part table so
+   * runtime readers (doom-loop detection, parts()) stay consistent, but does
+   * NOT write a durable event. Only final states (completed / errored /
+   * finished) should go through `updatePart`, so the event store does not
+   * accumulate per-token intermediate snapshots (Claude Code persists final
+   * messages only; streaming intermediates are in-memory).
+   */
+  readonly updatePartLive: <T extends SessionV1.Part>(part: T) => Effect.Effect<T>
   readonly updatePartDelta: (input: {
     sessionID: SessionID
     messageID: MessageID
@@ -655,6 +665,32 @@ const layer: Layer.Layer<
         })
         return part
       }).pipe(Effect.withSpan("Session.updatePart"))
+
+    const updatePartLive = <T extends SessionV1.Part>(part: T): Effect.Effect<T> =>
+      Effect.gen(function* () {
+        yield* events.publishLive(SessionV1.Event.PartUpdated, {
+          sessionID: part.sessionID,
+          part: structuredClone(part),
+          time: Date.now(),
+        })
+        // Project the part table directly (same shape as the durable
+        // projector) so intermediate state is readable mid-run without
+        // paying a durable-event write per delta.
+        const { id: _, messageID: __, sessionID: ___, ...data } = part
+        yield* db
+          .insert(PartTable)
+          .values({
+            id: part.id,
+            message_id: part.messageID,
+            session_id: part.sessionID,
+            time_created: Date.now(),
+            data: data as typeof PartTable.$inferInsert.data,
+          })
+          .onConflictDoUpdate({ target: PartTable.id, set: { data: data as typeof PartTable.$inferInsert.data } })
+          .run()
+          .pipe(Effect.orDie)
+        return part
+      }).pipe(Effect.withSpan("Session.updatePartLive"))
 
     const getPart: Interface["getPart"] = Effect.fn("Session.getPart")(function* (input) {
       const row = yield* db
@@ -954,6 +990,7 @@ const layer: Layer.Layer<
       removeMessage,
       removePart,
       updatePart,
+      updatePartLive,
       getPart,
       updatePartDelta,
       findMessage,

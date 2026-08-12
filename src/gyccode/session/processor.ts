@@ -147,7 +147,7 @@ const layer = Layer.effect(
       ) {
         const match = yield* readToolCall(toolCallID)
         if (!match) return undefined
-        const part = yield* session.updatePart(update(match.part))
+        const part = yield* session.updatePartLive(update(match.part))
         ctx.toolcalls[toolCallID] = {
           ...match.call,
           partID: part.id,
@@ -222,7 +222,7 @@ const layer = Layer.effect(
         const existing = yield* readToolCall(input.id)
         if (existing) {
           if (!input.providerExecuted || existing.part.metadata?.providerExecuted) return existing
-          const part = yield* session.updatePart({
+          const part = yield* session.updatePartLive({
             ...existing.part,
             metadata: { ...existing.part.metadata, providerExecuted: true },
           })
@@ -234,7 +234,7 @@ const layer = Layer.effect(
           }
           return { call: ctx.toolcalls[input.id], part }
         }
-        const part = yield* session.updatePart({
+        const part = yield* session.updatePartLive({
           id: PartID.ascending(),
           messageID: ctx.assistantMessage.id,
           sessionID: ctx.assistantMessage.sessionID,
@@ -289,7 +289,7 @@ const layer = Layer.effect(
               time: { start: Date.now() },
               metadata: value.providerMetadata,
             }
-            yield* session.updatePart(ctx.reasoningMap[value.id])
+            yield* session.updatePartLive(ctx.reasoningMap[value.id])
             return
 
           case "reasoning-delta":
@@ -511,7 +511,7 @@ const layer = Layer.effect(
               time: { start: Date.now() },
               metadata: value.providerMetadata,
             }
-            yield* session.updatePart(ctx.currentText)
+            yield* session.updatePartLive(ctx.currentText)
             return
 
           case "text-delta":

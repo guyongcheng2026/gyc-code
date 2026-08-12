@@ -1,36 +1,59 @@
-#!/usr/bin/env node
-// gyc — gyc-code CLI launcher
+#!/usr/bin/env bun
+// gyc - gyc-code CLI launcher
 // Prefers the prebuilt dist bundle (fastest); falls back to TS source via Bun.
-const { spawnSync } = require("child_process")
+// Bun runtime: import the bundle in-process (avoids node->bun double spawn,
+// cold start ~2.9s -> ~0.9s on this machine). Node runtime (npm global shim):
+// spawn the Bun runtime as before.
+
+const { existsSync } = require("fs")
 const path = require("path")
-const fs = require("fs")
 
-const distEntry = path.join(__dirname, "..", "dist", "index.js")
-const srcEntry = path.join(__dirname, "..", "src", "gyccode", "index.ts")
-const entry = fs.existsSync(distEntry) ? distEntry : srcEntry
+const here = __dirname
+const distEntry = path.join(here, "..", "dist", "index.js")
+const srcEntry = path.join(here, "..", "src", "gyccode", "index.ts")
+const preload = path.join(here, "..", "scripts", "bun-solid-preload.ts")
 
-const candidates = [
-  process.env.GYC_BUN,
-  "C:\\Program Files\\nodejs\\bun.exe",
-  "C:\\Users\\谷勇成\\.bun\\bin\\bun.exe",
-].filter(Boolean)
-const bun = candidates.find((c) => {
-  try {
-    fs.accessSync(c)
-    return true
-  } catch {
-    return false
+function spawnBun(bun, args) {
+  const { spawnSync } = require("child_process")
+  const result = spawnSync(bun, args, { stdio: "inherit" })
+  if (result.error) {
+    console.error("Failed to launch gyc:", result.error.message)
+    process.exit(1)
   }
-}) || "bun"
-
-const preload = path.join(__dirname, "..", "scripts", "bun-solid-preload.ts")
-const args = fs.existsSync(distEntry)
-  ? ["--smol", entry, ...process.argv.slice(2)]
-  : ["--smol", "run", "--preload", preload, "--conditions=browser", entry, ...process.argv.slice(2)]
-
-const result = spawnSync(bun, args, { stdio: "inherit" })
-if (result.error) {
-  console.error("Failed to launch gyc:", result.error.message)
-  process.exit(1)
+  process.exit(result.status ?? 0)
 }
-process.exit(result.status ?? 0)
+
+async function main() {
+  if (typeof Bun === "undefined") {
+    const candidates = [
+      process.env.GYC_BUN,
+      "C:\\Program Files\\nodejs\\bun.exe",
+      path.join(process.env.USERPROFILE || "", ".bun", "bin", "bun.exe"),
+    ].filter(Boolean)
+    const bun = candidates.find((c) => existsSync(c)) || "bun"
+    const entry = existsSync(distEntry) ? distEntry : srcEntry
+    spawnBun(
+      bun,
+      existsSync(distEntry)
+        ? ["--smol", entry, ...process.argv.slice(2)]
+        : ["--smol", "run", "--preload", preload, "--conditions=browser", entry, ...process.argv.slice(2)],
+    )
+    return
+  }
+
+  if (existsSync(distEntry)) {
+    await import(distEntry)
+    return
+  }
+  spawnBun(process.execPath, [
+    "--smol",
+    "run",
+    "--preload",
+    preload,
+    "--conditions=browser",
+    srcEntry,
+    ...process.argv.slice(2),
+  ])
+}
+
+main()

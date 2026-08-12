@@ -12,6 +12,22 @@ const ROTATE_CHECK_INTERVAL_MS = 5000
 // Serialize appends so log lines stay ordered (fire-and-forget would interleave).
 let writeQueue: Promise<void> = Promise.resolve()
 
+// Throttle repeated ERROR lines so a failing provider (e.g. a 60s header
+// timeout retried 3x per step) cannot flood the log file with identical
+// entries. Same run + message within the window is collapsed to one line.
+const ERROR_THROTTLE_MS = 60_000
+const ERROR_THROTTLE_MAX_KEYS = 200
+const errorThrottle = new Map<string, { time: number }>()
+
+function suppressedError(key: string): boolean {
+  const now = Date.now()
+  const hit = errorThrottle.get(key)
+  if (hit && now - hit.time < ERROR_THROTTLE_MS) return true
+  if (errorThrottle.size >= ERROR_THROTTLE_MAX_KEYS) errorThrottle.clear()
+  errorThrottle.set(key, { time: now })
+  return false
+}
+
 function formatter(id: string = runID) {
   return Logger.map(Logger.formatStructured, (output) => {
     const messages = Array.isArray(output.message) ? output.message : [output.message]
@@ -59,6 +75,10 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
   const fmt = formatter(id)
   let lastCheck = 0
   return Logger.make((options) => {
+    if (options.logLevel === "Error") {
+      const key = `${id}:${String(options.message)}`
+      if (suppressedError(key)) return
+    }
     const line = fmt.log(options) + "\n"
     writeQueue = writeQueue.then(async () => {
       const now = Date.now()
