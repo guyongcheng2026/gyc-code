@@ -448,3 +448,6 @@
 
 - [OK] 2026-08-12 [7511c3f] 新增硬件性能审计报告（六问题深挖）
   - [FILES] 1: docs/compose/reports/2026-08-12-hardware-perf-audit.md
+
+- [OK] 2026-08-12 [9997d77] 优化: v2 LLM Delta 事件改为 publishLive 不落库（治本）
+  - [FILES] 1: src/core/session/runner/publish-llm-event.ts
