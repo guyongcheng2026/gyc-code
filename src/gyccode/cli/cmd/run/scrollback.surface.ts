@@ -90,6 +90,10 @@ export class RunScrollbackStream {
   private sessionID?: () => string | undefined
   private treeSitterClient: TreeSitterClient | undefined
   private wrote: boolean
+  // Memory/CPU saving: render code/markdown entries as plain text (skips
+  // tree-sitter parsing + per-entry highlight data in long sessions).
+  // Set GYCCODE_SYNTAX_HIGHLIGHT=1 to re-enable rich rendering.
+  private readonly plainText = process.env.GYCCODE_SYNTAX_HIGHLIGHT !== "1"
   private pendingThemes: RunTheme[] = []
 
   constructor(
@@ -152,7 +156,7 @@ export class RunScrollbackStream {
     })
     const style = entryLook(commit, this.theme.entry)
     const renderable =
-      body.type === "text"
+      body.type === "text" || this.plainText
         ? new TextRenderable(surface.renderContext, {
             content: "",
             width: "100%",
@@ -228,7 +232,7 @@ export class RunScrollbackStream {
       return false
     }
 
-    if (active.body.type === "text") {
+    if (active.body.type === "text" || this.plainText) {
       if (!(active.renderable instanceof TextRenderable)) {
         return false
       }
