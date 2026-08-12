@@ -499,3 +499,6 @@
 
 - [OK] 2026-08-12 [b080c58] docs: 新增 gyc-cli vs Claude Code 29 项能力对比 + 金指标评估
   - [FILES] 1: docs/claude-code-capability-comparison.md
+
+- [OK] 2026-08-12 [c8e4dad] 重构: 剥离 opencode 外部依赖，SDK/plugin 客户端本地化（纯自研化第一阶段）
+  - [FILES] 242: docs/BUG-REVIEW-2026-08-12-round2.md, docs/BUG-REVIEW-2026-08-12.md, package.json, src/core/config/plugin/external.ts, src/core/plugin.ts, src/core/plugin/host.ts ...
