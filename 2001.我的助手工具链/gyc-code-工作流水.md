@@ -439,3 +439,6 @@
 
 - [OK] 2026-08-12 [b8d69e1] 修正 benchmark 测试过时路径
   - [FILES] 1: src/gyccode/benchmark/benchmark.test.ts
+
+- [OK] 2026-08-12 [6ca0026] debug 插件 /tmp 路径改为平台无关 + 新增架构评估报告
+  - [FILES] 2: docs/compose/reports/2026-08-12-architecture-convergence.md, src/gyccode/control-plane/dev/debug-workspace-plugin.ts
