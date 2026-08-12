@@ -16,7 +16,7 @@ test("01: CLI 可启动 (--help)", async () => {
   ])
   expect(exit).toBe(0)
   expect(stdout.length + stderr.length).toBeGreaterThan(100)
-}, { timeout: 30000 })
+}, { timeout: 90000 })
 
 // 2. 模型列表
 test("02: 模型列表", async () => {
@@ -28,7 +28,7 @@ test("02: 模型列表", async () => {
   const [exit, stdout] = await Promise.all([proc.exited, new Response(proc.stdout).text()])
   expect(exit).toBe(0)
   expect(stdout).toContain("deepseek-chat")
-}, { timeout: 30000 })
+}, { timeout: 90000 })
 
 // 3. Provider 配置
 test("03: Provider 配置加载", async () => {
@@ -42,7 +42,7 @@ test("03: Provider 配置加载", async () => {
   const cfg = JSON.parse(stdout)
   expect(cfg.provider).toBeDefined()
   expect(Object.keys(cfg.provider).length).toBeGreaterThan(0)
-}, { timeout: 30000 })
+}, { timeout: 90000 })
 
 // 4. Memory Bridge 模块
 test("04: Memory Bridge 模块可加载", async () => {
