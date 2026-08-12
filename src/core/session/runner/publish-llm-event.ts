@@ -275,7 +275,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
         return
       case "text-delta":
         yield* text.append(event.id, event.text)
-        yield* events.publish(SessionEvent.Text.Delta, {
+        yield* events.publishLive(SessionEvent.Text.Delta, {
           sessionID: input.sessionID,
           assistantMessageID: yield* currentAssistantMessageID(),
           timestamp: yield* timestamp,
@@ -298,7 +298,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
         return
       case "reasoning-delta":
         yield* reasoning.append(event.id, event.text)
-        yield* events.publish(SessionEvent.Reasoning.Delta, {
+        yield* events.publishLive(SessionEvent.Reasoning.Delta, {
           sessionID: input.sessionID,
           assistantMessageID: yield* currentAssistantMessageID(),
           timestamp: yield* timestamp,
@@ -319,7 +319,7 @@ export const createLLMEventPublisher = (events: EventV2.Interface, input: Input)
           return yield* Effect.die(`Tool input name changed for ${event.id}: ${tool.name} -> ${event.name}`)
         if (tool.inputEnded) return yield* Effect.die(`Tool input delta after end: ${event.id}`)
         yield* toolInput.append(event.id, event.text)
-        yield* events.publish(SessionEvent.Tool.Input.Delta, {
+        yield* events.publishLive(SessionEvent.Tool.Input.Delta, {
           sessionID: input.sessionID,
           timestamp: yield* timestamp,
           assistantMessageID: tool.assistantMessageID,
