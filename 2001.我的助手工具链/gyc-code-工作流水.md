@@ -514,3 +514,6 @@
 
 - [OK] 2026-08-12 [a86802e] 基础设施: P1 去 opencode 化——Web UI 可配置 + 安装链路自持 + GitHub App 检测本地化
   - [FILES] 4: scripts/install.sh, src/gyccode/cli/cmd/github.handler.ts, src/gyccode/installation/index.ts, src/gyccode/server/shared/ui.ts
+
+- [OK] 2026-08-12 [8ef59c7] 文档: 新增去 opencode 化 Roadmap（自建后端三项：账号/分享/额度）+ README 引用
+  - [FILES] 2: README.md, docs/ROADMAP-2026-08-12.md
