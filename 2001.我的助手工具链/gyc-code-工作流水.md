@@ -433,3 +433,6 @@
 
 - [OK] 2026-08-12 [a11497d] 激活 dream 记忆合成 + wrapSSE 去重 + 死代码清理
   - [FILES] 8: src/core/aisdk.ts, src/gyccode/memory/dream-runner.test.ts, src/gyccode/memory/dream-runner.ts, src/gyccode/memory/team.ts, src/gyccode/provider/provider.ts, src/gyccode/session/proactive.ts ...
+
+- [OK] 2026-08-12 [56491fa] 清理幽灵目录与废弃代码，修复 benchmark 并行 flaky
+  - [FILES] 41: src/gyccode/benchmark/benchmark.test.ts, src/gyccode/cli/keybindings.ts, src/gyccode/effect/bootstrap-runtime.ts, src/plugin/example-workspace.ts, src/plugin/example.ts, src/plugin/index.ts ...
