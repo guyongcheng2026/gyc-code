@@ -23,6 +23,24 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   }
   const scrollAcceleration = createMemo(() => getScrollAcceleration(tuiConfig))
 
+  const money = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  })
+  const workspaceSummary = createMemo(() => {
+    const sessions = sync.data.session
+    let tokens = 0
+    let cost = 0
+    for (const s of sessions) {
+      if (s.tokens) {
+        tokens += s.tokens.input + s.tokens.output + s.tokens.reasoning + s.tokens.cache.read + s.tokens.cache.write
+      }
+      cost += s.cost ?? 0
+    }
+    const active = sessions.filter((s) => s.parentID === undefined).length
+    return { tokens, cost, active }
+  })
+
   return (
     <Show when={session()}>
       <box
@@ -74,6 +92,11 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                           icon
                         />
                       )}
+                    </Show>
+                    <Show when={workspaceSummary().tokens > 0 || workspaceSummary().cost > 0}>
+                      <text fg={theme.textMuted}>
+                        工作区 Context：{workspaceSummary().tokens.toLocaleString()} tokens · {workspaceSummary().active} 个会话 · {money.format(workspaceSummary().cost)} spent
+                      </text>
                     </Show>
                   </text>
                 </Show>
