@@ -579,6 +579,7 @@ title: "选择项目",
               }}
               focusedBackgroundColor={theme.backgroundPanel}
               cursorColor={theme.primary}
+              cursorStyle={tuiConfig.cursor}
               focusedTextColor={theme.textMuted}
               ref={(r) => {
                 input = r
