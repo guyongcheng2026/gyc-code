@@ -451,3 +451,6 @@
 
 - [OK] 2026-08-12 [9997d77] 优化: v2 LLM Delta 事件改为 publishLive 不落库（治本）
   - [FILES] 1: src/core/session/runner/publish-llm-event.ts
+
+- [OK] 2026-08-12 [6d25c24] 新增 db cleanup 子命令：清理孤儿事件 + VACUUM + WAL checkpoint
+  - [FILES] 1: src/gyccode/cli/cmd/db.ts
