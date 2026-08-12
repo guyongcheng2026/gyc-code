@@ -30,7 +30,13 @@ import { LLMAISDK } from "./llm/ai-sdk"
 import { LLMNativeRuntime } from "./llm/native-runtime"
 import { LLMRequestPrep } from "./llm/request"
 import { resolveOutputTokenMax } from "./llm/output-cap"
-import { streamWithIdleTimeout, resolveStreamIdleTimeout, resolveMaxConcurrentStreams } from "./llm-timeout"
+import {
+  streamWithIdleTimeout,
+  resolveStreamIdleTimeout,
+  resolveMaxConcurrentStreams,
+  withFirstEventTimeout,
+  resolveFirstTokenTimeout,
+} from "./llm-timeout"
 
 export const OUTPUT_TOKEN_MAX = ProviderTransform.OUTPUT_TOKEN_MAX
 

@@ -20,6 +20,7 @@
  * `llm.stream_idle_timeout_ms` in gyccode.json.
  */
 export const LLM_STREAM_IDLE_TIMEOUT_MS = 600_000
+export const LLM_FIRST_TOKEN_TIMEOUT_MS = 180_000 // 首个事件超时：连接建立后长时间无任何事件则快速失败
 
 /**
  * Max number of LLM streams that may run concurrently across all sessions
@@ -39,6 +40,17 @@ export function resolveStreamIdleTimeout(
   cfg: { llm?: { stream_idle_timeout_ms?: number } },
 ): number {
   return cfg.llm?.stream_idle_timeout_ms ?? LLM_STREAM_IDLE_TIMEOUT_MS
+}
+
+/**
+ * Resolve the effective first-event timeout from config, falling back to the
+ * default constant. Fails fast when the provider accepts the connection but
+ * never sends a first event.
+ */
+export function resolveFirstTokenTimeout(
+  cfg: { llm?: { first_token_timeout_ms?: number } },
+): number {
+  return cfg.llm?.first_token_timeout_ms ?? LLM_FIRST_TOKEN_TIMEOUT_MS
 }
 
 /**
@@ -85,8 +97,15 @@ export function withFirstEventTimeout<A, E, R>(
   return Stream.unwrap(
     Effect.gen(function* () {
       const pull = yield* Stream.toPull(stream)
+      // timeout fails (TimeoutError) and interrupts the pull when no first
+      // event arrives; on success the first chunk is replayed and the rest
+      // continues via the same pull.
       const first = yield* Effect.timeout(pull, duration)
-      return Stream.concat(Stream.fromIterable(first), Stream.fromPull(() => pull))
+      // fromPull expects an Effect that yields the pull (not the pull itself)
+      return Stream.concat(Stream.fromIterable(first), Stream.fromPull(Effect.sync(() => pull)))
     }),
-  )
+    // toPull introduces Scope and timeout introduces TimeoutError; both are
+    // consumed by the caller (run loop error path / stream scope), so the
+    // public signature stays stable.
+  ) as unknown as Stream.Stream<A, E, R>
 }

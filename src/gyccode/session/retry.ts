@@ -31,6 +31,7 @@ export const RETRY_MAX_DELAY_NO_HEADERS = 30_000 // 30 seconds
 export const RETRY_MAX_DELAY_WITH_HEADERS = 60_000 // 60 seconds
 // retry-after 超过该值视为非瞬时限流（额度耗尽/封禁），放弃重试直接报错。
 export const RETRY_ABANDON_AFTER_MS = 300_000 // 5 minutes
+export const RETRY_TOTAL_CAP_MS = 120_000 // 重试总时长上限约 2 分钟，防止 60s×5 次静默重试阻塞 runLoop
 export const MAX_RETRY_ATTEMPTS = 5 // 重试次数上限，防止 429/5xx 无限重试挂起
 
 const RETRYABLE_MESSAGE_PATTERNS = [

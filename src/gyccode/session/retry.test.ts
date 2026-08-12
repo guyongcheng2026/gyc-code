@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import { retryable } from "./retry"
+import { RETRY_TOTAL_CAP_MS, retryable } from "./retry"
 
 test("stream idle timeout errors are retryable", () => {
   const error = {
