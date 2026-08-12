@@ -466,3 +466,6 @@
 
 - [OK] 2026-08-12 [9d55434] 缓存命中率闭环: 新增 db cache 诊断命令
   - [FILES] 1: src/gyccode/cli/cmd/db.ts
+
+- [OK] 2026-08-12 [59b2472] 更新硬件性能审计报告：记录内存专项（降级渲染）+ 缓存闭环结论
+  - [FILES] 1: docs/compose/reports/2026-08-12-hardware-perf-audit.md
