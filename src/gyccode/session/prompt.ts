@@ -1670,16 +1670,15 @@ const layer = Layer.effect(
             buildStaticPrompt(skills)
             buildSemiStaticPrompt(env, mcpInstructions)
             buildDynamicPrompt(instructions)
-            // 日期注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
-            // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期放 user
-            // 增量处，跨天继续会话只影响当轮增量，不破坏历史前缀。
+            // 日期与记忆注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
+            // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期/记忆放 user
+            // 增量处，跨天/跨检索只影响当轮增量，不破坏历史前缀（对齐 pi agent
+            // CH 99.9% 机制：system 字节稳定是缓存命中的前提）。
             const todayPrefix = `Today's date: ${new Date().toDateString()}\n`
-            const modelMsgsWithDate = MessageV2.prependTodayDate(modelMsgs, todayPrefix)
+            const memoryPrefix = memories ? `${memories}\n\n` : ""
+            const modelMsgsWithDate = MessageV2.prependTodayDate(modelMsgs, todayPrefix + memoryPrefix)
             const format = lastUser.format ?? { type: "text" as const }
-            const system = shardCache.buildSystem([
-              ...(memories ? [memories] : []),
-              ...(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : []),
-            ])
+            const system = shardCache.buildSystem(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : [])
             const result = yield* handle.process({
               user: lastUser,
               agent,
