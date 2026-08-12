@@ -19,7 +19,9 @@ export function publish(port: number, domain?: string) {
       txt: { path: "/" },
     })
 
-    service.on("error", () => {})
+    service.on("error", (err) => {
+      console.error("[mdns] bonjour service error:", err)
+    })
 
     currentPort = port
   } catch {

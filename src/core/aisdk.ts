@@ -23,16 +23,17 @@ export interface LanguageEvent {
   language?: LanguageModelV3
 }
 
-function wrapSSE(res: Response, ms: number, ctl: AbortController) {
+export function wrapSSE(res: Response, ms: number, ctl: AbortController) {
   if (typeof ms !== "number" || ms <= 0) return res
   if (!res.body) return res
   if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
 
   const reader = res.body.getReader()
+  let pendingId: ReturnType<typeof setTimeout> | undefined
   const body = new ReadableStream<Uint8Array>({
     async pull(ctrl) {
       const part = await new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
-        const id = setTimeout(() => {
+        pendingId = setTimeout(() => {
           const err = new Error("SSE read timed out")
           ctl.abort(err)
           void reader.cancel(err)
@@ -41,11 +42,11 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 
         reader.read().then(
           (part) => {
-            clearTimeout(id)
+            clearTimeout(pendingId)
             resolve(part)
           },
           (err) => {
-            clearTimeout(id)
+            clearTimeout(pendingId)
             reject(err)
           },
         )
@@ -59,6 +60,10 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
       ctrl.enqueue(part.value)
     },
     async cancel(reason) {
+      if (pendingId !== undefined) {
+        clearTimeout(pendingId)
+        pendingId = undefined
+      }
       ctl.abort(reason)
       await reader.cancel(reason)
     },

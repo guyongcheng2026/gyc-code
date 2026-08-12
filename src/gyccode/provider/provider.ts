@@ -50,10 +50,11 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
   if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
 
   const reader = res.body.getReader()
+  let pendingId: ReturnType<typeof setTimeout> | undefined
   const body = new ReadableStream<Uint8Array>({
     async pull(ctrl) {
       const part = await new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
-        const id = setTimeout(() => {
+        pendingId = setTimeout(() => {
           const err = new ProviderError.ResponseStreamError("SSE read timed out")
           ctl.abort(err)
           void reader.cancel(err)
@@ -62,11 +63,11 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 
         reader.read().then(
           (part) => {
-            clearTimeout(id)
+            clearTimeout(pendingId)
             resolve(part)
           },
           (err) => {
-            clearTimeout(id)
+            clearTimeout(pendingId)
             reject(err)
           },
         )
@@ -80,6 +81,10 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
       ctrl.enqueue(part.value)
     },
     async cancel(reason) {
+      if (pendingId !== undefined) {
+        clearTimeout(pendingId)
+        pendingId = undefined
+      }
       ctl.abort(reason)
       await reader.cancel(reason)
     },
@@ -94,10 +99,10 @@ function wrapSSE(res: Response, ms: number, ctl: AbortController) {
 
 function timeoutController(ms: number) {
   const ctl = new AbortController()
-  const id = setTimeout(() => ctl.abort(new ProviderError.HeaderTimeoutError(ms)), ms)
+  pendingId = setTimeout(() => ctl.abort(new ProviderError.HeaderTimeoutError(ms)), ms)
   return {
     signal: ctl.signal,
-    clear: () => clearTimeout(id),
+    clear: () => clearTimeout(pendingId),
   }
 }
 
@@ -1614,7 +1619,9 @@ const layer = Layer.effect(
                   providers[gitlab].models[modelID] = model
                 }
               }
-            } catch (e) {}
+            } catch (e) {
+              console.error("[provider] gitlab model discovery failed:", e)
+            }
           })
         }
 
