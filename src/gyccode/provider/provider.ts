@@ -45,9 +45,12 @@ const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 const DEFAULT_HEADER_TIMEOUT_MS = 60_000
 const DEFAULT_CHUNK_TIMEOUT_MS = 120_000
 
-function timeoutController(ms: number) {
+function timeoutController(ms: number, label?: string) {
   const ctl = new AbortController()
-  const id = setTimeout(() => ctl.abort(new ProviderError.HeaderTimeoutError(ms)), ms)
+  const id = setTimeout(() => {
+    console.error(`[provider] header timeout after ${ms}ms${label ? ` (${label})` : ""}`)
+    ctl.abort(new ProviderError.HeaderTimeoutError(ms))
+  }, ms)
   return {
     signal: ctl.signal,
     clear: () => clearTimeout(id),
@@ -1714,7 +1717,9 @@ const layer = Layer.effect(
           const opts = init ?? {}
           const chunkAbortCtl = typeof chunkTimeout === "number" && chunkTimeout > 0 ? new AbortController() : undefined
           const headerTimeoutMs = headerTimeout === false ? undefined : headerTimeout
-          const headerTimeoutCtl = typeof headerTimeoutMs === "number" ? timeoutController(headerTimeoutMs) : undefined
+          const headerTimeoutCtl = typeof headerTimeoutMs === "number"
+            ? timeoutController(headerTimeoutMs, `${model.providerID}/${model.api.id}`)
+            : undefined
           const signals: AbortSignal[] = []
 
           if (opts.signal) signals.push(opts.signal)
@@ -1733,7 +1738,10 @@ const layer = Layer.effect(
           }).finally(() => headerTimeoutCtl?.clear())
 
           if (!chunkAbortCtl) return res
-          return wrapSSE(res, chunkTimeout, chunkAbortCtl, (message) => new ProviderError.ResponseStreamError(message))
+          return wrapSSE(res, chunkTimeout, chunkAbortCtl, (message) => {
+            console.error(`[provider] SSE chunk timeout after ${chunkTimeout}ms (${model.providerID}/${model.api.id})`)
+            return new ProviderError.ResponseStreamError(message)
+          })
         }
 
         const bundledLoader = BUNDLED_PROVIDERS[model.api.npm]

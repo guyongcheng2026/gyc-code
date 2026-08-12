@@ -75,11 +75,14 @@ const CacheCommand = effectCmd({
   handler: Effect.fn("Cli.db.cache")(function* () {
     const { db } = yield* Database.Service
     const rows = yield* db
-      .all<{ data: string }>(sql.raw(`SELECT data FROM message ORDER BY time_created DESC LIMIT 50`))
+      .all<{ data: string; time_created: number | string }>(
+        sql.raw(`SELECT data, time_created FROM message ORDER BY time_created DESC LIMIT 50`),
+      )
       .pipe(Effect.orDie)
     let input = 0
     let cacheRead = 0
     let withTokens = 0
+    const perMessage: { time: number; total: number; cached: number }[] = []
     for (const row of rows) {
       try {
         const data = JSON.parse(row.data)
@@ -91,6 +94,7 @@ const CacheCommand = effectCmd({
         withTokens++
         input += totalInput
         cacheRead += t.cache?.read ?? 0
+        perMessage.push({ time: Number(row.time_created), total: totalInput, cached: t.cache?.read ?? 0 })
       } catch {
         // skip malformed rows
       }
@@ -101,13 +105,31 @@ const CacheCommand = effectCmd({
     }
     const rate = input > 0 ? ((cacheRead / input) * 100).toFixed(1) : "0.0"
     console.log(`messages with usage: ${withTokens}`)
-    console.log(`non-cached input tokens: ${input}`)
-    console.log(`cache-read tokens: ${cacheRead}`)
+    console.log(`total input tokens: ${input.toLocaleString()}`)
+    console.log(`cache-read tokens: ${cacheRead.toLocaleString()}`)
     console.log(`prompt-cache hit rate: ${rate}%`)
     if (rate === "0.0" && input > 0) {
       console.log("note: 0% suggests the current model/provider does not report prompt caching,")
       console.log("or the system-prompt prefix changes between requests.")
     }
+
+    // Per-message trend (oldest → newest): a stable prefix shows ~99% on every
+    // row; a row that collapses to ~0% while neighbours stay high marks the
+    // exact turn where the prefix drifted (memory/skills/env/tools change).
+    const asc = perMessage.reverse()
+    console.log("")
+    console.log(`per-message hit rate (oldest → newest, last ${asc.length}):`)
+    asc.forEach((m, i) => {
+      const ratio = m.total > 0 ? m.cached / m.total : 0
+      const r = (ratio * 100).toFixed(1)
+      const prev = i > 0 ? asc[i - 1] : undefined
+      const prevRatio = prev && prev.total > 0 ? prev.cached / prev.total : 1
+      const flag = ratio < 0.2 && prevRatio >= 0.8 ? "  ← 前缀漂移疑似（该轮前缀与上轮不同）" : ""
+      const time = new Date(m.time).toLocaleTimeString()
+      console.log(
+        `  ${String(i + 1).padStart(3)}. ${time}  ${r.padStart(5)}%  (${m.cached.toLocaleString()} / ${m.total.toLocaleString()})${flag}`,
+      )
+    })
   }),
 })
 export const DbCommand = effectCmd({
