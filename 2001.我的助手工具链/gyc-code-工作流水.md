@@ -445,3 +445,6 @@
 
 - [OK] 2026-08-12 [3b5dc7c] 新增待设计清单 docs/compose/TODO-DESIGN.md（7 项待决策 + 已决策追溯）
   - [FILES] 1: docs/compose/TODO-DESIGN.md
+
+- [OK] 2026-08-12 [7511c3f] 新增硬件性能审计报告（六问题深挖）
+  - [FILES] 1: docs/compose/reports/2026-08-12-hardware-perf-audit.md
