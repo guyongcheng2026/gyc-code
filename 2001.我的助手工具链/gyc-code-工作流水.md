@@ -475,3 +475,6 @@
 
 - [OK] 2026-08-12 [f9dd559] 缓存命中率优化: openai-compatible provider 补设 promptCacheKey
   - [FILES] 1: src/gyccode/provider/transform.ts
+
+- [OK] 2026-08-12 [8300e4f] 架构ROUND3: 中间态事件不落库治本DB膨胀+幻觉防护全模型覆盖+bun直跑冷启动1.26s+ERROR日志限流
+  - [FILES] 11: bin/gyc, docs/compose/reports/2026-08-12-arch-round3.md, src/core/observability/logging.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt/anthropic.txt, src/gyccode/session/prompt/codex.txt ...
