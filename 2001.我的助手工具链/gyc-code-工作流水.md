@@ -511,3 +511,6 @@
 
 - [OK] 2026-08-12 [aeaba1a] 合规: 双 LICENSE 落地 + README 派生关系披露（纯自研化 P0）
   - [FILES] 2: LICENSE-gyc, README.md
+
+- [OK] 2026-08-12 [a86802e] 基础设施: P1 去 opencode 化——Web UI 可配置 + 安装链路自持 + GitHub App 检测本地化
+  - [FILES] 4: scripts/install.sh, src/gyccode/cli/cmd/github.handler.ts, src/gyccode/installation/index.ts, src/gyccode/server/shared/ui.ts
