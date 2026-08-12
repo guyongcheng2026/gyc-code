@@ -11,7 +11,6 @@ import { InstallationVersion } from "@gyccode/core/installation/version"
 import { Database } from "@gyccode/core/database/database"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionV2 } from "@gyccode/core/session"
-import * as SessionExecutionLocal from "@gyccode/core/session/execution/local"
 import { locationServiceMapLayer } from "@gyccode/core/location-services"
 
 import { NotFoundError } from "@/storage/storage"

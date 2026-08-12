@@ -58,9 +58,10 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
-import { readHermesMemories } from "../memory/hermes-bridge"
+import { readHermesMemories, writeHermesMemoryFile } from "../memory/hermes-bridge"
 import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
 import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extraction-runner"
+import { maybeDream, readDreamState, writeDreamState, type DreamSynthesizer } from "../memory/dream-runner"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, ShardTier, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
@@ -1422,6 +1423,54 @@ const layer = Layer.effect(
                 },
               })
               yield* Effect.logInfo("memory extraction complete", { "session.id": sessionID, count: result.length })
+              // Dream synthesis: when the accumulated memory volume crosses the
+              // threshold, ask the cheap model to synthesize a structured
+              // summary and persist it back to the hermes file. Same LLM path as
+              // extraction; failures are swallowed so the main loop is untouched.
+              const dreamEntries = yield* Effect.promise(readHermesMemories)
+              const dreamState = yield* Effect.promise(readDreamState)
+              yield* maybeDream({
+                state: dreamState,
+                memoryCount: dreamEntries.length,
+                memories: dreamEntries.map((e) => e.value).join("\n\n"),
+                synthesizer: ({ prompt }) =>
+                  Effect.gen(function* () {
+                    const cfg = memoryCfg
+                    const mdl = cfg?.model
+                      ? yield* getModel(...(cfg.model.split("/") as [ProviderV2.ID, ModelV2.ID]), sessionID)
+                      : ((yield* provider.getSmallModel(lastUser.model.providerID)) ??
+                        (yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)))
+                    const ag = yield* agents.get("summary")
+                    if (!ag) return ""
+                    const text = yield* llm
+                      .stream({
+                        agent: ag,
+                        user: lastUser,
+                        system: [],
+                        small: true,
+                        tools: {},
+                        model: mdl,
+                        sessionID,
+                        retries: 2,
+                        messages: [{ role: "user", content: prompt }],
+                      })
+                      .pipe(
+                        Stream.filter(LLMEvent.is.textDelta),
+                        Stream.map((e) => e.text),
+                        Stream.mkString,
+                        Effect.orDie,
+                      )
+                    return text
+                  }),
+                writeMemory: (value) =>
+                  Effect.promise(() => writeHermesMemoryFile({ key: `dream_${Date.now()}`, value }, true)),
+              })
+                .pipe(
+                  Effect.tap((next) => Effect.promise(() => writeDreamState(next))),
+                  Effect.catch(() =>
+                    Effect.logWarning("dream synthesis failed; skipped", { "session.id": sessionID }),
+                  ),
+                )
             }).pipe(
               Effect.catch(() =>
                 Effect.sync(() => recordExtractionFailure(sessionID)).pipe(

@@ -1,4 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { wrapSSE } from "@gyccode/core/aisdk"
 import os from "os"
 import { ConfigV1 } from "@gyccode/core/v1/config/config"
 import fuzzysort from "fuzzysort"
@@ -44,65 +45,12 @@ const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 const DEFAULT_HEADER_TIMEOUT_MS = 60_000
 const DEFAULT_CHUNK_TIMEOUT_MS = 120_000
 
-function wrapSSE(res: Response, ms: number, ctl: AbortController) {
-  if (typeof ms !== "number" || ms <= 0) return res
-  if (!res.body) return res
-  if (!res.headers.get("content-type")?.includes("text/event-stream")) return res
-
-  const reader = res.body.getReader()
-  let pendingId: ReturnType<typeof setTimeout> | undefined
-  const body = new ReadableStream<Uint8Array>({
-    async pull(ctrl) {
-      const part = await new Promise<Awaited<ReturnType<typeof reader.read>>>((resolve, reject) => {
-        pendingId = setTimeout(() => {
-          const err = new ProviderError.ResponseStreamError("SSE read timed out")
-          ctl.abort(err)
-          void reader.cancel(err)
-          reject(err)
-        }, ms)
-
-        reader.read().then(
-          (part) => {
-            clearTimeout(pendingId)
-            resolve(part)
-          },
-          (err) => {
-            clearTimeout(pendingId)
-            reject(err)
-          },
-        )
-      })
-
-      if (part.done) {
-        ctrl.close()
-        return
-      }
-
-      ctrl.enqueue(part.value)
-    },
-    async cancel(reason) {
-      if (pendingId !== undefined) {
-        clearTimeout(pendingId)
-        pendingId = undefined
-      }
-      ctl.abort(reason)
-      await reader.cancel(reason)
-    },
-  })
-
-  return new Response(body, {
-    headers: new Headers(res.headers),
-    status: res.status,
-    statusText: res.statusText,
-  })
-}
-
 function timeoutController(ms: number) {
   const ctl = new AbortController()
-  pendingId = setTimeout(() => ctl.abort(new ProviderError.HeaderTimeoutError(ms)), ms)
+  const id = setTimeout(() => ctl.abort(new ProviderError.HeaderTimeoutError(ms)), ms)
   return {
     signal: ctl.signal,
-    clear: () => clearTimeout(pendingId),
+    clear: () => clearTimeout(id),
   }
 }
 
@@ -1785,7 +1733,7 @@ const layer = Layer.effect(
           }).finally(() => headerTimeoutCtl?.clear())
 
           if (!chunkAbortCtl) return res
-          return wrapSSE(res, chunkTimeout, chunkAbortCtl)
+          return wrapSSE(res, chunkTimeout, chunkAbortCtl, (message) => new ProviderError.ResponseStreamError(message))
         }
 
         const bundledLoader = BUNDLED_PROVIDERS[model.api.npm]
