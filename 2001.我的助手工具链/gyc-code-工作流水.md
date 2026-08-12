@@ -496,3 +496,6 @@
 
 - [OK] 2026-08-12 [f4c0aa5] build: 构建前清理 dist 目录，避免多轮构建产物残留叠加
   - [FILES] 1: build.mjs
+
+- [OK] 2026-08-12 [b080c58] docs: 新增 gyc-cli vs Claude Code 29 项能力对比 + 金指标评估
+  - [FILES] 1: docs/claude-code-capability-comparison.md
