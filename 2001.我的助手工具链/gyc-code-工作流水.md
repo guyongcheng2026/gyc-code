@@ -457,3 +457,6 @@
 
 - [OK] 2026-08-12 [617a687] 优化 TUI 流式渲染：scrollback commit 30ms 时间节流
   - [FILES] 1: src/gyccode/cli/cmd/run/footer.ts
+
+- [OK] 2026-08-12 [ab240ed] 内存优化: scrollback 语法高亮默认关闭（GYCCODE_SYNTAX_HIGHLIGHT=1 恢复）
+  - [FILES] 1: src/gyccode/cli/cmd/run/theme.ts
