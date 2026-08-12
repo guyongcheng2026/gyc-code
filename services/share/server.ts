@@ -140,6 +140,49 @@ ${rows || "<p style='color:#6b7280'>暂无内容</p>"}
   )
 }
 
+// ---------- 社交卡片（SVG） ----------
+
+function ogCard(id: string): Response {
+  const row = db.prepare("SELECT data_json, created_at FROM shares WHERE id = ?").get(id) as
+    | { data_json: string; created_at: number }
+    | undefined
+  if (!row) {
+    return new Response("not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } })
+  }
+
+  let data: unknown = {}
+  try {
+    data = JSON.parse(row.data_json)
+  } catch {
+    data = {}
+  }
+  const list = Array.isArray(data)
+    ? data
+    : Array.isArray((data as Record<string, unknown>).data)
+      ? ((data as Record<string, unknown>).data as unknown[])
+      : []
+  const session = (list.find((item) => (item as Record<string, unknown>).type === "session") as
+    | { data?: Record<string, unknown> }
+    | undefined)?.data
+  const model = (list.find((item) => (item as Record<string, unknown>).type === "model") as
+    | { data?: Record<string, unknown> }
+    | undefined)?.data
+
+  const title = esc(String(session?.title ?? session?.summary ?? "gyc-code 会话")).slice(0, 60)
+  const modelName = esc(String(model?.name ?? model?.modelID ?? "")).slice(0, 40)
+  const createdAt = new Date(row.created_at).toLocaleString()
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0f172a"/>
+  <rect y="590" width="1200" height="40" fill="#1e293b"/>
+  <text x="60" y="100" font-family="system-ui,sans-serif" font-size="36" fill="#38bdf8">gyc-code</text>
+  <text x="60" y="330" font-family="system-ui,sans-serif" font-size="52" font-weight="bold" fill="#f8fafc">${title}</text>
+  <text x="60" y="420" font-family="system-ui,sans-serif" font-size="28" fill="#94a3b8">${modelName}</text>
+  <text x="60" y="560" font-family="system-ui,sans-serif" font-size="24" fill="#64748b">${esc(createdAt)}</text>
+</svg>`
+  return new Response(svg, { headers: { "content-type": "image/svg+xml; charset=utf-8" } })
+}
+
 // ---------- 路由 ----------
 
 const server = Bun.serve({
@@ -164,6 +207,10 @@ const server = Bun.serve({
     // 渲染页
     const pageMatch = path.match(/^\/s\/([^/]+)$/)
     if (pageMatch && req.method === "GET") return renderPage(pageMatch[1])
+
+    // 社交卡片
+    const ogMatch = path.match(/^\/og\/([^/]+)\.svg$/)
+    if (ogMatch && req.method === "GET") return ogCard(ogMatch[1])
 
     return json(new Response(), 404, { error: "not_found" })
   },
