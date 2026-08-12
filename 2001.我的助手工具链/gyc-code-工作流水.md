@@ -484,3 +484,6 @@
 
 - [OK] 2026-08-12 [463fd17] 配置: LLM流增加first_token_timeout_ms首token超时配置, 空流快速失败不再阻塞主循环
   - [FILES] 7: .temp-stab.cjs, src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts, src/gyccode/session/retry.test.ts ...
+
+- [OK] 2026-08-12 [795db12] 清理: 移除误提交的.temp-stab.cjs临时调试脚本并加入gitignore
+  - [FILES] 2: .gitignore, .temp-stab.cjs
