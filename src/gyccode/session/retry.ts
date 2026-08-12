@@ -7,8 +7,9 @@ import { isRecord } from "@/util/record"
 
 export type Err = ReturnType<NamedError["toObject"]>
 
-export const GO_UPSELL_MESSAGE = "Free usage exceeded, subscribe to Go"
-export const GO_UPSELL_URL = "https://opencode.ai/go"
+export const GO_UPSELL_MESSAGE = "Free usage exceeded, configure a paid provider or wait for reset"
+// 升级页链接：优先自建（GYCCODE_UPGRADE_URL），未配置时不跳转第三方
+export const GO_UPSELL_URL = process.env.GYCCODE_UPGRADE_URL
 export type RetryReason = "free_tier_limit" | "account_rate_limit" | (string & {})
 
 export type Retryable = {
@@ -113,7 +114,6 @@ export function retryable(error: Err, provider: string) {
     }
     if (error.data.responseBody?.includes("GoUsageLimitError")) {
       const body = parseJSON(error.data.responseBody)
-      const workspace = str(body?.metadata?.workspace)
       const limitName = str(body?.metadata?.limitName)
       const retryAfter = num(error.data.responseHeaders?.["retry-after"])
       const resetIn = iife(() => {
@@ -131,9 +131,9 @@ export function retryable(error: Err, provider: string) {
 
       const message = `${limitName ? `${limitName} usage limit` : "Usage limit"} reached. It will reset in ${resetIn}. To continue using this model now, enable usage from your available balance`
 
-      const link = `https://opencode.ai/workspace/${workspace}/go`
+      const link = process.env.GYCCODE_UPGRADE_URL
       return {
-        message: `${message} - ${link}`,
+        message: link ? `${message} - ${link}` : message,
         action: {
           reason: "account_rate_limit",
           provider,

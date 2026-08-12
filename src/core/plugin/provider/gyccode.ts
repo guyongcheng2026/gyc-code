@@ -13,7 +13,8 @@ import { ConfigProviderV1 } from "../../v1/config/provider"
 import { ConfigProviderOptionsV1 } from "../../v1/config/provider-options"
 import { ConfigV1 } from "../../v1/config/config"
 
-const defaultServer = "https://console.opencode.ai"
+// 账号服务端点：优先自建（GYCCODE_ACCOUNT_URL，见 services/account），默认第三方兼容通道（opencode 控制台，README 已披露）
+const defaultServer = process.env.GYCCODE_ACCOUNT_URL ?? "https://console.opencode.ai"
 const clientID = "gyccode-cli"
 const methodID = Integration.MethodID.make("device")
 const RemoteResponse = Schema.Struct({ config: ConfigV1.Info })

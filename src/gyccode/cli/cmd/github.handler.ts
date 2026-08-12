@@ -403,7 +403,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         ? (payload as IssueCommentEvent | IssuesEvent).issue.number
         : (payload as PullRequestEvent | PullRequestReviewCommentEvent).pull_request.number
     const runUrl = `/${owner}/${repo}/actions/runs/${runId}`
-    const shareBaseUrl = isMock ? "https://dev.opencode.ai" : "https://opencode.ai"
+    // 分享展示链接：优先自建（GYCCODE_SHARE_URL，见 services/share），默认与 share-next 一致指向分享数据服务
+    const shareBaseUrl = process.env.GYCCODE_SHARE_URL ?? "https://opncd.ai"
 
     let appToken: string
     let octoRest: Octokit
