@@ -472,3 +472,6 @@
 
 - [OK] 2026-08-12 [f2949e6] 幻觉率优化: beast/trinity/gpt 提示词补充统一幻觉防护段落
   - [FILES] 3: src/gyccode/session/prompt/beast.txt, src/gyccode/session/prompt/gpt.txt, src/gyccode/session/prompt/trinity.txt
+
+- [OK] 2026-08-12 [f9dd559] 缓存命中率优化: openai-compatible provider 补设 promptCacheKey
+  - [FILES] 1: src/gyccode/provider/transform.ts
