@@ -178,7 +178,7 @@ test("18: 事件系统存在", async () => {
 
 // 19. 插件系统
 test("19: 插件系统存在", async () => {
-  const files = ["src/gyccode/plugin/index.ts", "src/core/plugin/index.ts"]
+  const files = ["src/gyccode/plugin/index.ts", "src/core/plugin.ts"]
   const results = []
   for (const f of files) {
     results.push(await Bun.file(f).exists())
@@ -188,7 +188,7 @@ test("19: 插件系统存在", async () => {
 
 // 20. 数据库/存储
 test("20: 数据库存储存在", async () => {
-  const files = ["src/core/database/index.ts", "src/core/database/sqlite.bun.ts", "src/effect-drizzle-sqlite/index.ts"]
+  const files = ["src/core/database/database.ts", "src/core/database/sqlite.bun.ts", "src/effect-drizzle-sqlite/index.ts"]
   const results = []
   for (const f of files) {
     results.push(await Bun.file(f).exists())
