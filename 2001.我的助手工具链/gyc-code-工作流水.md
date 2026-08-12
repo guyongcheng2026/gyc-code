@@ -424,3 +424,6 @@
 
 - [OK] 2026-08-12 [4656ac6] 稳定性：全局 LLM 流并发闸，解决 10 子代理并行打爆通道与 CPU 峰值
   - [FILES] 4: src/core/v1/config/config.ts, src/gyccode/session/llm-timeout.test.ts, src/gyccode/session/llm-timeout.ts, src/gyccode/session/llm.ts
+
+- [OK] 2026-08-12 [3e4813b] 修复 SSE wrapSSE 定时器泄漏与 mDNS 错误静默
+  - [FILES] 4: src/core/aisdk.test.ts, src/core/aisdk.ts, src/gyccode/provider/provider.ts, src/gyccode/server/mdns.ts
