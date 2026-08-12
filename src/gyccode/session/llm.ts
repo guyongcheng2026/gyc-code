@@ -399,13 +399,17 @@ const live: Layer.Layer<
             // Adapter seam: both runtimes expose the same LLMEvent stream. Native
             // already returns one; AI SDK streams are converted here.
             const state = LLMAISDK.adapterState()
+            const converted = Stream.fromAsyncIterable(result.result.fullStream, (e) =>
+              e instanceof Error ? e : new Error(String(e)),
+            ).pipe(
+              Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),
+              Stream.flatMap((events) => Stream.fromIterable(events)),
+            )
             return streamWithIdleTimeout(
-              Stream.fromAsyncIterable(result.result.fullStream, (e) =>
-                e instanceof Error ? e : new Error(String(e)),
-              ).pipe(
-                Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),
-                Stream.flatMap((events) => Stream.fromIterable(events)),
-              ),
+              // First-event timeout fails fast when the provider accepts the
+              // connection but never responds; the idle timeout (reset on every
+              // event) stays the guard for mid-stream stalls.
+              withFirstEventTimeout(converted, resolveFirstTokenTimeout(cfg)),
               resolveStreamIdleTimeout(cfg),
             )
           }),

@@ -70,3 +70,23 @@ export function streamWithIdleTimeout<A, E, R>(
       ),
   })
 }
+
+/**
+ * Fail fast when the stream produces no *first* event within `duration`.
+ * Pulls the first chunk under a timeout, then replays it and continues with
+ * the remaining pull (no idle reset here — the outer idle timeout owns that).
+ * Prevents a stalled provider connection from blocking the run loop for the
+ * full idle window.
+ */
+export function withFirstEventTimeout<A, E, R>(
+  stream: Stream.Stream<A, E, R>,
+  duration: Duration.Input,
+): Stream.Stream<A, E, R> {
+  return Stream.unwrap(
+    Effect.gen(function* () {
+      const pull = yield* Stream.toPull(stream)
+      const first = yield* Effect.timeout(pull, duration)
+      return Stream.concat(Stream.fromIterable(first), Stream.fromPull(() => pull))
+    }),
+  )
+}

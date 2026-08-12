@@ -190,6 +190,9 @@ export function policy(opts: {
     Effect.succeed((meta: Schedule.InputMetadata<unknown>) => {
       const error = opts.parse(meta.input)
       if (meta.attempt > MAX_RETRY_ATTEMPTS) return Cause.done(meta.attempt)
+      // Elapsed retry budget exceeded: stop silently re-waiting (e.g. 60s
+      // header timeouts x 5) and surface the failure to the user promptly.
+      if (meta.elapsed > RETRY_TOTAL_CAP_MS) return Cause.done(meta.attempt)
       const retry = retryable(error, opts.provider)
       if (!retry) return Cause.done(meta.attempt)
       const wait = delay(meta.attempt, SessionV1.APIError.isInstance(error) ? error : undefined)

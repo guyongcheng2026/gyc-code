@@ -229,6 +229,10 @@ export const Info = Schema.Struct({
       escalate_output_token_max: Schema.optional(PositiveInt).annotate({
         description: "Output token cap after a finish=length escalation (default: 64000)",
       }),
+      first_token_timeout_ms: Schema.optional(PositiveInt).annotate({
+        description:
+          "First-event timeout (ms) for LLM streams - fails fast when the provider sends nothing after the stream starts, instead of blocking the run loop for the full idle window (default: 180000)",
+      }),
       stream_idle_timeout_ms: Schema.optional(PositiveInt).annotate({
         description:
           "Idle timeout (ms) for LLM streaming responses — resets on each token. Increase for deep-reasoning models like DeepSeek (default: 600000)",
