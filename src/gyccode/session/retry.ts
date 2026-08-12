@@ -26,7 +26,7 @@ export type Retryable = {
 export const RETRY_INITIAL_DELAY = 2000
 export const RETRY_BACKOFF_FACTOR = 2
 export const RETRY_MAX_DELAY_NO_HEADERS = 30_000 // 30 seconds
-// 带 retry-after 响应头时的硬上限。opencode 等免费模型会在 429 时返回
+// 带 retry-after 响应头时的硬上限。gyccode 等免费模型会在 429 时返回
 // retry-after（如 46666 秒 ≈ 13 小时），若不设上限会让 run 挂死数小时。
 export const RETRY_MAX_DELAY_WITH_HEADERS = 60_000 // 60 seconds
 // retry-after 超过该值视为非瞬时限流（额度耗尽/封禁），放弃重试直接报错。

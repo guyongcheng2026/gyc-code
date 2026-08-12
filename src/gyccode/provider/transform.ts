@@ -1256,7 +1256,7 @@ export function options(input: {
       input.model.api.npm === "@ai-sdk/xai" ||
       input.model.api.npm === "@ai-sdk/mistral" ||
       input.model.api.npm === "venice-ai-sdk-provider" ||
-      // openai-compatible endpoints (e.g. opencode) expose the same prompt
+      // openai-compatible endpoints (e.g. gyccode) expose the same prompt
       // caching mechanism via providerOptions.openai.promptCacheKey.
       input.model.api.npm === "@ai-sdk/openai-compatible" ||
       input.providerOptions?.setCacheKey === true

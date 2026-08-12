@@ -30,7 +30,7 @@ const tokens = (usage: Usage | undefined) => {
 
 export type StepTokens = ReturnType<typeof tokens>
 
-/** Per-1M-token price for a model (models.dev / opencode convention). */
+/** Per-1M-token price for a model (models.dev convention). */
 export type Price = {
   readonly input: number
   readonly output: number

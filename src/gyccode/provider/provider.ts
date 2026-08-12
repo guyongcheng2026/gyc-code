@@ -421,7 +421,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
+            "HTTP-Referer": "https://gyccode.ai/",
             "X-Title": "gyccode",
             "X-Source": "gyccode",
           },
@@ -432,7 +432,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
+            "HTTP-Referer": "https://gyccode.ai/",
             "X-Title": "gyccode",
           },
         },
@@ -442,7 +442,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: provider.source === "config",
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
+            "HTTP-Referer": "https://gyccode.ai/",
             "X-Title": "gyccode",
             "X-BILLING-INVOKE-ORIGIN": "GycCode",
           },
@@ -453,7 +453,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "http-referer": "https://opencode.ai/",
+            "http-referer": "https://gyccode.ai/",
             "x-title": "gyccode",
           },
         },
@@ -559,7 +559,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
+            "HTTP-Referer": "https://gyccode.ai/",
             "X-Title": "gyccode",
           },
         },
@@ -817,7 +817,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: false,
         options: {
           headers: {
-            "HTTP-Referer": "https://opencode.ai/",
+            "HTTP-Referer": "https://gyccode.ai/",
             "X-Title": "gyccode",
           },
         },

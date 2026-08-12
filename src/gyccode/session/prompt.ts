@@ -71,7 +71,7 @@ import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
 
-// 记忆提取失败冷却：当 small model 未授权/不可用（如 opencode 上的 gemini-3.6-flash 返回
+// 记忆提取失败冷却：当 small model 未授权/不可用（如 gyccode 上的 gemini-3.6-flash 返回
 // Unauthorized）时，避免每个 loop 周期重复发起注定失败的 LLM 调用并刷 ERROR 日志。
 // 冷却期内跳过，冷却结束仍会重试，瞬态故障可自愈。
 const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
