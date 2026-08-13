@@ -610,3 +610,6 @@
 
 - [OK] 2026-08-13 [9e2b7df] 自主化P0-模型网关：services/gateway(统一OpenAI兼容入口+额度quota+限流rpm滑动窗口+调用审计usage_logs+多供应商路由provider/model+上游key env注入防泄漏,等保三级访问控制/资源控制/安全审计)端到端验证全通
   - [FILES] 3: .gitignore, services/README.md, services/gateway/server.ts
+
+- [OK] 2026-08-13 [2eb0db6] 自主化P2-协议能力固化：CAPABILITIES.md能力矩阵(session持久化端到端验证:serve重启5/5恢复+compaction/工具解析/18group全覆盖+gyc专属头/客户端/命名空间实测)
+  - [FILES] 1: src/protocol/CAPABILITIES.md
