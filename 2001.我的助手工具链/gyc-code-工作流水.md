@@ -544,3 +544,6 @@
 
 - [OK] 2026-08-13 [79da22c] 修复: BUG-REVIEW P2 批次——objcpp 扩展名补点/jdtls 临时目录退出清理/transport-ide shell 注入防护(单引号+整数化)/原子写失败清理 tmp 孤儿/冗余 400 条件精简/browser 超时后监听清理/resume 文案乱码
   - [FILES] 12: src/core/plugin/provider/snowflake-cortex.ts, src/gyccode/lsp/server.ts, src/gyccode/lsp/serverExtensions.test.ts, src/gyccode/mcp/browser.ts, src/gyccode/mcp/transport-ide.ts, src/gyccode/mcp/transportIde.test.ts ...
+
+- [OK] 2026-08-13 [96fc5b0] 修复: round2 备查 P2 + 遗留 P1-6——readSet 与 edit locks LRU 上限 + edit 读大文件 size 守卫(5MB)
+  - [FILES] 3: src/gyccode/tool/edit.ts, src/gyccode/tool/read-cache.test.ts, src/gyccode/tool/read-cache.ts
