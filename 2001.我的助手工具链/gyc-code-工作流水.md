@@ -547,3 +547,6 @@
 
 - [OK] 2026-08-13 [96fc5b0] 修复: round2 备查 P2 + 遗留 P1-6——readSet 与 edit locks LRU 上限 + edit 读大文件 size 守卫(5MB)
   - [FILES] 3: src/gyccode/tool/edit.ts, src/gyccode/tool/read-cache.test.ts, src/gyccode/tool/read-cache.ts
+
+- [OK] 2026-08-13 [88747cf] 修复: 7 类错误处理扫描——SQLite prepare/query 移入 try 避免同步异常逃逸为无意义 Die(分类为 SqlError) + webfetch DNS 失败 fail-closed 防 SSRF 绕过 + 回归测试
+  - [FILES] 4: src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/core/database/sqliteError.test.ts, src/gyccode/tool/webfetch.ts
