@@ -586,3 +586,6 @@
 
 - [OK] 2026-08-13 [a263c59] 插件市场上线：自研插件gyc-hello/gyc-workspace-stats+构建/托管脚本+GYCCODE_PLUGIN_REGISTRY覆盖+plugin search <query>修复(query positional)
   - [FILES] 12: marketplace/README.md, marketplace/index.json, marketplace/pkg/gyc-hello/1.0.0.tgz, marketplace/pkg/gyc-workspace-stats/1.0.0.tgz, marketplace/plugins/gyc-hello/package.json, marketplace/plugins/gyc-hello/src/index.mjs ...
+
+- [OK] 2026-08-13 [ae03556] 发布链路就绪(npm pack预演通过+CI/发布workflow)+服务补厚:账号用户体系(注册/登录/登出+argon2id口令+审计日志+admin权限控制,等保三级)
+  - [FILES] 6: .github/workflows/ci.yml, .github/workflows/publish.yml, .gitignore, package.json, services/README.md, services/account/server.ts
