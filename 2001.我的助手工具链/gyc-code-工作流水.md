@@ -577,3 +577,6 @@
 
 - [OK] 2026-08-13 [d808025] 自主化P1-D6：debug工作区插件内置化(GYCCODE_ENABLE_DEBUG_WORKSPACE开关,默认关)
   - [FILES] 2: src/gyccode/effect/runtime-flags.ts, src/gyccode/plugin/index.ts
+
+- [OK] 2026-08-13 [190353e] 自主化P2：确立协议自有基线文档(src/protocol/README.md, v2为演进方向+gyc专属扩展声明)
+  - [FILES] 1: src/protocol/README.md
