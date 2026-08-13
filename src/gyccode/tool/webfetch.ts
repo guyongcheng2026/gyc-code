@@ -72,11 +72,14 @@ export const WebFetchTool = Tool.define(
             throw new Error(`URL points to a private/loopback address: ${parsedUrl.hostname}`)
           }
 
-          // DNS 解析后二次校验，防 DNS rebinding（域名首次解析为公网、实际连接时解析到内网）
+          // DNS 解析后二次校验，防 DNS rebinding（域名首次解析为公网、实际连接时解析到内网）。
+          // 解析失败时 fail-closed：无法确认目标地址安全就不放行，避免绕过 SSRF 防护。
           const resolved = yield* Effect.tryPromise(() => lookup(parsedUrl.hostname, { all: true })).pipe(
-            Effect.catch(() => Effect.succeed([] as Array<{ address: string; family: number }>)),
+            Effect.catch(() =>
+              Effect.fail(new Error(`Unable to resolve ${parsedUrl.hostname} for SSRF safety check`)),
+            ),
           )
-          if (resolved.length > 0 && resolved.some((entry) => isPrivateHost(entry.address))) {
+          if (resolved.some((entry) => isPrivateHost(entry.address))) {
             throw new Error("URL resolves to a private/loopback address: " + parsedUrl.hostname)
           }
 
