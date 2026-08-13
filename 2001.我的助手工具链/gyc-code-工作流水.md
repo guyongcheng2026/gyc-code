@@ -574,3 +574,6 @@
 
 - [OK] 2026-08-13 [9160bab] 自主化P0/P1：第三方服务默认值切自建(账号8787/分享8788/UI占位/OIDC去默认报错)，插件市场接线(PluginEntry改名+plugin search/list子命令)
   - [FILES] 9: src/core/models-dev.ts, src/core/plugin/provider/gyccode.ts, src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/github.handler.ts, src/gyccode/cli/cmd/import.ts, src/gyccode/cli/cmd/plug.ts ...
+
+- [OK] 2026-08-13 [d808025] 自主化P1-D6：debug工作区插件内置化(GYCCODE_ENABLE_DEBUG_WORKSPACE开关,默认关)
+  - [FILES] 2: src/gyccode/effect/runtime-flags.ts, src/gyccode/plugin/index.ts
