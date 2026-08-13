@@ -583,3 +583,6 @@
 
 - [OK] 2026-08-13 [85ad116] 文档：ROADMAP 标注自建后端三项完成+自主化P0/P1/P2落地状态
   - [FILES] 1: docs/ROADMAP-2026-08-12.md
+
+- [OK] 2026-08-13 [a263c59] 插件市场上线：自研插件gyc-hello/gyc-workspace-stats+构建/托管脚本+GYCCODE_PLUGIN_REGISTRY覆盖+plugin search <query>修复(query positional)
+  - [FILES] 12: marketplace/README.md, marketplace/index.json, marketplace/pkg/gyc-hello/1.0.0.tgz, marketplace/pkg/gyc-workspace-stats/1.0.0.tgz, marketplace/plugins/gyc-hello/package.json, marketplace/plugins/gyc-hello/src/index.mjs ...
