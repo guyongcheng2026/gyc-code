@@ -622,3 +622,6 @@
 
 - [OK] 2026-08-13 [4ad457d] CH缓存命中率实测修复：step-finish累计message.tokens全部字段(cache.read/output/reasoning不能只加total,否则落库cache.read恒0导致db cache失真)实测deepseek-v4-flash命中率0%→94.9%(输入侧口径,单条最高98.1%)
   - [FILES] 1: src/gyccode/session/processor.ts
+
+- [OK] 2026-08-13 [d86835b] CH缓存提升-工具截断分级调优：cacheFriendlyBudget按上下文窗口三级预算(≤200K严格1.5K/200K-1M宽松8K/>1M不截断)修复deepseek-v4-flash(1M窗口)此前完全不截断致读文件工具结果14.6K token的问题+工具类型感知截断(read/grep/glob结构化输出收紧4K,bash保留8K)实测:读文件首次未命中14610→2472→1525,命中率30.5%→72%→82.7%,稳定段99.2%,模型截断后自动降级grep搜索不破坏能力
+  - [FILES] 2: src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts
