@@ -106,6 +106,11 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
   - P2 协议自有演进：`src/protocol/README.md` 确立自有协议基线（v2 为演进方向、x-gyccode-* 专属扩展、不跟随上游）
   - 自研层规模：src/gyccode 99,310 行/545 文件（占 src 44%）；services/ 自建后端 502 行（bun:sqlite 零依赖）
   - 剩余第三方引用：仅模型数据源 + 传递依赖 `@gitlab/opencode-gitlab-auth`（GitLab 官方认证插件，触发面极小）
+- **自主化收尾四项**（2026-08-13，commits `a263c59`/`ae03556`/`88350c1`）：
+  - 插件市场：自研插件 gyc-hello / gyc-workspace-stats，`marketplace/` 静态目录 + build/serve 脚本，`GYCCODE_PLUGIN_REGISTRY` 可覆盖，`gyc plugin search/list` 可用
+  - 发布链路：npm files/prepack 就绪，`.github/workflows/ci.yml` + `publish.yml`（NPM_TOKEN），npm pack 327 文件/5.4MB
+  - 服务补厚：账号服务用户体系（注册/登录/登出 + argon2id 口令 + 等保审计日志 + admin 权限控制）
+  - 模型镜像：`scripts/sync-models.mjs` 同步中立模型清单（184 供应商/6291 模型），serve 支持 `/models`，`GYCCODE_MODELS_URL` 指向镜像后第三方 URL 清零
 
 ---
 
