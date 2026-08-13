@@ -1632,6 +1632,14 @@ const layer = Layer.effect(
 
     const list = Effect.fn("Provider.list")(() => InstanceState.use(state, (s) => s.providers))
 
+    // DeepSeek 自动上下文缓存：usage.prompt_cache_hit_tokens 提取为 providerMetadata.gyccode.cacheReadTokens
+    function deepseekCacheMetadata(parsedBody: unknown): Record<string, unknown> {
+      const usage = (parsedBody as { usage?: Record<string, unknown> })?.usage
+      const hit = usage?.prompt_cache_hit_tokens
+      if (typeof hit !== "number" || !Number.isFinite(hit) || hit <= 0) return {}
+      return { gyccode: { cacheReadTokens: hit } }
+    }
+
     async function resolveSDK(model: Model, s: State, envs: Record<string, string | undefined>) {
       try {
         const provider = s.providers[model.providerID]
@@ -1655,6 +1663,27 @@ const layer = Layer.effect(
 
         if (model.api.npm.includes("@ai-sdk/openai-compatible") && options["includeUsage"] !== false) {
           options["includeUsage"] = true
+        }
+
+        // DeepSeek 自动上下文缓存：命中/未命中 token 以 usage.prompt_cache_hit_tokens /
+        // prompt_cache_miss_tokens 顶层字段返回（非 OpenAI 原生 prompt_tokens_details.cached_tokens），
+        // AI SDK 默认不解析。注入 metadataExtractor 把原始 usage 提取到 providerMetadata.gyccode，
+        // 供 ai-sdk.ts 补读，使 CH 缓存命中率可统计（对齐 CH 99.9% 机制）。
+        if (model.api.npm.includes("@ai-sdk/openai-compatible") && !options["metadataExtractor"]) {
+          options["metadataExtractor"] = {
+            extractMetadata: (args: { parsedBody?: unknown }) => deepseekCacheMetadata(args.parsedBody),
+            createStreamExtractor: () => {
+              let usage: Record<string, unknown> | undefined
+              return {
+                processChunk(chunk: unknown) {
+                  const parsed = (chunk as { parsed?: unknown })?.parsed
+                  const u = (parsed as { usage?: Record<string, unknown> })?.usage
+                  if (u && typeof u === "object") usage = u
+                },
+                buildMetadata: () => deepseekCacheMetadata(usage ? { usage } : undefined),
+              }
+            },
+          }
         }
 
         const baseURL = iife(() => {

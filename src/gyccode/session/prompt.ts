@@ -1663,9 +1663,6 @@ const layer = Layer.effect(
             // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期/记忆放 user
             // 增量处，跨天/跨检索只影响当轮增量，不破坏历史前缀（对齐参考实现
             // CH 99.9% 机制：system 字节稳定是缓存命中的前提）。
-            const todayPrefix = `Today's date: ${new Date().toDateString()}\n`
-            const memoryPrefix = memories ? `${memories}\n\n` : ""
-            const modelMsgsWithDate = MessageV2.prependTodayDate(modelMsgs, todayPrefix + memoryPrefix)
             const format = lastUser.format ?? { type: "text" as const }
             const system = shardCache.buildSystem(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : [])
             const result = yield* handle.process({
@@ -1676,7 +1673,7 @@ const layer = Layer.effect(
               parentSessionID: session.parentID,
               system,
               messages: [
-                ...modelMsgsWithDate,
+                ...modelMsgs,
                 ...(isLastStep ? [{ role: "assistant" as const, content: MAX_STEPS_PROMPT }] : []),
               ],
               tools,

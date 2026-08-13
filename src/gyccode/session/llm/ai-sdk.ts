@@ -41,7 +41,7 @@ function copilotTotalNanoAiu(value: unknown) {
   return total
 }
 
-function usage(value: unknown) {
+function usage(value: unknown, extraCacheRead?: number) {
   if (!value || typeof value !== "object") return undefined
   const item = value as {
     inputTokens?: number
@@ -52,15 +52,25 @@ function usage(value: unknown) {
     inputTokenDetails?: { cacheReadTokens?: number; cacheWriteTokens?: number }
     outputTokenDetails?: { reasoningTokens?: number }
   }
+  const aiCacheRead = item.inputTokenDetails?.cacheReadTokens ?? item.cachedInputTokens
+  const cacheRead = Math.max(aiCacheRead ?? 0, extraCacheRead ?? 0) || undefined
   const entries = Object.entries({
     inputTokens: item.inputTokens,
     outputTokens: item.outputTokens,
     totalTokens: item.totalTokens,
     reasoningTokens: item.outputTokenDetails?.reasoningTokens ?? item.reasoningTokens,
-    cacheReadInputTokens: item.inputTokenDetails?.cacheReadTokens ?? item.cachedInputTokens,
+    cacheReadInputTokens: cacheRead,
     cacheWriteInputTokens: item.inputTokenDetails?.cacheWriteTokens,
   }).filter((entry) => entry[1] !== undefined)
   return entries.length === 0 ? undefined : Object.fromEntries(entries)
+}
+
+// 从 providerMetadata 补读 DeepSeek 缓存命中 token（AI SDK 不解析 prompt_cache_hit_tokens）
+function extraCacheRead(metadata: unknown): number | undefined {
+  if (!metadata || typeof metadata !== "object") return undefined
+  const gyccode = (metadata as { gyccode?: { cacheReadTokens?: number } }).gyccode
+  const v = gyccode?.cacheReadTokens
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined
 }
 
 function currentTextID(state: ReturnType<typeof adapterState>, id: string | undefined) {
@@ -102,7 +112,7 @@ export function toLLMEvents(
           LLMEvent.stepFinish({
             index: state.step++,
             reason: finishReason(event.finishReason),
-            usage: usage(event.usage),
+            usage: usage(event.usage, extraCacheRead(metadata)),
             providerMetadata: metadata,
           }),
         ]
@@ -110,11 +120,12 @@ export function toLLMEvents(
 
     case "finish":
       return Effect.sync(() => {
+        const metadata = "providerMetadata" in event ? providerMetadata(event.providerMetadata) : undefined
         const events = [
           LLMEvent.finish({
             reason: finishReason(event.finishReason),
-            usage: usage(event.totalUsage),
-            providerMetadata: "providerMetadata" in event ? providerMetadata(event.providerMetadata) : undefined,
+            usage: usage(event.totalUsage, extraCacheRead(metadata)),
+            providerMetadata: metadata,
           }),
         ]
         // Reset so the adapter can be reused for a follow-up stream without leaking
