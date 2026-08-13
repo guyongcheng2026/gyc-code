@@ -2,22 +2,22 @@
 
 > 目的：说明 gyc-code 的 `src/` 与 Claude Code v2.1.88 源码结构的能力对应关系。
 > 说明：gyc-code 基于 opencode 架构（Effect v4 + SolidJS TUI），Claude Code 基于 React/Ink，
-> 技术栈不同，因此不做物理搬移，采用「门面文件 + 能力映射」对齐。顶层 9 个入口文件已落地
-> （main.tsx/context.ts/history.ts/commands.ts/Tool.ts/Task.ts/QueryEngine.ts/tools.ts/setup.ts）。
+> 技术栈不同，因此不做物理搬移，采用「能力映射」对齐（顶层门面对齐层已于 2026-08-13 移除，
+> 等价实现直接承载能力）。
 
 ## 一、顶层文件映射
 
 | Claude Code | gyc-code 等价实现 | 状态 |
 |---|---|---|
-| `main.tsx`（CLI 入口） | `src/gyccode/index.ts`（bin/gyc 加载） | 门面 `src/main.tsx` |
-| `context.ts`（系统上下文/Git） | `src/gyccode/session/system.ts` | 门面 `src/context.ts` |
-| `history.ts`（历史记录） | `src/gyccode/session/message-v2.ts` + `cli/cmd/run/prompt.shared.ts` | 门面 `src/history.ts` |
-| `commands.ts`（斜杠命令注册） | `src/gyccode/command/` | 门面 `src/commands.ts` |
-| `Tool.ts`（工具抽象基类） | `src/gyccode/tool/tool.ts` | 门面 `src/Tool.ts` |
-| `Task.ts`（任务抽象基类） | `src/gyccode/tool/task.ts` | 门面 `src/Task.ts` |
-| `QueryEngine.ts`（查询引擎） | `src/gyccode/session/prompt.ts` | 门面 `src/QueryEngine.ts` |
-| `tools.ts`（工具注册表） | `src/gyccode/tool/registry.ts` | 门面 `src/tools.ts` |
-| `setup.ts`（会话初始化） | `src/gyccode/project/bootstrap.ts` | 门面 `src/setup.ts` |
+| `main.tsx`（CLI 入口） | `src/gyccode/index.ts`（bin/gyc 加载） | 等价 |
+| `context.ts`（系统上下文/Git） | `src/gyccode/session/system.ts` | 等价 |
+| `history.ts`（历史记录） | `src/gyccode/session/message-v2.ts` + `cli/cmd/run/prompt.shared.ts` | 等价 |
+| `commands.ts`（斜杠命令注册） | `src/gyccode/command/` | 等价 |
+| `Tool.ts`（工具抽象基类） | `src/gyccode/tool/tool.ts` | 等价 |
+| `Task.ts`（任务抽象基类） | `src/gyccode/tool/task.ts` | 等价 |
+| `QueryEngine.ts`（查询引擎） | `src/gyccode/session/prompt.ts` | 等价 |
+| `tools.ts`（工具注册表） | `src/gyccode/tool/registry.ts` | 等价 |
+| `setup.ts`（会话初始化） | `src/gyccode/project/bootstrap.ts` | 等价 |
 
 ## 二、子目录能力映射
 
@@ -73,4 +73,4 @@
 ## 四、维护约定
 
 - 新增模块优先落到上表对应 gyc 路径，保持能力映射稳定。
-- 门面文件仅 re-export，不承载业务逻辑。
+- 等价实现直接承载能力，不设门面对齐层。
