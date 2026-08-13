@@ -562,3 +562,6 @@
 
 - [OK] 2026-08-13 [8a411cc] 清理：删除无引用一次性脚本、src门面对齐层及历史审查/品牌风险文档43项，同步更新STRUCTURE.md
   - [FILES] 44: docs/ARCH-REVIEW-ROUND1-2026-08-07.md, docs/ARCH-REVIEW-ROUND2-2026-08-07.md, docs/BUG-2026-08-08.md, docs/BUG-REVIEW-2026-08-12-round2.md, docs/BUG-REVIEW-2026-08-12.md, docs/CAPABILITY-GAP-2026-08-08.md ...
+
+- [OK] 2026-08-13 [4311fb1] 品牌化：清理B/C类品牌残留(主题schema 33处、SDK注释46处、源码对标注释、skill bundle内容)，CLAUDE_MD_TESTING.md更名AGENTS_MD_TESTING.md
+  - [FILES] 76: src/STRUCTURE.md, src/core/util/token.test.ts, src/core/util/token.ts, src/gyccode/benchmark/benchmark.test.ts, src/gyccode/composer/index.ts, src/gyccode/config/markdown.ts ...
