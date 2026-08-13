@@ -607,3 +607,6 @@
 
 - [OK] 2026-08-13 [6e87383] 自主化P1-依赖裁剪：AI SDK provider 21→11(删alibaba/cerebras/cohere/deepinfra/groq/mistral/perplexity/togetherai/vercel/xai 10包+10插件文件+30处引用,备份Temp/gyc-cli-trash-20260813-p1)保留企业向(anthropic/openai/compatible/google/vertex/bedrock/azure/gateway)
   - [FILES] 17: package.json, src/core/plugin/provider.ts, src/core/plugin/provider/alibaba.ts, src/core/plugin/provider/cerebras.ts, src/core/plugin/provider/cohere.ts, src/core/plugin/provider/deepinfra.ts ...
+
+- [OK] 2026-08-13 [9e2b7df] 自主化P0-模型网关：services/gateway(统一OpenAI兼容入口+额度quota+限流rpm滑动窗口+调用审计usage_logs+多供应商路由provider/model+上游key env注入防泄漏,等保三级访问控制/资源控制/安全审计)端到端验证全通
+  - [FILES] 3: .gitignore, services/README.md, services/gateway/server.ts
