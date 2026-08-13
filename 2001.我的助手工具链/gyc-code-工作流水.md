@@ -565,3 +565,6 @@
 
 - [OK] 2026-08-13 [4311fb1] 品牌化：清理B/C类品牌残留(主题schema 33处、SDK注释46处、源码对标注释、skill bundle内容)，CLAUDE_MD_TESTING.md更名AGENTS_MD_TESTING.md
   - [FILES] 76: src/STRUCTURE.md, src/core/util/token.test.ts, src/core/util/token.ts, src/gyccode/benchmark/benchmark.test.ts, src/gyccode/composer/index.ts, src/gyccode/config/markdown.ts ...
+
+- [OK] 2026-08-13 [0e5584d] 品牌化：移除提示词3处opencode.ai文档引导(改为自身知识回答)、类型注释2处文档链接中性化
+  - [FILES] 5: src/gyccode/session/prompt/anthropic.txt, src/gyccode/session/prompt/default.txt, src/gyccode/session/prompt/meta.txt, src/gyccode/skill/compose/bundle.gen.ts, src/protocol/v1/gen/types.gen.d.ts
