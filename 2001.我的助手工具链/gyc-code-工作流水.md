@@ -628,3 +628,6 @@
 
 - [OK] 2026-08-13 [9947ee7] 修复opentui测试环境问题：CI用bun test --preload ./scripts/bun-solid-preload.ts(缺失时bun原生JSX编译不经过babel-preset-solid转换,导致<Show when=false>产生空文本孤儿节点,context-render 3测试失败)。本地422 pass/0 fail确认
   - [FILES] 1: .github/workflows/ci.yml
+
+- [OK] 2026-08-13 [5122aef] CH缓存冲99.9%-工具截断再调优:read/grep/glob 4K→2K字符(首次未命中1525→695token,命中率82.7%→91.2%,模型自动降级grep不破坏能力)+会话复用实测:连续12轮稳态98.8-99.8%平均99.3%,cache持续增长至9728;全库命中率85.5%→93.1%
+  - [FILES] 2: src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts
