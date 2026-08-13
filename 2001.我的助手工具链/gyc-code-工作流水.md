@@ -535,3 +535,6 @@
 
 - [OK] 2026-08-12 [c849c9e] P1-1a deepseek 链路观测增强: CH 趋势视图 + 超时审计日志
   - [FILES] 2: src/gyccode/cli/cmd/db.ts, src/gyccode/provider/provider.ts
+
+- [OK] 2026-08-13 [55c77d6] P1 修复: @include 指令展开失效——withIncludes Effect 未 yield* 被模板字符串转储
+  - [FILES] 2: src/gyccode/session/instruction-system-spec.test.ts, src/gyccode/session/instruction.ts
