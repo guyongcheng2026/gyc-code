@@ -88,10 +88,10 @@ test("aggregateToolCaps freezes maxPerChar decisions across repeated calls", () 
 
 test("aggregateToolCaps applies tool-type-aware caps for structured tools", () => {
   resetTruncationDecisions()
-  // read 工具（结构化输出）：大窗口下收窄到 4K
+  // read 工具（结构化输出）：大窗口下收窄到 2K
   const parts = [toolPart("c-read", "x".repeat(10_000), "read")]
   const caps = aggregateToolCaps(parts as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })
-  expect(caps!.get("c-read")).toBe(4_000)
+  expect(caps!.get("c-read")).toBe(2_000)
   // bash 工具（命令输出）：保留 8K
   const parts2 = [toolPart("c-bash", "y".repeat(10_000), "bash")]
   const caps2 = aggregateToolCaps(parts2 as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })

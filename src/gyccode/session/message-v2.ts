@@ -86,12 +86,13 @@ export function cacheFriendlyBudget(contextLimit: number | undefined) {
   return undefined
 }
 // 工具类型感知的单条上限（大窗口模型）：结构化输出（read/grep/glob）截断安全，
-// 文件内容可分段读取，上限收紧到 4K 字符；bash/其他命令输出可能含关键错误信息，
-// 保留 8K 字符。小窗口模型统一用 CACHE_FRIENDLY_TOOL_CHARS（1.5K）。
+// 文件内容可分段读取，上限收紧到 2K 字符（实测 4K 时首次未命中 1525 token，
+// 2K 可进一步降至 ~800，且模型会自动降级 grep 搜索不破坏能力）；bash/其他
+// 命令输出可能含关键错误信息，保留 8K。小窗口模型统一用 CACHE_FRIENDLY_TOOL_CHARS（1.5K）。
 export const TOOL_TYPE_CAPS: Record<string, number> = {
-  read: 4_000,
-  grep: 4_000,
-  glob: 4_000,
+  read: 2_000,
+  grep: 2_000,
+  glob: 2_000,
 }
 
 function toolTypeCap(tool: string, baseCap: number | undefined): number | undefined {
