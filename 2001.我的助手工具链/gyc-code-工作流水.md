@@ -613,3 +613,6 @@
 
 - [OK] 2026-08-13 [2eb0db6] 自主化P2-协议能力固化：CAPABILITIES.md能力矩阵(session持久化端到端验证:serve重启5/5恢复+compaction/工具解析/18group全覆盖+gyc专属头/客户端/命名空间实测)
   - [FILES] 1: src/protocol/CAPABILITIES.md
+
+- [OK] 2026-08-13 [7b8399a] 品牌彻底化-hermes清零: memory模块重命名(hermes-bridge→memory-bridge, HermesMemoryEntry→MemoryEntry等12文件)记忆文件名hermes_gyccode_memory.md→gyccode_memory.md(含旧文件兼容读取+HERMES_HOME兼容env) composer计划目录.hermes→.gyc agent名hermes-agent/hermes-gateway-ops→gyc-* TODO-DESIGN文档更新 全项目hermes残留清零
+  - [FILES] 16: docs/compose/TODO-DESIGN.md, src/core/v1/config/config.ts, src/gyccode/benchmark/benchmark.test.ts, src/gyccode/cli/cmd/memory.ts, src/gyccode/composer/index.ts, src/gyccode/memory/dream-runner.ts ...
