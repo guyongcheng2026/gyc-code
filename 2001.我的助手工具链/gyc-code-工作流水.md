@@ -568,3 +568,6 @@
 
 - [OK] 2026-08-13 [0e5584d] 品牌化：移除提示词3处opencode.ai文档引导(改为自身知识回答)、类型注释2处文档链接中性化
   - [FILES] 5: src/gyccode/session/prompt/anthropic.txt, src/gyccode/session/prompt/default.txt, src/gyccode/session/prompt/meta.txt, src/gyccode/skill/compose/bundle.gen.ts, src/protocol/v1/gen/types.gen.d.ts
+
+- [OK] 2026-08-13 [1b8aa05] 品牌化：补漏11处——gen注释小写opencode 5处、Claude Code跨行1处、可中性化注释5处
+  - [FILES] 9: src/core/model.ts, src/core/plugin/provider/gyccode.ts, src/gyccode/provider/transform.ts, src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.ts, src/protocol/v2/error-interceptor.ts ...
