@@ -212,7 +212,7 @@ export const PluginCommand = effectCmd({
         const query = String(args.query ?? "").trim()
         const index = yield* Effect.promise(() => market.fetchIndex())
         if (!index.length) {
-          UI.error("插件市场暂不可用（plugins.gyc-code.dev）")
+          UI.error("插件市场暂不可用（guyongcheng2026.github.io/gyc-code）")
           return
         }
         const results = query ? market.search(query) : index

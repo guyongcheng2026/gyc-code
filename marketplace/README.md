@@ -1,6 +1,6 @@
 # gyc 插件市场
 
-gyc-code 的自研插件市场。registry 地址：`https://plugins.gyc-code.dev`（客户端可用 `GYCCODE_PLUGIN_REGISTRY` 覆盖指向镜像/本地）。
+gyc-code 的自研插件市场。registry 地址：`https://guyongcheng2026.github.io/gyc-code/index.json`（GitHub Pages 托管，CI 自动构建部署；客户端可用 `GYCCODE_PLUGIN_REGISTRY` 覆盖指向镜像/本地）。
 
 ## 目录结构
 
@@ -32,8 +32,9 @@ GYCCODE_PLUGIN_REGISTRY=http://localhost:8790/index.json gyc plugin list
 
 1. 在 `marketplace/plugins/<name>/` 下创建插件：`package.json`（`engines.gyccode` 声明兼容版本）+ 入口文件（`export default` 插件对象，可注册 `tool`/`event`/`chat.*` 等 hook）
 2. 运行 `bun scripts/build-marketplace.mjs` 打包并刷新索引
-3. 部署：将 `marketplace/` 目录托管为静态站点（GitHub Pages / Cloudflare Pages / 自建 Nginx），确保 `plugins.gyc-code.dev` 解析到该站点
+3. 部署：push main 触发 `.github/workflows/deploy-pages.yml` 自动发布到 GitHub Pages（`guyongcheng2026.github.io/gyc-code/`，含模型镜像 `/models/api.json`）；也可将 `marketplace/` 目录手动托管到任意静态站点
 4. 可选：`npm publish` 同名包，支持 `gyc plugin <name>` 直接 npm 安装
+5. 可选：注册 `gyc-code.dev` 域名后 CNAME `plugins.gyc-code.dev` → Pages 地址，并把 `src/gyccode/plugin/marketplace.ts` 默认 registry 改回
 
 ## 插件接口
 

@@ -21,8 +21,8 @@ export interface MarketplaceConfig {
 }
 
 export const DEFAULT_MARKETPLACE_CONFIG: MarketplaceConfig = {
-  // 支持 GYCCODE_PLUGIN_REGISTRY 覆盖（本地测试 / 内网镜像），默认指向官方市场
-  registry: process.env.GYCCODE_PLUGIN_REGISTRY ?? "https://plugins.gyc-code.dev/index.json",
+  // 支持 GYCCODE_PLUGIN_REGISTRY 覆盖（本地测试 / 内网镜像 / 自建域名），默认 GitHub Pages 市场
+  registry: process.env.GYCCODE_PLUGIN_REGISTRY ?? "https://guyongcheng2026.github.io/gyc-code/index.json",
   cacheDir: ".gyc/plugins/cache",
 }
 
@@ -36,7 +36,7 @@ export class PluginMarketplace {
 
   private decodeIndex = Schema.decodeUnknownSync(Schema.Array(PluginEntry))
 
-  // Base registry URL, e.g. "https://plugins.gyc-code.dev" from ".../index.json"
+  // Base registry URL, e.g. "https://guyongcheng2026.github.io/gyc-code" from ".../index.json"
   private registryBase(): string {
     return this.config.registry.replace(/\/index\.json$/, "")
   }
