@@ -32,8 +32,8 @@ test("aggregateToolCaps truncates the largest output over budget", () => {
   const keep = caps!.get("c2")!
   expect(keep).toBeGreaterThanOrEqual(1_024)
   expect(keep).toBeLessThan(80_000)
-  // small one stays intact
-  expect(caps!.get("c1")).toBe(30_000)
+  // small one 未被聚合截断 → 不在 Map，交给调用方 fallback（统一契约：Map 仅含真实截断）
+  expect(caps!.get("c1")).toBeUndefined()
 })
 
 test("aggregateToolCaps is deterministic across repeated calls", () => {
@@ -58,19 +58,23 @@ test("aggregateToolCaps freezes decisions: same callID keeps same keep after re-
 test("resetTruncationDecisions releases frozen caps after compaction", () => {
   resetTruncationDecisions()
   // First pass: both outputs 60K (total 120K > 100K) -> c1 truncated first
-  // (ascending callID), c2 kept intact at 60K.
-  const capsA = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(60_000))] as any)!
-  const keepA = capsA.get("c2")!
-  expect(keepA).toBe(60_000)
-  // Same callIDs, c2 grows to 200K: without reset the frozen cap (60K) wins,
+  // (ascending callID), c2 kept intact at full 60K.
+  const pA = [toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(60_000))]
+  const capsA = aggregateToolCaps(pA as any)!
+  // c1 真实截断到 40K；c2 保持全长 → 不在 Map（统一契约，走 fallback）
+  expect(capsA.get("c1")!).toBe(40_000)
+  expect(capsA.get("c2")).toBeUndefined()
+  // 模拟调用方有效 cap：c2 未截断且无 per-char 上限 → 全文
+  expect(toolCapForOutput(capsA, "c2", "y".repeat(60_000), "bash", undefined)).toBeUndefined()
+  // Same callIDs, c2 grows to 200K: frozen decision (60K, its original full length) wins,
   // so the serialized prefix stays byte-stable (prompt-cache friendly).
   const capsFrozen = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(200_000))] as any)!
-  expect(capsFrozen.get("c2")).toBe(keepA)
+  expect(capsFrozen.get("c2")).toBe(60_000)
   // After compaction resets the frozen decisions, the new output re-decides:
   // c2 now absorbs the excess and is cut harder.
   resetTruncationDecisions()
   const capsB = aggregateToolCaps([toolPart("c1", "x".repeat(60_000)), toolPart("c2", "y".repeat(200_000))] as any)!
-  expect(capsB.get("c2")!).toBeLessThan(keepA)
+  expect(capsB.get("c2")!).toBeLessThan(60_000)
 })
 
 test("aggregateToolCaps caps per-tool output with maxPerChar (cache budget)", () => {
@@ -85,12 +89,13 @@ test("aggregateToolCaps freezes maxPerChar decisions across repeated calls", () 
   resetTruncationDecisions()
   const p1 = [toolPart("c1", "x".repeat(5_000)), toolPart("c2", "y".repeat(300))]
   const caps1 = aggregateToolCaps(p1 as any, { maxPerChar: 1_500, maxTotalChars: 24_000 })!
+  // c1 被 per-char 截断 → 在 Map；c2 未被截断 → 不在 Map（统一契约）
   expect(caps1.get("c1")).toBe(1_500)
-  expect(caps1.get("c2")).toBe(300)
+  expect(caps1.get("c2")).toBeUndefined()
   // Later call with the same callIDs must keep the frozen cap (prefix byte-stable).
   const caps2 = aggregateToolCaps(p1 as any, { maxPerChar: 1_500, maxTotalChars: 24_000 })!
   expect(caps2.get("c1")).toBe(1_500)
-  expect(caps2.get("c2")).toBe(300)
+  expect(caps2.get("c2")).toBeUndefined()
 })
 
 test("aggregateToolCaps applies tool-type-aware caps for structured tools", () => {
@@ -119,13 +124,13 @@ test("cacheFriendlyBudget applies tiered budgets by context window", () => {
 test("toolCapForOutput 二次序列化仍回退类型上限（Bug 1 回归）", () => {
   resetTruncationDecisions()
   const output = "x".repeat(10_000)
-  // 第一次序列化（生产无 opts）：under-budget → undefined → fallback 类型上限 2000
+  // 统一契约下：两次序列化都返回 undefined（无真实截断）→ 调用方均走类型上限 fallback，
+  // 跨轮字节稳定（此前第二次返回含全长度条目的 Map 压制 fallback）。
   const caps1 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
+  expect(caps1).toBeUndefined()
   expect(toolCapForOutput(caps1, "c1", output, "read", 2_000)).toBe(2_000)
-  // 第二次序列化（后续轮次重序列化同一历史消息）：此前返回全长度 Map 压制 fallback，
-  // 正确行为：聚合 cap 非真实截断时必须回退类型上限，保证跨轮字节稳定。
   const caps2 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
-  expect(caps2).toBeDefined()
+  expect(caps2).toBeUndefined()
   expect(toolCapForOutput(caps2, "c1", output, "read", 2_000)).toBe(2_000)
 })
 

@@ -171,14 +171,27 @@ export function prependTodayDate<TMsg extends { role: string; content: string | 
   return next
 }
 
+/** 仅保留真实截断（cap < 当前输出长度）的条目；无任何截断返回 undefined。
+ * 统一契约：Map 不含「全长度」条目，absent 即交给 per-tool 类型上限 fallback。 */
+function onlyTruncated(caps: Map<string, number>, lens: Map<string, number>): Map<string, number> | undefined {
+  const out = new Map<string, number>()
+  for (const [callID, cap] of caps) {
+    if (cap < (lens.get(callID) ?? 0)) out.set(callID, cap)
+  }
+  return out.size > 0 ? out : undefined
+}
+
 /**
  * Compute per-tool-result character caps for one assistant message tool
  * results: when the aggregate output exceeds the budget, truncate from the
  * largest output down, keeping at least 1KB of each. Truncation decisions are
  * frozen by callID once made: re-serializing the same message (or a later
  * message with the same callIDs) yields identical truncation -> stable prompt
- * cache prefix. Returns a map of callID -> cap chars, or undefined if under
- * budget.
+ * cache prefix.
+ *
+ * 统一契约：返回的 Map 仅包含「真实截断」条目（cap < 当前输出长度）；没有任何截断
+ * 时返回 undefined。调用方应经 `toolCaps?.get(callID) ?? toolTypeCap(tool, maxChars)`
+ * （或 `toolCapForOutput`）读取有效上限——absent 条目意味着交给 per-tool 类型上限。
  */
 export function aggregateToolCaps(
   parts: readonly SessionV1.Part[],
@@ -210,15 +223,15 @@ export function aggregateToolCaps(
       const keep = truncationDecisions.get(id)
       caps.set(id, keep ?? lens.get(id) ?? 0)
     }
-    return caps
+    return onlyTruncated(caps, lens)
   }
   if (total <= maxTotalChars) {
-    // Under budget: freeze each callID (cap when maxPerChar applies, else "not truncated").
+    // Under budget: freeze the cap to apply for each callID (a number, possibly
+    // the full length for kept tools) so a later re-serialization stays byte-stable.
     for (const id of callIDs) {
-      if (!truncationDecisions.has(id))
-        freezeDecision(id, maxPerChar !== undefined ? caps.get(id) : undefined)
+      if (!truncationDecisions.has(id)) freezeDecision(id, caps.get(id))
     }
-    return maxPerChar !== undefined ? caps : undefined
+    return onlyTruncated(caps, lens)
   }
   let excess = total - maxTotalChars
   // Deterministic order: largest length first, then ascending callID.
@@ -233,7 +246,7 @@ export function aggregateToolCaps(
   }
   // Record the full decision set for this batch.
   for (const id of callIDs) freezeDecision(id, caps.get(id) ?? undefined)
-  return caps
+  return onlyTruncated(caps, lens)
 }
 
 export const Event = {
