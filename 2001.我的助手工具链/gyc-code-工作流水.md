@@ -580,3 +580,6 @@
 
 - [OK] 2026-08-13 [190353e] 自主化P2：确立协议自有基线文档(src/protocol/README.md, v2为演进方向+gyc专属扩展声明)
   - [FILES] 1: src/protocol/README.md
+
+- [OK] 2026-08-13 [85ad116] 文档：ROADMAP 标注自建后端三项完成+自主化P0/P1/P2落地状态
+  - [FILES] 1: docs/ROADMAP-2026-08-12.md
