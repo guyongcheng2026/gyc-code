@@ -598,3 +598,6 @@
 
 - [OK] 2026-08-13 [39ab559] deploy-pages 收紧：仅部署产物(index.json+pkg+models)，插件源码不入站
   - [FILES] 1: .github/workflows/deploy-pages.yml
+
+- [OK] 2026-08-13 [8fffdf3] 触发 GitHub Pages 部署（Pages 已启用）
+  - [FILES] 0: 
