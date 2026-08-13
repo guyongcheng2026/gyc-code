@@ -589,3 +589,6 @@
 
 - [OK] 2026-08-13 [ae03556] 发布链路就绪(npm pack预演通过+CI/发布workflow)+服务补厚:账号用户体系(注册/登录/登出+argon2id口令+审计日志+admin权限控制,等保三级)
   - [FILES] 6: .github/workflows/ci.yml, .github/workflows/publish.yml, .gitignore, package.json, services/README.md, services/account/server.ts
+
+- [OK] 2026-08-13 [88350c1] 自主化P2-模型镜像：sync-models同步脚本(184供应商/6291模型)+serve-marketplace支持/models路径+models-mirror不入库(gitignore)+文档
+  - [FILES] 4: .gitignore, scripts/serve-marketplace.mjs, scripts/sync-models.mjs, services/README.md
