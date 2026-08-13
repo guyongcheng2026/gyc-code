@@ -313,9 +313,9 @@ export declare class Global extends HeyApiClient {
      */
     dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): import("./client/types.gen.js").RequestResult<GlobalDisposeResponses, GlobalDisposeErrors, ThrowOnError, "fields">;
     /**
-     * Upgrade opencode
+     * Upgrade the agent
      *
-     * Upgrade opencode to the specified version or latest if not specified.
+     * Upgrade the agent to the specified version or latest if not specified.
      */
     upgrade<ThrowOnError extends boolean = false>(parameters?: {
         target?: string;

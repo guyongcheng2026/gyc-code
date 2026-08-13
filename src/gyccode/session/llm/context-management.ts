@@ -1,8 +1,7 @@
 /**
  * API-native context management (Anthropic `context-management` beta).
  * Lets the API clear old thinking blocks / tool uses server-side, shrinking
- * the request without a client-side compaction round. Aligned with Claude
- * Code's apiMicrocompact, but universally configurable (Claude gates tool
+ * the request without a client-side compaction round. Aligned with reference agent's apiMicrocompact, but universally configurable (the model gates tool
  * clearing behind ant-only env flags).
  */
 

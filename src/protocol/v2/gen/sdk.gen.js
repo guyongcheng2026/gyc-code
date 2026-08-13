@@ -613,9 +613,9 @@ export class Global extends HeyApiClient {
         });
     }
     /**
-     * Upgrade opencode
+     * Upgrade the agent
      *
-     * Upgrade opencode to the specified version or latest if not specified.
+     * Upgrade the agent to the specified version or latest if not specified.
      */
     upgrade(parameters, options) {
         const params = buildClientParams([parameters], [{ args: [{ in: "body", key: "target" }] }]);

@@ -1111,7 +1111,7 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       if (id.includes("anthropic")) {
         if (adaptiveEfforts) {
           // Bedrock adaptive splits `effort` out into `output_config` (vs Anthropic
-          // native which inlines it). Claude 4.7+ defaults `display` to "omitted".
+          // native which inlines it). The model 4.7+ defaults `display` to "omitted".
           return wrapInSapModelParams(
             Object.fromEntries(
               adaptiveEfforts.map((effort) => [

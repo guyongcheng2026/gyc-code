@@ -31,7 +31,7 @@ const DEFAULT_CONTEXT_WINDOW = 200_000
 
 /**
  * Effective context window for local decisions (compaction, overflow).
- * `GYCCODE_MAX_CONTEXT_TOKENS` caps the window universally (Claude's
+ * `GYCCODE_MAX_CONTEXT_TOKENS` caps the window universally (the model's
  * equivalent is ant-only); invalid values are ignored.
  */
 export function effectiveContextWindow(
