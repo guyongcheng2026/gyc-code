@@ -83,6 +83,33 @@ export GYCCODE_SHARE_URL=http://localhost:8788   # 展示链接 base
 - `GYCCODE_UPGRADE_URL` 未配置 → 仅提示"免费额度用尽，请配置付费供应商或等待重置"
 - `GYCCODE_UPGRADE_URL` 已配置（如指向自建定价页）→ 显示升级链接
 
+## 三·五、模型网关（统一入口 + 额度 + 限流 + 审计）
+
+**启动**：
+
+```bash
+bun services/gateway/server.ts              # 默认端口 8791
+GYCCODE_GATEWAY_PORT=8791 bun services/gateway/server.ts
+```
+
+**能力**（对齐等保三级：访问控制/资源控制/安全审计）：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/v1/chat/completions` | OpenAI 兼容对话入口（Bearer api key） |
+| GET | `/v1/models` | 模型列表（`provider/model` 复合 id，来自 models-mirror） |
+| POST | `/api/keys` | 创建 api key（master key，参数 name/quota/rpm） |
+| GET | `/api/keys` | 列 api key（含已用额度） |
+| DELETE | `/api/keys/:id` | 吊销 api key |
+| GET | `/api/usage` | 用量统计（按 key+模型聚合） |
+| GET | `/health` | 健康检查 |
+
+**模型路由**：请求 `model` 用 `provider/model` 复合 id（如 `deepseek/deepseek-v4-flash`），网关查 models-mirror 定位上游地址；上游 API key 经 `GYCCODE_UPSTREAM_<PROVIDER>_KEY` 注入（如 `GYCCODE_UPSTREAM_DEEPSEEK_KEY`），未配置则拒绝转发（防泄漏）。
+
+**安全**：管理 API 需 `GYCCODE_GATEWAY_MASTER_KEY`（未设置时本地默认值并告警）；api key 以 SHA-256 哈希存储；额度（quota_tokens，-1 无限）按响应 usage 扣减；限流（rpm/分钟，滑动窗口）超额返回 429；全部调用写入 `usage_logs`（模型/token 数/成败）供审计。
+
+**客户端指向**（替代直连各家 API）：把模型的 base URL 配置为 `http://localhost:8791`、api key 换成网关签发 key 即可，模型 id 用 `provider/model`。
+
 ## 环境变量汇总
 
 | 变量 | 服务 | 说明 |
@@ -93,6 +120,9 @@ export GYCCODE_SHARE_URL=http://localhost:8788   # 展示链接 base
 | `GYCCODE_UI_UPSTREAM` | Web UI | serve 的内嵌 UI 上游 |
 | `GYCCODE_MODELS_URL` | 模型 | 模型目录数据源 |
 | `GYCCODE_DISABLE_SHARE` | 分享 | `true` 时禁用分享功能 |
+| `GYCCODE_GATEWAY_PORT` | 网关 | 模型网关端口（默认 8791） |
+| `GYCCODE_GATEWAY_MASTER_KEY` | 网关 | 管理密钥（默认仅本地告警） |
+| `GYCCODE_UPSTREAM_<PROVIDER>_KEY` | 网关 | 上游供应商 API key（如 `GYCCODE_UPSTREAM_DEEPSEEK_KEY`） |
 
 ## 四、模型目录镜像（自建数据源）
 
