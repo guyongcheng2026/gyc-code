@@ -114,6 +114,10 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - **市场上线 GitHub Pages + 模型快照兜底**（2026-08-13，commits `b4714fd`/`a351ab5`）：
   - `.github/workflows/deploy-pages.yml`：push main 自动构建市场+同步模型镜像+部署 Pages（`guyongcheng2026.github.io/gyc-code/`），默认 registry 已指向 Pages（`GYCCODE_PLUGIN_REGISTRY` 可覆盖）
   - `scripts/gen-models-snapshot.mjs` → `src/core/models-dev-snapshot.ts`（796KB 入库）：32 主流供应商/1427 模型内置快照，models-dev fallback 链 disk → snapshot → fetch（无网络也可用）
+- **纯自研三项落地**（2026-08-13，commits `6e87383`/`9e2b7df`/`2eb0db6`）：
+  - P1 依赖裁剪：AI SDK provider 21→11（企业向 8+3），依赖 160→150，删 10 插件文件 + 30 处引用
+  - P0 模型网关：`services/gateway/server.ts` 统一 OpenAI 兼容入口 + 额度/限流/审计/多供应商路由（等保三级）
+  - P2 协议固化：`src/protocol/CAPABILITIES.md` 能力矩阵，session 持久化端到端验证（serve 重启 5/5 恢复）
 
 ---
 
