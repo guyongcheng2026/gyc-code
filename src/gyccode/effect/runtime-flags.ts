@@ -31,6 +31,7 @@ export class Service extends ConfigService.Service<Service>()("@gyccode/RuntimeF
   }).pipe(Config.map((flags) => flags.broad || flags.direct)),
   disableCodexSkills: bool("GYCCODE_DISABLE_CODEX_SKILLS"),
   disableOpenCodeSkills: bool("GYCCODE_DISABLE_OPENCODE_SKILLS"),
+  enableDebugWorkspace: bool("GYCCODE_ENABLE_DEBUG_WORKSPACE"),
   enableExa: Config.all({
     experimental,
     enabled: bool("GYCCODE_ENABLE_EXA"),

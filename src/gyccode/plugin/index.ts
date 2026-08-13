@@ -18,6 +18,7 @@ import { CloudflareAIGatewayAuthPlugin, CloudflareWorkersAuthPlugin } from "./cl
 import { AzureAuthPlugin } from "./azure"
 import { DigitalOceanAuthPlugin } from "./digitalocean"
 import { XaiAuthPlugin } from "./xai"
+import { DebugWorkspacePlugin } from "../control-plane/dev/debug-workspace-plugin"
 import { SnowflakeCortexAuthPlugin } from "./snowflake-cortex"
 import { Effect, Layer, Context } from "effect"
 import { EffectBridge } from "@/effect/bridge"
@@ -76,6 +77,8 @@ function internalPlugins(flags: RuntimeFlags.Info): PluginInstance[] {
     DigitalOceanAuthPlugin,
     SnowflakeCortexAuthPlugin,
     XaiAuthPlugin,
+    // 调试工作区（默认关闭，GYCCODE_ENABLE_DEBUG_WORKSPACE=1 开启）：创建本地调试服务器
+    ...(flags.enableDebugWorkspace ? [(input: PluginInput) => DebugWorkspacePlugin(input)] : []),
   ]
 }
 
