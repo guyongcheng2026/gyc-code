@@ -34,10 +34,18 @@ gyc account login
 | GET | `/api/user` | 当前用户（Bearer） |
 | GET | `/api/orgs` | 用户组织列表（Bearer） |
 | GET | `/api/config` | 组织 provider 配置（Bearer + x-org-id） |
+| POST | `/api/register` | 注册（邮箱 + 密码，口令复杂度校验，argon2id 哈希） |
+| POST | `/api/login` | 登录（签发 access/refresh token） |
+| POST | `/api/logout` | 登出（吊销 access token） |
+| GET | `/api/audit` | 审计日志（仅 admin，最近 100 条） |
 | GET | `/health` | 健康检查 |
 
 **说明**：
 - 种子账号 `admin@gyccode.local` / 组织 `gyc-local`；设备确认后签发 7 天 access token + 30 天 refresh token
+- 种子管理员密码：`GYCCODE_ADMIN_PASSWORD` 注入（未设置时本地默认 `admin123` 并告警，生产必须 env 注入）
+- 密码存储：`Bun.password` argon2id 哈希（零依赖）；注册口令 ≥8 位且含字母+数字（等保口令复杂度）
+- 审计（等保安全审计）：注册/登录/登录失败/登出/设备码签发与确认/refresh 换发均留痕 `audit_logs`；查询接口仅 admin 角色可访问（权限最小化）
+- 新注册用户默认加入本地组织（最小授权），角色 `user`
 - `/api/config` 默认返回空 provider 配置：模型数据源由客户端 models-dev 提供，模型供应商由用户自行配置；如需统一网关，可按组织返回 provider 映射
 
 ## 二、分享服务（替代第三方分享站）

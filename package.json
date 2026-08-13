@@ -1,7 +1,7 @@
 {
   "name": "gyc-code",
   "version": "0.0.1",
-  "description": "gyc-code: a minimal AI coding CLI",
+  "description": "gyc-code: 自研 AI 编码 CLI（品牌自有、依赖零专有、协议自有基线）",
   "license": "MIT",
   "type": "module",
   "bin": {
@@ -13,7 +13,9 @@
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
     "start": "bun dist/index.js",
-    "test": "bun test --preload ./scripts/bun-solid-preload.ts"
+    "test": "bun test --preload ./scripts/bun-solid-preload.ts",
+    "prepack": "bun run build",
+    "prepublishOnly": "bun run build"
   },
   "dependencies": {
     "@actions/core": "1.11.1",
@@ -188,7 +190,8 @@
     "babel-preset-solid": "1.9.12"
   },
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.0.0",
+    "node": ">=18.0.0"
   },
   "workspaces": [
     "src/codemode",
@@ -200,5 +203,24 @@
     "src/server",
     "src/tui",
     "src/ui"
-  ]
+  ],
+  "files": [
+    "bin",
+    "dist",
+    "scripts/bun-solid-preload.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "ai",
+    "cli",
+    "coding",
+    "agent",
+    "gyc",
+    "code"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guyongcheng2026/gyc-code.git"
+  }
 }

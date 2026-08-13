@@ -44,3 +44,4 @@ gyc-cli-src-backup/
 # Local debug scripts
 .temp-*.cjs
 .temp-*.js
+services/account/gyccode-account.db
