@@ -595,3 +595,6 @@
 
 - [OK] 2026-08-13 [b4714fd] 市场上线GitHub Pages：deploy-pages.yml(构建市场+同步模型镜像+部署)+默认registry改Pages地址+README/注释同步
   - [FILES] 5: .github/workflows/deploy-pages.yml, marketplace/README.md, scripts/build-marketplace.mjs, src/gyccode/cli/cmd/plug.ts, src/gyccode/plugin/marketplace.ts
+
+- [OK] 2026-08-13 [39ab559] deploy-pages 收紧：仅部署产物(index.json+pkg+models)，插件源码不入站
+  - [FILES] 1: .github/workflows/deploy-pages.yml
