@@ -241,9 +241,16 @@ const layer: Layer.Layer<
       const files = yield* Effect.forEach(Array.from(paths), read, { concurrency: 8 })
       const remote = yield* Effect.forEach(urls, fetch, { concurrency: 4 })
 
-      const local = Array.from(paths).flatMap((item, i) =>
-        files[i] ? [`Instructions from: ${item}\n${withIncludes(item, files[i]!)}`] : [],
-      )
+      const local: string[] = []
+      const pathList = Array.from(paths)
+      for (let i = 0; i < pathList.length; i++) {
+        const item = pathList[i]
+        const content = files[i]
+        if (content) {
+          const resolved = yield* withIncludes(item, content)
+          local.push(`Instructions from: ${item}\n${resolved}`)
+        }
+      }
       const remoteParts = urls.flatMap((item, i) => (remote[i] ? [`Instructions from: ${item}\n${remote[i]}`] : []))
 
       // System-level rules: with no concrete file in scope there is no filepath
