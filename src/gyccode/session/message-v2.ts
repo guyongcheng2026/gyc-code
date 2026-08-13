@@ -52,6 +52,13 @@ function truncateToolOutput(text: string, maxChars?: number) {
   return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
 }
 
+/** 单条 user 文本截断（缓存友好：限制病态大粘贴的每轮增量；正常消息不受影响）。 */
+function truncateUserText(text: string, maxChars?: number) {
+  if (!maxChars || text.length <= maxChars) return text
+  const omitted = text.length - maxChars
+  return `${text.slice(0, maxChars)}\n[User text truncated: omitted ${omitted} chars]`
+}
+
 const MAX_AGGREGATED_TOOL_CHARS = 100_000
 const MIN_AGGREGATED_TOOL_KEEP_CHARS = 1_024
 
@@ -328,7 +335,15 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: readonly WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; toolOutputMaxTotalChars?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    toolOutputMaxTotalChars?: number
+    /** 追加到最新 user 消息末尾的记忆内容（tail 注入，字节稳定；不影响历史 user 消息）。 */
+    injectMemories?: string
+    /** 单条 user 文本字符上限（缓存友好：限制病态大粘贴的每轮增量）。 */
+    maxUserTextChars?: number
+  },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
@@ -388,7 +403,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     return { type: "json", value: output as never }
   }
 
-  for (const msg of input) {
+  // 预计算最新 user 消息索引：记忆只注入该消息（tail 增量），历史 user 消息字节不变，
+  // 保证 prompt-cache 前缀稳定（对齐 CH 99.9% 机制）。
+  let lastUserIdx = -1
+  for (let i = 0; i < input.length; i++) {
+    if (input[i].info.role === "user") lastUserIdx = i
+  }
+  for (let i = 0; i < input.length; i++) {
+    const msg = input[i]
     if (msg.parts.length === 0) continue
 
     if (msg.info.role === "user") {
@@ -402,7 +424,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         if (part.type === "text" && !part.ignored && part.text !== "")
           userMessage.parts.push({
             type: "text",
-            text: part.text,
+            text: truncateUserText(part.text, options?.maxUserTextChars),
           })
         // text/plain and directory files are converted into text parts, ignore them
         if (part.type === "file" && part.mime !== "text/plain" && part.mime !== "application/x-directory") {
@@ -433,6 +455,10 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             text: "The following tool was executed by the user",
           })
         }
+      }
+      // 记忆 tail 注入：仅追加到最新 user 消息，历史 user 消息不含记忆 → 前缀字节稳定
+      if (i === lastUserIdx && options?.injectMemories && options.injectMemories.trim() !== "") {
+        userMessage.parts.push({ type: "text", text: options.injectMemories })
       }
       if (userMessage.parts.length > 0) result.push(userMessage)
     }
@@ -619,7 +645,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: readonly WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; toolOutputMaxTotalChars?: number },
+  options?: {
+    stripMedia?: boolean
+    toolOutputMaxChars?: number
+    toolOutputMaxTotalChars?: number
+    /** 追加到最新 user 消息末尾的记忆内容（tail 注入，字节稳定；不影响历史 user 消息）。 */
+    injectMemories?: string
+    /** 单条 user 文本字符上限（缓存友好：限制病态大粘贴的每轮增量）。 */
+    maxUserTextChars?: number
+  },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options))
 }

@@ -82,3 +82,59 @@ test("集成：under 预算小输出不截断", async () => {
   const msgs = await toModelMessages(input, model, { toolOutputMaxChars: 2_000, toolOutputMaxTotalChars: 24_000 })
   expect(findToolResult(msgs, "call_1")).toBe("small")
 })
+
+function userTextMsg(id: string, text: string) {
+  return {
+    info: { id, role: "user", providerID: "test-provider", modelID: "test-model" },
+    parts: [{ type: "text", text }],
+  } as any
+}
+
+function findUserTexts(modelMsgs: any[]): string[] {
+  return modelMsgs
+    .filter((m) => m.role === "user")
+    .map((m) =>
+      Array.isArray(m.content)
+        ? m.content
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join("\n")
+        : "",
+    )
+}
+
+test("集成：injectMemories 只注入最新 user 消息，历史 user 字节不变（P0-1）", async () => {
+  const msgs = [
+    userTextMsg("u1", "first message"),
+    {
+      info: { id: "a1", role: "assistant", providerID: "test-provider", modelID: "test-model" },
+      parts: [{ type: "text", text: "ok" }],
+    },
+    userTextMsg("u2", "second message"),
+  ]
+  const withMem = await toModelMessages(msgs as any, model, { injectMemories: "<memories>fact A</memories>" })
+  const texts = findUserTexts(withMem)
+  // u1（历史）不变；u2（最新 user）追加记忆
+  expect(texts[0]).toBe("first message")
+  expect(texts[1]).toContain("second message")
+  expect(texts[1]).toContain("<memories>fact A</memories>")
+  // 换一份记忆重新序列化：u1 仍不变（前缀字节稳定），仅最新 user 尾部变化
+  const withMem2 = await toModelMessages(msgs as any, model, { injectMemories: "<memories>fact B</memories>" })
+  const texts2 = findUserTexts(withMem2)
+  expect(texts2[0]).toBe("first message")
+  expect(texts2[1]).toContain("fact B")
+  // 不注入 → 无记忆内容
+  const noMem = await toModelMessages(msgs as any, model, {})
+  expect(findUserTexts(noMem)[1]).toBe("second message")
+})
+
+test("集成：maxUserTextChars 截断超大 user 文本（P1-3）", async () => {
+  const big = "z".repeat(50_000)
+  const out = await toModelMessages([userTextMsg("u1", big)] as any, model, { maxUserTextChars: 24_000 })
+  const text = findUserTexts(out)[0]
+  expect(text.length).toBeLessThan(50_000)
+  expect(text).toContain("[User text truncated")
+  // 未设上限 → 不截断
+  const full = await toModelMessages([userTextMsg("u1", big)] as any, model, {})
+  expect(findUserTexts(full)[0]).toBe(big)
+})

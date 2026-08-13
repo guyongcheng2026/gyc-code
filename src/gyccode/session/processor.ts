@@ -455,6 +455,15 @@ const layer = Layer.effect(
               metadata: value.providerMetadata,
               prevCacheRead: ctx.assistantMessage.tokens?.cache?.read ?? 0,
             })
+            // 可观测：缓存命中骤降（system prompt 漂移/压缩/工具集变化）时告警，
+            // 便于定位下一次 CH 缓存优化点（cache-anchor drift 检测落地到日志）。
+            if (usage.tokens.cacheDrift) {
+              yield* Effect.logWarning("prompt cache drift detected", {
+                "session.id": input.sessionID,
+                messageID: input.assistantMessage.id,
+                ...usage.tokens.cacheDrift,
+              })
+            }
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost
             // 累计全部 token 字段（含 cache.read/write），不能只加 total：

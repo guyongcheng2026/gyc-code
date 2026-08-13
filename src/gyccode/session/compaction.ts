@@ -427,12 +427,12 @@ const layer = Layer.effect(
       // Time-based trigger first: a long idle gap means the prompt cache
       // expired, so clear old tool results before the request shrinks what gets
       // rewritten. (Aligned with reference agent timeBasedMCConfig, but locally
-      // configurable.) Opt-in: only fires when `enabled` is explicitly true
-      // (the documented default is false). Falls through to the usage-based
-      // check below (chaining).
+      // configurable.) Default-on: fires with defaults (gap 60min / keep 5) when
+      // not configured; only explicit `enabled: false` opts out. Falls through
+      // to the usage-based check below (chaining).
       const tbm = cfg.compaction?.time_based_microcompact
       let clearedAny = false
-      if (tbm?.enabled === true) {
+      if (tbm?.enabled !== false) {
         const tSelected = selectTimeBasedParts(msgs as any, {
           gapMinutes: tbm?.gap_minutes ?? 60,
           keepRecent: tbm?.keep_recent ?? 5,

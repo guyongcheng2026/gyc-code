@@ -173,7 +173,8 @@ export const Info = Schema.Struct({
       time_based_microcompact: Schema.optional(
         Schema.Struct({
           enabled: Schema.optional(Schema.Boolean).annotate({
-            description: "Enable time-based micro-compaction when a long idle gap expires the prompt cache (default: false)",
+            description:
+              "Enable time-based micro-compaction when a long idle gap expires the prompt cache (default: true; set false to opt out)",
           }),
           gap_minutes: Schema.optional(NonNegativeInt).annotate({
             description: "Idle gap in minutes that triggers time-based micro-compaction (default: 60)",

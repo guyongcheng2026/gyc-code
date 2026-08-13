@@ -1642,17 +1642,22 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
-            const [skills, env, instructionResolved, mcpInstructions, memories, modelMsgs] = yield* Effect.all([
+            const [skills, env, instructionResolved, mcpInstructions, memories] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               sys.memory(memoryQuery, sessionID),
-              MessageV2.toModelMessagesEffect(msgs, model, {
-                toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
-                toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
-              }),
             ])
+            // modelMsgs 依赖 memories（记忆 tail 注入），故与上方解耦后单独计算
+            const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
+              toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
+              toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
+              // 记忆 tail 注入：sys.memory 结果追加到最新 user 消息末尾，历史前缀字节稳定
+              injectMemories: memories ?? undefined,
+              // 用户文本上限：与聚合预算同档，限制病态大粘贴的每轮增量
+              maxUserTextChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
+            })
             const instructions = instructionResolved.files
             // Publish session.instructions with exactly the resolved instruction paths in play
             // (the same set `instruction.system()` used to build the prompt).
