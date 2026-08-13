@@ -556,3 +556,6 @@
 
 - [OK] 2026-08-13 [59def2a] 清理：删除过期构建日志(build-*.log/knip-*.log)、测试产物dist-test及验证产物verify-ext.out
   - [FILES] 1: verify-ext.out
+
+- [OK] 2026-08-13 [3687807] 配置：verify-ext.out 加入 .gitignore，验证产物不入库
+  - [FILES] 1: .gitignore
