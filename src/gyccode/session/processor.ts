@@ -457,9 +457,17 @@ const layer = Layer.effect(
             })
             ctx.assistantMessage.finish = value.reason
             ctx.assistantMessage.cost += usage.cost
+            // 累计全部 token 字段（含 cache.read/write），不能只加 total：
+            // 否则 message 落库的 tokens.cache.read 恒为 0，db cache 命中率失真。
             ctx.assistantMessage.tokens = {
-              ...ctx.assistantMessage.tokens,
               total: (ctx.assistantMessage.tokens.total ?? 0) + (usage.tokens.total ?? 0),
+              input: (ctx.assistantMessage.tokens.input ?? 0) + (usage.tokens.input ?? 0),
+              output: (ctx.assistantMessage.tokens.output ?? 0) + (usage.tokens.output ?? 0),
+              reasoning: (ctx.assistantMessage.tokens.reasoning ?? 0) + (usage.tokens.reasoning ?? 0),
+              cache: {
+                read: (ctx.assistantMessage.tokens.cache?.read ?? 0) + (usage.tokens.cache?.read ?? 0),
+                write: (ctx.assistantMessage.tokens.cache?.write ?? 0) + (usage.tokens.cache?.write ?? 0),
+              },
             }
             yield* session.updatePart({
               id: PartID.ascending(),
