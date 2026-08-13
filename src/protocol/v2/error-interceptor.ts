@@ -10,7 +10,7 @@
  * body unchanged so existing field-level reads (`.error.name`,
  * `JSON.stringify(error)`, etc.) are byte-for-byte identical to before.
  */
-export function wrapClientError(error, response, request, opts) {
+export function wrapClientError(error: unknown, response: Response | undefined, request: Request | undefined, opts: { throwOnError?: boolean } | undefined) {
     if (!opts?.throwOnError)
         return error;
     if (error instanceof Error)
@@ -18,7 +18,7 @@ export function wrapClientError(error, response, request, opts) {
     // NamedError-shaped responses (the common case for opencode 4xx) come
     // through as POJOs — extract a useful message first, then wrap.
     if (typeof error === "object" && error !== null && Object.keys(error).length > 0) {
-        const obj = error;
+        const obj = error as Record<string, any>;
         const message = (typeof obj.data?.message === "string" && obj.data.message) ||
             (typeof obj.message === "string" && obj.message) ||
             (typeof obj.name === "string" && obj.name) ||
@@ -34,7 +34,7 @@ export function wrapClientError(error, response, request, opts) {
         cause: { body: error, status: response?.status },
     });
 }
-function describe(request, response) {
+function describe(request: Request | undefined, response: Response | undefined) {
     const method = request?.method ?? "?";
     const url = request?.url ?? "?";
     const status = response?.status;

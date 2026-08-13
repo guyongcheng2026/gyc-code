@@ -6,6 +6,7 @@ import { completedTPS, formatTPS, streamingTPS } from "./tps"
 import { Token } from "@/util/token"
 import * as Model from "../../util/model"
 import { DialogContext } from "../../component/dialog-context"
+import { computeChRate, estimateMessage, hasTokenUsage, persistedTokens } from "./context-metrics"
 
 const id = "internal:sidebar-context"
 const REFRESH_MS = 2000
@@ -15,48 +16,7 @@ const money = new Intl.NumberFormat("en-US", {
   currency: "USD",
 })
 
-function estimatePart(part: Part): number {
-  if (part.type === "text" || part.type === "reasoning") return Token.estimate(part.text)
-  if (part.type === "tool") {
-    return Math.max(1, Math.ceil(JSON.stringify({ tool: part.tool, state: part.state }).length / 4))
-  }
-  return 0
-}
-
-// Only in-flight messages need estimation; completed assistant messages have
-// exact persisted token counts. Estimating is far more expensive than reading
-// the four persisted integers, so prefer the latter on the hot path.
-function estimateMessage(message: Message, partOf: (id: string) => ReadonlyArray<Part>): number {
-  if (message.role === "assistant" && message.time.completed) {
-    return (
-      message.tokens.input +
-      message.tokens.output +
-      message.tokens.reasoning +
-      message.tokens.cache.read +
-      message.tokens.cache.write
-    )
-  }
-  return partOf(message.id).reduce((sum, part) => sum + estimatePart(part), 0)
-}
-
-// Sum the persisted token counters across all messages — O(1) per message,
-// no tokenization. Used for completed sessions and idle context windows.
-function persistedTokens(msgs: ReadonlyArray<Message>): number {
-  let total = 0
-  for (const message of msgs) {
-    if (message.role === "assistant" && message.time.completed) {
-      total +=
-        message.tokens.input +
-        message.tokens.output +
-        message.tokens.reasoning +
-        message.tokens.cache.read +
-        message.tokens.cache.write
-    }
-  }
-  return total
-}
-
-function View(props: { api: TuiPluginApi; session_id: string }) {
+export function View(props: { api: TuiPluginApi; session_id: string }) {
   const theme = () => props.api.theme.current
   const msg = createMemo(() => props.api.state.session.messages(props.session_id))
   const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
@@ -119,34 +79,33 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
 
   const tpsLabel = createMemo(() => formatTPS(tps()))
 
+  const chRate = createMemo(() => computeChRate(msg()))
+
   const state = createMemo(() => {
     const msgs = msg()
-    const last = msgs.findLast((item): item is AssistantMessage => item.role === "assistant" && item.tokens.output > 0)
-    if (!last) {
-      return {
-        tokens: 0,
-        percent: null,
-        limit: null,
-        compacting: isCompacting(),
-      }
-    }
-
-    let tokens =
-      last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
-    const model = props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
-    const win = Model.contextWindow(props.api.state.config, last.providerID, last.modelID, model)
+    // Full-session token usage: persisted counters for completed assistant
+    // messages, plus live estimation for in-flight messages when busy.
+    // This is the true context-window occupancy, not just the last message.
+    let tokens = persistedTokens(msgs)
     if (isBusy()) {
       tick() // 忙碌态由 2s 节流驱动实时估算
       // Only in-flight messages are tokenized; completed assistant messages
       // reuse their exact persisted counters, so the 2s refresh never re-runs
       // the tokenizer over the whole (potentially large) conversation.
-      tokens = persistedTokens(msgs)
       for (const message of msgs) {
         if (!(message.role === "assistant" && message.time.completed)) {
           tokens += estimateMessage(message, (id) => props.api.state.part(id))
         }
       }
     }
+    // Anchor for the context window lookup: the last assistant message with
+    // any real token usage (not just output — high-reasoning models like
+    // DeepSeek v4 can have output=0 while reasoning>0).
+    const last = msgs.findLast((item): item is AssistantMessage => item.role === "assistant" && hasTokenUsage(item))
+    const model = last
+      ? props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+      : undefined
+    const win = last ? Model.contextWindow(props.api.state.config, last.providerID, last.modelID, model) : undefined
     return {
       tokens,
       percent: win ? Math.round((tokens / win.effective) * 100) : null,
@@ -172,7 +131,16 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         <text fg={theme().warning}>compacting…</text>
       </Show>
       <text fg={contextColor()}>{state().tokens.toLocaleString()} tokens</text>
-      <text fg={contextColor()}>{state().percent ?? 0}% used</text>
+      <Show when={state().percent !== null}>
+        {(pct) => <text fg={contextColor()}>{pct()}% used</text>}
+      </Show>
+      <Show when={chRate()}>
+        {(r) => (
+          <text fg={r().actual >= r().theory - 5 ? theme().textMuted : theme().warning}>
+            CH {r().actual.toFixed(1)}%
+          </text>
+        )}
+      </Show>
       <Show when={state().limit}>
         {(win) => (
           <text fg={theme().textMuted}>

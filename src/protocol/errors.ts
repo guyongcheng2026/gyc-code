@@ -109,3 +109,7 @@ export class PtyNotFoundError extends Schema.TaggedErrorClass<PtyNotFoundError>(
   },
   { httpApiStatus: 404 },
 ) {}
+
+export function makeErrorRef(): string {
+  return `err_${crypto.randomUUID().slice(0, 8)}`
+}

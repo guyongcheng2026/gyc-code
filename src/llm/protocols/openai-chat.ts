@@ -118,6 +118,10 @@ const OpenAIChatUsage = Schema.Struct({
   prompt_tokens: Schema.optional(Schema.Number),
   completion_tokens: Schema.optional(Schema.Number),
   total_tokens: Schema.optional(Schema.Number),
+  // DeepSeek automatic context caching reports hit/miss tokens as top-level
+  // usage fields (not the OpenAI-native prompt_tokens_details.cached_tokens).
+  prompt_cache_hit_tokens: Schema.optional(Schema.Number),
+  prompt_cache_miss_tokens: Schema.optional(Schema.Number),
   prompt_tokens_details: optionalNull(
     Schema.Struct({
       cached_tokens: Schema.optional(Schema.Number),
@@ -386,12 +390,13 @@ const mapFinishReason = (reason: string | null | undefined): FinishReason => {
 
 // OpenAI Chat reports `prompt_tokens` (inclusive total) with a
 // `cached_tokens` subset, and `completion_tokens` (inclusive total) with
-// a `reasoning_tokens` subset. We pass the inclusive totals through and
-// derive the non-cached breakdown so the `LLM.Usage` contract is
-// satisfied on both sides.
+// a `reasoning_tokens` subset. DeepSeek's OpenAI-compatible endpoint instead
+// reports `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens` top-level.
+// We pass the inclusive totals through and derive the non-cached breakdown so
+// the `LLM.Usage` contract is satisfied on both sides.
 const mapUsage = (usage: OpenAIChatEvent["usage"]): Usage | undefined => {
   if (!usage) return undefined
-  const cached = usage.prompt_tokens_details?.cached_tokens
+  const cached = usage.prompt_tokens_details?.cached_tokens ?? usage.prompt_cache_hit_tokens
   const reasoning = usage.completion_tokens_details?.reasoning_tokens
   const nonCached = ProviderShared.subtractTokens(usage.prompt_tokens, cached)
   return new Usage({

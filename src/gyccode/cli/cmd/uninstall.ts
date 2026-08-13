@@ -8,6 +8,7 @@ import path from "path"
 import os from "os"
 import { Filesystem } from "@/util/filesystem"
 import { Process } from "@/util/process"
+import { withHomeTilde } from "@/util/path-display"
 
 interface UninstallArgs {
   keepConfig: boolean
@@ -116,15 +117,15 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
     const status = dir.keep ? UI.Style.TEXT_DIM + "(keeping)" : ""
     const prefix = dir.keep ? "○" : "✓"
 
-    prompts.log.info(`  ${prefix} ${dir.label}: ${shortenPath(dir.path)} ${UI.Style.TEXT_DIM}(${sizeStr})${status}`)
+    prompts.log.info(`  ${prefix} ${dir.label}: ${withHomeTilde(dir.path)} ${UI.Style.TEXT_DIM}(${sizeStr})${status}`)
   }
 
   if (targets.binary) {
-    prompts.log.info(`  ✓ Binary: ${shortenPath(targets.binary)}`)
+    prompts.log.info(`  ✓ Binary: ${withHomeTilde(targets.binary)}`)
   }
 
   if (targets.shellConfig) {
-    prompts.log.info(`  ✓ Shell PATH in ${shortenPath(targets.shellConfig)}`)
+    prompts.log.info(`  ✓ Shell PATH in ${withHomeTilde(targets.shellConfig)}`)
   }
 
   if (method !== "curl" && method !== "unknown") {
@@ -342,12 +343,4 @@ function formatSize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
-}
-
-function shortenPath(p: string): string {
-  const home = os.homedir()
-  if (p.startsWith(home)) {
-    return p.replace(home, "~")
-  }
-  return p
 }

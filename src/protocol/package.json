@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "@gyccode/protocol",
   "exports": {
     "./plugin/v2/effect/integration": "./plugin/v2/effect/integration.js",
@@ -6,11 +6,12 @@
     "./plugin/v2/effect": "./plugin/v2/effect/index.js",
     "./plugin/v2/promise": "./plugin/v2/promise/index.js",
     "./plugin": "./plugin/index.js",
-    "./plugin/*": "./plugin/*",
+    "./plugin/*": "./plugin/*.js",
     "./v1": "./v1/index.ts",
     "./v1/*": "./v1/*",
     "./v2": "./v2/index.ts",
     "./v2/*": "./v2/*",
+    "./v2/gen/*": "./v2/gen/*.ts",
     "./*": "./*.ts"
   },
   "type": "module"

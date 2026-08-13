@@ -53,14 +53,6 @@ describe("ShardCache", () => {
     expect(cache.get("semi")).toBeUndefined()
   })
 
-  it("buildPrompt joins tiers in static, semi, dynamic order", () => {
-    const cache = new ShardCache()
-    cache.set({ tier: "dynamic" as ShardTier, content: "dyn", hash: hashShard("dyn") })
-    cache.set({ tier: "static" as ShardTier, content: "stat", hash: hashShard("stat") })
-    cache.set({ tier: "semi" as ShardTier, content: "semi", hash: hashShard("semi") })
-    expect(cache.buildPrompt()).toBe("stat\n\nsemi\n\ndyn")
-  })
-
   it("buildSystem returns parts in static, semi, dynamic order", () => {
     const cache = new ShardCache()
     cache.set({ tier: "static" as ShardTier, content: "stat", hash: hashShard("stat") })

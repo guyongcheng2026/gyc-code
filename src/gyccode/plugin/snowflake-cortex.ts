@@ -1,6 +1,7 @@
 import type { Hooks, PluginInput } from "@gyccode/protocol/plugin"
 import { OAUTH_DUMMY_KEY } from "../auth"
 import { InstallationVersion } from "@gyccode/core/installation/version"
+import { generatePKCE, generateRandomString } from "@gyccode/core/util/pkce"
 import { OauthCallbackPage } from "@gyccode/core/oauth/page"
 import { createServer } from "http"
 import open from "open"
@@ -41,27 +42,6 @@ function normalizeAccount(input: string) {
     .replace(/^https?:\/\//, "")
     .replace(/\.snowflakecomputing\.com\/?$/, "")
     .replace(/\/+$/, "")
-}
-
-function generateRandomString(length: number) {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
-  return Array.from(crypto.getRandomValues(new Uint8Array(length)))
-    .map((b) => chars[b % chars.length])
-    .join("")
-}
-
-function base64UrlEncode(buffer: ArrayBuffer) {
-  const binary = String.fromCharCode(...new Uint8Array(buffer))
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
-}
-
-async function generatePKCE(): Promise<PkceCodes> {
-  const verifier = generateRandomString(64)
-  const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier))
-  return {
-    verifier,
-    challenge: base64UrlEncode(hash),
-  }
 }
 
 function callbackUrl() {
@@ -465,7 +445,7 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
             if (!account) throw new Error("Snowflake account is required")
 
             await startOAuthServer()
-            const pkce = await generatePKCE()
+            const pkce = await generatePKCE(64)
             const state = generateRandomString(64)
             const role = (inputs.role || "").trim() || undefined
             const url = buildAuthorizeUrl(account, role, state, pkce)

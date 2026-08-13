@@ -1,15 +1,8 @@
 import { Effect } from "effect"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
 import { InvalidRequestError } from "@gyccode/protocol/errors"
-import { SchemaErrorMiddleware } from "@gyccode/protocol/middleware/schema-error"
+import { SchemaErrorMiddleware, truncateReason } from "@gyccode/protocol/middleware/schema-error"
 export { SchemaErrorMiddleware } from "@gyccode/protocol/middleware/schema-error"
-
-const REASON_LIMIT = 1024
-
-function truncateReason(reason: string) {
-  if (reason.length <= REASON_LIMIT) return reason
-  return reason.slice(0, REASON_LIMIT) + `... (${reason.length - REASON_LIMIT} more chars)`
-}
 
 export const schemaErrorLayer = HttpApiMiddleware.layerSchemaErrorTransform(SchemaErrorMiddleware, (error) => {
   const reason = truncateReason(error.cause.message)

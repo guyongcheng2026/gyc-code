@@ -1,5 +1,6 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
+import { base64Size as mcpResourceBase64Size, formatBytes as formatMcpResourceBytes } from "./resource-format"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import path from "path"
 import { SessionV1 } from "@gyccode/core/v1/session"
@@ -135,7 +136,7 @@ function buildSemiStaticPrompt(env: string[], mcpInstructions: string | undefine
   const joined = content.join("\n")
   const h = hashShard(joined)
   const cached = shardCache.get("semi")
-  if (cached?.hash === h) return cached.segments
+  if (cached?.hash === h) return cached.segments ?? []
   const shard = { tier: "semi" as const, content: joined, hash: h, segments: content }
   shardCache.set(shard)
   return content
@@ -162,18 +163,6 @@ export function clearPromptCache(): void {
 
 export function invalidateAllPromptCache(): void {
   shardCache.invalidate()
-}
-
-function mcpResourceBase64Size(value: string) {
-  const trimmed = value.replace(/\s/g, "")
-  const padding = trimmed.endsWith("==") ? 2 : trimmed.endsWith("=") ? 1 : 0
-  return Math.max(0, Math.floor((trimmed.length * 3) / 4) - padding)
-}
-
-function formatMcpResourceBytes(value: number) {
-  if (value < 1024) return `${value} B`
-  if (value < 1024 * 1024) return `${Math.ceil(value / 1024)} KB`
-  return `${Math.ceil(value / (1024 * 1024))} MB`
 }
 
 function isOrphanedInterruptedTool(part: SessionV1.ToolPart) {

@@ -8,13 +8,13 @@ import { ModelsDev } from "@gyccode/core/models-dev"
 
 import { map, pipe, sortBy, values } from "remeda"
 import path from "path"
-import os from "os"
 import { Config } from "@/config/config"
 import { Global } from "@gyccode/core/global"
 import { Plugin } from "../../plugin"
 import type { Hooks } from "@gyccode/protocol/plugin"
 import { Process } from "@/util/process"
 import { errorMessage } from "@/util/error"
+import { withHomeTilde } from "@/util/path-display"
 import { text } from "node:stream/consumers"
 import { Effect, Option } from "effect"
 
@@ -257,8 +257,7 @@ export const ProvidersListCommand = effectCmd({
 
     UI.empty()
     const authPath = path.join(Global.Path.data, "auth.json")
-    const homedir = os.homedir()
-    const displayPath = authPath.startsWith(homedir) ? authPath.replace(homedir, "~") : authPath
+    const displayPath = withHomeTilde(authPath)
     yield* Prompt.intro(`Credentials ${UI.Style.TEXT_DIM}${displayPath}`)
     const results = Object.entries(yield* Effect.orDie(authSvc.all()))
     const database = yield* modelsDev.get()

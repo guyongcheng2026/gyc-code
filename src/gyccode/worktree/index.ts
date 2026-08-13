@@ -9,6 +9,7 @@ import { ProjectTable } from "@gyccode/core/project/sql"
 import type { ProjectV2 } from "@gyccode/core/project"
 import { Slug } from "@gyccode/core/util/slug"
 import { errorMessage } from "../util/error"
+import { slugify } from "@/util/slug"
 import { GlobalBus } from "@/bus/global"
 import { Git } from "@/git"
 import { Effect, Layer, Path, Schema, Scope, Context } from "effect"
@@ -87,15 +88,6 @@ export type Error =
   | RemoveFailedError
   | ResetFailedError
   | ListFailedError
-
-function slugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "")
-}
 
 function failedRemoves(...chunks: string[]) {
   return chunks.filter(Boolean).flatMap((chunk) =>

@@ -141,7 +141,7 @@ const layer = Layer.effect(
           baseUrl: serverUrl?.toString() ?? "http://localhost:4096",
           directory: ctx.directory,
           headers: ServerAuth.headers(),
-          ...(serverUrl ? {} : { fetch: async (...args) => Server.Default().app.fetch(...args) }),
+          ...(serverUrl ? {} : { fetch: (input: string | URL | Request, init?: RequestInit) => Server.Default().app.request(input, init) }),
         })
         const cfg = yield* config.get()
         const input: PluginInput = {

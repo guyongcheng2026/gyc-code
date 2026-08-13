@@ -3,7 +3,7 @@ import { SessionV2 } from "@gyccode/core/session"
 import { Effect, Schema } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { Api } from "../api"
-import { InvalidCursorError, SessionNotFoundError, UnknownError } from "@gyccode/protocol/errors"
+import { InvalidCursorError, makeErrorRef, SessionNotFoundError, UnknownError } from "@gyccode/protocol/errors"
 
 const DefaultMessagesLimit = 50
 
@@ -55,7 +55,7 @@ export const MessageHandler = HttpApiBuilder.group(Api, "server.message", (handl
               ),
             ),
             Effect.catchTag("Session.MessageDecodeError", (error) => {
-              const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+              const ref = makeErrorRef()
               return Effect.logError("failed to decode session message").pipe(
                 Effect.annotateLogs({ ref, sessionID: error.sessionID, messageID: error.messageID }),
                 Effect.andThen(

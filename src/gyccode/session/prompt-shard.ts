@@ -59,9 +59,4 @@ export class ShardCache {
     if (extra) parts.push(...extra)
     return parts
   }
-
-  /** Join cached shard contents into a single diagnostic string. */
-  buildPrompt(): string {
-    return this.buildSystem().join("\n\n")
-  }
 }

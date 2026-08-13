@@ -1,6 +1,6 @@
 export * as VariantPlugin from "./variant"
 
-import type { ModelV2Info } from "@gyccode/protocol/v2/types.gen"
+import type { ModelV2Info } from "@gyccode/protocol/v2/gen/types.gen"
 import { Effect } from "effect"
 import { define } from "./internal"
 
@@ -14,11 +14,11 @@ export const Plugin = define({
             const generated = generate(draft)
             if (generated.length === 0) return
 
-            const explicit = new Map(draft.variants.map((variant) => [variant.id, variant]))
-            const generatedIDs = new Set(generated.map((variant) => variant.id))
+            const explicit = new Map(draft.variants.map((variant: NonNullable<ModelV2Info["variants"]>[number]) => [variant.id, variant]))
+            const generatedIDs = new Set(generated.map((variant: NonNullable<ModelV2Info["variants"]>[number]) => variant.id))
             draft.variants = [
-              ...generated.map((variant) => explicit.get(variant.id) ?? variant),
-              ...draft.variants.filter((variant) => !generatedIDs.has(variant.id)),
+              ...generated.map((variant: NonNullable<ModelV2Info["variants"]>[number]) => explicit.get(variant.id) ?? variant),
+              ...draft.variants.filter((variant: NonNullable<ModelV2Info["variants"]>[number]) => !generatedIDs.has(variant.id)),
             ]
           })
         }

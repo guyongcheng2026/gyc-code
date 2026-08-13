@@ -7,7 +7,7 @@ import { GyccodeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "../v2/error-interceptor.js"
 export { GyccodeClient }
 
-function pick(value, fallback) {
+function pick(value: string | null, fallback: string | undefined) {
   if (!value) return
   if (!fallback) return value
   if (value === fallback) return fallback
@@ -15,7 +15,7 @@ function pick(value, fallback) {
   return value
 }
 
-function rewrite(request, directory) {
+function rewrite(request: Request, directory: string | undefined) {
   if (request.method !== "GET" && request.method !== "HEAD") return request
   const value = pick(request.headers.get("x-gyccode-directory"), directory)
   if (!value) return request
@@ -28,9 +28,9 @@ function rewrite(request, directory) {
   return next
 }
 
-export function createGyccodeClient(config) {
+export function createGyccodeClient(config: Record<string, any>) {
   if (!config?.fetch) {
-    const customFetch = (req) => {
+    const customFetch = (req: Request) => {
       // @ts-ignore
       req.timeout = false
       return fetch(req)
@@ -47,8 +47,8 @@ export function createGyccodeClient(config) {
     }
   }
   const client = createClient(config)
-  client.interceptors.request.use((request) => rewrite(request, config?.directory))
-  client.interceptors.response.use((response) => {
+  client.interceptors.request.use((request: Request) => rewrite(request, config?.directory))
+  client.interceptors.response.use((response: Response) => {
     const contentType = response.headers.get("content-type")
     if (contentType === "text/html")
       throw new Error("Request is not supported by this version of gyc-code Server (Server responded with text/html)")

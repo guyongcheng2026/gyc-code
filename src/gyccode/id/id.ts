@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto"
+﻿import { create as createIdentifier } from "@gyccode/schema/identifier"
 
 const prefixes = {
   job: "job",
@@ -12,12 +12,6 @@ const prefixes = {
   tool: "tool",
   workspace: "wrk",
 } as const
-
-const LENGTH = 26
-
-// State for monotonic ID generation
-let lastTimestamp = 0
-let counter = 0
 
 export function ascending(prefix: keyof typeof prefixes, given?: string) {
   return generateID(prefix, "ascending", given)
@@ -38,44 +32,8 @@ function generateID(prefix: keyof typeof prefixes, direction: "descending" | "as
   return given
 }
 
-function randomBase62(length: number): string {
-  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-  let result = ""
-  // 拒绝采样：256 % 62 = 8，丢弃 [248, 256) 的字节以消除模偏差
-  const bytes = randomBytes(length)
-  for (let i = 0; i < length; i++) {
-    let byte = bytes[i]
-    while (byte >= 248) byte = randomBytes(1)[0]!
-    result += chars[byte % 62]
-  }
-  return result
-}
-
 export function create(prefix: string, direction: "descending" | "ascending", timestamp?: number): string {
-  const currentTimestamp = timestamp ?? Date.now()
-
-  // 同毫秒内最多 4096 个 ID（12bit 计数器空间）。超限时进位到下一毫秒，
-  // 保证 timestamp() 反解出的毫秒值始终单调（不随 counter 溢出污染时间字段）。
-  if (currentTimestamp > lastTimestamp) {
-    lastTimestamp = currentTimestamp
-    counter = 0
-  }
-  counter++
-  if (counter > 0xfff) {
-    counter = 0
-    lastTimestamp++
-  }
-
-  let now = BigInt(lastTimestamp) * BigInt(0x1000) + BigInt(counter)
-
-  now = direction === "descending" ? ~now : now
-
-  const timeBytes = Buffer.alloc(6)
-  for (let i = 0; i < 6; i++) {
-    timeBytes[i] = Number((now >> BigInt(40 - 8 * i)) & BigInt(0xff))
-  }
-
-  return prefix + "_" + timeBytes.toString("hex") + randomBase62(LENGTH - 12)
+  return prefix + "_" + createIdentifier(direction === "descending", timestamp)
 }
 
 /** Extract timestamp from an ascending ID. Does not work with descending IDs. */

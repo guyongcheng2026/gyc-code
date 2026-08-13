@@ -1,5 +1,6 @@
 import { NamedError } from "@gyccode/core/util/error"
 import { ConfigErrorV1 } from "@gyccode/core/v1/config/error"
+import { makeErrorRef } from "@gyccode/protocol/errors"
 import { Cause, Effect } from "effect"
 import { HttpRouter, HttpServerError, HttpServerRespondable, HttpServerResponse } from "effect/unstable/http"
 
@@ -25,7 +26,7 @@ export const errorLayer = HttpRouter.middleware<{ handles: unknown }>()((effect)
         return Effect.succeed(HttpServerResponse.jsonUnsafe(error.toObject(), { status: 400 }))
       }
 
-      const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+      const ref = makeErrorRef()
 
       return Effect.logError("failed", { ref, error, cause: Cause.pretty(cause) }).pipe(
         Effect.as(

@@ -1,5 +1,5 @@
 import { define } from "./internal"
-import type { ModelV2Info } from "@gyccode/protocol/v2/types.gen"
+import type { ModelV2Info } from "@gyccode/protocol/v2/gen/types.gen"
 import { Effect, Stream } from "effect"
 import { EventV2 } from "../event"
 import { ModelsDev } from "../models-dev"

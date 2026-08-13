@@ -2,7 +2,7 @@ import { Duration, Effect, Schema, Semaphore, Stream } from "effect"
 import type { Scope } from "effect"
 import type { IntegrationOAuthMethodRegistration } from "@gyccode/protocol/plugin/v2/effect/integration"
 import { define } from "@gyccode/protocol/plugin/v2/effect/plugin"
-import type { CredentialValue } from "@gyccode/protocol/v2/types.gen"
+import type { CredentialValue, ModelCost } from "@gyccode/protocol/v2/gen/types.gen"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 import { EventV2 } from "../../event"
 import { Credential } from "../../credential"
@@ -177,7 +177,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
       })
       if (hasKey) return
       for (const model of item.models.values()) {
-        if (!model.cost.some((cost) => cost.input > 0)) continue
+        if (!model.cost.some((cost: ModelCost) => cost.input > 0)) continue
         catalog.model.update(item.provider.id, model.id, (draft) => {
           draft.enabled = false
         })

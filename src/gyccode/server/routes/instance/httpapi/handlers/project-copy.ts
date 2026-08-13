@@ -3,6 +3,7 @@ import { Provider } from "@/provider/provider"
 import { LLM } from "@/session/llm"
 import { MessageID, SessionID } from "@/session/schema"
 import { Slug } from "@gyccode/core/util/slug"
+import { slugify } from "@/util/slug"
 import { LLMEvent } from "@gyccode/llm"
 import { Effect, Stream } from "effect"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
@@ -72,12 +73,3 @@ export const projectCopyHandlers = HttpApiBuilder.group(InstanceHttpApi, "projec
     )
   }),
 )
-
-function slugify(input: string) {
-  return input
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "")
-}

@@ -1,4 +1,4 @@
-import { SessionV2 } from "@gyccode/core/session"
+﻿import { SessionV2 } from "@gyccode/core/session"
 import { DateTime, Effect, Stream } from "effect"
 import { HttpApiBuilder, HttpApiSchema } from "effect/unstable/httpapi"
 import { Api } from "../api"
@@ -6,6 +6,7 @@ import { SessionsCursor } from "@gyccode/protocol/groups/session"
 import {
   ConflictError,
   InvalidCursorError,
+  makeErrorRef,
   MessageNotFoundError,
   ServiceUnavailableError,
   SessionNotFoundError,
@@ -253,7 +254,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                   }),
               ),
               Effect.catchTag("Snapshot.Error", (error) => {
-                const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+                const ref = makeErrorRef()
                 return Effect.logError("failed to stage session revert", { cause: error }).pipe(
                   Effect.andThen(
                     Effect.fail(
@@ -282,7 +283,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 }),
             ),
             Effect.catchTag("Snapshot.Error", (error) => {
-              const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+              const ref = makeErrorRef()
               return Effect.logError("failed to clear session revert", { cause: error }).pipe(
                 Effect.andThen(
                   Effect.fail(
@@ -328,7 +329,7 @@ export const SessionHandler = HttpApiBuilder.group(Api, "server.session", (handl
                 ),
               ),
               Effect.catchTag("Session.MessageDecodeError", (error) => {
-                const ref = `err_${crypto.randomUUID().slice(0, 8)}`
+                const ref = makeErrorRef()
                 return Effect.logError("failed to decode session message").pipe(
                   Effect.annotateLogs({ ref, sessionID: error.sessionID, messageID: error.messageID }),
                   Effect.andThen(

@@ -71,9 +71,13 @@ describe("Instruction.system @include expansion", () => {
       } as any),
       Effect.provide(
         Layer.provideMerge(
-          LayerNode.compile(Instruction.node),
-          fakeConfig,
-          Global.layerWith({ home: dir, config: dir, data: dir, cache: dir, state: dir, tmp: dir, bin: dir, log: dir, repos: dir }),
+          Layer.provideMerge(
+            Layer.provideMerge(
+              LayerNode.compile(Instruction.node),
+              fakeConfig,
+            ),
+            Global.layerWith({ home: dir, config: dir, data: dir, cache: dir, state: dir, tmp: dir, bin: dir, log: dir, repos: dir }),
+          ),
           fakeBridge,
         ),
       ),

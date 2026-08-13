@@ -1,6 +1,7 @@
 import { createServer } from "node:http"
 import type { IntegrationOAuthMethodRegistration } from "@gyccode/protocol/plugin/v2/effect/integration"
 import { define } from "@gyccode/protocol/plugin/v2/effect/plugin"
+import { base64UrlEncode, generatePKCE } from "../../util/pkce"
 import { Deferred, Effect } from "effect"
 import type { Scope } from "effect"
 import { Credential } from "../../credential"
@@ -45,7 +46,7 @@ const browser = {
   },
   authorize: () =>
     Effect.gen(function* () {
-      const pkce = yield* Effect.promise(generatePKCE)
+      const pkce = yield* Effect.promise(() => generatePKCE())
       const state = base64UrlEncode(crypto.getRandomValues(new Uint8Array(32)).buffer)
       const code = yield* Deferred.make<string, Error>()
       const redirect = `http://localhost:${callbackPort}/auth/callback`
@@ -244,17 +245,6 @@ function credential(methodID: Integration.MethodID, tokens: TokenResponse) {
     expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
     metadata: accountID ? { accountID } : undefined,
   })
-}
-
-async function generatePKCE(): Promise<Pkce> {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~"
-  const verifier = Array.from(crypto.getRandomValues(new Uint8Array(43)), (byte) => chars[byte % chars.length]).join("")
-  const challenge = base64UrlEncode(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)))
-  return { verifier, challenge }
-}
-
-function base64UrlEncode(buffer: ArrayBuffer) {
-  return Buffer.from(buffer).toString("base64url")
 }
 
 function authorizeURL(redirect: string, pkce: Pkce, state: string) {

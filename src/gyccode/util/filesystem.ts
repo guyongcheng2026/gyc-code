@@ -1,8 +1,7 @@
 import { chmod, mkdir, readFile, stat as statFile, writeFile } from "fs/promises"
 import { stripBom } from "@gyccode/core/util/text-encoding"
 import { createWriteStream, existsSync, statSync } from "fs"
-import { realpathSync } from "fs"
-import { dirname, isAbsolute, join, resolve as pathResolve, win32 } from "path"
+import { dirname, isAbsolute, join, resolve as pathResolve } from "path"
 import { Readable } from "stream"
 import { pipeline } from "stream/promises"
 import { Glob } from "@gyccode/core/util/glob"
@@ -114,35 +113,18 @@ export async function mimeType(p: string): Promise<string> {
  * may return paths with different casing than what we send them.
  */
 export function normalizePath(p: string): string {
-  if (process.platform !== "win32") return p
-  const resolved = win32.normalize(win32.resolve(windowsPath(p)))
-  try {
-    return realpathSync.native(resolved)
-  } catch {
-    return resolved
-  }
+  return FSUtil.normalizePath(p)
 }
 
 export function normalizePathPattern(p: string): string {
-  if (process.platform !== "win32") return p
-  if (p === "*") return p
-  const match = p.match(/^(.*)[\\/]\*$/)
-  if (!match) return normalizePath(p)
-  const dir = /^[A-Za-z]:$/.test(match[1]) ? match[1] + "\\" : match[1]
-  return join(normalizePath(dir), "*")
+  return FSUtil.normalizePathPattern(p)
 }
 
 // We cannot rely on path.resolve() here because git.exe may come from Git Bash, Cygwin, or MSYS2, so we need to translate these paths at the boundary.
 // Also resolves symlinks so that callers using the result as a cache key
 // always get the same canonical path for a given physical directory.
 export function resolve(p: string): string {
-  const resolved = pathResolve(windowsPath(p))
-  try {
-    return normalizePath(realpathSync(resolved))
-  } catch (e) {
-    if (isEnoent(e)) return normalizePath(resolved)
-    throw e
-  }
+  return FSUtil.resolve(p)
 }
 
 export function resolveFilePath(root: string, file: string): string {
@@ -152,17 +134,7 @@ export function resolveFilePath(root: string, file: string): string {
 }
 
 export function windowsPath(p: string): string {
-  if (process.platform !== "win32") return p
-  return (
-    p
-      .replace(/^\/([a-zA-Z]):(?:[\\/]|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
-      // Git Bash for Windows paths are typically /<drive>/...
-      .replace(/^\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
-      // Cygwin git paths are typically /cygdrive/<drive>/...
-      .replace(/^\/cygdrive\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
-      // WSL paths are typically /mnt/<drive>/...
-      .replace(/^\/mnt\/([a-zA-Z])(?:\/|$)/, (_, drive) => `${drive.toUpperCase()}:/`)
-  )
+  return FSUtil.windowsPath(p)
 }
 export function overlaps(a: string, b: string) {
   return FSUtil.overlaps(a, b)
