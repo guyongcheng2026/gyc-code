@@ -571,3 +571,6 @@
 
 - [OK] 2026-08-13 [1b8aa05] 品牌化：补漏11处——gen注释小写opencode 5处、Claude Code跨行1处、可中性化注释5处
   - [FILES] 9: src/core/model.ts, src/core/plugin/provider/gyccode.ts, src/gyccode/provider/transform.ts, src/gyccode/session/llm/context-1m.ts, src/gyccode/session/llm/context-management.ts, src/protocol/v2/error-interceptor.ts ...
+
+- [OK] 2026-08-13 [9160bab] 自主化P0/P1：第三方服务默认值切自建(账号8787/分享8788/UI占位/OIDC去默认报错)，插件市场接线(PluginEntry改名+plugin search/list子命令)
+  - [FILES] 9: src/core/models-dev.ts, src/core/plugin/provider/gyccode.ts, src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/github.handler.ts, src/gyccode/cli/cmd/import.ts, src/gyccode/cli/cmd/plug.ts ...
