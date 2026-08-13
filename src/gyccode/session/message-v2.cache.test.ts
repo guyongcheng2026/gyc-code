@@ -1,11 +1,11 @@
 ﻿import { expect, test } from "bun:test"
 import { aggregateToolCaps, resetTruncationDecisions, cacheFriendlyBudget } from "./message-v2"
 
-function toolPart(callID: string, output: string) {
+function toolPart(callID: string, output: string, tool: string = "bash") {
   return {
     type: "tool",
     callID,
-    tool: "bash",
+    tool,
     state: { status: "completed", input: {}, output, title: "t", metadata: {}, time: { start: 0, end: 1 } },
   } as any
 }
@@ -86,9 +86,25 @@ test("aggregateToolCaps freezes maxPerChar decisions across repeated calls", () 
   expect(caps2.get("c2")).toBe(300)
 })
 
-test("cacheFriendlyBudget applies only to small context windows", () => {
+test("aggregateToolCaps applies tool-type-aware caps for structured tools", () => {
+  resetTruncationDecisions()
+  // read 工具（结构化输出）：大窗口下收窄到 4K
+  const parts = [toolPart("c-read", "x".repeat(10_000), "read")]
+  const caps = aggregateToolCaps(parts as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })
+  expect(caps!.get("c-read")).toBe(4_000)
+  // bash 工具（命令输出）：保留 8K
+  const parts2 = [toolPart("c-bash", "y".repeat(10_000), "bash")]
+  const caps2 = aggregateToolCaps(parts2 as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })
+  expect(caps2!.get("c-bash")).toBe(8_000)
+})
+
+test("cacheFriendlyBudget applies tiered budgets by context window", () => {
+  // 小窗口（≤200K）：严格预算
   expect(cacheFriendlyBudget(128_000)).toEqual({ maxPerChar: 1_500, maxTotalChars: 24_000 })
   expect(cacheFriendlyBudget(200_000)).toEqual({ maxPerChar: 1_500, maxTotalChars: 24_000 })
-  expect(cacheFriendlyBudget(1_000_000)).toBeUndefined()
+  // 大窗口（200K~1M）：宽松预算（deepseek-v4-flash 实测 1M 窗口，需控制每轮增量）
+  expect(cacheFriendlyBudget(1_000_000)).toEqual({ maxPerChar: 8_000, maxTotalChars: 100_000 })
+  // 超大窗口（>1M）：不额外收紧
+  expect(cacheFriendlyBudget(2_000_000)).toBeUndefined()
   expect(cacheFriendlyBudget(undefined)).toBeUndefined()
 })

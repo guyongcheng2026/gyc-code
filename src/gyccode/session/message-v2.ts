@@ -64,11 +64,42 @@ export const CACHE_FRIENDLY_TOOL_CHARS = 1_500
 export const CACHE_FRIENDLY_AGGREGATE_CHARS = 24_000
 export const CACHE_FRIENDLY_CONTEXT_LIMIT = 200_000
 
-/** 按模型上下文窗口返回缓存友好预算；大窗口模型不额外收紧（返回 undefined）。 */
+// 大窗口模型（200K~1M）宽松预算：单条 8K 字符（约 2K token）、合计 100K 字符。
+// 实测 deepseek-v4-flash(1M 窗口) 若完全不截断，读文件工具结果可达 14.6K token，
+// 首轮未命中成本巨大且每轮增量不可控；施加宽松截断后单条最大 2K token，
+// 既保留工具输出关键信息，又让增量/前缀稳定可控。
+export const CACHE_FRIENDLY_TOOL_CHARS_LARGE = 8_000
+export const CACHE_FRIENDLY_AGGREGATE_CHARS_LARGE = 100_000
+export const CACHE_FRIENDLY_CONTEXT_LIMIT_LARGE = 1_000_000
+
+/** 按模型上下文窗口返回缓存友好预算；超大窗口（>1M）模型不额外收紧（返回 undefined）。 */
 export function cacheFriendlyBudget(contextLimit: number | undefined) {
-  if (contextLimit === undefined || contextLimit <= 0 || contextLimit > CACHE_FRIENDLY_CONTEXT_LIMIT) return undefined
-  return { maxPerChar: CACHE_FRIENDLY_TOOL_CHARS, maxTotalChars: CACHE_FRIENDLY_AGGREGATE_CHARS }
+  if (contextLimit === undefined || contextLimit <= 0) return undefined
+  if (contextLimit <= CACHE_FRIENDLY_CONTEXT_LIMIT) {
+    // 小窗口（≤200K）：严格预算，每轮增量最小化。
+    return { maxPerChar: CACHE_FRIENDLY_TOOL_CHARS, maxTotalChars: CACHE_FRIENDLY_AGGREGATE_CHARS }
+  }
+  if (contextLimit <= CACHE_FRIENDLY_CONTEXT_LIMIT_LARGE) {
+    // 大窗口（200K~1M）：宽松预算，控制增量同时保留工具关键输出。
+    return { maxPerChar: CACHE_FRIENDLY_TOOL_CHARS_LARGE, maxTotalChars: CACHE_FRIENDLY_AGGREGATE_CHARS_LARGE }
+  }
+  return undefined
 }
+// 工具类型感知的单条上限（大窗口模型）：结构化输出（read/grep/glob）截断安全，
+// 文件内容可分段读取，上限收紧到 4K 字符；bash/其他命令输出可能含关键错误信息，
+// 保留 8K 字符。小窗口模型统一用 CACHE_FRIENDLY_TOOL_CHARS（1.5K）。
+export const TOOL_TYPE_CAPS: Record<string, number> = {
+  read: 4_000,
+  grep: 4_000,
+  glob: 4_000,
+}
+
+function toolTypeCap(tool: string, baseCap: number | undefined): number | undefined {
+  if (baseCap === undefined) return undefined
+  const typed = TOOL_TYPE_CAPS[tool]
+  return typed !== undefined && typed < baseCap ? typed : baseCap
+}
+
 /**
  * Frozen truncation decisions keyed by tool callID. Once a callID has been
  * decided (truncated or kept intact), the decision is recorded here and never
@@ -133,7 +164,8 @@ export function aggregateToolCaps(
     const text = part.state.output
     callIDs.push(callID)
     lens.set(callID, text.length)
-    const cap = maxPerChar !== undefined && text.length > maxPerChar ? maxPerChar : text.length
+    const perChar = toolTypeCap(part.tool, maxPerChar)
+    const cap = perChar !== undefined && text.length > perChar ? perChar : text.length
     caps.set(callID, cap)
     total += cap
   }
@@ -410,7 +442,10 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           if (part.state.status === "completed") {
             const outputText = part.state.time.compacted
               ? "[Old tool result content cleared]"
-              : truncateToolOutput(part.state.output, toolCaps?.get(part.callID) ?? options?.toolOutputMaxChars)
+              : truncateToolOutput(
+                  part.state.output,
+                  toolCaps?.get(part.callID) ?? toolTypeCap(part.tool, options?.toolOutputMaxChars),
+                )
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files
