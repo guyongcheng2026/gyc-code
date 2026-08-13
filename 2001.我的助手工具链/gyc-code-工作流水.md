@@ -538,3 +538,6 @@
 
 - [OK] 2026-08-13 [55c77d6] P1 修复: @include 指令展开失效——withIncludes Effect 未 yield* 被模板字符串转储
   - [FILES] 2: src/gyccode/session/instruction-system-spec.test.ts, src/gyccode/session/instruction.ts
+
+- [OK] 2026-08-13 [d0ba368] 重构: 代码去重精炼批次——PKCE/资源格式化/path-display/slug/context-metrics 提取共享模块 + schema-error 中间件收敛 + id.ts 改用 schema/identifier + DeepSeek CH 缓存 token 解析
+  - [FILES] 43: src/core/config/plugin/provider.ts, src/core/plugin/models-dev.ts, src/core/plugin/provider/gyccode.ts, src/core/plugin/provider/openai.ts, src/core/plugin/variant.ts, src/core/util/pkce.ts ...
