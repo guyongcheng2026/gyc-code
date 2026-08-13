@@ -1,5 +1,5 @@
 ﻿import { Effect } from "effect"
-import type { HermesMemoryEntry } from "./hermes-bridge"
+import type { MemoryEntry } from "./memory-bridge"
 import { deduplicateMemories } from "./extract"
 
 export interface ExtractionConfig {
@@ -10,7 +10,7 @@ export interface ExtractionConfig {
 
 export interface ExtractionInput {
   readonly conversation: string
-  readonly existing: readonly HermesMemoryEntry[]
+  readonly existing: readonly MemoryEntry[]
   readonly config: ExtractionConfig
 }
 
@@ -23,7 +23,7 @@ export type MemorySink = (memories: readonly string[]) => Effect.Effect<number>
 export interface RunOptions {
   readonly extractor: Extractor
   readonly sink: MemorySink
-  readonly existing: readonly HermesMemoryEntry[]
+  readonly existing: readonly MemoryEntry[]
   readonly conversation: string
   readonly config: ExtractionConfig
 }
@@ -49,13 +49,13 @@ export function runExtraction(options: RunOptions): Effect.Effect<string[]> {
   })
 }
 
-/** Default sink: persist into the hermes memory file. */
-export const hermesMemorySink: MemorySink = (memories) =>
+/** Default sink: persist into the memory file. */
+export const memorySink: MemorySink = (memories) =>
   Effect.promise(async () => {
-    const { writeHermesMemoryFile } = await import("./hermes-bridge")
+    const { writeMemoryFile } = await import("./memory-bridge")
     let count = 0
     for (const content of memories) {
-      await writeHermesMemoryFile({ key: `extract_${Date.now()}_${count}`, value: content + "\n" }, true)
+      await writeMemoryFile({ key: `extract_${Date.now()}_${count}`, value: content + "\n" }, true)
       count++
     }
     return count

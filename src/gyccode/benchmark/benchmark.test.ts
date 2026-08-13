@@ -46,9 +46,9 @@ test("03: Provider 配置加载", async () => {
 
 // 4. Memory Bridge 模块
 test("04: Memory Bridge 模块可加载", async () => {
-  const mod = await import("../memory/hermes-bridge")
-  expect(mod.readHermesMemories).toBeDefined()
-  expect(mod.writeHermesMemoryFile).toBeDefined()
+  const mod = await import("../memory/memory-bridge")
+  expect(mod.readMemories).toBeDefined()
+  expect(mod.writeMemoryFile).toBeDefined()
 })
 
 // 5. Composer 模块
@@ -58,9 +58,9 @@ test("05: Composer 模块可加载", async () => {
 })
 
 // 6. Memory Bridge 读取
-test("06: Memory Bridge 读取 Hermes 记忆", async () => {
-  const { readHermesMemories } = await import("../memory/hermes-bridge")
-  const memories = await readHermesMemories()
+test("06: Memory Bridge 读取记忆", async () => {
+  const { readMemories } = await import("../memory/memory-bridge")
+  const memories = await readMemories()
   expect(Array.isArray(memories)).toBe(true)
 })
 

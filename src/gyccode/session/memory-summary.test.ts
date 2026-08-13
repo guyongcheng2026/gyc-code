@@ -1,8 +1,8 @@
 import { expect, test } from "bun:test"
 import { buildMemorySummary, cleanMemoryValue } from "./compaction"
-import type { HermesMemoryEntry } from "../memory/hermes-bridge"
+import type { MemoryEntry } from "../memory/memory-bridge"
 
-function entry(value: string, key = "k"): HermesMemoryEntry {
+function entry(value: string, key = "k"): MemoryEntry {
   return { key, value }
 }
 

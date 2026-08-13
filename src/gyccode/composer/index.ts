@@ -11,7 +11,7 @@ export interface ComposePlan {
 }
 
 export class Composer {
-  static planDir = path.join(process.cwd(), ".hermes", "plans")
+  static planDir = path.join(process.cwd(), ".gyc", "plans")
 
   /** Generate a compose plan from user message */
   static plan(message: string): ComposePlan {
@@ -30,7 +30,7 @@ export class Composer {
     return plan
   }
 
-  /** Write plan file to .hermes/plans/ */
+  /** Write plan file to .gyc/plans/ */
   static writePlan(plan: ComposePlan): string {
     mkdirSync(Composer.planDir, { recursive: true })
     const filePath = path.join(Composer.planDir, `${plan.name}.md`)
@@ -42,7 +42,7 @@ export class Composer {
   /** List available skills from discovery */
   static async listSkills(): Promise<string[]> {
     // Minimal skill discovery — scans for SKILL.md files
-    return ["compose", "hermes-agent", "hermes-gateway-ops", "ecp-work-monitor", "yjpl-code-quality"]
+    return ["compose", "gyc-agent", "gyc-gateway-ops", "ecp-work-monitor", "yjpl-code-quality"]
   }
 }
 

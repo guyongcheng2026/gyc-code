@@ -1,8 +1,8 @@
 ﻿import { expect, test } from "bun:test"
-import { formatMemoriesForPrompt, MEMORY_INJECTION_BUDGET } from "./hermes-bridge"
-import type { HermesMemoryEntry } from "./hermes-bridge"
+import { formatMemoriesForPrompt, MEMORY_INJECTION_BUDGET } from "./memory-bridge"
+import type { MemoryEntry } from "./memory-bridge"
 
-const entry = (v: string): HermesMemoryEntry => ({ key: "memory_0", value: v, tags: [] })
+const entry = (v: string): MemoryEntry => ({ key: "memory_0", value: v, tags: [] })
 
 test("formatMemoriesForPrompt returns undefined for no entries", () => {
   expect(formatMemoriesForPrompt([])).toBeUndefined()

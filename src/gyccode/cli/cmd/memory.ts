@@ -1,5 +1,5 @@
 import { cmd } from "./cmd"
-import { readHermesMemories, writeHermesMemoryFile, syncHermesMemories } from "../../memory/hermes-bridge"
+import { readMemories, writeMemoryFile, syncMemories } from "../../memory/memory-bridge"
 
 export const MemoryCommand = cmd({
   command: "memory",
@@ -10,7 +10,7 @@ export const MemoryCommand = cmd({
         command: "read",
         describe: "read stored memories",
         handler: async () => {
-          const memories = await readHermesMemories()
+          const memories = await readMemories()
           if (memories.length === 0) {
             console.log("No memories found.")
             return
@@ -31,7 +31,7 @@ export const MemoryCommand = cmd({
             .positional("key", { type: "string", demandOption: true, describe: "memory key" })
             .positional("value", { type: "string", array: true, demandOption: true, describe: "memory value" }),
         handler: async (argv) => {
-          await writeHermesMemoryFile({
+          await writeMemoryFile({
             key: argv.key as string,
             value: (argv.value as string[]).join(" "),
           })
@@ -42,7 +42,7 @@ export const MemoryCommand = cmd({
         command: "sync",
         describe: "sync all memories",
         handler: async () => {
-          await syncHermesMemories()
+          await syncMemories()
           console.log("Memories synced.")
         },
       })

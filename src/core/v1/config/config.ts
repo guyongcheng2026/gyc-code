@@ -185,7 +185,7 @@ export const Info = Schema.Struct({
       ),
       session_memory_compaction: Schema.optional(Schema.Boolean).annotate({
         description:
-          "Try a fast compaction path using maintained session/hermes memories before falling back to a full LLM summary call (default: true)",
+          "Try a fast compaction path using maintained session memories before falling back to a full LLM summary call (default: true)",
       }),
       api_context_management: Schema.optional(
         Schema.Struct({

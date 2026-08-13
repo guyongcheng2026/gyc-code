@@ -1,17 +1,24 @@
-// Hermes memory bridge — gyc-cli ↔ Hermes bidirectional sync
+// Memory bridge — gyc-cli 跨会话记忆文件读写（双向同步）
 // Based on @yunguang/memory UnifiedMemoryManager
 
 import { readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 
-const HERMES_MEMORY_PATH = path.join(
-  process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
+const MEMORY_PATH = path.join(
+  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
+  "memory",
+  "gyccode_memory.md",
+)
+
+// 兼容旧文件名：读取时新文件缺失则回退旧文件，写入始终写新名
+const LEGACY_MEMORY_PATH = path.join(
+  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
   "hermes_gyccode_memory.md",
 )
 
-export interface HermesMemoryEntry {
+export interface MemoryEntry {
   key: string
   value: string
   tags?: string[]
@@ -20,10 +27,10 @@ export interface HermesMemoryEntry {
 const SEP = "\n§\n"
 const KEY_PREFIX = "#memory_"
 
-/** Read memory entries from Hermes memory file */
-export async function readHermesMemories(): Promise<HermesMemoryEntry[]> {
+/** Read memory entries from the memory file */
+export async function readMemories(): Promise<MemoryEntry[]> {
   try {
-    const content = await readFile(HERMES_MEMORY_PATH, "utf-8")
+    const content = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
     const blocks = content.split(SEP).filter(Boolean)
     return blocks.map((block, i) => ({
       key: KEY_PREFIX + i,
@@ -65,15 +72,15 @@ async function atomicWriteFile(filePath: string, content: string): Promise<void>
   }
 }
 
-/** Write a single entry to Hermes memory file with dedup and cap enforcement. */
-export async function writeHermesMemoryFile(
-  entry: HermesMemoryEntry,
+/** Write a single entry to the memory file with dedup and cap enforcement. */
+export async function writeMemoryFile(
+  entry: MemoryEntry,
   append = true,
 ): Promise<void> {
-  const existing = await readFile(HERMES_MEMORY_PATH, "utf-8").catch(() => "")
+  const existing = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8")).catch(() => "")
 
   if (!append) {
-    await atomicWriteFile(HERMES_MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
+    await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
     return
   }
 
@@ -93,17 +100,17 @@ export async function writeHermesMemoryFile(
 
   const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
   const content = [...blocks, newBlock].join(SEP) + SEP
-  await atomicWriteFile(HERMES_MEMORY_PATH, content)
+  await atomicWriteFile(MEMORY_PATH, content)
 }
 
-/** Compact Hermes memories: dedup existing entries and enforce the cap. */
-export async function syncHermesMemories(): Promise<HermesMemoryEntry[]> {
-  const entries = await readHermesMemories()
+/** Compact memories: dedup existing entries and enforce the cap. */
+export async function syncMemories(): Promise<MemoryEntry[]> {
+  const entries = await readMemories()
   if (entries.length === 0) return entries
 
   // Dedup by normalized content, keeping the first occurrence.
   const seen = new Set<string>()
-  const unique: HermesMemoryEntry[] = []
+  const unique: MemoryEntry[] = []
   for (const entry of entries) {
     const normalized = normalizeForDedupe(stripKeyHeader(entry.value))
     if (seen.has(normalized)) continue
@@ -114,10 +121,10 @@ export async function syncHermesMemories(): Promise<HermesMemoryEntry[]> {
   // Enforce cap: keep the most recent entries.
   const capped = unique.length > MEMORY_MAX_ENTRIES ? unique.slice(unique.length - MEMORY_MAX_ENTRIES) : unique
 
-  // readHermesMemories returns value = full block (header line included),
+  // readMemories returns value = full block (header line included),
   // so write the values back as-is without prepending another header.
   const content = capped.map((e) => e.value).join(SEP) + SEP
-  await atomicWriteFile(HERMES_MEMORY_PATH, content)
+  await atomicWriteFile(MEMORY_PATH, content)
   return capped
 }
 
@@ -126,16 +133,16 @@ export const MEMORY_INJECTION_BUDGET = 4_096
 
 // 模块级缓存：记忆文件 mtime/size 未变时复用，避免每轮请求重复读盘（低 IO）
 let cachedStat: { mtimeMs: number; size: number } | undefined
-let cachedEntries: HermesMemoryEntry[] | undefined
+let cachedEntries: MemoryEntry[] | undefined
 
-async function readHermesMemoriesCached(): Promise<HermesMemoryEntry[]> {
+async function readMemoriesCached(): Promise<MemoryEntry[]> {
   try {
-    const fileStat = await stat(HERMES_MEMORY_PATH)
+    const fileStat = await stat(MEMORY_PATH)
     if (cachedStat && cachedStat.mtimeMs === fileStat.mtimeMs && cachedStat.size === fileStat.size) {
       return cachedEntries ?? []
     }
     cachedStat = { mtimeMs: fileStat.mtimeMs, size: fileStat.size }
-    cachedEntries = await readHermesMemories()
+    cachedEntries = await readMemories()
     return cachedEntries
   } catch {
     return []
@@ -160,7 +167,7 @@ function tokenizeForSearch(input: string): string[] {
 }
 
 /** 剥离写入时残留的 "#memory_<key>" 首行，只保留实际记忆内容 */
-function cleanEntryValue(entry: HermesMemoryEntry): string {
+function cleanEntryValue(entry: MemoryEntry): string {
   return stripKeyHeader(entry.value)
 }
 
@@ -191,23 +198,23 @@ function filterSearchTerms(terms: string[]): string[] {
  * 停用词不计分。纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
  * 同一会话的连续循环 query 相同，命中结果按 query 短 TTL 缓存，避免重复遍历。
  */
-const searchCache = new Map<string, { time: number; entries: HermesMemoryEntry[] }>()
+const searchCache = new Map<string, { time: number; entries: MemoryEntry[] }>()
 const SEARCH_CACHE_TTL_MS = 30_000
 const SEARCH_CACHE_MAX = 20
 
-export async function searchHermesMemories(query: string, limit = 20): Promise<HermesMemoryEntry[]> {
+export async function searchMemories(query: string, limit = 20): Promise<MemoryEntry[]> {
   const cacheKey = `${query}:${limit}`
   const hit = searchCache.get(cacheKey)
   if (hit && Date.now() - hit.time < SEARCH_CACHE_TTL_MS) return hit.entries
 
-  const entries = await readHermesMemoriesCached()
+  const entries = await readMemoriesCached()
   if (entries.length === 0) return []
 
   const terms = filterSearchTerms(tokenizeForSearch(query))
   if (terms.length === 0) return []
 
   // IDF 统计：每个词出现在多少条记忆里（docFrequency）。语料小（≤200 条），
-  // 每次查询全量扫描一次成本可忽略，且与 readHermesMemoriesCached 共享缓存。
+  // 每次查询全量扫描一次成本可忽略，且与 readMemoriesCached 共享缓存。
   const texts = entries.map((entry) => ({
     entry,
     text: cleanEntryValue(entry).toLowerCase(),
@@ -232,7 +239,7 @@ export async function searchHermesMemories(query: string, limit = 20): Promise<H
     return Math.log(1 + totalDocs / (1 + df))
   }
 
-  const scored: Array<{ entry: HermesMemoryEntry; score: number }> = []
+  const scored: Array<{ entry: MemoryEntry; score: number }> = []
   for (const { entry, text, tags } of texts) {
     let score = 0
     for (const term of terms) {
@@ -256,7 +263,7 @@ export async function searchHermesMemories(query: string, limit = 20): Promise<H
 
 /** Format retrieved memories as a system-prompt segment, capped by budget. */
 export function formatMemoriesForPrompt(
-  entries: readonly HermesMemoryEntry[],
+  entries: readonly MemoryEntry[],
   budget = MEMORY_INJECTION_BUDGET,
   fileAgeMs?: number,
 ): string | undefined {
@@ -292,12 +299,12 @@ export const MEMORY_FRESHNESS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000
 
 
 /**
- * Age of the hermes memory file in milliseconds (undefined when missing).
+ * Age of the memory file in milliseconds (undefined when missing).
  * Used by the system prompt to flag potentially stale memories.
  */
-export async function getHermesMemoryAgeMs(): Promise<number | undefined> {
+export async function getMemoryAgeMs(): Promise<number | undefined> {
   try {
-    const fileStat = await stat(HERMES_MEMORY_PATH)
+    const fileStat = await stat(MEMORY_PATH)
     return Date.now() - fileStat.mtimeMs
   } catch {
     return undefined

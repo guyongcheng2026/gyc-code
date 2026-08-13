@@ -1,5 +1,5 @@
 ﻿import { Effect } from "effect"
-import { readHermesMemories, writeHermesMemoryFile, type HermesMemoryEntry } from "./hermes-bridge"
+import { readMemories, writeMemoryFile, type MemoryEntry } from "./memory-bridge"
 
 export interface ExtractionConfig {
   /** Minimum turns before triggering extraction */
@@ -21,7 +21,7 @@ export function shouldExtract(turnCount: number, config: ExtractionConfig = DEFA
 }
 
 export function deduplicateMemories(
-  existing: readonly HermesMemoryEntry[],
+  existing: readonly MemoryEntry[],
   candidate: string,
 ): boolean {
   const normalized = candidate.toLowerCase().trim()
@@ -31,7 +31,7 @@ export function deduplicateMemories(
   )
 }
 
-export function formatExtractionPrompt(recentConversation: string, existingMemories: readonly HermesMemoryEntry[]): string {
+export function formatExtractionPrompt(recentConversation: string, existingMemories: readonly MemoryEntry[]): string {
   const existingText = existingMemories.length > 0
     ? `\nExisting memories:\n${existingMemories.map((m, i) => `${i + 1}. ${m.value}`).join("\n")}`
     : ""
@@ -59,7 +59,7 @@ export function persistExtractedMemories(
     let count = 0
     for (const content of memories) {
       yield* Effect.promise(() =>
-        writeHermesMemoryFile({
+        writeMemoryFile({
           key: `extract_${Date.now()}_${count}`,
           value: content + "\n",
         }, true)

@@ -25,10 +25,10 @@ import { MCP } from "@/mcp"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import {
   formatMemoriesForPrompt,
-  searchHermesMemories,
-  getHermesMemoryAgeMs,
+  searchMemories,
+  getMemoryAgeMs,
   MEMORY_INJECTION_BUDGET,
-} from "../memory/hermes-bridge"
+} from "../memory/memory-bridge"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("muse-spark")) return [PROMPT_META]
@@ -163,12 +163,12 @@ const layer = Layer.effect(
           memoryCache.delete(sessionID) // expired entry; drop before recompute
         }
         if (!query.trim()) return
-        const entries = yield* Effect.promise(() => searchHermesMemories(query))
+        const entries = yield* Effect.promise(() => searchMemories(query))
         if (entries.length > 0) {
           // Per-turn retrieval detail; DEBUG keeps the default log quiet.
           yield* Effect.logDebug("SystemPrompt.memory", { query: query.slice(0, 80), hits: entries.length })
         }
-        const ageMs = yield* Effect.promise(() => getHermesMemoryAgeMs())
+        const ageMs = yield* Effect.promise(() => getMemoryAgeMs())
         const value = formatMemoriesForPrompt(entries, MEMORY_INJECTION_BUDGET, ageMs)
         // LRU eviction: drop only the least-recently-used entry instead of
         // clearing the whole cache, which would tank the hit rate.

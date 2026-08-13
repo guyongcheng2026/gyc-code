@@ -59,9 +59,9 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { SessionTools } from "./tools"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
-import { readHermesMemories, writeHermesMemoryFile, syncHermesMemories } from "../memory/hermes-bridge"
+import { readMemories, writeMemoryFile, syncMemories } from "../memory/memory-bridge"
 import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
-import { runExtraction, hermesMemorySink, type Extractor } from "../memory/extraction-runner"
+import { runExtraction, memorySink, type Extractor } from "../memory/extraction-runner"
 import { maybeDream, readDreamState, writeDreamState, type DreamSynthesizer } from "../memory/dream-runner"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, hashShard } from "./prompt-shard"
@@ -1378,7 +1378,7 @@ const layer = Layer.effect(
 
           // Cross-session memory extraction: every N turns, asynchronously ask a
           // cheap model to distill durable facts/decisions/learnings from the
-          // recent conversation and persist them to the hermes memory file.
+          // recent conversation and persist them to the memory file.
           // Non-blocking: failures never interrupt the main loop.
           const memoryCfg = (yield* config.get()).memory?.extraction
           if (memoryCfg?.enabled !== false && step % (memoryCfg?.min_turns ?? 3) === 0) {
@@ -1396,7 +1396,7 @@ const layer = Layer.effect(
                 .join(" ")
                 .slice(-2000)
               if (!recent.trim()) return
-              const existing = yield* Effect.promise(() => readHermesMemories())
+              const existing = yield* Effect.promise(() => readMemories())
               const cfg = memoryCfg
               const extractor: Extractor = ({ conversation, existing: ex }) =>
                 Effect.gen(function* () {
@@ -1428,7 +1428,7 @@ const layer = Layer.effect(
                 })
               const result = yield* runExtraction({
                 extractor,
-                sink: hermesMemorySink,
+                sink: memorySink,
                 existing,
                 conversation: recent,
                 config: {
@@ -1441,14 +1441,14 @@ const layer = Layer.effect(
               // Compact the memory file after extraction: dedup normalized
               // content and enforce the entry cap so the file does not grow
               // unboundedly. Failures are swallowed (best-effort maintenance).
-              yield* Effect.promise(() => syncHermesMemories()).pipe(
+              yield* Effect.promise(() => syncMemories()).pipe(
                 Effect.catchCause(() => Effect.logWarning("memory sync failed; skipping compaction")),
               )
               // Dream synthesis: when the accumulated memory volume crosses the
               // threshold, ask the cheap model to synthesize a structured
-              // summary and persist it back to the hermes file. Same LLM path as
+              // summary and persist it back to the memory file. Same LLM path as
               // extraction; failures are swallowed so the main loop is untouched.
-              const dreamEntries = yield* Effect.promise(readHermesMemories)
+              const dreamEntries = yield* Effect.promise(readMemories)
               const dreamState = yield* Effect.promise(readDreamState)
               yield* maybeDream({
                 state: dreamState,
@@ -1484,7 +1484,7 @@ const layer = Layer.effect(
                     return text
                   }),
                 writeMemory: (value) =>
-                  Effect.promise(() => writeHermesMemoryFile({ key: `dream_${Date.now()}`, value }, true)),
+                  Effect.promise(() => writeMemoryFile({ key: `dream_${Date.now()}`, value }, true)),
               })
                 .pipe(
                   Effect.tap((next) => Effect.promise(() => writeDreamState(next))),

@@ -1,5 +1,5 @@
 ﻿import { Effect } from "effect"
-import { readHermesMemories, writeHermesMemoryFile } from "./hermes-bridge"
+import { readMemories, writeMemoryFile } from "./memory-bridge"
 
 export interface DreamConfig {
   /** Hours between dreams */

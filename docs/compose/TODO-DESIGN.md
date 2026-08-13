@@ -17,7 +17,7 @@
 | D3 | **v1/v2 执行器统一** | v1（gyccode/session 433KB）服务 TUI/CLI，v2（core/session/runner 55KB）服务 web；v2 是设计目标但有多项未完成（MCP/plugin 工具解析、snapshot/patch 持久化、title/summary/compaction 维护等） | 是否确认 v2 为统一目标方向并冻结 v1 新功能；分阶段补全 v2 的优先级 | 2026-08-12 架构评估 |
 | D4 | **httpapi 双 API 收敛** | httpapi server.ts 同时注册 instanceRoutes（v1, 19 handlers）+ serverRoutes（v2, 18 handlers），命名空间不同（gyccode-instance vs server），重叠 7 group（event/permission/project-copy/provider/pty/question/session） | 确立 v2 server API 为唯一 web API；v1 独有 group（tui/mcp/file/instance/sync/workspace/experimental/control/control-plane/global/config）在 v2 的等价物梳理与迁移 | 2026-08-12 架构评估 |
 | D5 | **双事件通道 TUI 直连 EventV2** | EventV2→EventV2Bridge→GlobalBus 桥接合理（保持现状）；GlobalBus 是全局 EventEmitter 广播出口 | 是否让 TUI 直接消费 EventV2（绕过 GlobalBus 桥接），以获得类型化事件；当前桥接已满足需求 | 2026-08-12 架构评估 |
-| D6 | **debug 插件内置化** | `control-plane/dev/debug-workspace-plugin.ts` 是 @opencode-ai/plugin 外部 dev 工具，硬编码 /tmp 已改为 os.tmpdir() | 是否内置（加入 plugin/index.ts internalPlugins + RuntimeFlags 开关）；是否加 CLI 快捷命令 | 2026-08-12 架构评估 |
+| D6 | **debug 插件内置化** | `control-plane/dev/debug-workspace-plugin.ts` 是外部 dev 工具插件，硬编码 /tmp 已改为 os.tmpdir() | 是否内置（加入 plugin/index.ts internalPlugins + RuntimeFlags 开关）；是否加 CLI 快捷命令 | 2026-08-12 架构评估 |
 | D7 | **MCP config 加 Ide 类型** | `core/v1/config/mcp.ts` Info = Union([Local, Remote])，无 Ide；`MCPTransportKind` 已含 "ide" 占位（mcp/index.ts:131） | 若 D1 采用"gyccode 作为 MCP server"或"最小启动服务"形态，需加 Ide schema + create() 分支 + CLI --editor/--port 选项；与 D1 联动 | 2026-08-12 架构评估 |
 
 ### ✅ 已决策（历史，供追溯）

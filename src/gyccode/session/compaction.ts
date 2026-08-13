@@ -29,7 +29,7 @@ import {
 } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 import { isAnthropicLike } from "./llm/context-1m"
-import { readHermesMemories, stripKeyHeader, type HermesMemoryEntry } from "../memory/hermes-bridge"
+import { readMemories, stripKeyHeader, type MemoryEntry } from "../memory/memory-bridge"
 
 export const Event = SessionCompactionEvent
 
@@ -170,7 +170,7 @@ function summaryText(message: SessionV1.WithParts) {
   return cleaned || undefined
 }
 
-/** 剥离 hermes 记忆写入时残留的 "#memory_<key>" 首行，只保留实际内容。 */
+/** 剥离 memory 记忆写入时残留的 "#memory_<key>" 首行，只保留实际内容。 */
 export function cleanMemoryValue(value: string): string {
   return stripKeyHeader(value)
 }
@@ -178,12 +178,12 @@ export function cleanMemoryValue(value: string): string {
 /**
  * 会话记忆快速压缩路径（对齐 reference agent trySessionMemoryCompaction）。
  *
- * 用后台已维护的 hermes 记忆直接拼装摘要，免去一次完整 LLM 摘要调用。
+ * 用后台已维护的 memory 记忆直接拼装摘要，免去一次完整 LLM 摘要调用。
  * 纯函数：记忆为空时返回 undefined，调用方回退到 LLM 摘要。
  * 输出包裹 <summary> 标签，与 LLM 摘要格式及 summaryText 解析保持一致。
  */
 export function buildMemorySummary(
-  memories: readonly HermesMemoryEntry[],
+  memories: readonly MemoryEntry[],
   previousSummary?: string,
 ): string | undefined {
   const cleaned = memories.map((m) => cleanMemoryValue(m.value)).filter(Boolean)
@@ -676,12 +676,12 @@ const layer = Layer.effect(
       const nextPrompt = compacting.prompt ?? buildPrompt({ previousSummary, context: compacting.context })
 
       // Session-memory fast compaction path (mirrors reference agent trySessionMemoryCompaction):
-      // if hermes memories are available, build the summary directly from them and
+      // if memories are available, build the summary directly from them and
       // skip the full LLM summary call. Falls through to the LLM path when no
       // memories exist or the feature is disabled.
       let fastPathSummary: string | undefined
       if (cfg.compaction?.session_memory_compaction !== false) {
-        const memories = yield* Effect.promise(() => readHermesMemories())
+        const memories = yield* Effect.promise(() => readMemories())
         fastPathSummary = buildMemorySummary(memories, previousSummary)
         if (fastPathSummary) {
           yield* Effect.logInfo("compaction: using session-memory fast path", {

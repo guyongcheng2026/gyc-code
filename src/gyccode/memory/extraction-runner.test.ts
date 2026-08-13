@@ -1,10 +1,10 @@
 ﻿import { expect, test } from "bun:test"
 import { Effect } from "effect"
 import { runExtraction, type Extractor, type MemorySink } from "./extraction-runner"
-import type { HermesMemoryEntry } from "./hermes-bridge"
+import type { MemoryEntry } from "./memory-bridge"
 
 test("runExtraction extracts, dedupes, and persists new memories", async () => {
-  const existing: HermesMemoryEntry[] = [
+  const existing: MemoryEntry[] = [
     { key: "memory_0", value: "User prefers TypeScript.", tags: [] },
   ]
   const extractor: Extractor = () => Effect.succeed(["User prefers TypeScript.", "The project uses bun."])

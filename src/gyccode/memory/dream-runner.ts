@@ -4,7 +4,7 @@ import path from "path"
 import { homedir } from "os"
 import { shouldDream, formatDreamPrompt, analyzeDreamResult, DEFAULT_DREAM_CONFIG, type DreamConfig, type DreamState } from "./dream"
 
-/** Persist dream state next to the hermes memory file. */
+/** Persist dream state next to the memory file. */
 const DREAM_STATE_PATH = path.join(
   process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
