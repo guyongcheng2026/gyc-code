@@ -855,7 +855,7 @@ export const FSharp: Info = {
 
 export const SourceKit: Info = {
   id: "sourcekit-lsp",
-  extensions: [".swift", ".objc", "objcpp"],
+  extensions: [".swift", ".objc", ".objcpp"],
   root: NearestRoot(["Package.swift", "*.xcodeproj", "*.xcworkspace"]),
   async spawn(root) {
     // Check if sourcekit-lsp is available in the PATH
@@ -1244,10 +1244,9 @@ export const JDTLS: Info = {
       })(),
     )
     const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "gyccode-jdtls-data"))
-    return {
-      process: spawn(
-        java,
-        [
+    const serverProcess = spawn(
+      java,
+      [
           "-jar",
           launcherJar,
           "-configuration",
@@ -1265,8 +1264,13 @@ export const JDTLS: Info = {
         {
           cwd: root,
         },
-      ),
-    }
+      )
+    // Remove the JDTLS data directory when the server process exits (or
+    // crashes) so each launch doesn't leak hundreds of MB in the temp dir.
+    serverProcess.once("exit", () => {
+      fs.rm(dataDir, { recursive: true, force: true }).catch(() => {})
+    })
+    return { process: serverProcess }
   },
 }
 

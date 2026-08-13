@@ -266,6 +266,10 @@ function splitTurn(input: {
     if (input.budget <= 0) return undefined
     if (input.turn.end - input.turn.start <= 1) return undefined
     for (let start = input.turn.start + 1; start < input.turn.end; start++) {
+      const message = input.messages[start]
+      // Defensive: if turn bounds are ever out of sync with the messages array
+      // (e.g. after a reorder), skip instead of asserting on an undefined item.
+      if (!message) continue
       const size = yield* input.estimate({
         messages: input.messages.slice(start, input.turn.end),
         model: input.model,
@@ -273,7 +277,7 @@ function splitTurn(input: {
       if (size > input.budget) continue
       return {
         start,
-        id: input.messages[start]!.info.id,
+        id: message.info.id,
       } satisfies Tail
     }
     return undefined

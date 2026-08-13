@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { mkdir, readFile, rename, writeFile } from "fs/promises"
+import { mkdir, readFile, rename, rm, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 import { shouldDream, formatDreamPrompt, analyzeDreamResult, DEFAULT_DREAM_CONFIG, type DreamConfig, type DreamState } from "./dream"
@@ -15,7 +15,13 @@ const DREAM_STATE_PATH = path.join(
 async function atomicWriteFile(filePath: string, content: string): Promise<void> {
   const tmpPath = `${filePath}.tmp.${Date.now()}`
   await writeFile(tmpPath, content, "utf-8")
-  await rename(tmpPath, filePath)
+  try {
+    await rename(tmpPath, filePath)
+  } catch (error) {
+    // 不遗留半写的 .tmp 孤儿文件
+    await rm(tmpPath, { force: true }).catch(() => {})
+    throw error
+  }
 }
 
 export async function readDreamState(): Promise<DreamState> {

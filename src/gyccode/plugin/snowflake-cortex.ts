@@ -378,7 +378,7 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
             }
 
             const transformResponse = async (response: Response) => {
-              if (!response.ok && response.status === 400) {
+              if (response.status === 400) {
                 try {
                   const errorData = await response.clone().json()
                   const errorMessage = String(errorData.message || errorData.error || "")

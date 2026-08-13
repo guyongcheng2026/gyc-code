@@ -880,7 +880,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
 
           const response = await fetch(url, init)
 
-          if (!response.ok && response.status === 400) {
+          if (response.status === 400) {
             try {
               const errorData = await response.clone().json()
               const errorMessage = String(errorData.message || errorData.error || "")

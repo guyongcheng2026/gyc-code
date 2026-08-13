@@ -1284,7 +1284,7 @@ const layer = Layer.effect(
               id: PartID.ascending(),
               messageID: continueUserMsg.id,
               sessionID,
-              text: "Output token limit hit. Resume directly from where you left off �� no apology, no repetition.",
+              text: "Output token limit hit. Resume directly from where you left off — no apology, no repetition.",
               synthetic: true,
             } satisfies SessionV1.Part)
             continue

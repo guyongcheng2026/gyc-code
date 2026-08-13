@@ -17,14 +17,24 @@ const layer = Layer.succeed(
         catch: (error) => (error instanceof Error ? error : new Error(String(error))),
       })
       yield* Effect.callback<void, Error>((resume) => {
-        const timer = setTimeout(() => resume(Effect.void), 500)
-        subprocess.on("error", (error) => {
+        const cleanup = () => {
           clearTimeout(timer)
+          subprocess.removeAllListeners("error")
+          subprocess.removeAllListeners("exit")
+        }
+        const timer = setTimeout(() => {
+          // The subprocess usually exits quickly; once the timeout fires, stop
+          // listening so a late non-zero exit/error isn't silently swallowed.
+          cleanup()
+          resume(Effect.void)
+        }, 500)
+        subprocess.on("error", (error) => {
+          cleanup()
           resume(Effect.fail(error))
         })
         subprocess.on("exit", (code) => {
           if (code === null || code === 0) return
-          clearTimeout(timer)
+          cleanup()
           resume(Effect.fail(new Error(`Browser open failed with exit code ${code}`)))
         })
       })

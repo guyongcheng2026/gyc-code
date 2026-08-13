@@ -61,15 +61,33 @@ export class IDETransport {
   }
 
   getEditorCommand(tool: string, args: Record<string, unknown>): string {
+    const file = stringArg(args.file)
+    const line = intArg(args.line, 1)
+    const column = intArg(args.column, 1)
     switch (this.config.editor) {
       case "vscode":
-        return `code --goto "${args.file}:${args.line}:${args.column}"`
+        return `code --goto ${shellQuote(`${file}:${line}:${column}`)}`
       case "jetbrains":
-        return `idea --line ${args.line} "${args.file}"`
+        return `idea --line ${line} ${shellQuote(file)}`
       case "cursor":
-        return `cursor --goto "${args.file}:${args.line}"`
+        return `cursor --goto ${shellQuote(`${file}:${line}`)}`
       default:
-        return `editor "${args.file}"`
+        return `editor ${shellQuote(file)}`
     }
   }
+}
+
+function stringArg(value: unknown): string {
+  return typeof value === "string" ? value : String(value ?? "")
+}
+
+/** Coerce an unknown line/column value to a positive integer (safe fallback). */
+function intArg(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(n) && n > 0 ? Math.trunc(n) : fallback
+}
+
+/** POSIX single-quote shell escaping: everything literal except embedded single quotes. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`
 }

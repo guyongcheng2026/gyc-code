@@ -1,7 +1,7 @@
 // Hermes memory bridge — gyc-cli ↔ Hermes bidirectional sync
 // Based on @yunguang/memory UnifiedMemoryManager
 
-import { readFile, rename, stat, writeFile } from "fs/promises"
+import { readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 
@@ -56,7 +56,13 @@ export function stripKeyHeader(block: string): string {
 async function atomicWriteFile(filePath: string, content: string): Promise<void> {
   const tmpPath = `${filePath}.tmp.${Date.now()}`
   await writeFile(tmpPath, content, "utf-8")
-  await rename(tmpPath, filePath)
+  try {
+    await rename(tmpPath, filePath)
+  } catch (error) {
+    // Don't leave a half-written .tmp orphan behind if the rename fails.
+    await rm(tmpPath, { force: true }).catch(() => {})
+    throw error
+  }
 }
 
 /** Write a single entry to Hermes memory file with dedup and cap enforcement. */
