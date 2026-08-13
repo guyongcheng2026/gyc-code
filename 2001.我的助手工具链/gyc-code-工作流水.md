@@ -604,3 +604,6 @@
 
 - [OK] 2026-08-13 [a351ab5] 模型快照兜底：内置主流供应商快照(32供应商/1427模型,gen-models-snapshot生成)+models-dev fallback链disk→snapshot→fetch(无网络也有模型清单)
   - [FILES] 3: scripts/gen-models-snapshot.mjs, src/core/models-dev-snapshot.ts, src/core/models-dev.ts
+
+- [OK] 2026-08-13 [6e87383] 自主化P1-依赖裁剪：AI SDK provider 21→11(删alibaba/cerebras/cohere/deepinfra/groq/mistral/perplexity/togetherai/vercel/xai 10包+10插件文件+30处引用,备份Temp/gyc-cli-trash-20260813-p1)保留企业向(anthropic/openai/compatible/google/vertex/bedrock/azure/gateway)
+  - [FILES] 17: package.json, src/core/plugin/provider.ts, src/core/plugin/provider/alibaba.ts, src/core/plugin/provider/cerebras.ts, src/core/plugin/provider/cohere.ts, src/core/plugin/provider/deepinfra.ts ...
