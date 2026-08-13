@@ -4,7 +4,7 @@ import { Effect, Exit } from "effect"
  * Magic Docs: files whose first line is `# MAGIC DOC: <title>` are auto-maintained
  * documentation. When such a file is read, it is registered; when the session
  * goes idle, a background agent refreshes the doc so it stays in sync with the
- * codebase (aligned with Claude Code's MagicDocs). The doc philosophy is: write
+ * codebase (aligned with reference agent's MagicDocs). The doc philosophy is: write
  * WHY / architecture / entry points, not line-by-line code.
  */
 

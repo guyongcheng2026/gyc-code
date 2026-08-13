@@ -1,10 +1,10 @@
-// Thinking-keyword → reasoning-effort upgrade (mirrors Claude Code hasUltrathinkKeyword).
+// Thinking-keyword → reasoning-effort upgrade (mirrors reference agent hasUltrathinkKeyword).
 //
 // When a user's prompt contains a thinking directive ("think", "think hard",
 // "think deeply", "ultrathink"), gyc upgrades the reasoning effort variant to
 // the strongest available tier, gated by the model's declared variants. This
 // lets users opt into deeper reasoning per-message without a manual variant
-// switch, and surpasses Claude Code, whose keyword upgrade is Anthropic-only
+// switch, and surpasses reference agent, whose keyword upgrade is Anthropic-only
 // and build-gated.
 
 /** Ordered weakest→strongest reasoning effort tiers. */

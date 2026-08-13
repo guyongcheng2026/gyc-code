@@ -13,7 +13,7 @@ export function shell(template: string) {
   return Array.from(template.matchAll(SHELL_REGEX))
 }
 
-// other coding agents like claude code allow invalid yaml in their
+// other coding agents allow invalid yaml in their
 // frontmatter, we need to fallback to a more permissive parser for those cases
 export const fallbackSanitization = ConfigMarkdownCore.sanitize
 

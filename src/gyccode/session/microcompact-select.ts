@@ -6,7 +6,7 @@
  * the prompt-cache prefix and the most recent turns intact — so the model keeps
  * seeing the tail verbatim while freed space delays a full summary compaction.
  *
- * Aligned with Claude Code's microCompact: it clears tool results (Read/Shell/
+ * Aligned with reference agent's microCompact: it clears tool results (Read/Shell/
  * Grep/Glob/WebSearch/WebFetch/Edit/Write) without dropping messages, and never
  * touches skill outputs (they carry instructions the model still needs).
  */
@@ -60,7 +60,7 @@ export function selectMicrocompactParts(
  * message exceeds `gapMinutes`, the server-side prompt cache has almost
  * certainly expired, so the full prefix will be rewritten anyway. Clearing old
  * tool results before the request shrinks what gets rewritten.
- * (Aligned with Claude Code timeBasedMCConfig, but locally configurable.)
+ * (Aligned with reference agent timeBasedMCConfig, but locally configurable.)
  */
 export function selectTimeBasedParts(
   msgs: readonly WithParts[],

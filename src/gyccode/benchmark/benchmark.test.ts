@@ -1,4 +1,4 @@
-// gyc-cli 能力基准测试 — 对标 mimo-code 20 项核心能力
+// gyc-cli 能力基准测试 — 对标参考实现 20 项核心能力
 // 运行: bun test src/gyccode/benchmark/benchmark.test.ts
 import { test, expect } from "bun:test"
 

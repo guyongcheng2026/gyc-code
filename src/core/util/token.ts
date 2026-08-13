@@ -45,7 +45,7 @@ type AnthropicBlock =
   | { type: "tool_result"; content?: unknown }
   | { type: "thinking"; thinking?: string }
 
-// Per-block token estimation mirroring Claude Code's
+// Per-block token estimation mirroring reference agent's
 // roughTokenCountEstimationForBlock. A whole JSON.stringify pass over the
 // conversation can't distinguish block types (images cost ~2000 tokens each,
 // tool calls are JSON), so block-aware estimation is substantially more

@@ -469,7 +469,7 @@ export interface Interface {
    * runtime readers (doom-loop detection, parts()) stay consistent, but does
    * NOT write a durable event. Only final states (completed / errored /
    * finished) should go through `updatePart`, so the event store does not
-   * accumulate per-token intermediate snapshots (Claude Code persists final
+   * accumulate per-token intermediate snapshots (reference agent persists final
    * messages only; streaming intermediates are in-memory).
    */
   readonly updatePartLive: <T extends SessionV1.Part>(part: T) => Effect.Effect<T>

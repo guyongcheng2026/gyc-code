@@ -27,7 +27,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
 
   if (input.agent.name === "compose") {
     // 注入到 compose 会话首条用户消息，且只注入一次：
-    // 前缀保持稳定，避免同一消息在长会话中反复累积（借鉴 mimo code 做法并去重）。
+    // 前缀保持稳定，避免同一消息在长会话中反复累积（借鉴参考实现做法并去重）。
     const composeMessage = input.messages.find(
       (msg) => msg.info.role === "user" && msg.info.agent === "compose",
     )

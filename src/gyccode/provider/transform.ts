@@ -698,7 +698,7 @@ function googleThinkingVariants(model: Provider.Model): Record<string, Record<st
 }
 
 // Whether user-facing thinking should be on by default for this model.
-// Mirrors Claude Code's shouldEnableThinkingByDefault: reasoning-capable
+// Mirrors reference agent's shouldEnableThinkingByDefault: reasoning-capable
 // models default to thinking enabled unless the config explicitly disables it.
 // We gate solely on the declared reasoning capability (variants() is a heavier
 // lookup that re-derives the full per-provider matrix and depends on api.url).

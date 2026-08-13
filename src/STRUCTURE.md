@@ -1,13 +1,13 @@
-# src/ 目录结构对标映射（Claude Code → gyc-code）
+# src/ 目录结构对标映射（参考实现 → gyc-code）
 
-> 目的：说明 gyc-code 的 `src/` 与 Claude Code v2.1.88 源码结构的能力对应关系。
-> 说明：gyc-code 基于 opencode 架构（Effect v4 + SolidJS TUI），Claude Code 基于 React/Ink，
+> 目的：说明 gyc-code 的 `src/` 与 参考实现 v2.1.88 源码结构的能力对应关系。
+> 说明：gyc-code 基于 opencode 架构（Effect v4 + SolidJS TUI），参考实现 基于 React/Ink，
 > 技术栈不同，因此不做物理搬移，采用「能力映射」对齐（顶层门面对齐层已于 2026-08-13 移除，
 > 等价实现直接承载能力）。
 
 ## 一、顶层文件映射
 
-| Claude Code | gyc-code 等价实现 | 状态 |
+| 参考实现 | gyc-code 等价实现 | 状态 |
 |---|---|---|
 | `main.tsx`（CLI 入口） | `src/gyccode/index.ts`（bin/gyc 加载） | 等价 |
 | `context.ts`（系统上下文/Git） | `src/gyccode/session/system.ts` | 等价 |
@@ -21,7 +21,7 @@
 
 ## 二、子目录能力映射
 
-| Claude Code 目录 | gyc-code 等价实现 | 状态 |
+| 参考实现 目录 | gyc-code 等价实现 | 状态 |
 |---|---|---|
 | `assistant/`（AI 助手模式） | 无独立目录（`session/proactive.ts` 有主动循环雏形） | 待建 |
 | `bootstrap/`（启动状态） | `src/gyccode/project/bootstrap.ts` | 等价 |
@@ -63,7 +63,7 @@
 | `vim/`（Vim 模式） | `src/tui/` 键位绑定（vim 支持） | 等价 |
 | `voice/`（语音模式） | `src/gyccode/audio`（audio-capture 绑定） | 等价 |
 
-## 三、待建能力（Claude Code 有、gyc 暂无独立模块）
+## 三、待建能力（参考实现 有、gyc 暂无独立模块）
 
 1. `assistant/` — KAIROS 助手模式（gyc 有 proactive.ts 雏形，可扩展）
 2. `buddy/` — 伙伴伴随模式（可基于 skill/brief 扩展）

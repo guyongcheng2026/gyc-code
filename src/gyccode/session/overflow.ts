@@ -28,7 +28,7 @@ export function calculateTokenWarningState(input: {
   outputTokenMax?: number
   limit?: number
 }) {
-  // 对齐 Claude Code autoCompact.ts 三级告警：WARNING(20K)/ERROR(13K)/BLOCKING(3K)
+  // 对齐 reference agent autoCompact.ts 三级告警：WARNING(20K)/ERROR(13K)/BLOCKING(3K)
   // 缓冲相对 usable 有效窗口计算，percentLeft 表示剩余可用比例。
   const WARNING_BUFFER = 20_000
   const ERROR_BUFFER = 13_000
@@ -49,7 +49,7 @@ export function calculateTokenWarningState(input: {
 
 /**
  * Suggest 1M context upgrade when usage exceeds 70% and model supports 1M.
- * Mirrors Claude Code contextWindowUpgradeCheck.
+ * Mirrors reference agent contextWindowUpgradeCheck.
  */
 export function maybeSuggest1mUpgrade(input: {
   used: number

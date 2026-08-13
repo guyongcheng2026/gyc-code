@@ -762,7 +762,7 @@ const layer = Layer.effect(
       // Agent-configured variant applies only when we're actually on the agent's model.
       const variant = input.variant ?? (ag.variant && same && full?.variants?.[ag.variant] ? ag.variant : undefined)
 
-      // Thinking-keyword upgrade (mirrors Claude Code hasUltrathinkKeyword): if the
+      // Thinking-keyword upgrade (mirrors reference agent hasUltrathinkKeyword): if the
       // user explicitly asks for deeper reasoning in their text parts, upgrade the
       // reasoning-effort variant to the strongest available tier. Only applies when
       // no explicit variant was requested and the model declares reasoning variants.
@@ -1241,7 +1241,7 @@ const layer = Layer.effect(
           if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {
             // First truncation: escalate the output cap (bounded by the model's
             // output limit and the configurable escalate ceiling, default 64k)
-            // and retry once (aligned with Claude Code max_output_tokens
+            // and retry once (aligned with reference agent max_output_tokens
             // escalate) before falling back to resume-message continuation.
             if (escalatedOutputMax === undefined) {
               const cfgInfo = yield* config.get()
@@ -1519,7 +1519,7 @@ const layer = Layer.effect(
               overflow: task.overflow,
             })
             if (result === "stop") break
-            // Compaction-boundary budget carryover (mirrors Claude Code
+            // Compaction-boundary budget carryover (mirrors reference agent
             // finalContextTokensFromLastResponse): after a successful compaction
             // the context is fresh, so reset the diminishing-returns counters.
             // Otherwise a low increment from before compaction would prematurely
@@ -1661,7 +1661,7 @@ const layer = Layer.effect(
             buildDynamicPrompt(instructions)
             // 日期与记忆注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
             // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期/记忆放 user
-            // 增量处，跨天/跨检索只影响当轮增量，不破坏历史前缀（对齐 pi agent
+            // 增量处，跨天/跨检索只影响当轮增量，不破坏历史前缀（对齐参考实现
             // CH 99.9% 机制：system 字节稳定是缓存命中的前提）。
             const todayPrefix = `Today's date: ${new Date().toDateString()}\n`
             const memoryPrefix = memories ? `${memories}\n\n` : ""

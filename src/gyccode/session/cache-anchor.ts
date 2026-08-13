@@ -1,5 +1,5 @@
 ﻿/**
- * Prompt cache drift detection  mirrors Claude Code's
+ * Prompt cache drift detection  mirrors reference agent's
  * utils/promptCacheBreakDetection semantics with the two documented
  * thresholds: flag when cached-input tokens drop both >5% and >2K tokens
  * versus the previous request's cache read, indicating a prompt-cache break

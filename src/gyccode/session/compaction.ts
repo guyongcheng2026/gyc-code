@@ -107,7 +107,7 @@ export function pivotTail(
 }
 
 /**
- * Usage-anchored estimation (mirrors Claude Code tokenCountWithEstimation).
+ * Usage-anchored estimation (mirrors reference agent tokenCountWithEstimation).
  *
  * Walks backwards to find the last assistant message whose final step-finish
  * part carries real API usage. The anchor is the total context sent to the
@@ -176,7 +176,7 @@ export function cleanMemoryValue(value: string): string {
 }
 
 /**
- * 会话记忆快速压缩路径（对齐 Claude Code trySessionMemoryCompaction）。
+ * 会话记忆快速压缩路径（对齐 reference agent trySessionMemoryCompaction）。
  *
  * 用后台已维护的 hermes 记忆直接拼装摘要，免去一次完整 LLM 摘要调用。
  * 纯函数：记忆为空时返回 undefined，调用方回退到 LLM 摘要。
@@ -426,7 +426,7 @@ const layer = Layer.effect(
 
       // Time-based trigger first: a long idle gap means the prompt cache
       // expired, so clear old tool results before the request shrinks what gets
-      // rewritten. (Aligned with Claude Code timeBasedMCConfig, but locally
+      // rewritten. (Aligned with reference agent timeBasedMCConfig, but locally
       // configurable.) Opt-in: only fires when `enabled` is explicitly true
       // (the documented default is false). Falls through to the usage-based
       // check below (chaining).
@@ -469,7 +469,7 @@ const layer = Layer.effect(
       /** When true, use usage-anchored estimation (only for full conversation). */
       anchored?: boolean
     }) {
-      // Usage-anchored estimation (mirrors Claude Code tokenCountWithEstimation):
+      // Usage-anchored estimation (mirrors reference agent tokenCountWithEstimation):
       // find the last assistant message's step-finish part with real API usage as
       // anchor, then only estimate messages after it locally. This avoids O(n)
       // re-serialization of the entire conversation on every check.
@@ -675,7 +675,7 @@ const layer = Layer.effect(
       )
       const nextPrompt = compacting.prompt ?? buildPrompt({ previousSummary, context: compacting.context })
 
-      // Session-memory fast compaction path (mirrors Claude Code trySessionMemoryCompaction):
+      // Session-memory fast compaction path (mirrors reference agent trySessionMemoryCompaction):
       // if hermes memories are available, build the summary directly from them and
       // skip the full LLM summary call. Falls through to the LLM path when no
       // memories exist or the feature is disabled.

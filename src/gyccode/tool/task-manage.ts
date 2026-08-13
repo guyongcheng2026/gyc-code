@@ -4,7 +4,7 @@ import { BackgroundJob } from "@/background/job"
 
 /**
  * Task management tools (task_list / task_get / task_stop), aligned with
- * Claude Code's TaskListTool / TaskGetTool / TaskStopTool. They surface the
+ * reference agent's TaskListTool / TaskGetTool / TaskStopTool. They surface the
  * background job registry so the model can enumerate, inspect, and stop tasks
  * instead of guessing about their state.
  */

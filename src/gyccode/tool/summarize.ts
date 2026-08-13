@@ -1,7 +1,7 @@
 ﻿/**
  * Cheap-model summarization for large tool outputs (e.g. WebFetch pages).
  * The summarizer is injectable so the pure logic is unit-testable; the real
- * implementation wires a small/cheap model (aligned with Claude Code's use of
+ * implementation wires a small/cheap model (aligned with reference agent's use of
  * Haiku for WebFetch summarization).
  */
 

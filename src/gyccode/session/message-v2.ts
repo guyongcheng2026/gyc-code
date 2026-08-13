@@ -72,7 +72,7 @@ export function cacheFriendlyBudget(contextLimit: number | undefined) {
  * Frozen truncation decisions keyed by tool callID. Once a callID has been
  * decided (truncated or kept intact), the decision is recorded here and never
  * recomputed, so the serialized prompt prefix stays byte-stable across turns
- * (prompt-cache friendly). Mirrors Claude Code partitionByPriorDecision.
+ * (prompt-cache friendly). Mirrors reference agent partitionByPriorDecision.
  */
 const truncationDecisions = new Map<string, number | undefined>()
 

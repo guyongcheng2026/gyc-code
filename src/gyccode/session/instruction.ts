@@ -138,7 +138,7 @@ const layer: Layer.Layer<
     // Recursively resolve `@include` references in an instruction file.
     // Bounded by MAX_INCLUDE_DEPTH and a visited-set to prevent cycles; only
     // text files are pulled in (TEXT_FILE_EXTENSIONS), so binaries never enter
-    // the prompt. Aligned with Claude Code's claudemd.ts @include handling.
+    // the prompt. Aligned with reference agent's claudemd.ts @include handling.
     const withIncludes = Effect.fnUntraced(function* (from: string, content: string) {
       const ctx = yield* InstanceState.context
       const base = path.dirname(from)

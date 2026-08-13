@@ -416,7 +416,7 @@ export const ReadTool = Tool.define<
           type: stat.type,
         }, file.encoding);
         // Auto-maintained documentation (MAGIC DOC): register so the session can
-        // refresh it in the background when idle (aligned with Claude Code MagicDocs).
+        // refresh it in the background when idle (aligned with reference agent MagicDocs).
         maybeRegisterMagicDoc(filepath, file.raw.join("\n"))
         return {
           title,

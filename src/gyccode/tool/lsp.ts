@@ -10,7 +10,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { filterGitIgnoredLocations } from "./lsp_gitignore"
 
 // Guard against oversized files that could stall the LSP server
-// (aligned with Claude Code LSPTool MAX_LSP_FILE_SIZE_BYTES).
+// (aligned with reference agent LSPTool MAX_LSP_FILE_SIZE_BYTES).
 const MAX_LSP_FILE_SIZE_BYTES = 10_000_000
 const MAX_RESULT_SIZE_CHARS = 100_000
 

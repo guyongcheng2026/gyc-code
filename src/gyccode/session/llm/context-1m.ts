@@ -1,7 +1,7 @@
 ﻿/**
  * 1M-context beta header resolution for Anthropic-family providers.
  *
- * Claude Code enables 1M context via the `context-1m-2025-08-07` beta header
+ * reference agent enables 1M context via the `context-1m-2025-08-07` beta header
  * (utils/context.ts: CONTEXT_1M_BETA_HEADER) for models that advertise a
  * 1M window (context.ts: has1mContext / modelSupports1M). gyc-code reads the
  * model window from the models.dev directory (context: 1_000_000), but until

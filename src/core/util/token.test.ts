@@ -73,7 +73,7 @@ describe("estimateWithAPI", () => {
 })
 
 describe("estimateBlocks", () => {
-  // 镜像 Claude Code tokenEstimation.roughTokenCountEstimationForBlock：
+  // 镜像 reference agent tokenEstimation.roughTokenCountEstimationForBlock：
   // text→本地 tokenizer、image→2000、tool_use→JSON 长度/4、thinking→文本。
   // 接受 Anthropic content block 数组（text/image/tool_use/tool_result/thinking）。
 

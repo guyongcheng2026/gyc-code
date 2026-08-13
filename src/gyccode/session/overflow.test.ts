@@ -37,7 +37,7 @@ describe("usable", () => {
 })
 
 describe("calculateTokenWarningState", () => {
-  // Claude Code 分级阈值：warning buffer 20K（相对 usable）、error buffer 13K、
+  // reference agent 分级阈值：warning buffer 20K（相对 usable）、error buffer 13K、
   // blocking 3K。usable = effective window - reserved。
   const model = { limit: { context: 200_000, output: 32_000 } } as any
   const cfg: any = { compaction: {} }

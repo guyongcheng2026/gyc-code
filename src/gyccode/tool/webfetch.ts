@@ -173,7 +173,7 @@ export const WebFetchTool = Tool.define(
           const content = new TextDecoder().decode(arrayBuffer)
 
           // Summarize large text responses with a cheap model when a summarizer
-          // is available in context (aligned with Claude Code's Haiku-based
+          // is available in context (aligned with reference agent's Haiku-based
           // WebFetch summarization). Falls back to raw content otherwise.
           const summarizer = (ctx.extra?.["summarizer"] as Summarizer | undefined) ?? (async (text: string) => text)
 

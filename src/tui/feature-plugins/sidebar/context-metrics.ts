@@ -47,7 +47,7 @@ export function persistedTokens(msgs: ReadonlyArray<Message>): number {
  * completed assistant messages (first-turn cold miss excluded — industry
  * convention). DeepSeek context caching is 128-token-block aligned with a
  * lagging anchor, so the theoretical steady-state ceiling is ≈ 1 - 2/N
- * (N = completed assistant turns, mirrors pi agent's cache model). A CH far
+ * (N = completed assistant turns, mirrors reference agent's cache model). A CH far
  * below that ceiling indicates prefix drift, not cold start.
  */
 export function computeChRate(

@@ -94,7 +94,7 @@ export class App extends HeyApiClient {
     /**
      * List agents
      *
-     * Get a list of all available AI agents in the OpenCode system.
+     * Get a list of all available AI agents in the gyc system.
      */
     agents(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -114,7 +114,7 @@ export class App extends HeyApiClient {
     /**
      * List skills
      *
-     * Get a list of all available skills in the OpenCode system.
+     * Get a list of all available skills in the gyc system.
      */
     skills(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -164,7 +164,7 @@ export class Capabilities extends HeyApiClient {
     /**
      * Get experimental capabilities
      *
-     * Get experimental features enabled on the OpenCode server.
+     * Get experimental features enabled on the gyc server.
      */
     get(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -226,7 +226,7 @@ export class Console extends HeyApiClient {
     /**
      * Switch active Console org
      *
-     * Persist a new active Console account/org selection for the current local OpenCode state.
+     * Persist a new active Console account/org selection for the current local gyc state.
      */
     switchOrg(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -255,7 +255,7 @@ export class Session extends HeyApiClient {
     /**
      * List sessions
      *
-     * Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
+     * Get a list of all gyc sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
      */
     list(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -551,7 +551,7 @@ export class Config extends HeyApiClient {
     /**
      * Get global configuration
      *
-     * Retrieve the current global OpenCode configuration settings and preferences.
+     * Retrieve the current global gyc configuration settings and preferences.
      */
     get(options) {
         return (options?.client ?? this.client).get({
@@ -562,7 +562,7 @@ export class Config extends HeyApiClient {
     /**
      * Update global configuration
      *
-     * Update global OpenCode configuration settings and preferences.
+     * Update global gyc configuration settings and preferences.
      */
     update(parameters, options) {
         const params = buildClientParams([parameters], [{ args: [{ key: "config", map: "body" }] }]);
@@ -582,7 +582,7 @@ export class Global extends HeyApiClient {
     /**
      * Get health
      *
-     * Get health information about the OpenCode server.
+     * Get health information about the gyc server.
      */
     health(options) {
         return (options?.client ?? this.client).get({
@@ -593,7 +593,7 @@ export class Global extends HeyApiClient {
     /**
      * Get global events
      *
-     * Subscribe to global events from the OpenCode system using server-sent events.
+     * Subscribe to global events from the gyc system using server-sent events.
      */
     event(options) {
         return (options?.client ?? this.client).sse.get({
@@ -604,7 +604,7 @@ export class Global extends HeyApiClient {
     /**
      * Dispose instance
      *
-     * Clean up and dispose all OpenCode instances, releasing all resources.
+     * Clean up and dispose all gyc instances, releasing all resources.
      */
     dispose(options) {
         return (options?.client ?? this.client).post({
@@ -661,7 +661,7 @@ export class Config2 extends HeyApiClient {
     /**
      * Get configuration
      *
-     * Retrieve the current OpenCode configuration settings and preferences.
+     * Retrieve the current gyc configuration settings and preferences.
      */
     get(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -681,7 +681,7 @@ export class Config2 extends HeyApiClient {
     /**
      * Update configuration
      *
-     * Update OpenCode configuration settings and preferences.
+     * Update gyc configuration settings and preferences.
      */
     update(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1005,7 +1005,7 @@ export class Instance extends HeyApiClient {
     /**
      * Dispose instance
      *
-     * Clean up and dispose the current OpenCode instance, releasing all resources.
+     * Clean up and dispose the current gyc instance, releasing all resources.
      */
     dispose(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1027,7 +1027,7 @@ export class Path extends HeyApiClient {
     /**
      * Get paths
      *
-     * Retrieve the current working directory and related path information for the OpenCode instance.
+     * Retrieve the current working directory and related path information for the gyc instance.
      */
     get(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1165,7 +1165,7 @@ export class Command extends HeyApiClient {
     /**
      * List commands
      *
-     * Get a list of all available commands in the OpenCode system.
+     * Get a list of all available commands in the gyc system.
      */
     list(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1414,7 +1414,7 @@ export class Project extends HeyApiClient {
     /**
      * List all projects
      *
-     * Get a list of projects that have been opened with OpenCode.
+     * Get a list of projects that have been opened with gyc.
      */
     list(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1434,7 +1434,7 @@ export class Project extends HeyApiClient {
     /**
      * Get current project
      *
-     * Retrieve the currently active project that OpenCode is working with.
+     * Retrieve the currently active project that gyc is working with.
      */
     current(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1546,7 +1546,7 @@ export class Pty extends HeyApiClient {
     /**
      * List PTY sessions
      *
-     * Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.
+     * Get a list of all active pseudo-terminal (PTY) sessions managed by gyc.
      */
     list(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1966,7 +1966,7 @@ export class Session2 extends HeyApiClient {
     /**
      * List sessions
      *
-     * Get a list of all OpenCode sessions, sorted by most recently updated.
+     * Get a list of all gyc sessions, sorted by most recently updated.
      */
     list(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -1992,7 +1992,7 @@ export class Session2 extends HeyApiClient {
     /**
      * Create session
      *
-     * Create a new OpenCode session for interacting with AI assistants and managing conversations.
+     * Create a new gyc session for interacting with AI assistants and managing conversations.
      */
     create(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -2065,7 +2065,7 @@ export class Session2 extends HeyApiClient {
     /**
      * Get session
      *
-     * Retrieve detailed information about a specific OpenCode session.
+     * Retrieve detailed information about a specific gyc session.
      */
     get(parameters, options) {
         const params = buildClientParams([parameters], [
@@ -3351,7 +3351,7 @@ export class Session3 extends HeyApiClient {
     /**
      * List active sessions
      *
-     * Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.
+     * Retrieve foreground Session drains currently owned by this gyc process. Sessions absent from the result are inactive.
      */
     active(options) {
         return (options?.client ?? this.client).get({
@@ -3533,7 +3533,7 @@ export class Session3 extends HeyApiClient {
     /**
      * Interrupt session execution
      *
-     * Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op.
+     * Interrupt active execution owned by this gyc process. Idle interruption is a no-op.
      */
     interrupt(parameters, options) {
         const params = buildClientParams([parameters], [{ args: [{ in: "path", key: "sessionID" }] }]);

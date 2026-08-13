@@ -279,7 +279,7 @@ export function formatMemoriesForPrompt(
   const header = ["<memories>", "Relevant memories from previous sessions:", ...blocks, "</memories>"].join("\n")
   // Anti-hallucination freshness: when the memory file predates a threshold,
   // tell the model the remembered facts may be stale so it verifies against
-  // current code before asserting them (aligned with Claude Code memoryAge).
+  // current code before asserting them (aligned with reference agent memoryAge).
   if (fileAgeMs !== undefined && fileAgeMs >= MEMORY_FRESHNESS_THRESHOLD_MS) {
     const days = Math.floor(fileAgeMs / (24 * 60 * 60 * 1000))
     return `${header}\n\n<system-reminder>This memory is ${days} days old. Facts, paths, and line numbers may have changed since then. Verify against current code before asserting them as fact.</system-reminder>`

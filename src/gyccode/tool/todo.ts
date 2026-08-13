@@ -19,7 +19,7 @@ const VERIFY_HINT = /verify|verification|run tests|run test|test suite|check tha
 /**
  * Build the todowrite tool output. When 3+ todos are closed in this update and
  * no remaining/known todo mentions verification, append a reminder to verify
- * the completed work (aligned with Claude Code TodoWriteTool).
+ * the completed work (aligned with reference agent TodoWriteTool).
  */
 export function buildTodoOutput(input: { prev: readonly Todo.Info[]; next: readonly Todo.Info[] }): string {
   const closed = input.next.filter((t) => t.status === "completed").length - input.prev.filter((t) => t.status === "completed").length

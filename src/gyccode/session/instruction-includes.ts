@@ -1,6 +1,6 @@
 ﻿/**
  * `@include` reference resolution for instruction files (AGENTS.md / CLAUDE.md
- * / CONTEXT.md). Aligned with Claude Code's claudemd.ts `extractIncludePaths`
+ * / CONTEXT.md). Aligned with reference agent's claudemd.ts `extractIncludePaths`
  * + `processConditionedMdRules`: an instruction file may reference others with
  * `@path` / `@./path` / `@~/path` / `@/path`, which are recursively loaded so
  * shared guidance can live in one place. References are bounded to prevent

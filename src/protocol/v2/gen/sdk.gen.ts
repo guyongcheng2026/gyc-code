@@ -63,7 +63,7 @@ export declare class App extends HeyApiClient {
     /**
      * List agents
      *
-     * Get a list of all available AI agents in the OpenCode system.
+     * Get a list of all available AI agents in the gyc system.
      */
     agents<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -72,7 +72,7 @@ export declare class App extends HeyApiClient {
     /**
      * List skills
      *
-     * Get a list of all available skills in the OpenCode system.
+     * Get a list of all available skills in the gyc system.
      */
     skills<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -95,7 +95,7 @@ export declare class Capabilities extends HeyApiClient {
     /**
      * Get experimental capabilities
      *
-     * Get experimental features enabled on the OpenCode server.
+     * Get experimental features enabled on the gyc server.
      */
     get<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -124,7 +124,7 @@ export declare class Console extends HeyApiClient {
     /**
      * Switch active Console org
      *
-     * Persist a new active Console account/org selection for the current local OpenCode state.
+     * Persist a new active Console account/org selection for the current local gyc state.
      */
     switchOrg<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -137,7 +137,7 @@ export declare class Session extends HeyApiClient {
     /**
      * List sessions
      *
-     * Get a list of all OpenCode sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
+     * Get a list of all gyc sessions across projects, sorted by most recently updated. Archived sessions are excluded by default.
      */
     list<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -281,13 +281,13 @@ export declare class Config extends HeyApiClient {
     /**
      * Get global configuration
      *
-     * Retrieve the current global OpenCode configuration settings and preferences.
+     * Retrieve the current global gyc configuration settings and preferences.
      */
     get<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): import("./client/types.gen.js").RequestResult<GlobalConfigGetResponses, GlobalConfigGetErrors, ThrowOnError, "fields">;
     /**
      * Update global configuration
      *
-     * Update global OpenCode configuration settings and preferences.
+     * Update global gyc configuration settings and preferences.
      */
     update<ThrowOnError extends boolean = false>(parameters?: {
         config?: Config3;
@@ -297,19 +297,19 @@ export declare class Global extends HeyApiClient {
     /**
      * Get health
      *
-     * Get health information about the OpenCode server.
+     * Get health information about the gyc server.
      */
     health<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): import("./client/types.gen.js").RequestResult<GlobalHealthResponses, GlobalHealthErrors, ThrowOnError, "fields">;
     /**
      * Get global events
      *
-     * Subscribe to global events from the OpenCode system using server-sent events.
+     * Subscribe to global events from the gyc system using server-sent events.
      */
     event<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): Promise<import("./core/serverSentEvents.gen.js").ServerSentEventsResult<GlobalEventResponses>>;
     /**
      * Dispose instance
      *
-     * Clean up and dispose all OpenCode instances, releasing all resources.
+     * Clean up and dispose all gyc instances, releasing all resources.
      */
     dispose<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): import("./client/types.gen.js").RequestResult<GlobalDisposeResponses, GlobalDisposeErrors, ThrowOnError, "fields">;
     /**
@@ -338,7 +338,7 @@ export declare class Config2 extends HeyApiClient {
     /**
      * Get configuration
      *
-     * Retrieve the current OpenCode configuration settings and preferences.
+     * Retrieve the current gyc configuration settings and preferences.
      */
     get<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -347,7 +347,7 @@ export declare class Config2 extends HeyApiClient {
     /**
      * Update configuration
      *
-     * Update OpenCode configuration settings and preferences.
+     * Update gyc configuration settings and preferences.
      */
     update<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -497,7 +497,7 @@ export declare class Instance extends HeyApiClient {
     /**
      * Dispose instance
      *
-     * Clean up and dispose the current OpenCode instance, releasing all resources.
+     * Clean up and dispose the current gyc instance, releasing all resources.
      */
     dispose<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -508,7 +508,7 @@ export declare class Path extends HeyApiClient {
     /**
      * Get paths
      *
-     * Retrieve the current working directory and related path information for the OpenCode instance.
+     * Retrieve the current working directory and related path information for the gyc instance.
      */
     get<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -573,7 +573,7 @@ export declare class Command extends HeyApiClient {
     /**
      * List commands
      *
-     * Get a list of all available commands in the OpenCode system.
+     * Get a list of all available commands in the gyc system.
      */
     list<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -689,7 +689,7 @@ export declare class Project extends HeyApiClient {
     /**
      * List all projects
      *
-     * Get a list of projects that have been opened with OpenCode.
+     * Get a list of projects that have been opened with gyc.
      */
     list<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -698,7 +698,7 @@ export declare class Project extends HeyApiClient {
     /**
      * Get current project
      *
-     * Retrieve the currently active project that OpenCode is working with.
+     * Retrieve the currently active project that gyc is working with.
      */
     current<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -750,7 +750,7 @@ export declare class Pty extends HeyApiClient {
     /**
      * List PTY sessions
      *
-     * Get a list of all active pseudo-terminal (PTY) sessions managed by OpenCode.
+     * Get a list of all active pseudo-terminal (PTY) sessions managed by gyc.
      */
     list<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -953,7 +953,7 @@ export declare class Session2 extends HeyApiClient {
     /**
      * List sessions
      *
-     * Get a list of all OpenCode sessions, sorted by most recently updated.
+     * Get a list of all gyc sessions, sorted by most recently updated.
      */
     list<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -968,7 +968,7 @@ export declare class Session2 extends HeyApiClient {
     /**
      * Create session
      *
-     * Create a new OpenCode session for interacting with AI assistants and managing conversations.
+     * Create a new gyc session for interacting with AI assistants and managing conversations.
      */
     create<ThrowOnError extends boolean = false>(parameters?: {
         directory?: string;
@@ -1009,7 +1009,7 @@ export declare class Session2 extends HeyApiClient {
     /**
      * Get session
      *
-     * Retrieve detailed information about a specific OpenCode session.
+     * Retrieve detailed information about a specific gyc session.
      */
     get<ThrowOnError extends boolean = false>(parameters: {
         sessionID: string;
@@ -1653,7 +1653,7 @@ export declare class Session3 extends HeyApiClient {
     /**
      * List active sessions
      *
-     * Retrieve foreground Session drains currently owned by this OpenCode process. Sessions absent from the result are inactive.
+     * Retrieve foreground Session drains currently owned by this gyc process. Sessions absent from the result are inactive.
      */
     active<ThrowOnError extends boolean = false>(options?: Options<never, ThrowOnError>): import("./client/types.gen.js").RequestResult<V2SessionActiveResponses, V2SessionActiveErrors, ThrowOnError, "fields">;
     /**
@@ -1740,7 +1740,7 @@ export declare class Session3 extends HeyApiClient {
     /**
      * Interrupt session execution
      *
-     * Interrupt active execution owned by this OpenCode process. Idle interruption is a no-op.
+     * Interrupt active execution owned by this gyc process. Idle interruption is a no-op.
      */
     interrupt<ThrowOnError extends boolean = false>(parameters: {
         sessionID: string;

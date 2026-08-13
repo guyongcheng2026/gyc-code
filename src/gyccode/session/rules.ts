@@ -11,7 +11,7 @@
  *
  * A rule with no frontmatter applies everywhere. Matched rules are injected
  * into the system prompt and, for a concrete file, nearby its read/edit
- * context — beyond Claude Code's system-level-only globs rules.
+ * context — beyond reference agent's system-level-only globs rules.
  */
 
 export interface Rule {
@@ -125,7 +125,7 @@ export interface MatchInput {
   filepath: string
   /**
    * Optional path relative to the project root (POSIX separators). Globs in
-   * rule files follow Claude Code's convention and are relative to the project
+   * rule files follow reference agent's convention and are relative to the project
    * root (e.g. a `src/**` glob), while the read tool hands `resolve()` an
    * absolute path. Matching against BOTH the normalized absolute path and the
    * relative path means the documented relative-glob convention actually fires

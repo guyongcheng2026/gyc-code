@@ -1,4 +1,4 @@
-// Composer — orchestrates MiMo-Code compose workflow (Plan→TDD→Execute→Review→Debug→Verify→Merge)
+// Composer — orchestrates compose workflow (Plan→TDD→Execute→Review→Debug→Verify→Merge)
 // Reuses @yunguang/agent-orchestrator patterns and existing skill discovery
 
 import type { Argv } from "yargs"

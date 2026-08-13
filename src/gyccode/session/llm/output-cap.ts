@@ -1,5 +1,5 @@
 /**
- * Slot reservation (mirrors Claude Code CAPPED_DEFAULT_MAX_TOKENS):
+ * Slot reservation (mirrors reference agent CAPPED_DEFAULT_MAX_TOKENS):
  * default 8K for normal requests, escalated to 64K on finish=length.
  */
 const CAPPED_DEFAULT_MAX_TOKENS = 8_000
