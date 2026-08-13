@@ -176,14 +176,14 @@ export function createPlugTask(input: PlugInput, dep: PlugDeps = defaultPlugDeps
 }
 
 export const PluginCommand = effectCmd({
-  command: "plugin <module>",
+  command: "plugin [module]",
   aliases: ["plug"],
-  describe: "install plugin and update config",
+  describe: "manage plugins: install <module> / search <query> / list",
   builder: (yargs) =>
     yargs
       .positional("module", {
         type: "string",
-        describe: "npm module name",
+        describe: "npm module name（或 search / list 子命令）",
       })
       .option("global", {
         alias: ["g"],
@@ -199,8 +199,52 @@ export const PluginCommand = effectCmd({
       }),
   handler: Effect.fn("Cli.plug")(function* (args) {
     const mod = String(args.module ?? "").trim()
+
+    // 子命令：gyc plugin search <query> / gyc plugin list
+    if (mod === "search" || mod === "list") {
+      const { PluginMarketplace } = yield* Effect.promise(() => import("../../plugin/marketplace"))
+      const market = new PluginMarketplace()
+      if (mod === "search") {
+        const query = String((args._ as Array<string | number>)[1] ?? "").trim()
+        const index = yield* Effect.promise(() => market.fetchIndex())
+        if (!index.length) {
+          UI.error("插件市场暂不可用（plugins.gyc-code.dev）")
+          return
+        }
+        const results = query ? market.search(query) : index
+        if (!results.length) {
+          UI.error(`未找到与 "${query}" 匹配的插件`)
+          return
+        }
+        UI.empty()
+        for (const p of results) {
+          UI.println(
+            `${p.name}@${p.version} — ${p.description}${p.keywords?.length ? ` [${p.keywords.join(", ")}]` : ""}`,
+          )
+        }
+        return
+      }
+      const pathMod = yield* Effect.promise(() => import("path"))
+      const fsMod = yield* Effect.promise(() => import("fs/promises"))
+      const { Global } = yield* Effect.promise(() => import("@gyccode/core/global"))
+      const dir = pathMod.join(Global.Path.data, ".gyc", "plugins", "cache")
+      try {
+        const files = yield* Effect.promise(() => fsMod.readdir(dir))
+        const tgzs = files.filter((f) => f.endsWith(".tgz")).sort()
+        if (!tgzs.length) {
+          UI.println("暂无通过市场安装的插件")
+          return
+        }
+        UI.empty()
+        for (const f of tgzs) UI.println(f)
+      } catch {
+        UI.println("暂无通过市场安装的插件")
+      }
+      return
+    }
+
     if (!mod) {
-      UI.error("module is required")
+      UI.error("用法：gyc plugin <module> 安装 / gyc plugin search <query> 搜索 / gyc plugin list 列表")
       process.exitCode = 1
       return
     }

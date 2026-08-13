@@ -6,7 +6,7 @@ import { ProxyUtil } from "../proxy-util"
 
 let embeddedUIPromise: Promise<Record<string, string> | null> | undefined
 
-export const UI_UPSTREAM = new URL(process.env["GYCCODE_UI_UPSTREAM"] ?? "https://app.opencode.ai")
+export const UI_UPSTREAM = new URL(process.env["GYCCODE_UI_UPSTREAM"] ?? "http://localhost:8789")
 
 export const csp = (hash = "") =>
   `default-src 'self'; script-src 'self' 'wasm-unsafe-eval'${hash ? ` 'sha256-${hash}'` : ""}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; media-src 'self' data:; connect-src * data: blob:`

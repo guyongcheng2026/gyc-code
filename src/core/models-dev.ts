@@ -157,6 +157,7 @@ const layer = Layer.effect(
       ),
     )
 
+    // 模型目录数据源（公共中立模型清单 JSON，非品牌服务；可 GYCCODE_MODELS_URL 指向自建镜像）
     const source = Flag.GYCCODE_MODELS_URL || "https://models.opencode.ai"
     const filepath = path.join(
       Global.Path.cache,

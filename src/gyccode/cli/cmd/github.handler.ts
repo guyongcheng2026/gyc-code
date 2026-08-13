@@ -403,8 +403,8 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         ? (payload as IssueCommentEvent | IssuesEvent).issue.number
         : (payload as PullRequestEvent | PullRequestReviewCommentEvent).pull_request.number
     const runUrl = `/${owner}/${repo}/actions/runs/${runId}`
-    // 分享展示链接：优先自建（GYCCODE_SHARE_URL，见 services/share），默认与 share-next 一致指向分享数据服务
-    const shareBaseUrl = process.env.GYCCODE_SHARE_URL ?? "https://opncd.ai"
+    // 分享展示链接：优先自建（GYCCODE_SHARE_URL，见 services/share），默认本地自建服务
+    const shareBaseUrl = process.env.GYCCODE_SHARE_URL ?? "http://localhost:8788"
 
     let appToken: string
     let octoRest: Octokit
@@ -663,9 +663,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       throw new Error(`Invalid use_github_token value: ${value}. Must be a boolean.`)
     }
 
-    function normalizeOidcBaseUrl(): string {
+    function normalizeOidcBaseUrl(): string | undefined {
       const value = process.env["OIDC_BASE_URL"]
-      if (!value) return "https://api.opencode.ai"
+      if (!value) return undefined
       return value.replace(/\/+$/, "")
     }
 
@@ -964,6 +964,9 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     }
 
     async function exchangeForAppToken(token: string) {
+      if (!oidcBaseUrl) {
+        throw new Error("OIDC_BASE_URL 未配置：GitHub App token 交换需要自建 OIDC 服务地址，请设置 OIDC_BASE_URL 环境变量。")
+      }
       const response = token.startsWith("github_pat_")
         ? await fetch(`${oidcBaseUrl}/exchange_github_app_token_with_pat`, {
             method: "POST",

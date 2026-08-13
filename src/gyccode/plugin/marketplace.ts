@@ -6,7 +6,7 @@ import semver from "semver"
 
 import { Global } from "@gyccode/core/global"
 
-export class PluginMeta extends Schema.Class<PluginMeta>("PluginMeta")({
+export class PluginEntry extends Schema.Class<PluginEntry>("PluginEntry")({
   name: Schema.String,
   version: Schema.String,
   description: Schema.String,
@@ -28,12 +28,12 @@ export const DEFAULT_MARKETPLACE_CONFIG: MarketplaceConfig = {
 const REQUEST_TIMEOUT_MS = 10_000
 
 export class PluginMarketplace {
-  private plugins = new Map<string, PluginMeta>()
+  private plugins = new Map<string, PluginEntry>()
   private installed = new Map<string, string>() // name -> version
 
   constructor(private config: MarketplaceConfig = DEFAULT_MARKETPLACE_CONFIG) {}
 
-  private decodeIndex = Schema.decodeUnknownSync(Schema.Array(PluginMeta))
+  private decodeIndex = Schema.decodeUnknownSync(Schema.Array(PluginEntry))
 
   // Base registry URL, e.g. "https://plugins.gyc-code.dev" from ".../index.json"
   private registryBase(): string {
@@ -47,7 +47,7 @@ export class PluginMarketplace {
       : path.join(Global.Path.data, this.config.cacheDir)
   }
 
-  async fetchIndex(): Promise<PluginMeta[]> {
+  async fetchIndex(): Promise<PluginEntry[]> {
     try {
       const res = await fetch(this.config.registry, {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -66,7 +66,7 @@ export class PluginMarketplace {
     }
   }
 
-  search(query: string): PluginMeta[] {
+  search(query: string): PluginEntry[] {
     const lower = query.toLowerCase()
     return Array.from(this.plugins.values()).filter(
       p =>
