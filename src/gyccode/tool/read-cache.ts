@@ -9,6 +9,11 @@ export const FILE_UNCHANGED_STUB = "<file unchanged>"
 // LRU-ish: when full, the oldest inserted entry is evicted (Map preserves insertion order).
 const MAX_ENTRIES = 200
 
+// Bound the read-set with the same LRU-ish eviction so it cannot grow without
+// limit. Eviction only turns the read-before-write guard into a safe
+// false-negative (a file may need to be re-read), never a false positive.
+const MAX_READ_SET = 200
+
 // Minimal stat shape used by the cache - only fields we need for change detection.
 export type StatLike = {
   /** Modification time - may be undefined if the underlying API does not provide it */
@@ -30,6 +35,16 @@ const key = (filepath: string) => FSUtil.normalizePath(filepath)
 // guard is consistent across read/write/edit in the same session).
 const map = new Map<string, { content: string; encoding: TextFileEncoding; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
 const readSet = new Set<string>()
+
+/** Record a read, refreshing LRU order and evicting the oldest when over the bound. */
+function trackRead(key: string) {
+  readSet.delete(key)
+  readSet.add(key)
+  if (readSet.size > MAX_READ_SET) {
+    const oldest = readSet.values().next().value
+    if (oldest !== undefined) readSet.delete(oldest)
+  }
+}
 
 /**
  * Returns a cache object that stores file contents together with their stats,
@@ -56,7 +71,7 @@ export const ReadCache = () => {
       }
       map.set(key(filepath), { content, encoding, stat })
       // Reading (or writing) a file means the model has seen its current content.
-      readSet.add(key(filepath))
+      trackRead(key(filepath))
     },
     /** Remove a cache entry - useful after write/edit operations */
     invalidate(filepath: string) {
@@ -68,7 +83,7 @@ export const ReadCache = () => {
     },
     /** Record that the file has been read in this session. */
     markRead(filepath: string) {
-      readSet.add(key(filepath))
+      trackRead(key(filepath))
     },
   }
 }

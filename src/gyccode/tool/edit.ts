@@ -35,15 +35,30 @@ function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
 
 const locks = new Map<string, Semaphore.Semaphore>()
 
+// Bound the lock map so a long-running session cannot grow memory without
+// limit. LRU-ish: when over the bound, evict the oldest entry (Map preserves
+// insertion order). An evicted lock is never in flight - callers hold a direct
+// reference to the semaphore for the duration of their edit.
+const MAX_LOCKS = 200
+
 const readCache = ReadCache()
 
 function lock(filePath: string) {
   const resolvedFilePath = FSUtil.resolve(filePath)
   const hit = locks.get(resolvedFilePath)
-  if (hit) return hit
+  if (hit) {
+    // Refresh insertion order (LRU).
+    locks.delete(resolvedFilePath)
+    locks.set(resolvedFilePath, hit)
+    return hit
+  }
 
   const next = Semaphore.makeUnsafe(1)
   locks.set(resolvedFilePath, next)
+  if (locks.size > MAX_LOCKS) {
+    const oldest = locks.keys().next().value
+    if (oldest !== undefined) locks.delete(oldest)
+  }
   return next
 }
 
@@ -128,6 +143,15 @@ export const EditTool = Tool.define(
               const info = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
               if (!info) throw new Error(`File ${filePath} not found`)
               if (info.type === "Directory") throw new Error(`Path is a directory, not a file: ${filePath}`)
+              // Refuse to read a very large file fully into memory - edit needs the
+              // whole content to diff, unlike the truncated read tool. For generated
+              // artifacts use the write tool for a full-file replacement instead.
+              const MAX_EDIT_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+              if (Number(info.size) > MAX_EDIT_FILE_SIZE) {
+                throw new Error(
+                  `File too large to edit: ${filePath} (${Math.round(Number(info.size) / 1024 / 1024)}MB). Use the write tool for a full-file replacement.`,
+                )
+              }
               if (!readCache.hasRead(filePath)) {
                 throw new Error(
                   `File has not been read in this session: ${filePath}. Read it first with the read tool before editing.`,

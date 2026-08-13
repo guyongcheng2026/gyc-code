@@ -36,3 +36,13 @@ test("backslash and forward-slash paths share the same cache key", () => {
   expect(cache.hasRead(f.replace(/\\/g, "/"))).toBe(true)
   rmSync(dir, { recursive: true, force: true })
 })
+
+
+test("read-set is bounded (LRU eviction of oldest entries)", () => {
+  const cache = ReadCache()
+  for (let i = 0; i < 210; i++) cache.markRead(`C:/proj/lru-${i}.ts`)
+  // Oldest entries must have been evicted once the bound is exceeded.
+  expect(cache.hasRead("C:/proj/lru-0.ts")).toBe(false)
+  // Most recent entries are retained.
+  expect(cache.hasRead("C:/proj/lru-209.ts")).toBe(true)
+})
