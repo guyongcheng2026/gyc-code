@@ -32,11 +32,12 @@ jobs:
       - name: Sync models mirror
         run: bun scripts/sync-models.mjs
 
-      # 3. 组装 Pages 站点：marketplace 内容放根 + models/ 子目录
+      # 3. 组装 Pages 站点：仅部署产物（index.json + pkg/ + models/），插件源码不入站
       - name: Assemble site
         run: |
-          mkdir -p site/models
-          cp -r marketplace/* site/
+          mkdir -p site/pkg site/models
+          cp marketplace/index.json site/
+          cp -r marketplace/pkg/* site/pkg/
           cp models-mirror/api.json site/models/
 
       - uses: actions/configure-pages@v5
