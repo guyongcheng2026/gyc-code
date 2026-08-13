@@ -559,3 +559,6 @@
 
 - [OK] 2026-08-13 [3687807] 配置：verify-ext.out 加入 .gitignore，验证产物不入库
   - [FILES] 1: .gitignore
+
+- [OK] 2026-08-13 [8a411cc] 清理：删除无引用一次性脚本、src门面对齐层及历史审查/品牌风险文档43项，同步更新STRUCTURE.md
+  - [FILES] 44: docs/ARCH-REVIEW-ROUND1-2026-08-07.md, docs/ARCH-REVIEW-ROUND2-2026-08-07.md, docs/BUG-2026-08-08.md, docs/BUG-REVIEW-2026-08-12-round2.md, docs/BUG-REVIEW-2026-08-12.md, docs/CAPABILITY-GAP-2026-08-08.md ...
