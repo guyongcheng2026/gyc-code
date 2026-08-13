@@ -100,6 +100,12 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - **依赖本地化**（commit `c8e4dad`）：原 `@opencode-ai/sdk`/`@opencode-ai/plugin` 已 vendored 为 `@gyccode/protocol/v1|v2|plugin`，自研 `createGyccodeClient` 客户端；bun.lock 已无 opencode；源码仅 v1/v2 入口注释披露来源
 - **品牌清理**（commit `43cd794`）：Referer/`$schema`/插件脚手架/注释文案 30 处 → gyccode；类名 `GyccodeClient`、header `x-gyccode-*`；仅剩 13 处功能性第三方服务 URL（models/console/api/app/install/go）属 API 调用，非品牌展示
 - **纯自研边界**：L1 品牌 ✓、L2 依赖 ✓ 已完成；L3 内核重写不划算（否决）；L4 法律层不可行（MIT 铁律保留版权）
+- **自主化 P0→P2**（2026-08-13，commits `9160bab`/`d808025`/`190353e`/`85ad116`）：
+  - P0 第三方服务默认值切自建：账号→`localhost:8787`（services/account）、分享→`localhost:8788`（services/share）、Web UI→`localhost:8789` 占位（内嵌 UI 首选）、OIDC 去默认（未配置报错）；仅剩 `models.opencode.ai`（公共中立模型数据源，可 env 镜像）
+  - P1 自研层做厚：插件市场接线（`PluginEntry` 改名 + `gyc plugin search/list` 子命令，registry `plugins.gyc-code.dev`）；debug 工作区内置化（`GYCCODE_ENABLE_DEBUG_WORKSPACE` 开关默认关）
+  - P2 协议自有演进：`src/protocol/README.md` 确立自有协议基线（v2 为演进方向、x-gyccode-* 专属扩展、不跟随上游）
+  - 自研层规模：src/gyccode 99,310 行/545 文件（占 src 44%）；services/ 自建后端 502 行（bun:sqlite 零依赖）
+  - 剩余第三方引用：仅模型数据源 + 传递依赖 `@gitlab/opencode-gitlab-auth`（GitLab 官方认证插件，触发面极小）
 
 ---
 
