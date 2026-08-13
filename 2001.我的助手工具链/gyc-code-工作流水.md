@@ -634,3 +634,6 @@
 
 - [OK] 2026-08-14 [00215a1] 修复缓存截断与资源泄漏系列bug：①二次序列化绕过工具类型上限破坏prompt缓存字节稳定(新增toolCapForOutput:聚合cap仅真实截断时采用,否则回退类型上限,read 10K二次序列化cap 10000→2000)②聚合预算maxTotalChars接线进生产路径(此前cacheFriendlyBudget的maxTotalChars死代码,小窗24K/大窗100K不生效)③truncationDecisions有界化TRUNCATION_DECISIONS_MAX=10K防长运行server/serve内存无界增长④TUI sdk.tsx SSE重连循环try/catch+日志+继续退避重连(此前.catch(()=>{})吞错致事件流静默死亡)⑤prompt/index.tsx中断重置定时器onCleanup清理+isDestroyed守卫⑥ai-sdk-cache.test.ts require→import消除tsc唯一报错。新增4个回归测试,node tsc 0错误,bun test 426pass/0fail
   - [FILES] 6: src/gyccode/session/llm/ai-sdk-cache.test.ts, src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/prompt.ts, src/tui/component/prompt/index.tsx, src/tui/context/sdk.tsx
+
+- [OK] 2026-08-14 [29197a3] 进化-统一aggregateToolCaps返回契约+补toModelMessagesEffect集成测试：①返回Map仅含真实截断条目(cap<当前输出长度)，无截断返回undefined，absent即交per-tool类型上限fallback(全长度条目不再进Map，未来调用方用toolCaps.get(id)??toolTypeCap即安全，根治二次序列化失效)②冻结一律存数字(kept工具冻结其全长，输出增长时仍byte-stable)③新增toModelMessagesEffect调用方路径集成测试3个(read 10K截断跨轮逐字节一致/聚合预算maxTotalChars接线生效call_a长于call_b/under不截断)。429pass/0fail，node tsc 0错误
+  - [FILES] 3: src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts
