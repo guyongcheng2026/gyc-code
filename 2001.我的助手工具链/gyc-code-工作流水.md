@@ -550,3 +550,6 @@
 
 - [OK] 2026-08-13 [88747cf] 修复: 7 类错误处理扫描——SQLite prepare/query 移入 try 避免同步异常逃逸为无意义 Die(分类为 SqlError) + webfetch DNS 失败 fail-closed 防 SSRF 绕过 + 回归测试
   - [FILES] 4: src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/core/database/sqliteError.test.ts, src/gyccode/tool/webfetch.ts
+
+- [OK] 2026-08-13 [165ce2b] 文档: 2026-08-13 工作记录——清理历史遗留未完成任务(去重批次/P2批次/readSet与locks上限/edit size守卫/7类错误处理扫描) + 归纳与进化建议
+  - [FILES] 1: docs/WORKLOG-2026-08-13.md
