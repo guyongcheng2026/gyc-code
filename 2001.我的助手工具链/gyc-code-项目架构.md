@@ -1,6 +1,6 @@
 # gyc-code 项目架构
 
-> 更新：2026-08-12
+> 更新：2026-08-13
 > 项目：gyc-code（AI 编码 CLI，品牌 gyc / GYCCODE / GycCode）
 > 本地仓库：`C:\Users\谷勇成\gyc-cli`
 > GitHub：`guyongcheng2026/gyc-code`（经 gh-proxy.com 代理同步）
@@ -35,7 +35,7 @@
 | `src/gyccode/memory/` | 记忆系统（`hermes-bridge.ts` 桥接本地记忆文件） |
 | `src/core/` | 核心框架层（v1 config / flag / v1 config 解析） |
 | `src/protocol/` | 协议层：`v1`/`v2` 自研协议客户端 + `plugin` 插件类型（原 opencode SDK/plugin 本地化，2026-08-12 起零外部依赖） |
-| `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`） |
+| `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`、`gen-compose-bundle.mjs`） |
 | `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker） |
 | `dist/` | 构建产物（`index.js` + 分包 + WASM 资产） |
 
@@ -75,12 +75,12 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 - 全局 `gyc` 是 bun 安装的 shim，指向本地仓库源码目录；**改源码后必须 rebuild 才生效**
 - 构建产物为 ESM 分包；WASM 通过相对路径解析（`resolveWasm` 基于 `import.meta.url`）
 
-## 五·五、目录结构对齐 Claude Code（2026-08-08）
+## 五·五、目录结构对齐 Claude Code（2026-08-08 → 2026-08-13 移除门面层）
 
-对标 Claude Code v2.1.88 的 src/ 结构，落地 9 个顶层门面文件（re-export 到 gyc 实际实现，不复制 React/Ink 架构）：
-- `src/main.tsx`（入口锚点，实际入口 `src/gyccode/index.ts`）、`src/context.ts`（system）、`src/history.ts`（message-v2）、`src/commands.ts`（command）、`src/Tool.ts`（tool/tool）、`src/Task.ts`（tool/task）、`src/QueryEngine.ts`（session/prompt）、`src/tools.ts`（tool/registry）、`src/setup.ts`（project/bootstrap）
-- 能力映射文档：`src/STRUCTURE.md`（Claude Code 目录 → gyc-code 实际路径，37 行）
-- 技术栈差异：Claude Code 用 React/Ink，gyc 用 SolidJS/OpenTUI + Effect v4，因此采用「门面文件 + 能力映射」而非物理搬移
+对标 Claude Code v2.1.88 的 src/ 结构，2026-08-08 曾落地 9 个顶层门面文件（re-export 对齐层）；**2026-08-13 清理删除**（全项目 0 引用，纯结构锚点；bin/gyc 实际加载 dist 或 `src/gyccode/index.ts`）：
+- 已删：`src/main.tsx`、`src/context.ts`、`src/history.ts`、`src/commands.ts`、`src/Tool.ts`、`src/Task.ts`、`src/QueryEngine.ts`、`src/tools.ts`、`src/setup.ts`
+- 能力映射文档保留：`src/STRUCTURE.md`（Claude Code 目录 → gyc-code 实际路径，已同步改为「等价」状态）
+- 技术栈差异：Claude Code 用 React/Ink，gyc 用 SolidJS/OpenTUI + Effect v4；等价实现直接承载能力，不设门面对齐层
 
 ## 六、命令清单
 
