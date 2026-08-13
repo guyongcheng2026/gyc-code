@@ -631,3 +631,6 @@
 
 - [OK] 2026-08-13 [5122aef] CH缓存冲99.9%-工具截断再调优:read/grep/glob 4K→2K字符(首次未命中1525→695token,命中率82.7%→91.2%,模型自动降级grep不破坏能力)+会话复用实测:连续12轮稳态98.8-99.8%平均99.3%,cache持续增长至9728;全库命中率85.5%→93.1%
   - [FILES] 2: src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts
+
+- [OK] 2026-08-14 [00215a1] 修复缓存截断与资源泄漏系列bug：①二次序列化绕过工具类型上限破坏prompt缓存字节稳定(新增toolCapForOutput:聚合cap仅真实截断时采用,否则回退类型上限,read 10K二次序列化cap 10000→2000)②聚合预算maxTotalChars接线进生产路径(此前cacheFriendlyBudget的maxTotalChars死代码,小窗24K/大窗100K不生效)③truncationDecisions有界化TRUNCATION_DECISIONS_MAX=10K防长运行server/serve内存无界增长④TUI sdk.tsx SSE重连循环try/catch+日志+继续退避重连(此前.catch(()=>{})吞错致事件流静默死亡)⑤prompt/index.tsx中断重置定时器onCleanup清理+isDestroyed守卫⑥ai-sdk-cache.test.ts require→import消除tsc唯一报错。新增4个回归测试,node tsc 0错误,bun test 426pass/0fail
+  - [FILES] 6: src/gyccode/session/llm/ai-sdk-cache.test.ts, src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/prompt.ts, src/tui/component/prompt/index.tsx, src/tui/context/sdk.tsx
