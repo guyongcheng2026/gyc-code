@@ -54,7 +54,8 @@ function truncateToolOutput(text: string, maxChars?: number) {
 
 const MAX_AGGREGATED_TOOL_CHARS = 100_000
 const MIN_AGGREGATED_TOOL_KEEP_CHARS = 1_024
-/** 缓存增量预算（小上下文窗口模型，如 DeepSeek v4-flash 128K）：
+
+/** 缓存增量预算（小上下文窗口模型，如 DeepSeek v4-flash 128K）：
  * 综合命中率 ≈ 1 - 2/N（N=压缩前轮数），98.2% 需 N ≥ 112，
  * 即每轮增量 ≤ 0.9×128K/112 ≈ 1.03K token。单条工具输出注入上限 1.5K 字符
  * （约 400 token），单条 assistant 消息合计 24K 字符（约 6K token），
@@ -266,7 +267,6 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     if (model.api.npm === "@ai-sdk/openai") return true
     if (model.api.npm === "@ai-sdk/amazon-bedrock/mantle") return true
     if (model.api.npm === "@ai-sdk/amazon-bedrock") return attachment.mime.startsWith("image/")
-    if (model.api.npm === "@ai-sdk/xai") return attachment.mime.startsWith("image/")
     if (model.api.npm === "@ai-sdk/google-vertex/anthropic") return true
     if (model.api.npm === "@ai-sdk/google") {
       const id = model.api.id.toLowerCase()

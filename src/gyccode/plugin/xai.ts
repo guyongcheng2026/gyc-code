@@ -217,7 +217,7 @@ export async function XaiAuthPlugin(input: PluginInput, options: XaiAuthPluginOp
         return {
           // Dummy bearer keeps the AI SDK from bailing on "missing apiKey"; the
           // real OAuth token is injected by the fetch override below.
-          // We intentionally do NOT set baseURL — @ai-sdk/xai already defaults
+          // 注意：不显式设置 baseURL——xai 官方 SDK 已有默认值
           // to https://api.x.ai/v1 and overriding here would silently route
           // around a user-configured gateway.
           apiKey: OAUTH_DUMMY_KEY,

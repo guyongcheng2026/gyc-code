@@ -58,26 +58,6 @@ function sdkKey(npm: string): string | undefined {
       return "vertex"
     case "@ai-sdk/google":
       return "google"
-    case "@ai-sdk/alibaba":
-      return "alibaba"
-    case "@ai-sdk/cerebras":
-      return "cerebras"
-    case "@ai-sdk/cohere":
-      return "cohere"
-    case "@ai-sdk/deepinfra":
-      return "deepinfra"
-    case "@ai-sdk/groq":
-      return "groq"
-    case "@ai-sdk/mistral":
-      return "mistral"
-    case "@ai-sdk/perplexity":
-      return "perplexity"
-    case "@ai-sdk/togetherai":
-      return "togetherai"
-    case "@ai-sdk/vercel":
-      return "vercel"
-    case "@ai-sdk/xai":
-      return "xai"
     case "venice-ai-sdk-provider":
       return "venice"
     case "@ai-sdk/gateway":
@@ -453,8 +433,7 @@ export function message(msgs: ModelMessage[], model: Provider.Model, options: Re
       model.api.id.includes("claude") ||
       model.id.includes("anthropic") ||
       model.id.includes("claude") ||
-      model.api.npm === "@ai-sdk/anthropic" ||
-      model.api.npm === "@ai-sdk/alibaba") &&
+      model.api.npm === "@ai-sdk/anthropic") &&
     model.api.npm !== "@ai-sdk/gateway" &&
     !usesAnthropicAutomaticCaching
   ) {
@@ -908,14 +887,6 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
         ]),
       )
 
-    case "@ai-sdk/cerebras":
-    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/cerebras
-    case "@ai-sdk/togetherai":
-    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/togetherai
-    case "@ai-sdk/xai":
-    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/xai
-    case "@ai-sdk/deepinfra":
-    // https://v5.ai-sdk.dev/providers/ai-sdk-providers/deepinfra
     case "venice-ai-sdk-provider":
     // https://docs.venice.ai/overview/guides/reasoning-models#reasoning-effort
     case "@ai-sdk/openai-compatible":
@@ -1070,43 +1041,6 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
       // https://v5.ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai
       return googleThinkingVariants(model)
 
-    case "@ai-sdk/mistral":
-      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/mistral
-      // https://docs.mistral.ai/capabilities/reasoning/adjustable
-      if (!model.capabilities.reasoning) return {}
-      // Only Mistral Small 4 and Medium 3.5 support reasoning
-      const MISTRAL_REASONING_IDS = [
-        "mistral-small-2603",
-        "mistral-small-latest",
-        "mistral-medium-3.5",
-        "mistral-medium-2604",
-      ]
-      const mistralId = model.api.id.toLowerCase()
-      if (!MISTRAL_REASONING_IDS.some((id) => mistralId.includes(id))) return {}
-      return {
-        high: { reasoningEffort: "high" },
-      }
-
-    case "@ai-sdk/cohere":
-      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/cohere
-      return {}
-
-    case "@ai-sdk/groq":
-      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/groq
-      const groqEffort = ["none", ...WIDELY_SUPPORTED_EFFORTS]
-      return Object.fromEntries(
-        groqEffort.map((effort) => [
-          effort,
-          {
-            reasoningEffort: effort,
-          },
-        ]),
-      )
-
-    case "@ai-sdk/perplexity":
-      // https://v5.ai-sdk.dev/providers/ai-sdk-providers/perplexity
-      return {}
-
     case "@jerome-benoit/sap-ai-provider-v2": {
       if (id.includes("anthropic")) {
         if (adaptiveEfforts) {
@@ -1163,8 +1097,7 @@ export function options(input: {
     input.model.providerID === "openai" ||
     input.model.api.npm === "@ai-sdk/openai" ||
     input.model.api.npm === "@ai-sdk/github-copilot" ||
-    input.model.api.npm === "@ai-sdk/amazon-bedrock/mantle" ||
-    input.model.api.npm === "@ai-sdk/xai"
+    input.model.api.npm === "@ai-sdk/amazon-bedrock/mantle"
   ) {
     result["store"] = false
   }
@@ -1248,13 +1181,9 @@ export function options(input: {
   }
 
   if (input.providerOptions?.setCacheKey !== false) {
-    if (input.model.api.npm === "@ai-sdk/deepinfra" || input.model.api.npm === "@ai-sdk/cerebras") {
-      result["prompt_cache_key"] = input.sessionID
-    } else if (
+    if (
       input.model.api.npm === "@ai-sdk/openai" ||
       input.model.api.npm === "@ai-sdk/azure" ||
-      input.model.api.npm === "@ai-sdk/xai" ||
-      input.model.api.npm === "@ai-sdk/mistral" ||
       input.model.api.npm === "venice-ai-sdk-provider" ||
       // openai-compatible endpoints (e.g. gyccode) expose the same prompt
       // caching mechanism via providerOptions.openai.promptCacheKey.
@@ -1322,8 +1251,7 @@ export function smallOptions(model: Provider.Model) {
   if (
     model.providerID === "openai" ||
     model.api.npm === "@ai-sdk/openai" ||
-    model.api.npm === "@ai-sdk/github-copilot" ||
-    model.api.npm === "@ai-sdk/xai"
+    model.api.npm === "@ai-sdk/github-copilot"
   ) {
     const base = { store: false }
     return mergeDeep(base, small)
@@ -1702,16 +1630,6 @@ function nonEmptyVariants(variants: NonNullable<Provider.Model["variants"]>): Pr
 }
 
 function reasoningToggle(model: Provider.Model): NonNullable<Provider.Model["variants"]> {
-  if (model.api.npm === "@ai-sdk/alibaba")
-    return {
-      none: { enableThinking: false },
-      high: { enableThinking: true },
-    }
-  if (model.api.npm === "@ai-sdk/cohere")
-    return {
-      none: { thinking: { type: "disabled" } },
-      high: { thinking: { type: "enabled" } },
-    }
   return {}
 }
 
@@ -1763,19 +1681,9 @@ function reasoningEffort(model: Provider.Model, effort: string) {
         return { modelParams: { thinking: { type: "adaptive", display: "summarized" }, output_config: { effort } } }
       return { modelParams: { reasoning_effort: effort } }
     case "@ai-sdk/openai-compatible":
-    case "@ai-sdk/xai":
-    case "@ai-sdk/mistral":
-    case "@ai-sdk/groq":
-    case "@ai-sdk/cerebras":
-    case "@ai-sdk/deepinfra":
-    case "@ai-sdk/togetherai":
     case "venice-ai-sdk-provider":
     case "ai-gateway-provider":
       return { reasoningEffort: effort }
-    case "@ai-sdk/cohere":
-    case "@ai-sdk/perplexity":
-    case "@ai-sdk/vercel":
-    case "@ai-sdk/alibaba":
     case "gitlab-ai-provider":
       return
   }
@@ -1821,10 +1729,6 @@ function reasoningBudget(model: Provider.Model, budget: number) {
       if (model.id.includes("anthropic")) return { thinking: { type: "enabled", budgetTokens: budget } }
       if (model.id.includes("google")) return { thinkingConfig: { includeThoughts: true, thinkingBudget: budget } }
       return
-    case "@ai-sdk/cohere":
-      return { thinking: { type: "enabled", tokenBudget: budget } }
-    case "@ai-sdk/alibaba":
-      return { enableThinking: true, thinkingBudget: budget }
     case "@jerome-benoit/sap-ai-provider-v2":
       if (model.id.includes("anthropic"))
         return { modelParams: { thinking: { type: "enabled", budget_tokens: budget } } }
@@ -1833,17 +1737,9 @@ function reasoningBudget(model: Provider.Model, budget: number) {
       return
     case "@ai-sdk/amazon-bedrock/mantle":
     case "@ai-sdk/azure":
-    case "@ai-sdk/cerebras":
-    case "@ai-sdk/deepinfra":
     case "@ai-sdk/github-copilot":
-    case "@ai-sdk/groq":
-    case "@ai-sdk/mistral":
     case "@ai-sdk/openai":
     case "@ai-sdk/openai-compatible":
-    case "@ai-sdk/perplexity":
-    case "@ai-sdk/togetherai":
-    case "@ai-sdk/vercel":
-    case "@ai-sdk/xai":
     case "ai-gateway-provider":
     case "gitlab-ai-provider":
     case "venice-ai-sdk-provider":
