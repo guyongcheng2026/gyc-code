@@ -94,6 +94,24 @@ export GYCCODE_SHARE_URL=http://localhost:8788   # 展示链接 base
 | `GYCCODE_MODELS_URL` | 模型 | 模型目录数据源 |
 | `GYCCODE_DISABLE_SHARE` | 分享 | `true` 时禁用分享功能 |
 
+## 四、模型目录镜像（自建数据源）
+
+模型目录（models.opencode.ai/api.json，公共中立模型清单）可用自建镜像替代，实现数据源 100% 自主：
+
+```bash
+# 1. 同步最新模型清单到 models-mirror/api.json（184 供应商 / 6000+ 模型）
+bun scripts/sync-models.mjs
+
+# 2. 与插件市场同站托管（serve-marketplace 已支持 /models 路径）
+bun scripts/serve-marketplace.mjs
+# → http://localhost:8790/models/api.json
+
+# 3. 客户端指向镜像（models-dev 读取 ${GYCCODE_MODELS_URL}/api.json）
+export GYCCODE_MODELS_URL=http://localhost:8790/models
+```
+
+`models-mirror/` 不入库（6MB 且随上游更新），每次部署前执行同步脚本即可。
+
 ## 部署提示（公网）
 
 - 生产部署需 TLS 终止（反向代理）与鉴权加固（等保三级基线）

@@ -14,6 +14,7 @@ import { existsSync } from "node:fs"
 import { extname, join, normalize, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dirname, "..", "marketplace")
+const MODELS_ROOT = resolve(import.meta.dirname, "..", "models-mirror")
 const PORT = Number(process.argv[2] ?? 8790)
 
 const MIME = {
@@ -26,10 +27,12 @@ const MIME = {
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://localhost:${PORT}`)
-    // 防目录穿越：只允许 marketplace/ 内的相对路径
-    const rel = normalize(url.pathname).replace(/^[/\\]+/, "")
-    const file = resolve(ROOT, rel)
-    if (!file.startsWith(ROOT) || !existsSync(file)) {
+    // /models/* 指向模型镜像，其余指向插件市场
+    const base = url.pathname.startsWith("/models") ? MODELS_ROOT : ROOT
+    // 防目录穿越：只允许根目录内的相对路径
+    const rel = normalize(url.pathname).replace(/^[/\\]+/, "").replace(/^models[/\\]/, "")
+    const file = resolve(base, rel)
+    if (!file.startsWith(base) || !existsSync(file)) {
       res.writeHead(404, { "content-type": "text/plain" })
       res.end("not found")
       return
@@ -44,5 +47,6 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`gyc 插件市场已启动：http://localhost:${PORT}`)
   console.log(`  索引：http://localhost:${PORT}/index.json`)
+  console.log(`  模型镜像：http://localhost:${PORT}/models/api.json`)
   console.log(`  停止：Ctrl+C`)
 })

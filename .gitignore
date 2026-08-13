@@ -45,3 +45,4 @@ gyc-cli-src-backup/
 .temp-*.cjs
 .temp-*.js
 services/account/gyccode-account.db
+models-mirror/
