@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 import { LLMAISDK } from "./ai-sdk"
 
 // DeepSeek 自动上下文缓存：usage.prompt_cache_hit_tokens 是顶层字段，
@@ -19,7 +20,7 @@ describe("DeepSeek prompt_cache_hit_tokens 补读", () => {
     } as never)
 
     // toLLMEvents 是 Effect，需要 runSync
-    const events = result.pipe(require("effect/Effect").runSync)
+    const events = result.pipe(Effect.runSync)
     const finishStep = events[0]
     expect(finishStep.type).toBe("step-finish")
     // @ts-expect-error 测试内部结构
@@ -35,7 +36,7 @@ describe("DeepSeek prompt_cache_hit_tokens 补读", () => {
       providerMetadata: undefined,
     } as never)
 
-    const events = result.pipe(require("effect/Effect").runSync)
+    const events = result.pipe(Effect.runSync)
     const finishStep = events[0]
     // @ts-expect-error 测试内部结构
     expect(finishStep.usage.cacheReadInputTokens).toBeUndefined()
@@ -57,7 +58,7 @@ describe("DeepSeek prompt_cache_hit_tokens 补读", () => {
       },
     } as never)
 
-    const events = result.pipe(require("effect/Effect").runSync)
+    const events = result.pipe(Effect.runSync)
     const finishStep = events[0]
     // @ts-expect-error 测试内部结构
     expect(finishStep.usage.cacheReadInputTokens).toBe(9800)
@@ -77,7 +78,7 @@ describe("DeepSeek prompt_cache_hit_tokens 补读", () => {
       providerMetadata: { gyccode: { cacheReadTokens: 0 } },
     } as never)
 
-    const events = result.pipe(require("effect/Effect").runSync)
+    const events = result.pipe(Effect.runSync)
     const finishStep = events[0]
     // @ts-expect-error 测试内部结构
     expect(finishStep.usage.cacheReadInputTokens).toBe(200)

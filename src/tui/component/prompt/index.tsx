@@ -146,6 +146,7 @@ let stashed: { prompt: PromptInfo; cursor: number } | undefined
 export function Prompt(props: PromptProps) {
   let input: TextareaRenderable
   let anchor: BoxRenderable
+  let interruptResetTimer: ReturnType<typeof setTimeout> | undefined
   const [inputTarget, setInputTarget] = createSignal<TextareaRenderable | undefined>()
 
   const leader = useLeaderActive()
@@ -427,7 +428,12 @@ export function Prompt(props: PromptProps) {
 
           setStore("interrupt", store.interrupt + 1)
 
-          setTimeout(() => {
+          // 中断重置定时器：保存句柄以便 onCleanup 清理；回调内加 isDestroyed 守卫，
+          // 防止组件卸载后写已销毁 store（prompt 组件按 sessionID 重挂载）。
+          if (interruptResetTimer) clearTimeout(interruptResetTimer)
+          interruptResetTimer = setTimeout(() => {
+            interruptResetTimer = undefined
+            if (!input || input.isDestroyed) return
             setStore("interrupt", 0)
           }, 5000)
 
@@ -665,6 +671,7 @@ title: "打开编辑器",
   })
 
   onCleanup(() => {
+    if (interruptResetTimer) clearTimeout(interruptResetTimer)
     if (store.prompt.input) {
       stashed = { prompt: unwrap(store.prompt), cursor: input.cursorOffset }
     }

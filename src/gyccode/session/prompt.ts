@@ -1650,6 +1650,7 @@ const layer = Layer.effect(
               sys.memory(memoryQuery, sessionID),
               MessageV2.toModelMessagesEffect(msgs, model, {
                 toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
+                toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
               }),
             ])
             const instructions = instructionResolved.files

@@ -102,12 +102,44 @@ function toolTypeCap(tool: string, baseCap: number | undefined): number | undefi
 }
 
 /**
+ * 调用方单条截断上限：聚合决策（aggregateToolCaps 的 Map）仅当它是"真实截断"
+ * （cap < 输出长度）时才采用；否则（全长度条目或 absent）回退到工具类型感知上限。
+ * 修复：二次序列化时 allDecided 分支返回的全长度 Map 不再压制 per-tool 类型上限，
+ * 保证跨轮序列化字节稳定（prompt-cache 友好，对齐 CH 99.9% 机制）。
+ */
+export function toolCapForOutput(
+  caps: ReadonlyMap<string, number> | undefined,
+  callID: string,
+  output: string,
+  tool: string,
+  toolOutputMaxChars: number | undefined,
+): number | undefined {
+  const aggregate = caps?.get(callID)
+  if (aggregate !== undefined && aggregate < output.length) return aggregate
+  return toolTypeCap(tool, toolOutputMaxChars)
+}
+
+/** 冻结决策上限：超出即清空（长运行 server/serve 模式防止无界内存增长；
+ * 旧 callID 在 compaction 后本就失效，清空不破坏跨轮字节稳定）。 */
+export const TRUNCATION_DECISIONS_MAX = 10_000
+
+/**
  * Frozen truncation decisions keyed by tool callID. Once a callID has been
  * decided (truncated or kept intact), the decision is recorded here and never
  * recomputed, so the serialized prompt prefix stays byte-stable across turns
  * (prompt-cache friendly). Mirrors reference agent partitionByPriorDecision.
  */
 const truncationDecisions = new Map<string, number | undefined>()
+
+/** 测试用：当前冻结决策数量。 */
+export function truncationDecisionsSize(): number {
+  return truncationDecisions.size
+}
+
+function freezeDecision(id: string, cap: number | undefined): void {
+  if (truncationDecisions.size >= TRUNCATION_DECISIONS_MAX) truncationDecisions.clear()
+  truncationDecisions.set(id, cap)
+}
 
 /** Reset frozen decisions (used by tests). */
 export function resetTruncationDecisions(): void {
@@ -183,7 +215,8 @@ export function aggregateToolCaps(
   if (total <= maxTotalChars) {
     // Under budget: freeze each callID (cap when maxPerChar applies, else "not truncated").
     for (const id of callIDs) {
-      if (!truncationDecisions.has(id)) truncationDecisions.set(id, maxPerChar !== undefined ? caps.get(id) : undefined)
+      if (!truncationDecisions.has(id))
+        freezeDecision(id, maxPerChar !== undefined ? caps.get(id) : undefined)
     }
     return maxPerChar !== undefined ? caps : undefined
   }
@@ -199,7 +232,7 @@ export function aggregateToolCaps(
     excess -= length - keep
   }
   // Record the full decision set for this batch.
-  for (const id of callIDs) truncationDecisions.set(id, caps.get(id) ?? undefined)
+  for (const id of callIDs) freezeDecision(id, caps.get(id) ?? undefined)
   return caps
 }
 
@@ -282,7 +315,7 @@ function providerMeta(metadata: Record<string, any> | undefined) {
 export const toModelMessagesEffect = Effect.fnUntraced(function* (
   input: readonly WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; toolOutputMaxTotalChars?: number },
 ) {
   const result: UIMessage[] = []
   const toolNames = new Set<string>()
@@ -424,7 +457,9 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         if (part.type !== "reasoning") return false
         return part.metadata?.anthropic?.signature != null
       })
-      const toolCaps = aggregateToolCaps(msg.parts)
+      const toolCaps = aggregateToolCaps(msg.parts, {
+        maxTotalChars: options?.toolOutputMaxTotalChars,
+      })
       for (const part of msg.parts) {
         if (part.type === "text") {
           const text = part.text === "" && hasSignedReasoning ? " " : part.text
@@ -445,7 +480,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               ? "[Old tool result content cleared]"
               : truncateToolOutput(
                   part.state.output,
-                  toolCaps?.get(part.callID) ?? toolTypeCap(part.tool, options?.toolOutputMaxChars),
+                  toolCapForOutput(toolCaps, part.callID, part.state.output, part.tool, options?.toolOutputMaxChars),
                 )
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
@@ -571,7 +606,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
 export function toModelMessages(
   input: readonly WithParts[],
   model: Provider.Model,
-  options?: { stripMedia?: boolean; toolOutputMaxChars?: number },
+  options?: { stripMedia?: boolean; toolOutputMaxChars?: number; toolOutputMaxTotalChars?: number },
 ): Promise<ModelMessage[]> {
   return Effect.runPromise(toModelMessagesEffect(input, model, options))
 }

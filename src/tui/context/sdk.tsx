@@ -88,24 +88,32 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         while (true) {
           if (abort.signal.aborted || ctrl.signal.aborted) break
 
-          const events = await sdk.global.event({
-            signal: ctrl.signal,
-            sseMaxRetryAttempts: 0,
-          })
+          try {
+            const events = await sdk.global.event({
+              signal: ctrl.signal,
+              sseMaxRetryAttempts: 0,
+            })
 
-          if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
-            // Start syncing workspaces, it's important to do this after
-            // we've started listening to events
-            await sdk.sync.start().catch(() => {})
+            if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
+              // Start syncing workspaces, it's important to do this after
+              // we've started listening to events
+              await sdk.sync.start().catch(() => {})
+            }
+
+            for await (const event of events.stream) {
+              if (ctrl.signal.aborted) break
+              handleEvent(event)
+            }
+
+            if (timer) clearTimeout(timer)
+            if (queue.length > 0) flush()
+          } catch (error) {
+            // 网络/协议异常不得让事件流静默死亡：记录并继续指数退避重连
+            // （仅 abort 时退出）。此前无 try/catch，错误被 .catch(() => {})
+            // 吞掉导致 TUI 事件流失联、界面卡死但进程存活。
+            if (abort.signal.aborted || ctrl.signal.aborted) break
+            console.error("[tui] SSE event stream error, will retry:", error)
           }
-
-          for await (const event of events.stream) {
-            if (ctrl.signal.aborted) break
-            handleEvent(event)
-          }
-
-          if (timer) clearTimeout(timer)
-          if (queue.length > 0) flush()
           attempt += 1
           if (abort.signal.aborted || ctrl.signal.aborted) break
 
@@ -113,7 +121,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           const backoff = Math.min(retryDelay * 2 ** (attempt - 1), maxRetryDelay)
           await new Promise((resolve) => setTimeout(resolve, backoff))
         }
-      })().catch(() => {})
+      })()
     }
 
     onMount(async () => {

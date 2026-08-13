@@ -1,5 +1,12 @@
 ﻿import { expect, test } from "bun:test"
-import { aggregateToolCaps, resetTruncationDecisions, cacheFriendlyBudget } from "./message-v2"
+import {
+  aggregateToolCaps,
+  resetTruncationDecisions,
+  cacheFriendlyBudget,
+  toolCapForOutput,
+  TRUNCATION_DECISIONS_MAX,
+  truncationDecisionsSize,
+} from "./message-v2"
 
 function toolPart(callID: string, output: string, tool: string = "bash") {
   return {
@@ -107,4 +114,69 @@ test("cacheFriendlyBudget applies tiered budgets by context window", () => {
   // 超大窗口（>1M）：不额外收紧
   expect(cacheFriendlyBudget(2_000_000)).toBeUndefined()
   expect(cacheFriendlyBudget(undefined)).toBeUndefined()
+})
+
+test("toolCapForOutput 二次序列化仍回退类型上限（Bug 1 回归）", () => {
+  resetTruncationDecisions()
+  const output = "x".repeat(10_000)
+  // 第一次序列化（生产无 opts）：under-budget → undefined → fallback 类型上限 2000
+  const caps1 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
+  expect(toolCapForOutput(caps1, "c1", output, "read", 2_000)).toBe(2_000)
+  // 第二次序列化（后续轮次重序列化同一历史消息）：此前返回全长度 Map 压制 fallback，
+  // 正确行为：聚合 cap 非真实截断时必须回退类型上限，保证跨轮字节稳定。
+  const caps2 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
+  expect(caps2).toBeDefined()
+  expect(toolCapForOutput(caps2, "c1", output, "read", 2_000)).toBe(2_000)
+})
+
+test("toolCapForOutput 聚合真实截断优先于类型上限", () => {
+  resetTruncationDecisions()
+  // over-budget：c2(80K) 被聚合截断，c1(30K) 保持全长
+  const caps = aggregateToolCaps([
+    toolPart("c1", "y".repeat(30_000), "bash"),
+    toolPart("c2", "x".repeat(80_000), "bash"),
+  ] as any)!
+  const output2 = "x".repeat(80_000)
+  const keep = caps.get("c2")!
+  expect(keep).toBeGreaterThanOrEqual(1_024)
+  expect(keep).toBeLessThan(80_000)
+  // 真实截断 → 用聚合 cap
+  expect(toolCapForOutput(caps, "c2", output2, "bash", 2_000)).toBe(keep)
+  // c1 未被聚合截断（cap=全长）→ 回退类型上限（Bug 4）
+  expect(toolCapForOutput(caps, "c1", "y".repeat(30_000), "read", 2_000)).toBe(2_000)
+  // 无聚合决策 → 回退类型上限（read 类型上限 2000 优先于 base 8000）
+  expect(toolCapForOutput(undefined, "cX", output2, "read", 8_000)).toBe(2_000)
+  // 无类型上限 → undefined（不截断）
+  expect(toolCapForOutput(undefined, "cX", output2, "read", undefined)).toBeUndefined()
+})
+
+test("aggregateToolCaps 仅传 maxTotalChars 时执行聚合预算（Bug 2 生产模式）", () => {
+  resetTruncationDecisions()
+  // 生产接线后：aggregateToolCaps(parts, { maxTotalChars }) 仅约束聚合总量
+  const parts = [
+    toolPart("c1", "y".repeat(10_000), "bash"),
+    toolPart("c2", "x".repeat(10_000), "bash"),
+    toolPart("c3", "z".repeat(10_000), "bash"),
+  ]
+  // total = 30_000 > 24_000 → 聚合截断生效
+  const caps = aggregateToolCaps(parts as any, { maxTotalChars: 24_000 })
+  expect(caps).toBeDefined()
+  const keepSum = [...caps!.values()].reduce((a, b) => a + b, 0)
+  expect(keepSum).toBeLessThanOrEqual(24_000)
+  // under 预算 → undefined（调用方 fallback 处理 per-tool 上限）
+  const capsUnder = aggregateToolCaps([toolPart("c4", "small")] as any, { maxTotalChars: 24_000 })
+  expect(capsUnder).toBeUndefined()
+})
+
+test("truncationDecisions 有界化：超过上限后清空，不随调用数无限增长（Bug 3 回归）", () => {
+  resetTruncationDecisions()
+  // 灌入超过上限的独立 callID（每个 under-budget 都会冻结一条决策）
+  for (let i = 0; i < TRUNCATION_DECISIONS_MAX + 20; i++) {
+    aggregateToolCaps([toolPart(`bulk-${i}`, "x".repeat(100))] as any)
+  }
+  // 有界：数量不超过上限
+  expect(truncationDecisionsSize()).toBeLessThanOrEqual(TRUNCATION_DECISIONS_MAX)
+  // 有界后新 callID 仍能正常决策（不会因残留旧决策而失效）
+  resetTruncationDecisions()
+  expect(aggregateToolCaps([toolPart("fresh", "x".repeat(100))] as any)).toBeUndefined()
 })
