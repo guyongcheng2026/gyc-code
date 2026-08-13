@@ -111,6 +111,9 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
   - 发布链路：npm files/prepack 就绪，`.github/workflows/ci.yml` + `publish.yml`（NPM_TOKEN），npm pack 327 文件/5.4MB
   - 服务补厚：账号服务用户体系（注册/登录/登出 + argon2id 口令 + 等保审计日志 + admin 权限控制）
   - 模型镜像：`scripts/sync-models.mjs` 同步中立模型清单（184 供应商/6291 模型），serve 支持 `/models`，`GYCCODE_MODELS_URL` 指向镜像后第三方 URL 清零
+- **市场上线 GitHub Pages + 模型快照兜底**（2026-08-13，commits `b4714fd`/`a351ab5`）：
+  - `.github/workflows/deploy-pages.yml`：push main 自动构建市场+同步模型镜像+部署 Pages（`guyongcheng2026.github.io/gyc-code/`），默认 registry 已指向 Pages（`GYCCODE_PLUGIN_REGISTRY` 可覆盖）
+  - `scripts/gen-models-snapshot.mjs` → `src/core/models-dev-snapshot.ts`（796KB 入库）：32 主流供应商/1427 模型内置快照，models-dev fallback 链 disk → snapshot → fetch（无网络也可用）
 
 ---
 
