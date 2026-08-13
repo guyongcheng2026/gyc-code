@@ -21,7 +21,8 @@ export interface MarketplaceConfig {
 }
 
 export const DEFAULT_MARKETPLACE_CONFIG: MarketplaceConfig = {
-  registry: "https://plugins.gyc-code.dev/index.json",
+  // 支持 GYCCODE_PLUGIN_REGISTRY 覆盖（本地测试 / 内网镜像），默认指向官方市场
+  registry: process.env.GYCCODE_PLUGIN_REGISTRY ?? "https://plugins.gyc-code.dev/index.json",
   cacheDir: ".gyc/plugins/cache",
 }
 

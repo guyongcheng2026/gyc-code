@@ -1,0 +1,12 @@
+{
+  "name": "gyc-hello",
+  "version": "1.0.0",
+  "description": "gyc 示例插件：注册 hello 工具，演示插件市场链路",
+  "author": "gyccode",
+  "keywords": ["gyc", "example", "hello"],
+  "type": "module",
+  "main": "src/index.mjs",
+  "engines": {
+    "gyccode": ">=0.0.1"
+  }
+}

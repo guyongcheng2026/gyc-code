@@ -176,7 +176,7 @@ export function createPlugTask(input: PlugInput, dep: PlugDeps = defaultPlugDeps
 }
 
 export const PluginCommand = effectCmd({
-  command: "plugin [module]",
+  command: "plugin [module] [query]",
   aliases: ["plug"],
   describe: "manage plugins: install <module> / search <query> / list",
   builder: (yargs) =>
@@ -184,6 +184,10 @@ export const PluginCommand = effectCmd({
       .positional("module", {
         type: "string",
         describe: "npm module name（或 search / list 子命令）",
+      })
+      .positional("query", {
+        type: "string",
+        describe: "search 子命令的搜索关键词",
       })
       .option("global", {
         alias: ["g"],
@@ -205,7 +209,7 @@ export const PluginCommand = effectCmd({
       const { PluginMarketplace } = yield* Effect.promise(() => import("../../plugin/marketplace"))
       const market = new PluginMarketplace()
       if (mod === "search") {
-        const query = String((args._ as Array<string | number>)[1] ?? "").trim()
+        const query = String(args.query ?? "").trim()
         const index = yield* Effect.promise(() => market.fetchIndex())
         if (!index.length) {
           UI.error("插件市场暂不可用（plugins.gyc-code.dev）")

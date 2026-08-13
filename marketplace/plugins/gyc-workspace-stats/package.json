@@ -1,0 +1,12 @@
+{
+  "name": "gyc-workspace-stats",
+  "version": "1.0.0",
+  "description": "gyc 实用插件：统计项目文件数与代码行数（按扩展名分组）",
+  "author": "gyccode",
+  "keywords": ["gyc", "stats", "workspace", "lines"],
+  "type": "module",
+  "main": "src/index.mjs",
+  "engines": {
+    "gyccode": ">=0.0.1"
+  }
+}
