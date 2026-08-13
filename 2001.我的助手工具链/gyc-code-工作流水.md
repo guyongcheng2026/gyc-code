@@ -637,3 +637,6 @@
 
 - [OK] 2026-08-14 [29197a3] 进化-统一aggregateToolCaps返回契约+补toModelMessagesEffect集成测试：①返回Map仅含真实截断条目(cap<当前输出长度)，无截断返回undefined，absent即交per-tool类型上限fallback(全长度条目不再进Map，未来调用方用toolCaps.get(id)??toolTypeCap即安全，根治二次序列化失效)②冻结一律存数字(kept工具冻结其全长，输出增长时仍byte-stable)③新增toModelMessagesEffect调用方路径集成测试3个(read 10K截断跨轮逐字节一致/聚合预算maxTotalChars接线生效call_a长于call_b/under不截断)。429pass/0fail，node tsc 0错误
   - [FILES] 3: src/gyccode/session/message-v2.cache.test.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts
+
+- [OK] 2026-08-14 [444e994] CH缓存命中率进一步提升4项：①修复记忆死代码-恢复tail注入(toModelMessagesEffect新增injectMemories,记忆只追加到最新user消息末尾,历史user字节不变→前缀稳定;此前sys.memory每轮白跑且记忆对模型完全失效)②用户文本截断(新增maxUserTextChars,超大粘贴按聚合预算同档上限限制每轮增量)③缓存感知压缩-time_based_microcompact默认启用(idle 60min后缓存已过期,清旧工具结果是免费清理,显式enabled:false可退出)④观测增强-processor.ts step-finish对cacheDrift命中骤降记logWarning(定位下一次优化点)。新增2个集成测试(记忆tail注入字节稳定/用户文本截断),node tsc 0错误,bun test 431pass/0fail
+  - [FILES] 6: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt.ts
