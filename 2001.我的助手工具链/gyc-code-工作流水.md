@@ -553,3 +553,6 @@
 
 - [OK] 2026-08-13 [165ce2b] 文档: 2026-08-13 工作记录——清理历史遗留未完成任务(去重批次/P2批次/readSet与locks上限/edit size守卫/7类错误处理扫描) + 归纳与进化建议
   - [FILES] 1: docs/WORKLOG-2026-08-13.md
+
+- [OK] 2026-08-13 [59def2a] 清理：删除过期构建日志(build-*.log/knip-*.log)、测试产物dist-test及验证产物verify-ext.out
+  - [FILES] 1: verify-ext.out
