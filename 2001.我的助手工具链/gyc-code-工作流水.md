@@ -619,3 +619,6 @@
 
 - [OK] 2026-08-13 [7b4b0f2] CH缓存命中率修复：system prompt去动态内容(日期/记忆不再prepend,保持字节稳定对齐CH99.9%机制)+DeepSeek prompt_cache_hit_tokens解析(AI SDK默认只读prompt_tokens_details.cached_tokens,DeepSeek返回顶层字段→metadataExtractor注入providerMetadata.gyccode+ai-sdk.ts补读cacheReadInputTokens)实测链路验证通过
   - [FILES] 4: src/gyccode/provider/provider.ts, src/gyccode/session/llm/ai-sdk-cache.test.ts, src/gyccode/session/llm/ai-sdk.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-13 [4ad457d] CH缓存命中率实测修复：step-finish累计message.tokens全部字段(cache.read/output/reasoning不能只加total,否则落库cache.read恒0导致db cache失真)实测deepseek-v4-flash命中率0%→94.9%(输入侧口径,单条最高98.1%)
+  - [FILES] 1: src/gyccode/session/processor.ts
