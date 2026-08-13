@@ -133,6 +133,8 @@ export type Provider = Schema.Schema.Type<typeof Provider>
 
 export const Event = ModelsDev.Event
 
+import { MODELS_DEV_SNAPSHOT } from "./models-dev-snapshot"
+
 declare const GYCCODE_MODELS_DEV: Record<string, Provider> | undefined
 
 export interface Interface {
@@ -197,7 +199,9 @@ const layer = Layer.effect(
     )
 
     const loadSnapshot = Effect.sync(() =>
-      typeof GYCCODE_MODELS_DEV === "undefined" ? undefined : GYCCODE_MODELS_DEV,
+      typeof GYCCODE_MODELS_DEV === "undefined"
+        ? (MODELS_DEV_SNAPSHOT as Record<string, Provider>)
+        : GYCCODE_MODELS_DEV,
     )
 
     const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
