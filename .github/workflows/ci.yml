@@ -26,5 +26,5 @@ jobs:
         run: bun run build
 
       - name: Test
-        run: bun test --timeout 60000
+        run: bun test --preload ./scripts/bun-solid-preload.ts --timeout 60000
         continue-on-error: true # 3 个 opentui 渲染用例无 TTY 环境失败为既有问题，不阻断 CI
