@@ -541,3 +541,6 @@
 
 - [OK] 2026-08-13 [d0ba368] 重构: 代码去重精炼批次——PKCE/资源格式化/path-display/slug/context-metrics 提取共享模块 + schema-error 中间件收敛 + id.ts 改用 schema/identifier + DeepSeek CH 缓存 token 解析
   - [FILES] 43: src/core/config/plugin/provider.ts, src/core/plugin/models-dev.ts, src/core/plugin/provider/gyccode.ts, src/core/plugin/provider/openai.ts, src/core/plugin/variant.ts, src/core/util/pkce.ts ...
+
+- [OK] 2026-08-13 [79da22c] 修复: BUG-REVIEW P2 批次——objcpp 扩展名补点/jdtls 临时目录退出清理/transport-ide shell 注入防护(单引号+整数化)/原子写失败清理 tmp 孤儿/冗余 400 条件精简/browser 超时后监听清理/resume 文案乱码
+  - [FILES] 12: src/core/plugin/provider/snowflake-cortex.ts, src/gyccode/lsp/server.ts, src/gyccode/lsp/serverExtensions.test.ts, src/gyccode/mcp/browser.ts, src/gyccode/mcp/transport-ide.ts, src/gyccode/mcp/transportIde.test.ts ...
