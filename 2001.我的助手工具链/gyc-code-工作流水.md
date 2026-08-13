@@ -592,3 +592,6 @@
 
 - [OK] 2026-08-13 [88350c1] 自主化P2-模型镜像：sync-models同步脚本(184供应商/6291模型)+serve-marketplace支持/models路径+models-mirror不入库(gitignore)+文档
   - [FILES] 4: .gitignore, scripts/serve-marketplace.mjs, scripts/sync-models.mjs, services/README.md
+
+- [OK] 2026-08-13 [b4714fd] 市场上线GitHub Pages：deploy-pages.yml(构建市场+同步模型镜像+部署)+默认registry改Pages地址+README/注释同步
+  - [FILES] 5: .github/workflows/deploy-pages.yml, marketplace/README.md, scripts/build-marketplace.mjs, src/gyccode/cli/cmd/plug.ts, src/gyccode/plugin/marketplace.ts
