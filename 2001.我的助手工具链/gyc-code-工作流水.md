@@ -601,3 +601,6 @@
 
 - [OK] 2026-08-13 [8fffdf3] 触发 GitHub Pages 部署（Pages 已启用）
   - [FILES] 0: 
+
+- [OK] 2026-08-13 [a351ab5] 模型快照兜底：内置主流供应商快照(32供应商/1427模型,gen-models-snapshot生成)+models-dev fallback链disk→snapshot→fetch(无网络也有模型清单)
+  - [FILES] 3: scripts/gen-models-snapshot.mjs, src/core/models-dev-snapshot.ts, src/core/models-dev.ts
