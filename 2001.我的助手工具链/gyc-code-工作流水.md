@@ -658,3 +658,6 @@
 
 - [OK] 2026-08-15 [2f9ee1e] docs: add mandatory simplified-Chinese rule for UI/session/display content
   - [FILES] 1: AGENTS.md
+
+- [OK] 2026-08-15 [dfdbae4] test: add spawn concurrency-cap regression tests (permit acquire/release, queue wake, fail-path release)
+  - [FILES] 2: src/core/cross-spawn-spawner.test.ts, src/core/cross-spawn-spawner.ts
