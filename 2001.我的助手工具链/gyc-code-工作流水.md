@@ -706,3 +706,6 @@
 
 - [OK] 2026-08-15 [62a5382] docs: record phase-2 resident-memory long-run results (node 140MB vs bun 347MB) + runtime/tsconfig/test-runner decisions
   - [FILES] 1: "docs/EVALUATION-2026-08-14-opencode2-\345\206\205\345\255\230\345\215\207\347\272\247\350\257\204\344\274\260.md"
+
+- [OK] 2026-08-15 [84e2360] fix: gyc 在 Bun 下加载 node 目标产物崩溃（node:sqlite 不受支持）
+  - [FILES] 2: bin/gyc, build.mjs
