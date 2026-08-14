@@ -43,6 +43,11 @@
       "bun": "./zed-sqlite.bun.ts",
       "node": "./zed-sqlite.node.ts",
       "default": "./zed-sqlite.bun.ts"
+    },
+    "#win32-kernel": {
+      "bun": "./win32-kernel.bun.ts",
+      "node": "./win32-kernel.node.ts",
+      "default": "./win32-kernel.bun.ts"
     }
   },
   "type": "module"
