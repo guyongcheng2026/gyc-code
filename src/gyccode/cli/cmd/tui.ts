@@ -1,3 +1,4 @@
+import { readStdin } from "../../../core/util/read-stdin"
 import { cmd } from "@/cli/cmd/cmd"
 import { Rpc } from "@/util/rpc"
 import { type rpc } from "../tui/worker"
@@ -57,7 +58,7 @@ async function target() {
 }
 
 async function input(value?: string) {
-  const piped = process.stdin.isTTY ? undefined : await Bun.stdin.text()
+  const piped = process.stdin.isTTY ? undefined : await readStdin()
   if (!value) return piped
   if (!piped) return value
   return piped + "\n" + value

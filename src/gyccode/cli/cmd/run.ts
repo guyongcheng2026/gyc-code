@@ -1,4 +1,5 @@
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
+import { readStdin } from "../../../core/util/read-stdin"
 import { FSUtil } from "@gyccode/core/fs-util"
 // CLI entry point for `gyccode run` and `gyccode --mini`.
 //
@@ -413,7 +414,7 @@ export const RunCommand = effectCmd({
         }
       }
 
-      const piped = process.stdin.isTTY ? undefined : await Bun.stdin.text()
+      const piped = process.stdin.isTTY ? undefined : await readStdin()
       message = resolveRunInput(message, piped) ?? ""
       const initialInput = resolveRunInput(rawMessage, piped)
 
