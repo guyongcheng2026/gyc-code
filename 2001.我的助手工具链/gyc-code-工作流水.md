@@ -649,3 +649,6 @@
 
 - [OK] 2026-08-14 [d4c5318] 修复错误处理/资源泄漏扫描发现并修复既有失败测试：
   - [FILES] 12: src/core/background-job.test.ts, src/core/background-job.ts, src/core/pty.ts, src/core/util/module.ts, src/gyccode/acp/content.ts, src/gyccode/mcp/auth.ts ...
+
+- [OK] 2026-08-14 [f8ea824] 修复深度扫描发现的稳定性/安全/磁盘写问题（Top3）：
+  - [FILES] 5: src/core/util/flock.ts, src/gyccode/session/keyed-lock.test.ts, src/gyccode/session/keyed-lock.ts, src/gyccode/tool/webfetch.test.ts, src/gyccode/tool/webfetch.ts
