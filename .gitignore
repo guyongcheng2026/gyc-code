@@ -6,6 +6,7 @@ bun.lockb
 
 # Build output
 dist/
+dist-bun/
 dist-test/
 build/
 verify-ext.out

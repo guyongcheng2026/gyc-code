@@ -1,5 +1,4 @@
 import { runtimeModules as keymapRuntimeModules } from "@opentui/keymap/runtime-modules"
-import { ensureRuntimePluginSupport } from "@opentui/solid/runtime-plugin-support/configure"
 import {
   type TuiDispose,
   type TuiPlugin,
@@ -43,8 +42,6 @@ import { createCommandShim } from "@gyccode/tui/plugin/command-shim"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect } from "effect"
 import { createPluginRuntime, type PluginRuntime, type TuiPluginHost } from "@gyccode/tui/plugin/runtime"
-
-ensureRuntimePluginSupport({ additional: keymapRuntimeModules })
 
 type PluginLoad = {
   options: ConfigPluginV1.Options | undefined
@@ -123,6 +120,18 @@ const DISPOSE_TIMEOUT_MS = 5000
 const KV_KEY = "plugin_enabled"
 const EMPTY_TUI: TuiPluginModule = {
   tui: async () => {},
+}
+
+// @opentui/solid 的 runtime-plugin-support 依赖 Bun 插件系统（JSX 运行时编译/模块重写），
+// Node 下该入口直接抛错。此处动态导入并容错降级：Bun 下正常注册，Node 下仅影响
+// 外部源码型 TUI 插件加载，内置插件（dist 内已编译）不受影响。
+async function ensureRuntimePluginSupportCompat() {
+  try {
+    const { ensureRuntimePluginSupport } = await import("@opentui/solid/runtime-plugin-support/configure")
+    ensureRuntimePluginSupport({ additional: keymapRuntimeModules })
+  } catch {
+    // Node 运行时：跳过 Bun 专属插件注册（外部 JSX 插件降级不可用）。
+  }
 }
 
 function fail(message: string, data: Record<string, unknown>) {
@@ -995,6 +1004,7 @@ export async function init(input: {
   disposeTimeoutMs?: number
 }) {
   const cwd = process.cwd()
+  await ensureRuntimePluginSupportCompat()
   if (loaded) {
     if (dir !== cwd) {
       throw new Error(`TuiPluginRuntime.init() called with a different working directory. expected=${dir} got=${cwd}`)

@@ -208,6 +208,7 @@ export const TuiThreadCommand = cmd({
       }
       const cwd = Filesystem.resolve(process.cwd())
 
+      // TUI 整体由 Bun 运行（OpenTUI 原生渲染仅支持 Bun），此处使用 Web Worker API。
       const worker = new Worker(file, {
         env: Object.fromEntries(
           Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),

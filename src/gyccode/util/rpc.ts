@@ -1,19 +1,57 @@
+import { parentPort } from "node:worker_threads"
+
+// @types/bun 对 node:worker_threads 的 parentPort 声明不准确（主线程字面量 null），
+// 运行时在 worker 线程中为 MessagePort。此处用结构化类型手动收窄，避免依赖其声明。
+type NodeWorkerPort = {
+  on(event: "message", listener: (data: string) => void): void
+  postMessage(data: string): void
+}
+
 type Definition = {
   [method: string]: (input: any) => any
 }
 
-export function listen(rpc: Definition) {
-  onmessage = async (evt) => {
-    const parsed = JSON.parse(evt.data)
-    if (parsed.type === "rpc.request") {
-      const result = await rpc[parsed.method](parsed.input)
-      postMessage(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+// 消息通道统一适配：Web Worker（Bun/浏览器 onmessage/postMessage 全局）优先，
+// Node worker_threads（parentPort）兜底。TUI 整体由 Bun 运行，worker 线程为
+// Bun Web Worker，走 Web Worker 全局；Node worker_threads 场景仅作防御兼容。
+function channel() {
+  if (typeof onmessage !== "undefined" && typeof postMessage !== "undefined") {
+    return {
+      onMessage(listener: (data: string) => void) {
+        onmessage = (evt) => listener(evt.data)
+      },
+      post(data: string) {
+        postMessage(data)
+      },
     }
   }
+  const nodePort = parentPort as NodeWorkerPort | null | undefined
+  if (nodePort != null) {
+    return {
+      onMessage(listener: (data: string) => void) {
+        nodePort.on("message", listener)
+      },
+      post(data: string) {
+        nodePort.postMessage(data)
+      },
+    }
+  }
+  throw new Error("RPC message channel is not available")
+}
+
+export function listen(rpc: Definition) {
+  const port = channel()
+  port.onMessage(async (data) => {
+    const parsed = JSON.parse(data)
+    if (parsed.type === "rpc.request") {
+      const result = await rpc[parsed.method](parsed.input)
+      port.post(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+    }
+  })
 }
 
 export function emit(event: string, data: unknown) {
-  postMessage(JSON.stringify({ type: "rpc.event", event, data }))
+  channel().post(JSON.stringify({ type: "rpc.event", event, data }))
 }
 
 export function client<T extends Definition>(target: {

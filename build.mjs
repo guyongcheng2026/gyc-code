@@ -3,8 +3,11 @@ import { spawnSync } from "node:child_process"
 import { rmSync } from "node:fs"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
-// 目标运行时：默认 node（opencode2 式，产物可被纯 Node 直跑）；
-// 设 GYC_RUNTIME=bun 可回退到 Bun 目标（双运行时并存策略）。
+// 目标运行时策略（双运行时并存）：
+// - 默认（GYC_RUNTIME 未设）：双构建 —— node 目标 → dist/（Node 跑非 TUI 命令，
+//   低内存快启动）；bun 目标 → dist-bun/（Bun 跑 TUI，OpenTUI 原生渲染仅支持
+//   Bun 的 bun:ffi，Node 无 node:ffi 模块）。
+// - 设 GYC_RUNTIME=bun：只构建 Bun 目标 → dist/（回退到纯 Bun 运行）。
 const runtime = process.env.GYC_RUNTIME ?? "node"
 
 // 构建前重新生成 compose 技能 bundle，保证运行产物与 .bundle 目录一致。
@@ -14,13 +17,8 @@ const gen = spawnSync(process.execPath, ["scripts/gen-compose-bundle.mjs"], {
 })
 if (gen.status !== 0) process.exit(gen.status ?? 1)
 
-// bun build 不清空 outdir，先清掉旧产物避免多轮构建残留叠加（曾致 dist 虚高 54MB/985 文件）。
-rmSync("./dist", { recursive: true, force: true })
-
-await build({
+const SHARED = {
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
-  outdir: "./dist",
-  target: runtime === "node" ? "node" : "bun",
   format: "esm",
   splitting: true,
   // Provider factory SDKs are externalized and resolved at runtime from
@@ -58,11 +56,30 @@ await build({
     "ai-gateway-provider",
     "@aws-sdk/credential-providers",
   ],
-  conditions: runtime === "node" ? ["node", "browser"] : ["browser"],
   define: { GYCCODE_VERSION: '"0.0.1"' },
   plugins: [solidPlugin],
   minify: true,
-})
-// 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
-await Bun.write(process.cwd() + "/dist/RUNTIME", runtime)
-console.log("build done")
+}
+
+// bun build 不清空 outdir，先清掉旧产物避免多轮构建残留叠加（曾致 dist 虚高 54MB/985 文件）。
+async function buildOnce(targetRuntime, outdir) {
+  rmSync(outdir, { recursive: true, force: true })
+  await build({
+    ...SHARED,
+    outdir,
+    target: targetRuntime === "node" ? "node" : "bun",
+    // bun 目标附加 "bun" 条件：@opentui/* 等包在 Bun 下解析 bun 版产物
+    // （与 dev 命令 --conditions=browser 的行为一致，bun 条件是 Bun 默认附加）。
+    conditions: targetRuntime === "node" ? ["node", "browser"] : ["browser", "bun"],
+  })
+  // 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
+  await Bun.write(process.cwd() + `/${outdir}/RUNTIME`, targetRuntime)
+  console.log(`build done: ${outdir} (${targetRuntime})`)
+}
+
+if (runtime === "node") {
+  await buildOnce("node", "./dist")
+  await buildOnce("bun", "./dist-bun")
+} else {
+  await buildOnce("bun", "./dist")
+}

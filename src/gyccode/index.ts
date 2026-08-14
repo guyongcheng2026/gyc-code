@@ -4,7 +4,9 @@ import type { Argv } from "yargs"
 import { hideBin } from "yargs/helpers"
 import { readFileSync, existsSync } from "fs"
 import { homedir, EOL } from "os"
-import { join } from "path"
+import { join, dirname } from "path"
+import { fileURLToPath } from "url"
+import { spawnSync } from "child_process"
 import { win32EnableUtf8Console } from "@gyccode/tui/terminal-win32"
 
 // Load API keys from ~/.gyc/.env (fallback: ~/.codex/.env for existing setups) and project .env.
@@ -108,6 +110,30 @@ function show(out: string) {
   process.stderr.write(out)
 }
 
+// OpenTUI 原生渲染（@opentui/core FFI）仅支持 Bun（bun:ffi）；Node 无 node:ffi 模块，
+// TUI 无法在 Node 下初始化。Node 主进程检测到默认 TUI 命令时，交由 Bun 子进程
+// 运行 Bun 目标产物（dist-bun）接管 TUI；非 TUI 命令（run/agent/serve 等）保持 Node 运行。
+function spawnTuiUnderBun() {
+  const here = dirname(fileURLToPath(import.meta.url))
+  const distBun = join(here, "..", "dist-bun", "index.js")
+  if (!existsSync(distBun)) {
+    console.error("TUI 需要 Bun 运行时产物（dist-bun 缺失），请重新构建：bun run build")
+    process.exit(1)
+  }
+  const candidates = [
+    process.env.GYC_BUN,
+    join(process.env.USERPROFILE ?? "", ".bun", "bin", "bun.exe"),
+    join(process.env.ProgramFiles ?? "C:\\Program Files", "nodejs", "bun.exe"),
+  ].filter((c): c is string => Boolean(c))
+  const bun = candidates.find((c) => existsSync(c)) ?? "bun"
+  const result = spawnSync(bun, [distBun, ...hideBin(process.argv)], { stdio: "inherit" })
+  if (result.error) {
+    console.error("Failed to launch gyc TUI under Bun:", result.error.message)
+    process.exit(1)
+  }
+  process.exit(result.status ?? 0)
+}
+
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
   .scriptName("gyc")
@@ -162,6 +188,9 @@ if (isHelp) {
   await registerCommand(cli, COMMANDS[first]!)
 } else {
   // Default: interactive TUI ($0)
+  if (!process.versions.bun) {
+    spawnTuiUnderBun()
+  }
   const tui = await import("./cli/cmd/tui")
   cli.command(tui.TuiThreadCommand as never)
 }
