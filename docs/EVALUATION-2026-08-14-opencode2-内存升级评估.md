@@ -58,5 +58,32 @@
 3. build.mjs 切 Node 需验证 esbuild 目标与外部依赖标记。
 4. 勿照搬"常驻服务默认开"。
 
-## 九、总评
+## 九、阶段 1 实测结果（2026-08-14 执行后追加）
+
+### 完成情况
+阶段 1（Bun → Node 运行时迁移）已全部落地并提交（9 个 commit）：
+- **T0 Spike**：Node 目标构建可行；发现 4 处 `from "bun"`（node:url 替代）+ 2 处 `from "bun:"`（zed-sqlite / win32-kernel 适配层）。
+- **T1**：24 处 Bun.stringWidth → displayWidth（string-width），7 文件。
+- **T1A**：`#zed-sqlite` 条件适配层（bun:sqlite ↔ node:sqlite）。
+- **T1B**：`#win32-kernel` 条件适配层（bun:ffi ↔ koffi）；顺带修复原代码使用了不存在的 `SetConsoleInputCP/GetConsoleInputCP`（正确为 `SetConsoleCP/GetConsoleCP`）导致输入代码页从未切换的隐藏 bug。
+- **T2/T3/T4**：persistence 去 Bun.file/write；readStdin 替换 Bun.stdin×2；Bun.hash → 已有 `Hash.sha256`（期间发生一次覆盖已存在 hash.ts 的事故，已恢复原文件并修复）。
+- **T5**：build.mjs 支持 `GYC_RUNTIME`（默认 node），external koffi/jsonc-parser（native/UMD 无法打包）。
+- **T6/T7**：engines.node ≥22.5；bin/gyc 纯 Node 直跑 dist（不再 spawn Bun）。
+- **T8**：全量测试 460 pass / 3 fail（3 个为**预存失败**：context-render.test.tsx 的 opentui "Orphan text" 渲染错误，git 基线验证改动前同样失败，与迁移无关）。
+
+### 内存基线实测（启动 + --help 峰值 WorkingSet）
+| 运行时 | 目标 | 启动峰值 RSS |
+|---|---|---|
+| Node v25.9 | node 目标 dist | **179.3 MB** |
+| Bun 1.3.14 | bun 目标 dist | **17.8 MB** |
+
+**重要修正**：启动/轻量命令下 Node 峰值显著高于 Bun（V8 堆开销）。opencode 2.0 "迁移 Node 降低内存"针对的是**常驻会话长期运行**（Bun 内存回收不稳定 → 无限增长，官方称 2GB+）；而非启动/峰值。因此：
+- 一次性命令（--help / 单次 run）用 Bun 更省（17.8 vs 179 MB）。
+- 常驻会话的收益需**阶段 2 真实会话长测**确认（Node 稳定 vs Bun 增长）。
+- 双运行时并存（GYC_RUNTIME 切换）是合理策略：默认 node（目标常驻稳定性），轻量场景可 GYC_RUNTIME=bun。
+
+### 环境限制（tsgo 假错）
+TS 7.0.2（typescript-go 原生版）在中文路径（C:\Users\谷勇成）下对部分既有文件（`*.bun.ts` 等）存在**旧内容缓存假错**：修改后仍报旧版本类型错误。判断法（沿用既有经验）：复制为副本编译 0 错误则原文件为假错。T1A/T1B 均以副本验证通过。
+
+## 十、总评
 自研项目"升级到 opencode 2.0" = 跟随其 Bun → Node 迁移。gyc-code 迁移基础大半就绪，成本低-中，能根治 Bun 运行时层面的吃内存；配合多实例收敛/保留策略/并发限制可"彻底"解决。批准阶段 0+阶段 1 推进。
