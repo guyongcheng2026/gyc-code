@@ -685,3 +685,6 @@
 
 - [OK] 2026-08-15 [b167398] refactor: replace Bun.stdin with readStdin (node stream) + spawn-injection tests
   - [FILES] 4: src/core/util/read-stdin.test.ts, src/core/util/read-stdin.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/tui.ts
+
+- [OK] 2026-08-15 [52b1da5] refactor: replace Bun.hash with hashString (node:crypto) for skill cache keys
+  - [FILES] 3: src/core/skill/discovery.ts, src/core/util/hash.test.ts, src/core/util/hash.ts
