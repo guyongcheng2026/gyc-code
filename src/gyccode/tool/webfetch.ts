@@ -1,5 +1,6 @@
 ﻿import { Effect, Schema } from "effect"
-import { HttpClient, HttpClientRequest } from "effect/unstable/http"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
+import * as FetchHttpClient from "effect/unstable/http/FetchHttpClient"
 import { Parser } from "htmlparser2"
 import * as Tool from "./tool"
 import TurndownService from "turndown"
@@ -11,6 +12,7 @@ import { summarizeText, type Summarizer } from "./summarize"
 
 const MAX_RESPONSE_SIZE = 5 * 1024 * 1024 // 5MB
 const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
+const MAX_REDIRECTS = 5
 
 // 检查主机名是否为私网/回环/链路本地地址（SSRF 防护）
 function isPrivateHost(hostname: string): boolean {
@@ -52,6 +54,37 @@ function isPrivateIPv4(ip: string): boolean {
   if (parts[0] === 0) return true // 当前网络 0.0.0.0/8
   return false
 }
+
+/**
+ * Follows HTTP redirects manually, re-validating the SSRF blocklist on every
+ * hop. Native redirect following is disabled via `redirect: "manual"`, because
+ * the initial-URL-only check would otherwise be bypassed by a 3xx response
+ * pointing at a private/loopback/metadata address.
+ */
+export function redirectLoop(
+  client: HttpClient.HttpClient,
+  request: HttpClientRequest.HttpClientRequest,
+  remaining: number,
+): Effect.Effect<HttpClientResponse.HttpClientResponse, Error> {
+  return Effect.gen(function* () {
+    const response = yield* client.execute(request)
+    const status = response.status
+    if (remaining <= 0 || status < 300 || status >= 400) return response
+    const location = response.headers["location"]
+    if (!location) return response
+    const next = new URL(location, response.request.url)
+    if (isPrivateHost(next.hostname)) {
+      throw new Error(`Redirect target points to a private/loopback address: ${next.hostname}`)
+    }
+    const resolved = yield* Effect.tryPromise(() => lookup(next.hostname, { all: true })).pipe(
+      Effect.catch(() => Effect.fail(new Error(`Unable to resolve ${next.hostname} for SSRF safety check`))),
+    )
+    if (resolved.some((entry) => isPrivateHost(entry.address))) {
+      throw new Error(`Redirect target resolves to a private/loopback address: ${next.hostname}`)
+    }
+    return yield* redirectLoop(client, HttpClientRequest.setUrl(request, next), remaining - 1)
+  })
+}
 const MAX_TIMEOUT = 120 * 1000 // 2 minutes
 
 export const Parameters = Schema.Struct({
@@ -69,7 +102,6 @@ export const WebFetchTool = Tool.define(
   "webfetch",
   Effect.gen(function* () {
     const http = yield* HttpClient.HttpClient
-    const httpOk = HttpClient.filterStatusOk(http)
 
     return {
       description: DESCRIPTION,
@@ -136,22 +168,26 @@ export const WebFetchTool = Tool.define(
 
           const request = HttpClientRequest.get(params.url).pipe(HttpClientRequest.setHeaders(headers))
 
+          // Disable native redirect following and follow each hop manually so
+          // every redirect target is re-checked against the SSRF blocklist.
+          const fetchWithSsrf = (req: HttpClientRequest.HttpClientRequest) => redirectLoop(http, req, MAX_REDIRECTS)
+
           // Retry with honest UA if blocked by Cloudflare bot detection (TLS fingerprint mismatch)
-          const response = yield* httpOk.execute(request).pipe(
-            Effect.catchIf(
-              (err) =>
-                err.reason._tag === "StatusCodeError" &&
-                err.reason.response.status === 403 &&
-                err.reason.response.headers["cf-mitigated"] === "challenge",
-              () =>
-                httpOk.execute(
-                  HttpClientRequest.get(params.url).pipe(
-                    HttpClientRequest.setHeaders({ ...headers, "User-Agent": "gyccode" }),
-                  ),
-                ),
-            ),
-            Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.die(new Error("Request timed out")) }),
-          )
+          const response = yield* fetchWithSsrf(request)
+            .pipe(
+              Effect.flatMap((res) => {
+                if (res.status === 403 && res.headers["cf-mitigated"] === "challenge") {
+                  return fetchWithSsrf(
+                    HttpClientRequest.get(params.url).pipe(
+                      HttpClientRequest.setHeaders({ ...headers, "User-Agent": "gyccode" }),
+                    ),
+                  )
+                }
+                return Effect.succeed(res)
+              }),
+              Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.die(new Error("Request timed out")) }),
+            )
+            .pipe(Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }))
 
           // Check content length
           const contentLength = response.headers["content-length"]

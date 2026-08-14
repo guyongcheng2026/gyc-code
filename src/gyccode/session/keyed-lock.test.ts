@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test"
 import { Effect } from "effect"
-import { makeKeyedLock } from "./keyed-lock"
+import { MAX_LOCKS, makeKeyedLock } from "./keyed-lock"
 
 type Row = { title: string; metadata: string | undefined }
 
@@ -75,5 +75,31 @@ describe("makeKeyedLock", () => {
     await Effect.runPromise(Effect.all([apply("a"), apply("b")], { concurrency: "unbounded" }))
 
     expect(maxActive).toBe(2)
+  })
+
+  it("bounds the number of distinct keys (LRU eviction)", async () => {
+    const lock = makeKeyedLock()
+    for (let i = 0; i < MAX_LOCKS + 10; i++) {
+      await Effect.runPromise(lock.withLock(`k-${i}`, Effect.void))
+    }
+    expect(await Effect.runPromise(lock.size())).toBeLessThanOrEqual(MAX_LOCKS)
+  })
+
+  it("keeps a recently-used key warm and evicts the least-recently-used", async () => {
+    const lock = makeKeyedLock()
+    // Fill the map and touch `hot` last so it is the most-recent entry.
+    for (let i = 0; i < MAX_LOCKS - 1; i++) {
+      await Effect.runPromise(lock.withLock(`k-${i}`, Effect.void))
+    }
+    await Effect.runPromise(lock.withLock("hot", Effect.void))
+    expect(await Effect.runPromise(lock.size())).toBe(MAX_LOCKS)
+
+    // A brand-new key pushes out the least-recently-used (`k-0`), never `hot`.
+    await Effect.runPromise(lock.withLock("new", Effect.void))
+    expect(await Effect.runPromise(lock.size())).toBe(MAX_LOCKS)
+
+    // `hot` is still a live, working lock after the eviction.
+    await Effect.runPromise(lock.withLock("hot", Effect.void))
+    expect(await Effect.runPromise(lock.size())).toBeLessThanOrEqual(MAX_LOCKS)
   })
 })

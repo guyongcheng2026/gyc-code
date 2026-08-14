@@ -222,9 +222,13 @@ export namespace Flock {
 
     let timer: NodeJS.Timeout | undefined
 
-    const startHeartbeat = (intervalMs = Math.max(100, Math.floor(opts.staleMs / 3))) => {
+    // Heartbeat prevents long critical sections from being evicted as stale.
+    // Every acquired lock starts a heartbeat, so floor the interval at 1s: a
+    // small `staleMs` must not degenerate into high-frequency disk metadata
+    // writes (utimes on the heartbeat file), which is a disk-noise source.
+    // All current callers use the default staleMs (60s => heartbeat every 20s).
+    const startHeartbeat = (intervalMs = Math.max(1_000, Math.floor(opts.staleMs / 3))) => {
       if (timer) return
-      // Heartbeat prevents long critical sections from being evicted as stale.
       timer = setInterval(() => {
         const t = new Date()
         void utimes(heartbeatPath, t, t).catch(() => undefined)
