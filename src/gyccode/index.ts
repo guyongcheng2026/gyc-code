@@ -74,7 +74,6 @@ const COMMANDS: Record<string, CommandLoader> = {
   session: { load: () => import("./cli/cmd/session"), name: "SessionCommand" },
   plugin: pluginLoader,
   plug: pluginLoader,
-  compose: { load: () => import("./cli/cmd/compose"), name: "ComposeCommand" },
   memory: { load: () => import("./cli/cmd/memory"), name: "MemoryCommand" },
   db: { load: () => import("./cli/cmd/db"), name: "DbCommand" },
 }

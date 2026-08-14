@@ -6,7 +6,7 @@ import { shouldDream, formatDreamPrompt, analyzeDreamResult, DEFAULT_DREAM_CONFI
 
 /** Persist dream state next to the memory file. */
 const DREAM_STATE_PATH = path.join(
-  process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
+  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
   "dream-state.json",
 )

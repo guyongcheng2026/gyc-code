@@ -16,26 +16,40 @@ const DEFAULT_TIMEOUT = 30 * 1000 // 30 seconds
 function isPrivateHost(hostname: string): boolean {
   // 回环地址
   if (hostname === "localhost" || hostname === "::1" || hostname === "0.0.0.0") return true
+
+  const h = hostname.toLowerCase()
+
+  // IPv4-mapped IPv6（::ffff:a.b.c.d）：提取内嵌 IPv4 后按 IPv4 规则校验，
+  // 防止用映射地址形式绕过私网拦截（如 ::ffff:10.1.2.3 实际连接 10.1.2.3）
+  const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (mapped) return isPrivateIPv4(mapped[1])
+
   // IPv4 私网/回环/链路本地
-  if (isIPv4(hostname)) {
-    const parts = hostname.split(".").map(Number)
-    if (parts[0] === 127) return true // 回环 127.0.0.0/8
-    if (parts[0] === 10) return true // 私网 10.0.0.0/8
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true // 私网 172.16.0.0/12
-    if (parts[0] === 192 && parts[1] === 168) return true // 私网 192.168.0.0/16
-    if (parts[0] === 169 && parts[1] === 254) return true // 链路本地 169.254.0.0/16
-    if (parts[0] === 0) return true // 当前网络 0.0.0.0
-  }
+  if (isIPv4(hostname)) return isPrivateIPv4(hostname)
+
   // IPv6 私网/链路本地
   if (hostname.includes(":")) {
-    const h = hostname.toLowerCase()
     if (h.startsWith("fc") || h.startsWith("fd")) return true // 私网 fc00::/7
     if (h.startsWith("fe80")) return true // 链路本地 fe80::/10
-    if (h === "::ffff:127.0.0.1" || h === "::ffff:10.") return true
   }
+
   // 云元数据端点常见主机名
   const blocklist = ["169.254.169.254", "metadata.google.internal", "instance-data/latest"]
   if (blocklist.includes(hostname)) return true
+  return false
+}
+
+// 判断 IPv4 地址是否属于私网/回环/链路本地/当前网络段
+function isPrivateIPv4(ip: string): boolean {
+  const parts = ip.split(".").map(Number)
+  // 非法地址（非数字/越界）一律视为不安全，fail-closed
+  if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true
+  if (parts[0] === 127) return true // 回环 127.0.0.0/8
+  if (parts[0] === 10) return true // 私网 10.0.0.0/8
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true // 私网 172.16.0.0/12
+  if (parts[0] === 192 && parts[1] === 168) return true // 私网 192.168.0.0/16
+  if (parts[0] === 169 && parts[1] === 254) return true // 链路本地 169.254.0.0/16
+  if (parts[0] === 0) return true // 当前网络 0.0.0.0/8
   return false
 }
 const MAX_TIMEOUT = 120 * 1000 // 2 minutes

@@ -384,9 +384,24 @@ const layer: Layer.Layer<
       }
 
       const directory = yield* canonical(input.directory)
+      const primary = yield* canonical(ctx.worktree)
+      // The primary workspace is the project itself; it is never a removable worktree.
+      if (directory === primary) {
+        return yield* new RemoveFailedError({ message: "Cannot remove the primary workspace" })
+      }
+
+      // Only directories inside the managed worktree root may be removed. Callers derive
+      // `directory` from persistence (workspace adapter rows), so an injected value like
+      // `/home/user` or `C:\Users\xxx` must never reach the recursive-removal fallback.
+      const managedRoot = yield* canonical(pathSvc.join(Global.Path.data, "worktree", ctx.project.id))
+      if (!directory.startsWith(`${managedRoot}${pathSvc.sep}`)) {
+        return yield* new RemoveFailedError({
+          message: `Cannot remove directory outside the managed worktree root: ${directory}`,
+        })
+      }
 
       // Preserve the loaded path casing for the store cache; `directory` is lowercased on Windows.
-      if (directory !== (yield* canonical(ctx.worktree))) yield* store.disposeDirectory(input.directory)
+      yield* store.disposeDirectory(input.directory)
 
       const list = yield* git(["worktree", "list", "--porcelain"], { cwd: ctx.worktree })
       if (list.code !== 0) {

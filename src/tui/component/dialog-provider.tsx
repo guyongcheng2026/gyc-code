@@ -358,11 +358,11 @@ function ApiMethod(props: ApiMethodProps) {
           "gyccode-go": (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                GycCode Go is a $10 per month subscription that provides reliable access to popular open coding models
+                OpenCode Go is a $10 per month subscription that provides reliable access to popular open coding models
                 并提供宽裕的使用额度。
               </text>
               <text fg={theme.text}>
-                Go to the official website and enable GycCode Go
+                Go to the official website and enable OpenCode Go
               </text>
             </box>
           ),

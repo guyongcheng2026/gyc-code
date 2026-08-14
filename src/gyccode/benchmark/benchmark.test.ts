@@ -51,10 +51,11 @@ test("04: Memory Bridge 模块可加载", async () => {
   expect(mod.writeMemoryFile).toBeDefined()
 })
 
-// 5. Composer 模块
-test("05: Composer 模块可加载", async () => {
-  const mod = await import("../composer/index")
-  expect(mod.Composer).toBeDefined()
+// 5. Compose 技能系统（真实 compose 工作流，替代已删除的 composer 占位模块）
+test("05: Compose 技能系统可加载", async () => {
+  const mod = await import("../skill/compose/index")
+  expect(mod.composeRoot).toBeDefined()
+  expect(mod.extractComposeSkills).toBeDefined()
 })
 
 // 6. Memory Bridge 读取

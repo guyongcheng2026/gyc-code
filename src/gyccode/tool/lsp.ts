@@ -113,7 +113,9 @@ export const LspTool = Tool.define(
             }
           })()
 
-          const filteredResult = filterGitIgnoredLocations(result)
+          const filteredResult = yield* Effect.promise(() =>
+            filterGitIgnoredLocations(result, instance.worktree),
+          )
 
           return {
             title,

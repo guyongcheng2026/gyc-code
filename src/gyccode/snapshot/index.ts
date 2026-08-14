@@ -163,6 +163,9 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
         const read = (file: string) => fs.readFileString(file).pipe(Effect.catch(() => Effect.succeed("")))
         const remove = (file: string) => fs.remove(file).pipe(Effect.catch(() => Effect.void))
         const locked = <A, E, R>(fx: Effect.Effect<A, E, R>) => lock(state.gitdir).withPermits(1)(fx)
+        // 缓存最近一次 write-tree 结果：add() 返回 false（无变更）时直接复用，
+        // 避免每次 step-finish 都启动 git write-tree 进程（磁盘 I/O 热点）。
+        let lastTreeHash: string | undefined
 
         const enabled = Effect.fnUntraced(function* () {
           if (state.vcs !== "git") return false
@@ -252,13 +255,13 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
               otherCode: other.code,
               otherStderr: other.stderr,
             })
-            return
+            return true
           }
 
           const tracked = diff.text.split("\0").filter(Boolean)
           const untracked = other.text.split("\0").filter(Boolean)
           const all = Array.from(new Set([...tracked, ...untracked]))
-          if (!all.length) return
+          if (!all.length) return false
 
           // Resolve source-repo ignore rules against the exact candidate set.
           // --no-index keeps this pattern-based even when a path is already tracked.
@@ -272,7 +275,8 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           }
 
           const allow = all.filter((item) => !ignored.has(item))
-          if (!allow.length) return
+          // 全部被 ignore：若 drop() 移除过索引条目则索引已变，需 write-tree
+          if (!allow.length) return ignored.size > 0
 
           const large = new Set(
             (yield* Effect.all(
@@ -295,6 +299,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           yield* sync(Array.from(block))
           // Stage only the allowed candidate paths so snapshot updates stay scoped.
           yield* stage(allow.filter((item) => !block.has(item)))
+          return true
         })
 
         const cleanup = Effect.fnUntraced(function* () {
@@ -302,7 +307,10 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
             Effect.gen(function* () {
               if (!(yield* enabled())) return
               if (!(yield* exists(state.gitdir))) return
-              const result = yield* git(args(["gc", `--prune=${prune}`]), { cwd: state.directory })
+              // --auto：仅当 loose 对象数超过 gc.auto 阈值时才真正 repack，
+              // 否则近乎 no-op。避免每小时无条件全量 gc 重写对象库（磁盘发热/噪音主因，
+              // 24h 持续运行下尤为明显）。需要 prune 时由真正触发的 gc 一并完成。
+              const result = yield* git(args(["gc", "--auto", `--prune=${prune}`]), { cwd: state.directory })
               if (result.code !== 0) {
                 yield* Effect.logWarning("cleanup failed", {
                   exitCode: result.code,
@@ -337,9 +345,16 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 yield* seed()
                 yield* Effect.logInfo("initialized")
               }
-              yield* add()
+              const changed = yield* add()
+              // 无变更且索引未被 restore/revert 外部改写时，复用上次 write-tree 结果，
+              // 避免每个 step-finish 都重复启动 git write-tree 进程（磁盘 I/O 热点）。
+              if (!changed && lastTreeHash) {
+                yield* Effect.logInfo("tracking (unchanged)", { hash: lastTreeHash })
+                return lastTreeHash
+              }
               const result = yield* git(args(["write-tree"]), { cwd: state.directory })
               const hash = result.text.trim()
+              lastTreeHash = hash
               yield* Effect.logInfo("tracking", { hash, cwd: state.directory, git: state.gitdir })
               return hash
             }),
@@ -383,6 +398,8 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           return yield* locked(
             Effect.gen(function* () {
               yield* Effect.logInfo("restore", { commit: snapshot })
+              // read-tree/checkout-index 会改写 git 索引，缓存的 tree hash 失效
+              lastTreeHash = undefined
               const result = yield* git([...core, ...args(["read-tree", snapshot])], { cwd: state.worktree })
               if (result.code === 0) {
                 const checkout = yield* git([...core, ...args(["checkout-index", "-a", "-f"])], {
@@ -408,6 +425,8 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
         const revert = Effect.fnUntraced(function* (patches: Patch[]) {
           return yield* locked(
             Effect.gen(function* () {
+              // checkout-index/checkout 会改写 git 索引，缓存的 tree hash 失效
+              lastTreeHash = undefined
               const ops: { hash: string; file: string; rel: string }[] = []
               const seen = new Set<string>()
               for (const item of patches) {
