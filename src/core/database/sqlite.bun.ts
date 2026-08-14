@@ -7,6 +7,7 @@ import { identity } from "effect/Function"
 import * as Layer from "effect/Layer"
 import * as Scope from "effect/Scope"
 import * as Semaphore from "effect/Semaphore"
+import * as Stream from "effect/Stream"
 import * as Reactivity from "effect/unstable/reactivity/Reactivity"
 import * as Client from "effect/unstable/sql/SqlClient"
 import type { Connection } from "effect/unstable/sql/SqlConnection"
@@ -84,6 +85,27 @@ const make = (options: Config) =>
         }
       })
 
+    const runStream = (query: string, params: ReadonlyArray<unknown> = []) =>
+      Effect.withFiber<Stream.Stream<Record<string, unknown>, SqlError>, SqlError>((fiber) => {
+        try {
+          const statement = native.query(query)
+          // @ts-ignore bun-types missing safeIntegers method, fixed in https://github.com/oven-sh/bun/pull/26627
+          statement.safeIntegers(Context.get(fiber.context, Client.SafeIntegers))
+          return Effect.succeed(
+            Stream.fromIterable(statement.iterate(...(params as any)) as Iterable<Record<string, unknown>>) as Stream.Stream<
+              Record<string, unknown>,
+              SqlError
+            >,
+          )
+        } catch (cause) {
+          return Effect.fail(
+            new SqlError({
+              reason: classifySqliteError(cause, { message: "Failed to stream query", operation: "executeStream" }),
+            }),
+          )
+        }
+      })
+
     const connection = identity<SqliteConnection>({
       execute(query, params, transformRows) {
         return transformRows ? Effect.map(run(query, params), transformRows) : run(query, params)
@@ -96,6 +118,13 @@ const make = (options: Config) =>
       },
       executeUnprepared(query, params, transformRows) {
         return this.execute(query, params, transformRows)
+      },
+      executeStream(query, params, transformRows) {
+        return Stream.unwrap(
+          Effect.map(runStream(query, params), (stream) =>
+            transformRows ? Stream.map(stream, (row) => (transformRows([row] as never) as unknown[])[0]) : stream,
+          ),
+        )
       },
       export: Effect.try({
         try: () => native.serialize(),

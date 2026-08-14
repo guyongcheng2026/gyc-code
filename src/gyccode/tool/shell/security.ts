@@ -7,11 +7,11 @@ export class SecurityClassification extends Schema.Class<SecurityClassification>
 }) {}
 
 export const DANGEROUS_PATTERNS = {
-  commandSubstitution: /\$\(.*\)|`.*`/,
-  processSubstitution: /<\(.*\)|>\(.*\)/,
+  commandSubstitution: /\$\([\s\S]*\)|`[\s\S]*`/,
+  processSubstitution: /<\([\s\S]*\)|>\([\s\S]*\)/,
   evalExec: /\beval\b|\bexec\b/,
-  curlPipeBash: /curl.*\|.*(?:ba)?sh/,
-  wgetPipeBash: /wget.*\|.*(?:ba)?sh/,
+  curlPipeBash: /curl[\s\S]*\|[\s\S]*(?:ba)?sh/,
+  wgetPipeBash: /wget[\s\S]*\|[\s\S]*(?:ba)?sh/,
   devTcp: /\/dev\/tcp/,
   rmRfRoot: /rm\s+-rf\s+\/(?:\s|$)/,
   chmod777: /chmod\s+777/,
@@ -23,10 +23,39 @@ export const DANGEROUS_PATTERNS = {
   exportEnv: /\bexport\s+\w+=/,
 } as const
 
+/**
+ * Strip backslash escapes outside single quotes so heuristics see what the
+ * shell will actually run: `e\val` -> `eval`, `c\u\r\l | b\ash` -> `curl | bash`.
+ * Inside single quotes a backslash is literal (no escaping), so those spans
+ * are left untouched.
+ */
+function deescape(command: string): string {
+  let out = ""
+  let inSingle = false
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i]
+    if (ch === "'") {
+      inSingle = !inSingle
+      out += ch
+      continue
+    }
+    if (ch === "\\" && !inSingle && i + 1 < command.length) {
+      out += command[i + 1]
+      i++
+      continue
+    }
+    out += ch
+  }
+  return out
+}
+
 export function classifyCommand(command: string): SecurityClassification {
+  // Match against both the raw command and its de-escaped form so shell
+  // escaping cannot bypass the blocked/dangerous heuristics.
+  const candidates = [command, deescape(command)]
   const matched: string[] = []
   for (const [name, pattern] of Object.entries(DANGEROUS_PATTERNS)) {
-    if (pattern.test(command)) {
+    if (candidates.some((c) => pattern.test(c))) {
       matched.push(name)
     }
   }
