@@ -646,3 +646,6 @@
 
 - [OK] 2026-08-14 [fb7b491] chore: remove composer placeholder and executeStream stubs; restore OpenCode Zen/Go brand names; async lsp_gitignore with timeout
   - [FILES] 19: docs/BUG-REVIEW-2026-08-14-round3.md, "docs/FEASIBILITY-2026-08-14-\344\270\211\351\241\271\345\206\263\347\255\226\350\257\204\344\274\260.md", src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/gyccode/benchmark/benchmark.test.ts, src/gyccode/cli/cmd/compose.ts ...
+
+- [OK] 2026-08-14 [d4c5318] 修复错误处理/资源泄漏扫描发现并修复既有失败测试：
+  - [FILES] 12: src/core/background-job.test.ts, src/core/background-job.ts, src/core/pty.ts, src/core/util/module.ts, src/gyccode/acp/content.ts, src/gyccode/mcp/auth.ts ...
