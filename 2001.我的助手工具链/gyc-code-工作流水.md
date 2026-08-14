@@ -655,3 +655,6 @@
 
 - [OK] 2026-08-14 [006673f] 修复 sqlite 流式查询类型缺口 + external-directory 逃逸防护 + shell 危险命令转义绕过（Phase1+Phase2）：
   - [FILES] 6: src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/gyccode/tool/external-directory.test.ts, src/gyccode/tool/external-directory.ts, src/gyccode/tool/shell/security.test.ts, src/gyccode/tool/shell/security.ts
+
+- [OK] 2026-08-15 [2f9ee1e] docs: add mandatory simplified-Chinese rule for UI/session/display content
+  - [FILES] 1: AGENTS.md
