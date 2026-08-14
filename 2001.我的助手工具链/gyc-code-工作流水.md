@@ -694,3 +694,6 @@
 
 - [OK] 2026-08-15 [e60db8a] build: support node target via GYC_RUNTIME; external koffi/jsonc-parser (native/UMD)
   - [FILES] 2: build.mjs, package.json
+
+- [OK] 2026-08-15 [2014172] feat: bump engines.node>=22.5 (node:sqlite); run dist directly under Node in bin/gyc (no Bun spawn)
+  - [FILES] 2: bin/gyc, package.json
