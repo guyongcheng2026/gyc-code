@@ -7,6 +7,7 @@
 
 const { existsSync } = require("fs")
 const path = require("path")
+const { pathToFileURL } = require("url")
 
 const here = __dirname
 const distEntry = path.join(here, "..", "dist", "index.js")
@@ -25,19 +26,20 @@ function spawnBun(bun, args) {
 
 async function main() {
   if (typeof Bun === "undefined") {
+    // Node runtime: run the Node-target dist bundle directly (opencode2-style,
+    // no Bun spawn).
+    if (existsSync(distEntry)) {
+      await import(pathToFileURL(distEntry).href)
+      return
+    }
+    // No dist build yet: fall back to spawning Bun on TS source (dev only).
     const candidates = [
       process.env.GYC_BUN,
       "C:\\Program Files\\nodejs\\bun.exe",
       path.join(process.env.USERPROFILE || "", ".bun", "bin", "bun.exe"),
     ].filter(Boolean)
     const bun = candidates.find((c) => existsSync(c)) || "bun"
-    const entry = existsSync(distEntry) ? distEntry : srcEntry
-    spawnBun(
-      bun,
-      existsSync(distEntry)
-        ? ["--smol", entry, ...process.argv.slice(2)]
-        : ["--smol", "run", "--preload", preload, "--conditions=browser", entry, ...process.argv.slice(2)],
-    )
+    spawnBun(bun, ["--smol", "run", "--preload", preload, "--conditions=browser", srcEntry, ...process.argv.slice(2)])
     return
   }
 
