@@ -673,3 +673,6 @@
 
 - [OK] 2026-08-15 [c47a1f8] refactor: replace 24x Bun.stringWidth with displayWidth (string-width) across 7 files
   - [FILES] 10: package.json, src/core/util/display-width.test.ts, src/core/util/display-width.ts, src/gyccode/cli/cmd/run/footer.menu.tsx, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/cli/cmd/run/prompt.shared.ts ...
+
+- [OK] 2026-08-15 [c665559] refactor: zed sqlite via conditional adapter (#zed-sqlite; bun:sqlite/node:sqlite)
+  - [FILES] 5: src/tui/editor-zed.ts, src/tui/package.json, src/tui/zed-sqlite.bun.ts, src/tui/zed-sqlite.node.ts, src/tui/zed-sqlite.ts
