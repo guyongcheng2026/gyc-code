@@ -670,3 +670,6 @@
 
 - [OK] 2026-08-15 [a7064dc] docs: record T0 spike findings (from-bun + bun: imports) and add T1A/T1B adapter tasks
   - [FILES] 1: docs/compose/plans/2026-08-14-opencode2-node-migration.md
+
+- [OK] 2026-08-15 [c47a1f8] refactor: replace 24x Bun.stringWidth with displayWidth (string-width) across 7 files
+  - [FILES] 10: package.json, src/core/util/display-width.test.ts, src/core/util/display-width.ts, src/gyccode/cli/cmd/run/footer.menu.tsx, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/cli/cmd/run/prompt.shared.ts ...
