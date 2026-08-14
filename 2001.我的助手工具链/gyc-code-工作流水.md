@@ -691,3 +691,6 @@
 
 - [OK] 2026-08-15 [a054a60] fix: restore existing Hash util (was overwritten by mistake); use Hash.sha256 for skill cache key
   - [FILES] 3: src/core/skill/discovery.ts, src/core/util/hash.test.ts, src/core/util/hash.ts
+
+- [OK] 2026-08-15 [e60db8a] build: support node target via GYC_RUNTIME; external koffi/jsonc-parser (native/UMD)
+  - [FILES] 2: build.mjs, package.json
