@@ -2241,7 +2241,13 @@ function Task(props: ToolProps) {
 
   onMount(() => {
     const sessionID = stringValue(props.metadata.sessionId)
-    if (sessionID && !sync.data.message[sessionID]?.length) void sync.session.sync(sessionID)
+    if (sessionID && !sync.data.message[sessionID]?.length) {
+      // Best-effort hydration: the referenced subagent session may already be
+      // gone (e.g. server-side data was cleaned up), in which case `sync`
+      // rejects via `session.get({ throwOnError: true })`. Swallow that so a
+      // stale Task part never surfaces an unhandled rejection.
+      void sync.session.sync(sessionID).catch(() => {})
+    }
   })
 
   const sessionID = createMemo(() => stringValue(props.metadata.sessionId))

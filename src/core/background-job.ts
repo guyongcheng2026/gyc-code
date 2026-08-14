@@ -110,6 +110,30 @@ function errorText(error: unknown) {
   return String(error)
 }
 
+// Bounds the registry so a long-lived process cannot grow unboundedly as
+// tasks settle. Running jobs are never evicted; once the total exceeds this
+// cap, the oldest finished jobs are dropped. Consumers filter `list()` by
+// `status === "running"` and `wait()` resolves through the job's Deferred
+// before the map is mutated, so eviction only limits "recent task" visibility
+// (task_list/task_get) and never drops in-flight results.
+export const MAX_FINISHED_JOBS = 200
+
+function evictOverflow(jobs: Map<string, Active>): Map<string, Active> {
+  if (jobs.size <= MAX_FINISHED_JOBS) return jobs
+  const finished = Array.from(jobs.values())
+    .filter((job) => job.info.status !== "running")
+    .sort(
+      (a, b) => (a.info.completed_at ?? a.info.started_at) - (b.info.completed_at ?? b.info.started_at),
+    )
+  const excess = jobs.size - MAX_FINISHED_JOBS
+  if (finished.length === 0 || excess <= 0) return jobs
+  const remove = new Set(finished.slice(0, Math.min(excess, finished.length)).map((job) => job.info.id))
+  if (remove.size === 0) return jobs
+  const next = new Map(jobs)
+  for (const id of remove) next.delete(id)
+  return next
+}
+
 /**
  * Makes one scoped, process-local registry. Entries are intentionally not
  * durable: process restart or owner-scope closure loses status and interrupts
@@ -161,7 +185,10 @@ export const make = Effect.gen(function* () {
           ...(Exit.isFailure(exit) ? { error: errorText(Cause.squash(exit.cause)) } : {}),
         },
       }
-      return [{ info: snapshot(next), done: job.done, scope: job.scope }, new Map(jobs).set(id, next)]
+      return [
+        { info: snapshot(next), done: job.done, scope: job.scope },
+        evictOverflow(new Map(jobs).set(id, next)),
+      ]
     })
     if (result.info && result.done) yield* Deferred.succeed(result.done, result.info).pipe(Effect.ignore)
     if (result.scope) {
@@ -350,7 +377,10 @@ export const make = Effect.gen(function* () {
           completed_at,
         },
       }
-      return [{ info: snapshot(next), done: job.done, scope: job.scope }, new Map(jobs).set(id, next)]
+      return [
+        { info: snapshot(next), done: job.done, scope: job.scope },
+        evictOverflow(new Map(jobs).set(id, next)),
+      ]
     })
     if (result.info && result.done) yield* Deferred.succeed(result.done, result.info).pipe(Effect.ignore)
     if (result.scope) yield* Scope.close(result.scope, Exit.void)

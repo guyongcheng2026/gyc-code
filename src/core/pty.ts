@@ -108,7 +108,10 @@ const layer = Layer.effect(
         }
         try {
           subscriber.onEnd(event)
-        } catch {}
+        } catch {
+          // One misbehaving subscriber must not break notification of the
+          // remaining subscribers or the teardown path.
+        }
       }
       session.subscribers.clear()
     }
@@ -119,7 +122,9 @@ const layer = Layer.effect(
       if (session.info.status === "running") {
         try {
           session.process.kill()
-        } catch {}
+        } catch {
+          // Best-effort kill during teardown; the process may already be gone.
+        }
       }
       notifyEnd(session, {})
     }

@@ -96,7 +96,9 @@ async function refreshErrorDescription(response: Response): Promise<string> {
     if (typeof body.error === "string") parts.push(body.error)
     if (typeof body.error_description === "string") parts.push(body.error_description)
     if (parts.length) return parts.join(": ")
-  } catch {}
+  } catch {
+    // Error body is not JSON; fall back to the HTTP status text below.
+  }
   return response.statusText || `HTTP ${response.status}`
 }
 

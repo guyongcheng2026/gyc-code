@@ -28,7 +28,9 @@ export function publish(port: number, domain?: string) {
     if (bonjour) {
       try {
         bonjour.destroy()
-      } catch {}
+      } catch {
+        // Best-effort teardown after a failed publish; nothing left to do.
+      }
     }
     bonjour = undefined
     currentPort = undefined
@@ -40,7 +42,10 @@ export function unpublish() {
     try {
       bonjour.unpublishAll()
       bonjour.destroy()
-    } catch {}
+    } catch {
+      // Best-effort teardown; failure is logged nowhere critical and the
+      // service is dropped from tracking regardless.
+    }
     bonjour = undefined
     currentPort = undefined
   }

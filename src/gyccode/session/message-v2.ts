@@ -945,7 +945,11 @@ export function fromError(
             },
           ).toObject()
         }
-      } catch {}
+      } catch {
+        // `e` did not match the structured API error shape (e.g. a plain
+        // Error or a non-JSON failure): fall through to NamedError.Unknown
+        // instead of rethrowing from inside error serialization.
+      }
       return new NamedError.Unknown({ message: JSON.stringify(e) }, { cause: e }).toObject()
   }
 }

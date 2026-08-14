@@ -1,4 +1,6 @@
 ﻿import { spawn } from "child_process"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 const BATCH_SIZE = 50
 // 超时上限：git check-ignore 正常 <100ms，挂起时（NFS/git lock）快速失败
@@ -11,7 +13,15 @@ function extractFilePath(loc: unknown): string | null {
   if (typeof obj.uri === "string") {
     const uri = obj.uri
     if (uri.startsWith("file://")) {
-      return decodeURIComponent(uri.slice(7))
+      try {
+        // fileURLToPath handles Windows drive letters correctly; the naive
+        // `uri.slice(7)` keeps a leading "/C:" that breaks path.relative.
+        return fileURLToPath(uri)
+      } catch {
+        // Not a parseable file URL (e.g. file://host/...); fall back to the
+        // raw uri so the location is still kept.
+        return uri
+      }
     }
     return uri
   }
@@ -33,6 +43,23 @@ function checkIgnore(filePaths: string[], cwd: string): Promise<Set<string>> {
   return new Promise((resolve) => {
     const ignored = new Set<string>()
     if (filePaths.length === 0) {
+      resolve(ignored)
+      return
+    }
+    // git check-ignore only accepts repo-relative paths; absolute paths
+    // (Windows drive letters) are rejected with "Invalid path". Normalize
+    // each path to be relative to the repository root, skipping anything
+    // outside it (those locations can never be ignored by this repo).
+    const relToAbs = new Map<string, string>()
+    const relPaths: string[] = []
+    for (const fp of filePaths) {
+      const rel = path.relative(cwd, fp)
+      if (rel === "" || rel.startsWith("..") || path.isAbsolute(rel)) continue
+      const normalized = rel.split(path.sep).join("/")
+      relToAbs.set(normalized, fp)
+      relPaths.push(normalized)
+    }
+    if (relPaths.length === 0) {
       resolve(ignored)
       return
     }
@@ -61,7 +88,12 @@ function checkIgnore(filePaths: string[], cwd: string): Promise<Set<string>> {
     child.on("close", () => {
       clearTimeout(timer)
       for (const line of stdout.trim().split("\n")) {
-        if (line) ignored.add(line)
+        const rel = line.trim()
+        if (rel) {
+          // git echoes the queried (relative) paths; map back to the original
+          // absolute path so the caller's locMap lookup matches.
+          ignored.add(relToAbs.get(rel) ?? rel)
+        }
       }
       resolve(ignored)
     })
@@ -71,7 +103,7 @@ function checkIgnore(filePaths: string[], cwd: string): Promise<Set<string>> {
       clearTimeout(timer)
       resolve(ignored)
     })
-    child.stdin.end(filePaths.join("\n"))
+    child.stdin.end(relPaths.join("\n"))
   })
 }
 

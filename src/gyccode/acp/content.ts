@@ -94,7 +94,10 @@ export function contentBlockToParts(block: ContentBlock): PromptPart[] {
               },
             ]
           }
-        } catch {}
+        } catch {
+          // URI is not a parseable file URL; fall back to rendering the raw
+          // resource uri + text below.
+        }
         return [{ type: "text", text: `[${block.resource.uri}]\n${block.resource.text}` }]
       }
       if (block.resource.mimeType) {
