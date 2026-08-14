@@ -667,3 +667,6 @@
 
 - [OK] 2026-08-15 [9a6715f] refactor: drop from-bun imports (node:url / NodeJS.ErrnoException); add koffi for node win32 ffi (T0 findings)
   - [FILES] 5: package.json, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/session/message-v2.ts, src/tui/component/dialog-status.tsx, src/tui/component/prompt/autocomplete.tsx
+
+- [OK] 2026-08-15 [a7064dc] docs: record T0 spike findings (from-bun + bun: imports) and add T1A/T1B adapter tasks
+  - [FILES] 1: docs/compose/plans/2026-08-14-opencode2-node-migration.md
