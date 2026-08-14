@@ -457,6 +457,224 @@ Run: 启动 gyc 会话 1 分钟，记录 Node 下 RSS 峰值，对比迁移前 B
 
 ---
 
+## T0 实测结果与计划修订（2026-08-14 执行后追加）
+
+**T0 判定：Node 目标构建可行。** `bun build --target node` 成功，但揭示原计划未覆盖的 2 类 Bun 依赖，已修订如下：
+
+### 实测发现
+
+1. **4 处 `from "bun"`（非 bun: 前缀）**：原计划未列出。已解决：
+   - `src/tui/component/prompt/autocomplete.tsx:2`、`src/gyccode/cli/cmd/run/footer.prompt.tsx:8`：`pathToFileURL` → `node:url`
+   - `src/tui/component/dialog-status.tsx:2`：`fileURLToPath` → `node:url`
+   - `src/gyccode/session/message-v2.ts:35`：`SystemError` 类型 → `NodeJS.ErrnoException`（3 处用法一并替换）
+2. **2 处 `from "bun:"`（非测试代码）**：原计划未覆盖，需适配层：
+   - `src/tui/editor-zed.ts:1`：`bun:sqlite`（读 Zed 数据库，3 个只读查询函数）
+   - `src/tui/terminal-win32.ts:1`：`bun:ffi`（8 个 kernel32 控制台函数，4 个导出功能）
+   - （其余 69 处 `bun:test` 属测试运行器，阶段 2 处理）
+3. **Node 无内置 FFI、无 `node:win32`；bun 不支持 `node:sqlite`** → 必须用条件导出适配层（沿用 `#sqlite`/`#pty`/`#fff` 既有模式）。
+4. **koffi 3.1.5 已装并验证**：Windows x64 prebuilt，`load/func` + C 原型 + `_Out_` + 单元素数组方式调 kernel32 成功（GetConsoleOutputCP=936、GetStdHandle、GetConsoleMode、FlushConsoleInputBuffer 均可用）。作为 Node 分支 FFI 后端。
+
+### 新增任务
+
+### Task 1A: zed-sqlite 适配层（editor-zed.ts 去 bun:sqlite）
+
+**Files:**
+- Create: `src/tui/zed-sqlite.bun.ts`（bun:sqlite 实现）、`src/tui/zed-sqlite.node.ts`（node:sqlite 实现）、`src/tui/zed-sqlite.ts`（接口类型）
+- Modify: `src/core/package.json`（imports 加 `#zed-sqlite` 条件）、`src/tui/editor-zed.ts`（改用适配层）
+
+- [ ] **Step 1: 定义接口 + 双实现**
+
+```ts
+// src/tui/zed-sqlite.ts（接口）
+export interface ZedDb {
+  query(sql: string): { all(params?: Record<string, unknown>): unknown[]; get(params?: Record<string, unknown>): unknown }
+  close(): void
+}
+export interface ZedDbFactory { open(path: string): ZedDb }
+```
+
+```ts
+// src/tui/zed-sqlite.bun.ts
+import { Database } from "bun:sqlite"
+import type { ZedDb, ZedDbFactory } from "./zed-sqlite"
+export const zedSqlite: ZedDbFactory = {
+  open(path) {
+    const db = new Database(path, { readonly: true })
+    return {
+      query(sql) {
+        return { all: (p) => db.query(sql).all(p), get: (p) => db.query(sql).get(p) }
+      },
+      close: () => db.close(),
+    }
+  },
+}
+```
+
+```ts
+// src/tui/zed-sqlite.node.ts
+import { DatabaseSync } from "node:sqlite"
+import type { ZedDb, ZedDbFactory } from "./zed-sqlite"
+export const zedSqlite: ZedDbFactory = {
+  open(path) {
+    const db = new DatabaseSync(path, { readOnly: true })
+    return {
+      query(sql) {
+        return { all: (p) => db.prepare(sql).all(p), get: (p) => db.prepare(sql).get(p) }
+      },
+      close: () => db.close(),
+    }
+  },
+}
+```
+
+- [ ] **Step 2: 条件导出**
+
+`src/core/package.json` 的 imports 增加：
+```json
+"#zed-sqlite": {
+  "bun": "../tui/zed-sqlite.bun.ts",
+  "node": "../tui/zed-sqlite.node.ts",
+  "default": "../tui/zed-sqlite.bun.ts"
+}
+```
+
+- [ ] **Step 3: editor-zed.ts 改用适配层**
+
+3 个查询函数中 `new Database(dbPath, { readonly: true })` → `zedSqlite.open(dbPath)`，`db.query(sql).all/get(params)` → `zedDb.query(sql).all/get(params)`，`db?.close()` 不变；删除 `import { Database } from "bun:sqlite"`，改为 `import { zedSqlite } from "#zed-sqlite"`。
+
+- [ ] **Step 4: 验证**
+
+Run: `bun test`（editor-zed 相关无单测则跑全量 + tsc）→ 确认无 `bun:sqlite` 残留：`rg -n 'bun:sqlite' src --glob '!*.test.ts'` 为空
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add src/tui/zed-sqlite.ts src/tui/zed-sqlite.bun.ts src/tui/zed-sqlite.node.ts src/core/package.json src/tui/editor-zed.ts
+git commit -m "refactor: zed sqlite via conditional adapter (#zed-sqlite, bun:sqlite/node:sqlite)"
+```
+
+### Task 1B: win32-kernel 适配层（terminal-win32.ts 去 bun:ffi）
+
+**Files:**
+- Create: `src/tui/win32-kernel.bun.ts`（bun:ffi 实现）、`src/tui/win32-kernel.node.ts`（koffi 实现）、`src/tui/win32-kernel.ts`（接口）
+- Modify: `src/core/package.json`（imports 加 `#win32-kernel`）、`src/tui/terminal-win32.ts`（改用适配层）
+
+- [ ] **Step 1: 定义接口（对齐 terminal-win32 现有 8 个符号）**
+
+```ts
+// src/tui/win32-kernel.ts
+export interface Win32Kernel {
+  GetStdHandle(n: number): number
+  GetConsoleMode(h: number, out: number[]): number
+  SetConsoleMode(h: number, mode: number): number
+  FlushConsoleInputBuffer(h: number): number
+  SetConsoleOutputCP(cp: number): number
+  GetConsoleOutputCP(): number
+  SetConsoleInputCP(cp: number): number
+  GetConsoleInputCP(): number
+}
+export interface Win32KernelLoader { load(): Win32Kernel | null }
+```
+
+- [ ] **Step 2: bun 实现（bun:ffi，逻辑照搬 terminal-win32 现有 kernel() 函数）**
+
+```ts
+// src/tui/win32-kernel.bun.ts
+import { dlopen, ptr } from "bun:ffi"
+import type { Win32Kernel, Win32KernelLoader } from "./win32-kernel"
+export const win32KernelLoader: Win32KernelLoader = {
+  load() {
+    try {
+      const k = dlopen("kernel32.dll", {
+        GetStdHandle: { args: ["i32"], returns: "ptr" },
+        GetConsoleMode: { args: ["ptr", "ptr"], returns: "i32" },
+        SetConsoleMode: { args: ["ptr", "u32"], returns: "i32" },
+        FlushConsoleInputBuffer: { args: ["ptr"], returns: "i32" },
+        SetConsoleOutputCP: { args: ["u32"], returns: "i32" },
+        GetConsoleOutputCP: { args: [], returns: "u32" },
+        SetConsoleInputCP: { args: ["u32"], returns: "i32" },
+        GetConsoleInputCP: { args: [], returns: "u32" },
+      })
+      const modeBuf = new Uint32Array(1)
+      return {
+        GetStdHandle: (n) => k.symbols.GetStdHandle(n),
+        GetConsoleMode: (h, out) => { const r = k.symbols.GetConsoleMode(h, ptr(modeBuf)); out[0] = modeBuf[0]!; return r },
+        SetConsoleMode: (h, m) => k.symbols.SetConsoleMode(h, m),
+        FlushConsoleInputBuffer: (h) => k.symbols.FlushConsoleInputBuffer(h),
+        SetConsoleOutputCP: (cp) => k.symbols.SetConsoleOutputCP(cp),
+        GetConsoleOutputCP: () => k.symbols.GetConsoleOutputCP(),
+        SetConsoleInputCP: (cp) => k.symbols.SetConsoleInputCP(cp),
+        GetConsoleInputCP: () => k.symbols.GetConsoleInputCP(),
+      }
+    } catch { return null }
+  },
+}
+```
+
+- [ ] **Step 3: node 实现（koffi，已验证 API）**
+
+```ts
+// src/tui/win32-kernel.node.ts
+import koffi from "koffi"
+import type { Win32Kernel, Win32KernelLoader } from "./win32-kernel"
+export const win32KernelLoader: Win32KernelLoader = {
+  load() {
+    try {
+      const lib = koffi.load("kernel32.dll")
+      const GetStdHandle = lib.func("void * GetStdHandle(int32_t nStdHandle)")
+      const GetConsoleMode = lib.func("int32_t __stdcall GetConsoleMode(void * h, _Out_ uint32_t * mode)")
+      const SetConsoleMode = lib.func("int32_t __stdcall SetConsoleMode(void * h, uint32_t mode)")
+      const FlushConsoleInputBuffer = lib.func("int32_t __stdcall FlushConsoleInputBuffer(void * h)")
+      const SetConsoleOutputCP = lib.func("int32_t __stdcall SetConsoleOutputCP(uint32_t cp)")
+      const GetConsoleOutputCP = lib.func("uint32_t __stdcall GetConsoleOutputCP()")
+      const SetConsoleInputCP = lib.func("int32_t __stdcall SetConsoleInputCP(uint32_t cp)")
+      const GetConsoleInputCP = lib.func("uint32_t __stdcall GetConsoleInputCP()")
+      const modeOut = [0]
+      return {
+        GetStdHandle: (n) => GetStdHandle(n),
+        GetConsoleMode: (h, out) => { const r = GetConsoleMode(h, modeOut); out[0] = modeOut[0]!; return r },
+        SetConsoleMode: (h, m) => SetConsoleMode(h, m),
+        FlushConsoleInputBuffer: (h) => FlushConsoleInputBuffer(h),
+        SetConsoleOutputCP: (cp) => SetConsoleOutputCP(cp),
+        GetConsoleOutputCP: () => GetConsoleOutputCP(),
+        SetConsoleInputCP: (cp) => SetConsoleInputCP(cp),
+        GetConsoleInputCP: () => GetConsoleInputCP(),
+      }
+    } catch { return null }
+  },
+}
+```
+
+- [ ] **Step 4: 条件导出**
+
+`src/core/package.json` imports 增加：
+```json
+"#win32-kernel": {
+  "bun": "../tui/win32-kernel.bun.ts",
+  "node": "../tui/win32-kernel.node.ts",
+  "default": "../tui/win32-kernel.bun.ts"
+}
+```
+
+- [ ] **Step 5: terminal-win32.ts 改用适配层**
+
+删除 `import { dlopen, ptr } from "bun:ffi"`，改 `import { win32KernelLoader } from "#win32-kernel"`；`load()` 函数改为 `k32 = win32KernelLoader.load()`；`k32!.symbols.GetConsoleOutputCP()` → `k32.GetConsoleOutputCP()`，`GetConsoleMode(handle, ptr(buf))` → `GetConsoleMode(handle, buf)`，其余符号访问同步去除 `.symbols`。
+
+- [ ] **Step 6: 验证 + 提交**
+
+Run: `bun test` 全绿；`node -e "import('#win32-kernel').then(...)"` 无法直接验证条件，用 `bun build --target node` 后确认产物无 `bun:ffi` 残留
+```bash
+git add src/tui/win32-kernel.ts src/tui/win32-kernel.bun.ts src/tui/win32-kernel.node.ts src/core/package.json src/tui/terminal-win32.ts package.json bun.lock
+git commit -m "refactor: win32 kernel via conditional adapter (#win32-kernel, bun:ffi/koffi)"
+```
+
+### 任务编号修订
+
+- T5（build.mjs）Step 1 的 `conditions`：Node 目标须为 `["node", "browser"]`（T0 已实测确认，缺 `node` 会落到 bun 条件、产物含 `bun:sqlite`）。
+- T1-T4 任务内容不变，编号顺延后执行顺序：T1 → T1A → T1B → T2 → T3 → T4 → T5 → T6 → T7 → T8。
+
+---
+
 ## 自检记录（Self-Review）
 
 - **Spec 覆盖**：Task 0-8 覆盖阶段 1 全部目标（去 16 处 Bun API、Node 目标构建、bin 直跑、engines、验证）。评估文档"剩余迁移成本表"的每一项均有对应任务。
