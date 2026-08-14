@@ -63,4 +63,6 @@ await build({
   plugins: [solidPlugin],
   minify: true,
 })
+// 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
+await Bun.write(process.cwd() + "/dist/RUNTIME", runtime)
 console.log("build done")

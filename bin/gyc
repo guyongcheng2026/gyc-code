@@ -5,7 +5,7 @@
 // cold start ~2.9s -> ~0.9s on this machine). Node runtime (npm global shim):
 // spawn the Bun runtime as before.
 
-const { existsSync } = require("fs")
+const { existsSync, readFileSync } = require("fs")
 const path = require("path")
 const { pathToFileURL } = require("url")
 
@@ -13,6 +13,33 @@ const here = __dirname
 const distEntry = path.join(here, "..", "dist", "index.js")
 const srcEntry = path.join(here, "..", "src", "gyccode", "index.ts")
 const preload = path.join(here, "..", "scripts", "bun-solid-preload.ts")
+
+// 读取 build.mjs 写入的运行时标记："node" / "bun"；缺失时视为 node（build.mjs 默认）。
+function readRuntimeMarker(distDir) {
+  try {
+    return readFileSync(path.join(distDir, "RUNTIME"), "utf8").trim()
+  } catch {
+    return undefined
+  }
+}
+
+function findNode() {
+  const candidates = [
+    process.env.GYC_NODE,
+    "C:\\Program Files\\nodejs\\node.exe",
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "nodejs", "node.exe"),
+  ].filter(Boolean)
+  return candidates.find((c) => existsSync(c)) || "node"
+}
+
+function findBun() {
+  const candidates = [
+    process.env.GYC_BUN,
+    "C:\\Program Files\\nodejs\\bun.exe",
+    path.join(process.env.USERPROFILE || "", ".bun", "bin", "bun.exe"),
+  ].filter(Boolean)
+  return candidates.find((c) => existsSync(c)) || "bun"
+}
 
 function spawnBun(bun, args) {
   const { spawnSync } = require("child_process")
@@ -29,22 +56,27 @@ async function main() {
     // Node runtime: run the Node-target dist bundle directly (opencode2-style,
     // no Bun spawn).
     if (existsSync(distEntry)) {
+      // bun 目标产物需 Bun 运行（本机无此场景，防御性处理）。
+      if (readRuntimeMarker(path.dirname(distEntry)) === "bun") {
+        spawnBun(findBun(), [distEntry, ...process.argv.slice(2)])
+        return
+      }
       await import(pathToFileURL(distEntry).href)
       return
     }
     // No dist build yet: fall back to spawning Bun on TS source (dev only).
-    const candidates = [
-      process.env.GYC_BUN,
-      "C:\\Program Files\\nodejs\\bun.exe",
-      path.join(process.env.USERPROFILE || "", ".bun", "bin", "bun.exe"),
-    ].filter(Boolean)
-    const bun = candidates.find((c) => existsSync(c)) || "bun"
-    spawnBun(bun, ["--smol", "run", "--preload", preload, "--conditions=browser", srcEntry, ...process.argv.slice(2)])
+    spawnBun(findBun(), ["--smol", "run", "--preload", preload, "--conditions=browser", srcEntry, ...process.argv.slice(2)])
     return
   }
 
   if (existsSync(distEntry)) {
-    await import(distEntry)
+    // dist 默认是 Node 目标产物（含 node:sqlite，Bun 1.x 不支持）→ 交由 Node 子进程直跑；
+    // 仅当构建标记为 bun 目标时才进程内 import（冷启动最快）。
+    if (readRuntimeMarker(path.dirname(distEntry)) === "bun") {
+      await import(distEntry)
+      return
+    }
+    spawnBun(findNode(), [distEntry, ...process.argv.slice(2)])
     return
   }
   spawnBun(process.execPath, [
