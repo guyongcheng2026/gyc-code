@@ -661,3 +661,6 @@
 
 - [OK] 2026-08-15 [dfdbae4] test: add spawn concurrency-cap regression tests (permit acquire/release, queue wake, fail-path release)
   - [FILES] 2: src/core/cross-spawn-spawner.test.ts, src/core/cross-spawn-spawner.ts
+
+- [OK] 2026-08-15 [e61d02c] docs: opencode2 memory upgrade evaluation + phase-1 node migration plan
+  - [FILES] 2: "docs/EVALUATION-2026-08-14-opencode2-\345\206\205\345\255\230\345\215\207\347\272\247\350\257\204\344\274\260.md", docs/compose/plans/2026-08-14-opencode2-node-migration.md
