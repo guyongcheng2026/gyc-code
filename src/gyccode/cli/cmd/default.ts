@@ -11,6 +11,7 @@ import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { readStdin } from "../../../core/util/read-stdin"
+import { spawnBunSync } from "../util/bun-runtime"
 import { Filesystem } from "@/util/filesystem"
 import { createGyccodeClient, type GyccodeClient } from "@gyccode/protocol/v2"
 import { FormatError, FormatUnknownError } from "../error"
@@ -88,6 +89,9 @@ const HELP_TEXT = [
   "    /exit  /quit   退出",
   "    /help          显示本帮助",
   "    /<command>     执行斜杠命令（如 /compact）",
+  "  模式切换：",
+  "    gyc tui        切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
+  "    gyc --mini     切换到 split-footer 交互（当前 CLI 退出，由 mini 接管）",
   "",
   "  Ctrl-C 退出。",
 ].join("\n")
@@ -121,6 +125,32 @@ async function interactiveLoop(input: CliInput) {
       if (text === "/exit" || text === "/quit") break
       if (text === "/help") {
         process.stdout.write(HELP_TEXT + "\n")
+        continue
+      }
+      // 模式切换：`gyc tui` / `gyc --mini`（或裸 `tui` / `--mini`）由 Bun 子进程
+      // 接管全屏交互（OpenTUI 仅支持 Bun）。先关闭 readline 恢复终端，再拉起
+      // 子进程；切换后本 CLI 进程退出（子进程独立运行，退出后回到 shell）。
+      if (/^(?:gyc\s+)?tui(?:\s+.*)?$/i.test(text)) {
+        rl.close()
+        const code = spawnBunSync(["tui"])
+        if (code === undefined) {
+          UI.error("TUI 需要 Bun 运行时产物（dist-bun 缺失或启动失败），请重新构建：bun run build")
+          process.exit(1)
+        }
+        process.exit(code)
+      }
+      if (/^(?:gyc\s+)?(?:--mini|-i)$/i.test(text)) {
+        rl.close()
+        const code = spawnBunSync(["--mini"])
+        if (code === undefined) {
+          UI.error("TUI 需要 Bun 运行时产物（dist-bun 缺失或启动失败），请重新构建：bun run build")
+          process.exit(1)
+        }
+        process.exit(code)
+      }
+      const sub = /^gyc\s+(\S+)/i.exec(text)
+      if (sub) {
+        process.stdout.write(`交互模式内仅支持 tui / --mini 切换；其他子命令请 /exit 后运行 gyc ${sub[1]}\n`)
         continue
       }
       if (text.startsWith("/")) {
