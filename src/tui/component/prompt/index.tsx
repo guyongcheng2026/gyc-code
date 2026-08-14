@@ -9,6 +9,7 @@ import {
   type Renderable,
 } from "@opentui/core"
 import type { CommandContext } from "@opentui/keymap"
+import { displayWidth } from "../../../core/util/display-width"
 import { createEffect, createMemo, onMount, createSignal, onCleanup, on, Show, Switch, Match } from "solid-js"
 import { registerGyccodeSpinner } from "../register-spinner"
 import path from "path"
@@ -535,7 +536,7 @@ title: "打开编辑器",
             parts: updatedNonTextParts,
           })
           restoreExtmarksFromParts(updatedNonTextParts)
-          input.cursorOffset = Bun.stringWidth(normalized)
+          input.cursorOffset = displayWidth(normalized)
         },
       },
       {

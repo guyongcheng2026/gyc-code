@@ -116,6 +116,7 @@
     "semver": "^7.6.3",
     "shiki": "*",
     "solid-js": "*",
+    "string-width": "^8.2.2",
     "strip-ansi": "7.1.2",
     "tree-sitter-bash": "0.25.0",
     "tree-sitter-powershell": "0.25.10",

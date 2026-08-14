@@ -1,4 +1,5 @@
 import type { BoxRenderable, TextareaRenderable, ScrollBoxRenderable } from "@opentui/core"
+import { displayWidth } from "../../../core/util/display-width"
 import { pathToFileURL } from "node:url"
 import fuzzysort from "fuzzysort"
 import path from "path"
@@ -192,7 +193,7 @@ export function Autocomplete(props: {
 
     const virtualText = "@" + text
     const extmarkStart = store.index
-    const extmarkEnd = extmarkStart + Bun.stringWidth(virtualText)
+    const extmarkEnd = extmarkStart + displayWidth(virtualText)
 
     const styleId = part.type === "file" ? props.fileStyleId : part.type === "agent" ? props.agentStyleId : undefined
 
@@ -463,7 +464,7 @@ export function Autocomplete(props: {
           const cursor = props.input().logicalCursor
           props.input().deleteRange(0, 0, cursor.row, cursor.col)
           props.input().insertText(newText)
-          props.input().cursorOffset = Bun.stringWidth(newText)
+          props.input().cursorOffset = displayWidth(newText)
         },
       })
     }
@@ -490,7 +491,7 @@ export function Autocomplete(props: {
         const cursor = props.input().logicalCursor
         props.input().deleteRange(0, 0, cursor.row, cursor.col)
         props.input().insertText(newText)
-        props.input().cursorOffset = Bun.stringWidth(newText)
+        props.input().cursorOffset = displayWidth(newText)
         props.setPrompt((draft) => {
           draft.input = newText
         })
