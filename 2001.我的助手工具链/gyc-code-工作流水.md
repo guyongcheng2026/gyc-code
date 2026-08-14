@@ -715,3 +715,6 @@
 
 - [OK] 2026-08-15 [f5aa2e2] 默认入口改造为纯 CLI：gyc 无参进入 readline 逐行对话（Node），传消息/管道走非交互单轮，gyc tui 为显式全屏 TUI 子命令
   - [FILES] 6: src/core/util/read-stdin.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/stream-cli.ts, src/gyccode/cli/cmd/tui.ts, src/gyccode/index.ts
+
+- [OK] 2026-08-15 [4e49bd6] 修复 CLI 交互内模式切换：识别 gyc tui / gyc --mini，关闭 readline 后由 Bun 子进程接管，解决切换 TUI 挂起与误发模型消息
+  - [FILES] 3: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/util/bun-runtime.ts, src/gyccode/index.ts
