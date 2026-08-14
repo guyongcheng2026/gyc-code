@@ -709,3 +709,6 @@
 
 - [OK] 2026-08-15 [84e2360] fix: gyc 在 Bun 下加载 node 目标产物崩溃（node:sqlite 不受支持）
   - [FILES] 2: bin/gyc, build.mjs
+
+- [OK] 2026-08-15 [4e66723] 修复 TUI 在 Node 下无法启动：引入双运行时策略（非 TUI 命令 Node 直跑，TUI 由 Bun 子进程接管）
+  - [FILES] 6: .gitignore, build.mjs, src/gyccode/cli/cmd/tui.ts, src/gyccode/index.ts, src/gyccode/plugin/tui/runtime.ts, src/gyccode/util/rpc.ts
