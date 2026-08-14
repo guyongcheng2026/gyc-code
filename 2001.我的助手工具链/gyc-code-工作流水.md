@@ -682,3 +682,6 @@
 
 - [OK] 2026-08-15 [f41e697] refactor: drop Bun.file/Bun.write in persistence (node:fs/promises) + round-trip tests
   - [FILES] 2: src/tui/util/persistence.test.ts, src/tui/util/persistence.ts
+
+- [OK] 2026-08-15 [b167398] refactor: replace Bun.stdin with readStdin (node stream) + spawn-injection tests
+  - [FILES] 4: src/core/util/read-stdin.test.ts, src/core/util/read-stdin.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/tui.ts
