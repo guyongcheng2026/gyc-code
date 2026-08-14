@@ -3,6 +3,10 @@ import { spawnSync } from "node:child_process"
 import { rmSync } from "node:fs"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
+// 目标运行时：默认 node（opencode2 式，产物可被纯 Node 直跑）；
+// 设 GYC_RUNTIME=bun 可回退到 Bun 目标（双运行时并存策略）。
+const runtime = process.env.GYC_RUNTIME ?? "node"
+
 // 构建前重新生成 compose 技能 bundle，保证运行产物与 .bundle 目录一致。
 const gen = spawnSync(process.execPath, ["scripts/gen-compose-bundle.mjs"], {
   stdio: "inherit",
@@ -16,7 +20,7 @@ rmSync("./dist", { recursive: true, force: true })
 await build({
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
   outdir: "./dist",
-  target: "bun",
+  target: runtime === "node" ? "node" : "bun",
   format: "esm",
   splitting: true,
   // Provider factory SDKs are externalized and resolved at runtime from
@@ -28,6 +32,9 @@ await build({
   // packages are externalized.
   external: [
     "@opentui/core-*",
+    "koffi",
+    "@koromix/koffi-*",
+    "jsonc-parser",
     "@ai-sdk/amazon-bedrock",
     "@ai-sdk/anthropic",
     "@ai-sdk/azure",
@@ -51,7 +58,7 @@ await build({
     "ai-gateway-provider",
     "@aws-sdk/credential-providers",
   ],
-  conditions: ["browser"],
+  conditions: runtime === "node" ? ["node", "browser"] : ["browser"],
   define: { GYCCODE_VERSION: '"0.0.1"' },
   plugins: [solidPlugin],
   minify: true,
