@@ -24,6 +24,7 @@ import {
 import * as NodeChildProcess from "node:child_process"
 import { PassThrough } from "node:stream"
 import launch from "cross-spawn"
+import * as Semaphore from "effect/Semaphore"
 import { makeGlobalNode } from "./effect/app-node"
 import { filesystem, path } from "./effect/app-node-platform"
 
@@ -96,9 +97,39 @@ const toPlatformError = (
 
 type ExitSignal = Deferred.Deferred<readonly [code: number | null, signal: NodeJS.Signals | null]>
 
+/**
+ * Global cap on concurrently *running* child processes spawned through this
+ * spawner (shell tool, hooks, git/ripgrep, MCP, LSP installs, ...). A burst of
+ * parallel tool calls would otherwise spawn dozens of processes at once — fd
+ * exhaustion, memory pressure and CPU spikes. Extra spawns wait for a permit
+ * instead of launching immediately.
+ *
+ * A permit is held from just before `launch` until the child process closes
+ * (or the owning scope is torn down without a close), so the cap bounds
+ * concurrent running processes rather than just the spawn syscall. Piped
+ * commands count each subprocess.
+ */
+export const DEFAULT_MAX_CONCURRENT_PROCESSES = 8
+
+let maxConcurrentProcesses = DEFAULT_MAX_CONCURRENT_PROCESSES
+
+/**
+ * Override the spawn concurrency cap at startup, mirroring `Flock.setGlobal`
+ * in `core/global.ts` (core services must not import gyccode config, so the
+ * resolved value is pushed in from the app layer). Must be called before the
+ * spawner is first used; otherwise the default applies.
+ */
+export function setMaxConcurrentProcesses(limit: number): void {
+  if (!Number.isInteger(limit) || limit < 1) {
+    throw new RangeError(`maxConcurrentProcesses must be a positive integer, got ${limit}`)
+  }
+  maxConcurrentProcesses = limit
+}
+
 export const make = Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
   const path = yield* Path.Path
+  const semaphore = yield* Semaphore.make(maxConcurrentProcesses)
 
   const cwd = Effect.fnUntraced(function* (opts: ChildProcess.CommandOptions) {
     if (Predicate.isUndefined(opts.cwd)) return undefined
@@ -370,6 +401,23 @@ export const make = Effect.gen(function* () {
           const extra = fds(command.options)
           const dir = yield* cwd(command.options)
 
+          // Hold a spawn permit for the whole process lifetime: acquire before
+          // `launch`, release exactly once — when the process closes (the
+          // `signal` deferred completes on "close") or when this scope is torn
+          // down without a close (spawn failure / interrupt / caller that does
+          // not keep its scope until exit). The once-guard makes both release
+          // paths idempotent.
+          yield* semaphore.take(1)
+          let permitReleased = false
+          const releasePermit: Effect.Effect<void> = Effect.suspend(() =>
+            permitReleased
+              ? Effect.void
+              : Effect.sync(() => {
+                  permitReleased = true
+                }).pipe(Effect.flatMap(() => semaphore.release(1))),
+          )
+          yield* Effect.addFinalizer(() => releasePermit)
+
           const [proc, signal] = yield* Effect.acquireRelease(
             spawn(command, {
               cwd: dir,
@@ -401,6 +449,10 @@ export const make = Effect.gen(function* () {
               return yield* Effect.ignore(escalated)
             }),
           )
+
+          // Release the permit as soon as the process actually closes, so the
+          // cap reflects running processes rather than the caller's scope.
+          yield* Effect.forkScoped(Deferred.await(signal).pipe(Effect.andThen(releasePermit)))
 
           const fd = yield* setupFds(command, proc, extra)
           const out = setupOutput(command, proc, sout, serr)
