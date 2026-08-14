@@ -1653,7 +1653,8 @@ const layer = Layer.effect(
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
               toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
               toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
-              // 记忆 tail 注入：sys.memory 结果追加到最新 user 消息末尾，历史前缀字节稳定
+              // 日期/记忆 tail 注入：追加到最新 user 消息末尾，历史前缀字节稳定
+              injectDate: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
               injectMemories: memories ?? undefined,
               // 用户文本上限：与聚合预算同档，限制病态大粘贴的每轮增量
               maxUserTextChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,

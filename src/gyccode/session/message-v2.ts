@@ -153,31 +153,6 @@ export function resetTruncationDecisions(): void {
   truncationDecisions.clear()
 }
 
-/**
- * Prepend a date (or any prefix) text part to the latest user model message,
- * preserving the ModelMessage shape ({ role, content }). The prefix is injected
- * at the incremental tail of the conversation so the prompt-cache prefix stays
- * byte-stable across days (DeepSeek invalidates the whole prefix whenever the
- * system block changes). Returns a new array; the input is not mutated.
- */
-export function prependTodayDate<TMsg extends { role: string; content: string | readonly unknown[] }>(
-  modelMsgs: readonly TMsg[],
-  todayPrefix: string,
-): TMsg[] {
-  const lastUserModelIdx = modelMsgs.findLastIndex((m) => m.role === "user")
-  if (lastUserModelIdx < 0) return [...modelMsgs]
-  const lastUserModel = modelMsgs[lastUserModelIdx]
-  const todayPart = { type: "text" as const, text: todayPrefix }
-  const next = [...modelMsgs]
-  next[lastUserModelIdx] = {
-    ...lastUserModel,
-    content: Array.isArray(lastUserModel.content)
-      ? [todayPart, ...lastUserModel.content]
-      : [todayPart, { type: "text" as const, text: lastUserModel.content }],
-  }
-  return next
-}
-
 /** 仅保留真实截断（cap < 当前输出长度）的条目；无任何截断返回 undefined。
  * 统一契约：Map 不含「全长度」条目，absent 即交给 per-tool 类型上限 fallback。 */
 function onlyTruncated(caps: Map<string, number>, lens: Map<string, number>): Map<string, number> | undefined {
@@ -341,6 +316,8 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     toolOutputMaxTotalChars?: number
     /** 追加到最新 user 消息末尾的记忆内容（tail 注入，字节稳定；不影响历史 user 消息）。 */
     injectMemories?: string
+    /** 追加到最新 user 消息末尾的日期内容（同 tail 模式，跨天只影响当轮增量）。 */
+    injectDate?: string
     /** 单条 user 文本字符上限（缓存友好：限制病态大粘贴的每轮增量）。 */
     maxUserTextChars?: number
   },
@@ -456,9 +433,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         }
       }
-      // 记忆 tail 注入：仅追加到最新 user 消息，历史 user 消息不含记忆 → 前缀字节稳定
-      if (i === lastUserIdx && options?.injectMemories && options.injectMemories.trim() !== "") {
-        userMessage.parts.push({ type: "text", text: options.injectMemories })
+      // 日期/记忆 tail 注入：仅追加到最新 user 消息，历史 user 消息不含 → 前缀字节稳定
+      if (i === lastUserIdx) {
+        if (options?.injectDate && options.injectDate.trim() !== "") {
+          userMessage.parts.push({ type: "text", text: options.injectDate })
+        }
+        if (options?.injectMemories && options.injectMemories.trim() !== "") {
+          userMessage.parts.push({ type: "text", text: options.injectMemories })
+        }
       }
       if (userMessage.parts.length > 0) result.push(userMessage)
     }
@@ -651,6 +633,8 @@ export function toModelMessages(
     toolOutputMaxTotalChars?: number
     /** 追加到最新 user 消息末尾的记忆内容（tail 注入，字节稳定；不影响历史 user 消息）。 */
     injectMemories?: string
+    /** 追加到最新 user 消息末尾的日期内容（同 tail 模式，跨天只影响当轮增量）。 */
+    injectDate?: string
     /** 单条 user 文本字符上限（缓存友好：限制病态大粘贴的每轮增量）。 */
     maxUserTextChars?: number
   },

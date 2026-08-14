@@ -138,3 +138,23 @@ test("集成：maxUserTextChars 截断超大 user 文本（P1-3）", async () =>
   const full = await toModelMessages([userTextMsg("u1", big)] as any, model, {})
   expect(findUserTexts(full)[0]).toBe(big)
 })
+
+test("集成：injectDate 同 tail 模式，只影响最新 user，历史字节不变（跟进1）", async () => {
+  const msgs = [
+    userTextMsg("u1", "first"),
+    userTextMsg("u2", "second"),
+  ]
+  const withDate = await toModelMessages(msgs as any, model, { injectDate: "Today's date: 2026-08-13\n" })
+  const texts = findUserTexts(withDate)
+  expect(texts[0]).toBe("first")
+  expect(texts[1]).toContain("second")
+  expect(texts[1]).toContain("Today's date: 2026-08-13")
+  // 跨天（日期变化）：u1 仍不变，仅最新 user 尾部变化
+  const nextDay = await toModelMessages(msgs as any, model, { injectDate: "Today's date: 2026-08-14\n" })
+  const texts2 = findUserTexts(nextDay)
+  expect(texts2[0]).toBe("first")
+  expect(texts2[1]).toContain("2026-08-14")
+  // 不注入 → 无日期
+  const noDate = await toModelMessages(msgs as any, model, {})
+  expect(findUserTexts(noDate)[1]).toBe("second")
+})

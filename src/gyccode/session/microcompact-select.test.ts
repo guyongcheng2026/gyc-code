@@ -148,6 +148,17 @@ describe("selectTimeBasedParts", () => {
     const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 5 })
     expect(selected).toEqual([])
   })
+
+  it("default config (gap 60 / keepRecent 5) clears middle after idle gap, protects prefix + recent 5", () => {
+    // time_based_microcompact 默认启用后的实际触发参数：gapMinutes=60, keepRecent=5
+    const msgs = Array.from({ length: 30 }, (_, i) => toolMsg(`m${i}`, old))
+    const selected = selectTimeBasedParts(msgs, { now, gapMinutes: 60, keepRecent: 5 })
+    const idx = selected.map((s) => s._msgIndex)
+    expect(idx.length).toBeGreaterThan(0)
+    // cache prefix（前 CACHE_PREFIX_KEEP=20 条）与最近 5 条均保护
+    expect(idx.every((i) => i >= CACHE_PREFIX_KEEP)).toBe(true)
+    expect(idx.every((i) => i < 30 - 5)).toBe(true)
+  })
 })
 
 // Caller-visible escalation contract: `microcompactIfNeeded` returns this

@@ -456,11 +456,14 @@ const layer = Layer.effect(
               prevCacheRead: ctx.assistantMessage.tokens?.cache?.read ?? 0,
             })
             // 可观测：缓存命中骤降（system prompt 漂移/压缩/工具集变化）时告警，
-            // 便于定位下一次 CH 缓存优化点（cache-anchor drift 检测落地到日志）。
+            // 记录当前请求输入规模与命中量，便于实测收集真实前缀破坏源并定向优化。
             if (usage.tokens.cacheDrift) {
               yield* Effect.logWarning("prompt cache drift detected", {
                 "session.id": input.sessionID,
                 messageID: input.assistantMessage.id,
+                model: `${ctx.model.providerID}/${ctx.model.id}`,
+                inputTokens: usage.tokens.input ?? 0,
+                cacheRead: usage.tokens.cache?.read ?? 0,
                 ...usage.tokens.cacheDrift,
               })
             }
