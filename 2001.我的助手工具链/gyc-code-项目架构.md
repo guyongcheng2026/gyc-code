@@ -1,6 +1,6 @@
 # gyc-code 项目架构
 
-> 更新：2026-08-13
+> 更新：2026-08-15
 > 项目：gyc-code（AI 编码 CLI，品牌 gyc / GYCCODE / GycCode）
 > 本地仓库：`C:\Users\谷勇成\gyc-cli`
 > GitHub：`guyongcheng2026/gyc-code`（经 gh-proxy.com 代理同步）
@@ -12,7 +12,7 @@
 
 | 层 | 技术 |
 |----|------|
-| 运行时 | Bun（`target=bun`，构建产物 `dist/index.js`） |
+| 运行时 | **双运行时**：非 TUI 命令 Node 直跑 `dist/`；TUI 由 Bun 子进程跑 `dist-bun/`（OpenTUI 原生渲染仅支持 Bun bun:ffi，Node 无 node:ffi 模块） |
 | 语言 | TypeScript（ESM） |
 | TUI | OpenTUI（`@opentui/core`、`@opentui/solid`，SolidJS 渲染） |
 | 后端架构 | Effect（`effect`、`@effect/platform-node`、`@effect/sql-sqlite-bun`） |
@@ -36,8 +36,9 @@
 | `src/core/` | 核心框架层（v1 config / flag / v1 config 解析） |
 | `src/protocol/` | 协议层：`v1`/`v2` 自研协议客户端 + `plugin` 插件类型（原 opencode SDK/plugin 本地化，2026-08-12 起零外部依赖） |
 | `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`、`gen-compose-bundle.mjs`） |
-| `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker） |
-| `dist/` | 构建产物（`index.js` + 分包 + WASM 资产） |
+| `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker；双目标构建：node → `dist/`、bun → `dist-bun/`） |
+| `dist/` | 构建产物（node 目标，非 TUI 命令由 Node 直跑） |
+| `dist-bun/` | 构建产物（bun 目标，TUI 由 Bun 子进程跑；OpenTUI 渲染 + bun:sqlite 原生支持） |
 
 ## 三、Provider 与 LLM 架构
 
