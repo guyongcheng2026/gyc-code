@@ -1,14 +1,20 @@
 ﻿import { describe, expect, it } from "bun:test"
-import { hashString } from "./hash"
+import { Hash } from "./hash"
 
-describe("hashString", () => {
+describe("Hash.sha256", () => {
   it("is deterministic", () => {
-    expect(hashString("abc")).toBe(hashString("abc"))
+    expect(Hash.sha256("abc")).toBe(Hash.sha256("abc"))
   })
   it("differs for different inputs", () => {
-    expect(hashString("abc")).not.toBe(hashString("abd"))
+    expect(Hash.sha256("abc")).not.toBe(Hash.sha256("abd"))
   })
-  it("is 16 hex chars", () => {
-    expect(hashString("x")).toMatch(/^[0-9a-f]{16}$/)
+  it("is 64 hex chars", () => {
+    expect(Hash.sha256("x")).toMatch(/^[0-9a-f]{64}$/)
+  })
+})
+
+describe("Hash.fast", () => {
+  it("is deterministic", () => {
+    expect(Hash.fast("abc")).toBe(Hash.fast("abc"))
   })
 })
