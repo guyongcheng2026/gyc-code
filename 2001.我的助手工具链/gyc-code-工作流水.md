@@ -640,3 +640,6 @@
 
 - [OK] 2026-08-14 [444e994] CH缓存命中率进一步提升4项：①修复记忆死代码-恢复tail注入(toModelMessagesEffect新增injectMemories,记忆只追加到最新user消息末尾,历史user字节不变→前缀稳定;此前sys.memory每轮白跑且记忆对模型完全失效)②用户文本截断(新增maxUserTextChars,超大粘贴按聚合预算同档上限限制每轮增量)③缓存感知压缩-time_based_microcompact默认启用(idle 60min后缓存已过期,清旧工具结果是免费清理,显式enabled:false可退出)④观测增强-processor.ts step-finish对cacheDrift命中骤降记logWarning(定位下一次优化点)。新增2个集成测试(记忆tail注入字节稳定/用户文本截断),node tsc 0错误,bun test 431pass/0fail
   - [FILES] 6: src/core/v1/config/config.ts, src/gyccode/session/compaction.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-14 [e6c19f9] CH缓存跟进3项：①恢复日期tail注入(toModelMessagesEffect新增injectDate,与记忆同模式只追加最新user消息,跨天仅影响当轮增量)+清理prependTodayDate死代码(含其测试文件)②time_based_microcompact默认启用补真实参数单元测试(gap60/keepRecent5锁定前缀+最近5条保护行为)③cacheDrift告警日志增强(model/inputTokens/cacheRead上下文,便于实测收集真实前缀破坏源)。新增2测试删3死代码测试,node tsc 0错误,bun test 430pass/0fail
+  - [FILES] 6: src/gyccode/session/message-v2.date.test.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt.ts
