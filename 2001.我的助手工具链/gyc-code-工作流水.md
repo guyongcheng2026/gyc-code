@@ -712,3 +712,6 @@
 
 - [OK] 2026-08-15 [4e66723] 修复 TUI 在 Node 下无法启动：引入双运行时策略（非 TUI 命令 Node 直跑，TUI 由 Bun 子进程接管）
   - [FILES] 6: .gitignore, build.mjs, src/gyccode/cli/cmd/tui.ts, src/gyccode/index.ts, src/gyccode/plugin/tui/runtime.ts, src/gyccode/util/rpc.ts
+
+- [OK] 2026-08-15 [f5aa2e2] 默认入口改造为纯 CLI：gyc 无参进入 readline 逐行对话（Node），传消息/管道走非交互单轮，gyc tui 为显式全屏 TUI 子命令
+  - [FILES] 6: src/core/util/read-stdin.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/stream-cli.ts, src/gyccode/cli/cmd/tui.ts, src/gyccode/index.ts
