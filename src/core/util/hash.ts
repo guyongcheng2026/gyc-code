@@ -1,11 +1,6 @@
-import { createHash } from "crypto"
+﻿import { createHash } from "node:crypto"
 
-export namespace Hash {
-  export function fast(input: string | Buffer): string {
-    return createHash("sha1").update(input).digest("hex")
-  }
-
-  export function sha256(input: string | Buffer): string {
-    return createHash("sha256").update(input).digest("hex")
-  }
+/** Deterministic string digest (Node replacement for Bun.hash, used for cache keys). */
+export function hashString(s: string): string {
+  return createHash("sha256").update(s).digest("hex").slice(0, 16)
 }
