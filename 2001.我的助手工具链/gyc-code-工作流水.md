@@ -676,3 +676,6 @@
 
 - [OK] 2026-08-15 [c665559] refactor: zed sqlite via conditional adapter (#zed-sqlite; bun:sqlite/node:sqlite)
   - [FILES] 5: src/tui/editor-zed.ts, src/tui/package.json, src/tui/zed-sqlite.bun.ts, src/tui/zed-sqlite.node.ts, src/tui/zed-sqlite.ts
+
+- [OK] 2026-08-15 [aecf004] refactor: win32 kernel via conditional adapter (#win32-kernel; bun:ffi/koffi); fix nonexistent *InputCP to SetConsoleCP/GetConsoleCP
+  - [FILES] 5: src/tui/package.json, src/tui/terminal-win32.ts, src/tui/win32-kernel.bun.ts, src/tui/win32-kernel.node.ts, src/tui/win32-kernel.ts
