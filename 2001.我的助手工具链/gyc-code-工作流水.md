@@ -679,3 +679,6 @@
 
 - [OK] 2026-08-15 [aecf004] refactor: win32 kernel via conditional adapter (#win32-kernel; bun:ffi/koffi); fix nonexistent *InputCP to SetConsoleCP/GetConsoleCP
   - [FILES] 5: src/tui/package.json, src/tui/terminal-win32.ts, src/tui/win32-kernel.bun.ts, src/tui/win32-kernel.node.ts, src/tui/win32-kernel.ts
+
+- [OK] 2026-08-15 [f41e697] refactor: drop Bun.file/Bun.write in persistence (node:fs/promises) + round-trip tests
+  - [FILES] 2: src/tui/util/persistence.test.ts, src/tui/util/persistence.ts
