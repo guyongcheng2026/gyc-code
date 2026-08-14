@@ -38,5 +38,12 @@
     "./component/spinner": "./component/spinner.tsx",
     "./component/register-spinner": "./component/register-spinner.ts"
   },
+  "imports": {
+    "#zed-sqlite": {
+      "bun": "./zed-sqlite.bun.ts",
+      "node": "./zed-sqlite.node.ts",
+      "default": "./zed-sqlite.bun.ts"
+    }
+  },
   "type": "module"
 }

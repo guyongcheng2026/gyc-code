@@ -1,4 +1,5 @@
-import { Database } from "bun:sqlite"
+import { zedSqlite } from "#zed-sqlite"
+import type { ZedDb } from "./zed-sqlite"
 import { statSync } from "node:fs"
 import { readFile as readFileAsync } from "node:fs/promises"
 import os from "node:os"
@@ -87,9 +88,9 @@ export async function resolveZedSelection(dbPath: string, cwd = process.cwd()): 
 }
 
 function queryZedActiveEditor(dbPath: string, cwd: string) {
-  let db: Database | undefined
+  let db: ZedDb | undefined
   try {
-    db = new Database(dbPath, { readonly: true })
+    db = zedSqlite.open(dbPath)
     const raw = db
       .query(
         `select
@@ -131,9 +132,9 @@ function queryZedActiveEditor(dbPath: string, cwd: string) {
 }
 
 function queryZedEditorSelections(dbPath: string, row: ZedActiveEditorRow) {
-  let db: Database | undefined
+  let db: ZedDb | undefined
   try {
-    db = new Database(dbPath, { readonly: true })
+    db = zedSqlite.open(dbPath)
     const raw = db
       .query(
         `select
@@ -159,9 +160,9 @@ function queryZedEditorSelections(dbPath: string, row: ZedActiveEditorRow) {
 }
 
 function queryZedEditorContents(dbPath: string, row: ZedActiveEditorRow) {
-  let db: Database | undefined
+  let db: ZedDb | undefined
   try {
-    db = new Database(dbPath, { readonly: true })
+    db = zedSqlite.open(dbPath)
     const parsed = decodeZedEditorContents(
       db
         .query(
