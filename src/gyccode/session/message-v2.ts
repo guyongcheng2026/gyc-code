@@ -32,7 +32,6 @@ import { ProviderError } from "@/provider/error"
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
-import type { SystemError } from "bun"
 import type { Provider } from "@/provider/provider"
 import { Effect, Schema } from "effect"
 
@@ -842,15 +841,15 @@ export function fromError(
         },
         { cause: e },
       ).toObject()
-    case (e as SystemError)?.code === "ECONNRESET":
+    case (e as NodeJS.ErrnoException)?.code === "ECONNRESET":
       return new APIError(
         {
           message: "Connection reset by server",
           isRetryable: true,
           metadata: {
-            code: (e as SystemError).code ?? "",
-            syscall: (e as SystemError).syscall ?? "",
-            message: (e as SystemError).message ?? "",
+            code: (e as NodeJS.ErrnoException).code ?? "",
+            syscall: (e as NodeJS.ErrnoException).syscall ?? "",
+            message: (e as NodeJS.ErrnoException).message ?? "",
           },
         },
         { cause: e },

@@ -101,6 +101,7 @@
     "ignore": "7.0.5",
     "immer": "11.1.4",
     "jsonc-parser": "3.3.1",
+    "koffi": "^3.1.5",
     "luxon": "*",
     "marked": "*",
     "marked-shiki": "*",
