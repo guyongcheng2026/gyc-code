@@ -643,3 +643,6 @@
 
 - [OK] 2026-08-14 [e6c19f9] CH缓存跟进3项：①恢复日期tail注入(toModelMessagesEffect新增injectDate,与记忆同模式只追加最新user消息,跨天仅影响当轮增量)+清理prependTodayDate死代码(含其测试文件)②time_based_microcompact默认启用补真实参数单元测试(gap60/keepRecent5锁定前缀+最近5条保护行为)③cacheDrift告警日志增强(model/inputTokens/cacheRead上下文,便于实测收集真实前缀破坏源)。新增2测试删3死代码测试,node tsc 0错误,bun test 430pass/0fail
   - [FILES] 6: src/gyccode/session/message-v2.date.test.ts, src/gyccode/session/message-v2.integration.test.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/microcompact-select.test.ts, src/gyccode/session/processor.ts, src/gyccode/session/prompt.ts
+
+- [OK] 2026-08-14 [fb7b491] chore: remove composer placeholder and executeStream stubs; restore OpenCode Zen/Go brand names; async lsp_gitignore with timeout
+  - [FILES] 19: docs/BUG-REVIEW-2026-08-14-round3.md, "docs/FEASIBILITY-2026-08-14-\344\270\211\351\241\271\345\206\263\347\255\226\350\257\204\344\274\260.md", src/core/database/sqlite.bun.ts, src/core/database/sqlite.node.ts, src/gyccode/benchmark/benchmark.test.ts, src/gyccode/cli/cmd/compose.ts ...
