@@ -21,11 +21,11 @@ import { open } from "node:fs/promises"
 import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
-import { EOL } from "os"
 import { Filesystem } from "@/util/filesystem"
-import { createGyccodeClient, type GyccodeClient, type ToolPart } from "@gyccode/protocol/v2"
+import { createGyccodeClient, type GyccodeClient } from "@gyccode/protocol/v2"
 import { FormatError, FormatUnknownError } from "../error"
 import { INTERACTIVE_INPUT_ERROR, resolveInteractiveStdin } from "./run/runtime.stdin"
+import { streamLoop } from "./run/stream-cli"
 
 type ModelInput = Parameters<GyccodeClient["session"]["prompt"]>[0]["model"]
 
@@ -59,69 +59,14 @@ type FilePart = {
 
 const ATTACH_FILE_MAX_BYTES = 10 * 1024 * 1024
 
-type Inline = {
-  icon: string
-  title: string
-  description?: string
-}
-
 type SessionInfo = {
   id: string
   title?: string
   directory?: string
 }
 
-function inline(info: Inline) {
-  const suffix = info.description ? UI.Style.TEXT_DIM + ` ${info.description}` + UI.Style.TEXT_NORMAL : ""
-  UI.println(UI.Style.TEXT_NORMAL + info.icon, UI.Style.TEXT_NORMAL + info.title + suffix)
-}
-
-function block(info: Inline, output?: string) {
-  UI.empty()
-  inline(info)
-  if (!output?.trim()) return
-  UI.println(output)
-  UI.empty()
-}
-
 function formatRunError(error: unknown) {
   return FormatError(error) ?? FormatUnknownError(error)
-}
-
-async function tool(part: ToolPart) {
-  try {
-    const { toolInlineInfo } = await import("./run/tool")
-    const next = toolInlineInfo(part)
-    if (next.mode === "block") {
-      block(next, next.body)
-      return
-    }
-
-    inline(next)
-  } catch {
-    inline({
-      icon: "\u2699",
-      title: part.tool,
-    })
-  }
-}
-
-async function toolError(part: ToolPart) {
-  try {
-    const { toolInlineInfo } = await import("./run/tool")
-    const next = toolInlineInfo(part)
-    inline({
-      icon: "✗",
-      title: `${next.title} failed`,
-      ...(next.description && { description: next.description }),
-    })
-    return
-  } catch {
-    inline({
-      icon: "✗",
-      title: `${part.tool} failed`,
-    })
-  }
 }
 
 export const RunCommand = effectCmd({
@@ -676,148 +621,6 @@ export const RunCommand = effectCmd({
         }
         const sessionID = sess.id
 
-        function emit(type: string, data: Record<string, unknown>) {
-          if (args.format === "json") {
-            process.stdout.write(
-              JSON.stringify({
-                type,
-                timestamp: Date.now(),
-                sessionID,
-                ...data,
-              }) + EOL,
-            )
-            return true
-          }
-          return false
-        }
-
-        // Consume one subscribed event stream for the active session and mirror it
-        // to stdout/UI. `client` is passed explicitly because attach mode may
-        // rebind the SDK to the session's directory after the subscription is
-        // created, and replies issued from inside the loop must use that client.
-        async function loop(client: GyccodeClient, events: Awaited<ReturnType<typeof sdk.event.subscribe>>) {
-          const toggles = new Map<string, boolean>()
-          let error: string | undefined
-
-          for await (const event of events.stream) {
-            if (
-              event.type === "message.updated" &&
-              event.properties.sessionID === sessionID &&
-              event.properties.info.role === "assistant" &&
-              args.format !== "json" &&
-              toggles.get("start") !== true
-            ) {
-              UI.empty()
-              UI.println(`> ${event.properties.info.agent} · ${event.properties.info.modelID}`)
-              UI.empty()
-              toggles.set("start", true)
-            }
-
-            if (event.type === "message.part.updated") {
-              const part = event.properties.part
-              if (part.sessionID !== sessionID) continue
-
-              if (part.type === "tool" && (part.state.status === "completed" || part.state.status === "error")) {
-                if (emit("tool_use", { part })) continue
-                if (part.state.status === "completed") {
-                  await tool(part)
-                  continue
-                }
-                await toolError(part)
-                UI.error(part.state.error)
-              }
-
-              if (
-                part.type === "tool" &&
-                part.tool === "task" &&
-                part.state.status === "running" &&
-                args.format !== "json"
-              ) {
-                if (toggles.get(part.id) === true) continue
-                await tool(part)
-                toggles.set(part.id, true)
-              }
-
-              if (part.type === "step-start") {
-                if (emit("step_start", { part })) continue
-              }
-
-              if (part.type === "step-finish") {
-                if (emit("step_finish", { part })) continue
-              }
-
-              if (part.type === "text" && part.time?.end) {
-                if (emit("text", { part })) continue
-                const text = part.text.trim()
-                if (!text) continue
-                if (!process.stdout.isTTY) {
-                  process.stdout.write(text + EOL)
-                  continue
-                }
-                UI.empty()
-                UI.println(text)
-                UI.empty()
-              }
-
-              if (part.type === "reasoning" && part.time?.end && thinking) {
-                if (emit("reasoning", { part })) continue
-                const text = part.text.trim()
-                if (!text) continue
-                const line = `Thinking: ${text}`
-                if (process.stdout.isTTY) {
-                  UI.empty()
-                  UI.println(`${UI.Style.TEXT_DIM}\u001b[3m${line}\u001b[0m${UI.Style.TEXT_NORMAL}`)
-                  UI.empty()
-                  continue
-                }
-                process.stdout.write(line + EOL)
-              }
-            }
-
-            if (event.type === "session.error") {
-              const props = event.properties
-              if (props.sessionID !== sessionID || !props.error) continue
-              let err = String(props.error.name)
-              if ("data" in props.error && props.error.data && "message" in props.error.data) {
-                err = String(props.error.data.message)
-              }
-              error = error ? error + EOL + err : err
-              if (emit("error", { error: props.error })) continue
-              UI.error(err)
-            }
-
-            if (
-              event.type === "session.status" &&
-              event.properties.sessionID === sessionID &&
-              event.properties.status.type === "idle"
-            ) {
-              break
-            }
-
-            if (event.type === "permission.asked") {
-              const permission = event.properties
-              if (permission.sessionID !== sessionID) continue
-
-              if (auto) {
-                await client.permission.reply({
-                  requestID: permission.id,
-                  reply: "once",
-                })
-              } else {
-                UI.println(
-                  UI.Style.TEXT_WARNING_BOLD + "!",
-                  UI.Style.TEXT_NORMAL +
-                    `permission requested: ${permission.permission} (${permission.patterns.join(", ")}); auto-rejecting`,
-                )
-                await client.permission.reply({
-                  requestID: permission.id,
-                  reply: "reject",
-                })
-              }
-            }
-          }
-          return error
-        }
         const cwd = args.attach ? (directory ?? sess.directory ?? (await current(sdk))) : (directory ?? root)
         const client = args.attach ? attachSDK(cwd) : sdk
 
@@ -828,7 +631,14 @@ export const RunCommand = effectCmd({
 
         if (!interactive) {
           const events = await client.event.subscribe()
-          const completed = loop(client, events).catch((e) => {
+          const completed = streamLoop({
+            client,
+            events,
+            sessionID,
+            format: args.format === "json" ? "json" : "default",
+            thinking,
+            auto,
+          }).catch((e) => {
             console.error(e)
             process.exitCode = 1
           })
@@ -848,7 +658,11 @@ export const RunCommand = effectCmd({
               variant: args.variant,
             })
             if (result.error) {
-              if (!emit("error", { error: result.error })) UI.error(formatRunError(result.error))
+              if (args.format === "json") {
+                process.stdout.write(JSON.stringify({ type: "error", timestamp: Date.now(), error: result.error }) + "\n")
+              } else {
+                UI.error(formatRunError(result.error))
+              }
               process.exitCode = 1
               return
             }
@@ -865,7 +679,11 @@ export const RunCommand = effectCmd({
             parts: [...files, { type: "text", text: message }],
           })
           if (result.error) {
-            if (!emit("error", { error: result.error })) UI.error(formatRunError(result.error))
+            if (args.format === "json") {
+              process.stdout.write(JSON.stringify({ type: "error", timestamp: Date.now(), error: result.error }) + "\n")
+            } else {
+              UI.error(formatRunError(result.error))
+            }
             process.exitCode = 1
             return
           }

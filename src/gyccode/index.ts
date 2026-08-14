@@ -74,6 +74,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   github: { load: () => import("./cli/cmd/github"), name: "GithubCommand" },
   pr: { load: () => import("./cli/cmd/pr"), name: "PrCommand" },
   session: { load: () => import("./cli/cmd/session"), name: "SessionCommand" },
+  tui: { load: () => import("./cli/cmd/tui"), name: "TuiThreadCommand" },
   plugin: pluginLoader,
   plug: pluginLoader,
   memory: { load: () => import("./cli/cmd/memory"), name: "MemoryCommand" },
@@ -185,14 +186,19 @@ if (isHelp) {
   }
   cli.command("db", "database tools")
 } else if (first && COMMANDS[first]) {
-  await registerCommand(cli, COMMANDS[first]!)
-} else {
-  // Default: interactive TUI ($0)
-  if (!process.versions.bun) {
+  // 显式 `gyc tui`：OpenTUI 原生渲染仅支持 Bun，Node 下提升到 Bun 子进程。
+  if (first === "tui" && !process.versions.bun) {
     spawnTuiUnderBun()
   }
-  const tui = await import("./cli/cmd/tui")
-  cli.command(tui.TuiThreadCommand as never)
+  await registerCommand(cli, COMMANDS[first]!)
+} else {
+  // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）。
+  // --mini 需要 OpenTUI（split-footer 交互），Node 下提升到 Bun。
+  if (!process.versions.bun && args.includes("--mini")) {
+    spawnTuiUnderBun()
+  }
+  const def = await import("./cli/cmd/default")
+  cli.command(def.DefaultCommand as never)
 }
 
 cli
