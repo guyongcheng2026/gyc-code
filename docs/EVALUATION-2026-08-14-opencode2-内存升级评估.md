@@ -85,5 +85,27 @@
 ### 环境限制（tsgo 假错）
 TS 7.0.2（typescript-go 原生版）在中文路径（C:\Users\谷勇成）下对部分既有文件（`*.bun.ts` 等）存在**旧内容缓存假错**：修改后仍报旧版本类型错误。判断法（沿用既有经验）：复制为副本编译 0 错误则原文件为假错。T1A/T1B 均以副本验证通过。
 
-## 十、总评
+## 十、阶段 2 实测结果（常驻内存长测，2026-08-14）
+
+### 常驻 serve 内存对比（headless server，5 分钟空闲采样）
+| 运行时 | 启动峰值 | 常驻稳定值 | 趋势 |
+|---|---|---|---|
+| Node v25.9（node 目标） | ~316 MB | **140.5 MB** | 启动后 GC 从 188 降至 140，稳定不增长 |
+| Bun 1.3.14（bun 目标） | ~348 MB | **346.9 MB** | 全程 347 稳定，无下降 |
+
+**关键结论**：
+- **常驻负载下 Node 比 Bun 省 ~206 MB（约 40%）**——验证 opencode 2.0 "迁移 Node 降低内存"主张在常驻场景成立。
+- 启动/轻量命令（--help）仍是 Bun 更省（17.8 vs 179 MB），但"吃内存"问题恰恰是常驻场景（Bun 常驻 347MB，长期还可能增长，此前全局实例实测 944MB-1.1GB）。
+- Node 常驻内存 GC 后下降（188→140）体现 V8 回收正常；Bun 恒定在高位。
+
+### 阶段 2 决策
+- **T4 默认运行时 = node**（build.mjs 默认 GYC_RUNTIME=node，bin/gyc Node 直跑 dist）。理由：gyc 主场景是常驻（会话/serve/agent），Node 常驻省 40% 且更稳定；轻量命令可 GYC_RUNTIME=bun 回退。
+- **T2**：heap.ts 堆快照阈值 2GB→1GB（常驻基线监控）。
+- **T3 结论：tsconfig 保持现状**——当前 tsconfig 自包含（未 extends @tsconfig/bun），`@types/bun` 仍被 bun:test 测试所需；切 @tsconfig/node22（nodenext）需大改且高风险，留待测试运行器迁移后。
+- **T5 结论：测试运行器暂不迁移**（保持 bun test，460 pass 正常）——生产内存取决于 dist 与测试运行器无关；迁 node:test 需改写全部断言（jest 风格→assert），成本高收益低；如需纯 node 开发环境再评估 vitest（API 兼容）。
+
+### 环境观察
+- 用户全局安装的 gyc（`C:\Users\谷勇成\.bun\install\global\node_modules\gyc-code\bin\gyc`，bun 运行，PID 7640）今日 23:08 启动，实测 RSS 944MB-1.1GB、CPU 68 分钟——是"吃内存"的活样本（Bun 常驻高占用）。建议确认是否在用，否则终止。
+
+## 十一、总评
 自研项目"升级到 opencode 2.0" = 跟随其 Bun → Node 迁移。gyc-code 迁移基础大半就绪，成本低-中，能根治 Bun 运行时层面的吃内存；配合多实例收敛/保留策略/并发限制可"彻底"解决。批准阶段 0+阶段 1 推进。
