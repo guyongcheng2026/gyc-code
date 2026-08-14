@@ -688,3 +688,6 @@
 
 - [OK] 2026-08-15 [52b1da5] refactor: replace Bun.hash with hashString (node:crypto) for skill cache keys
   - [FILES] 3: src/core/skill/discovery.ts, src/core/util/hash.test.ts, src/core/util/hash.ts
+
+- [OK] 2026-08-15 [a054a60] fix: restore existing Hash util (was overwritten by mistake); use Hash.sha256 for skill cache key
+  - [FILES] 3: src/core/skill/discovery.ts, src/core/util/hash.test.ts, src/core/util/hash.ts
