@@ -664,3 +664,6 @@
 
 - [OK] 2026-08-15 [e61d02c] docs: opencode2 memory upgrade evaluation + phase-1 node migration plan
   - [FILES] 2: "docs/EVALUATION-2026-08-14-opencode2-\345\206\205\345\255\230\345\215\207\347\272\247\350\257\204\344\274\260.md", docs/compose/plans/2026-08-14-opencode2-node-migration.md
+
+- [OK] 2026-08-15 [9a6715f] refactor: drop from-bun imports (node:url / NodeJS.ErrnoException); add koffi for node win32 ffi (T0 findings)
+  - [FILES] 5: package.json, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/session/message-v2.ts, src/tui/component/dialog-status.tsx, src/tui/component/prompt/autocomplete.tsx
