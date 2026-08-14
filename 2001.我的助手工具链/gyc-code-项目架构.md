@@ -12,7 +12,7 @@
 
 | 层 | 技术 |
 |----|------|
-| 运行时 | **双运行时**：非 TUI 命令 Node 直跑 `dist/`；TUI 由 Bun 子进程跑 `dist-bun/`（OpenTUI 原生渲染仅支持 Bun bun:ffi，Node 无 node:ffi 模块） |
+| 运行时 | **双运行时**：非 TUI 命令 Node 直跑 `dist/`；TUI 由 Bun 子进程跑 `dist-bun/`（OpenTUI 原生渲染仅支持 Bun bun:ffi，Node 无 node:ffi 模块）。默认入口三形态：`gyc`（无参，TTY）纯 CLI 逐行对话（Node）；`gyc "消息"`/管道 非交互单轮（Node）；`gyc tui` 全屏 TUI（Bun）；`gyc --mini` 转发 split-footer 交互（Node 下提升 Bun） |
 | 语言 | TypeScript（ESM） |
 | TUI | OpenTUI（`@opentui/core`、`@opentui/solid`，SolidJS 渲染） |
 | 后端架构 | Effect（`effect`、`@effect/platform-node`、`@effect/sql-sqlite-bun`） |
@@ -26,7 +26,7 @@
 | 路径 | 职责 |
 |------|------|
 | `src/gyccode/index.ts` | CLI 入口，注册全部命令 |
-| `src/gyccode/cli/cmd/` | 各子命令（run / models / serve / tui / compose / memory / github / providers / account / debug 等） |
+| `src/gyccode/cli/cmd/` | 各子命令（run / models / serve / tui / compose / memory / github / providers / account / debug 等；`default.ts` 默认入口三形态，`run/stream-cli.ts` 非交互流式渲染共享模块） |
 | `src/gyccode/session/llm/` | LLM 运行时（`request.ts` 请求构造、`ai-sdk.ts` AI SDK 适配、`native-request.ts` 原生请求） |
 | `src/gyccode/session/llm.ts` | 会话级 LLM 流式调用（`allowSystemInMessages` 开关） |
 | `src/gyccode/tool/` | 工具（bash/shell 含 tree-sitter 解析、webfetch 含 SSRF 防护、read） |
@@ -69,12 +69,16 @@
 ```bash
 bun run build          # 构建 dist（含 tui worker 与 WASM 资产）
 bun start              # bun dist/index.js
-gyc                    # TUI 启动（全局命令，junction 指向项目）
+gyc                    # 无参：readline 逐行对话（Node 直跑）
+gyc "<问题>"            # 传消息：非交互单轮（等价 gyc run）
+gyc tui                # 全屏 TUI（Node 下自动提升 Bun 子进程）
+gyc --mini             # split-footer 交互（Node 下自动提升 Bun）
 gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 ```
 
 - 全局 `gyc` 是 bun 安装的 shim，指向本地仓库源码目录；**改源码后必须 rebuild 才生效**
 - 构建产物为 ESM 分包；WASM 通过相对路径解析（`resolveWasm` 基于 `import.meta.url`）
+- 默认入口（2026-08-15 改造）：`cli/cmd/default.ts` 三形态分发；非交互单轮复用 `run.ts` handler（行为与 `gyc run` 完全一致）；交互用 `node:readline/promises` 逐行对话（无 OpenTUI 依赖）；`--mini` 转发 `runMini`（需 Bun）
 
 ## 五·五、目录结构对齐 Claude Code（2026-08-08 → 2026-08-13 移除门面层）
 
@@ -85,7 +89,7 @@ gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 
 ## 六、命令清单
 
-`gyc`（TUI）、`gyc run`、`gyc models`、`gyc serve`、`gyc tui`、`gyc account`、`gyc providers`、`gyc compose`、`gyc memory`、`gyc github`、`gyc debug`、`gyc stats`、`gyc session`、`gyc mcp`、`gyc agent` 等
+`gyc`（无参 readline 对话 / 传消息非交互单轮）、`gyc run`、`gyc models`、`gyc serve`、`gyc tui`（显式全屏 TUI 子命令）、`gyc account`、`gyc providers`、`gyc compose`、`gyc memory`、`gyc github`、`gyc debug`、`gyc stats`、`gyc session`、`gyc mcp`、`gyc agent` 等
 
 ## 七、已知限制
 
