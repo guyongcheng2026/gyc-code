@@ -3,7 +3,7 @@ import { writeHeapSnapshot } from "node:v8"
 import { Flag } from "@gyccode/core/flag/flag"
 import { Global } from "@gyccode/core/global"
 const MINUTE = 60_000
-const LIMIT = 2 * 1024 * 1024 * 1024
+const LIMIT = 1024 * 1024 * 1024 // 1 GiB 常驻基线：超过即记录堆快照
 
 let timer: Timer | undefined
 let lock = false
