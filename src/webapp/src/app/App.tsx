@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useSessions } from "../client/useSessions"
 import { useFileTree } from "../client/useFileTree"
 import { useTheme } from "../client/useTheme"
@@ -20,6 +20,17 @@ export function App() {
   const [showTerminal, setShowTerminal] = useState(true)
   const tree = useFileTree()
   const { theme, toggle } = useTheme()
+
+  // 支持 #sessionId 深链（如 fork 后导航到新会话）
+  useEffect(() => {
+    const sync = () => {
+      const hash = window.location.hash.replace(/^#/, "")
+      if (hash) setSelected(hash)
+    }
+    sync()
+    window.addEventListener("hashchange", sync)
+    return () => window.removeEventListener("hashchange", sync)
+  }, [])
 
   const onNew = async () => {
     const res = await sdk().session.create({ body: {} })

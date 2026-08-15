@@ -5,7 +5,20 @@ import { ChatPanel } from "./ChatPanel"
 const promptAsync = vi.fn(() => Promise.resolve({}))
 vi.mock("@gyccode/protocol/v1", () => ({
   createGyccodeClient: () => ({
-    session: { promptAsync, postSessionIdPermissionsPermissionId: () => Promise.resolve({}) },
+    session: {
+      promptAsync,
+      postSessionIdPermissionsPermissionId: () => Promise.resolve({}),
+      status: () => Promise.resolve({ data: {} }),
+      todo: () => Promise.resolve({ data: [] }),
+      get: () => Promise.resolve({ data: {} }),
+      update: () => Promise.resolve({}),
+      fork: () => Promise.resolve({ data: { id: "s2" } }),
+      abort: () => Promise.resolve({}),
+      summarize: () => Promise.resolve({}),
+      revert: () => Promise.resolve({}),
+      command: () => Promise.resolve({}),
+    },
+    command: { list: () => Promise.resolve({ data: [] }) },
     global: { event: () => Promise.resolve({}) },
   }),
 }))
@@ -16,7 +29,7 @@ vi.mock("../client/useChatSession", () => ({
 describe("ChatPanel", () => {
   it("sends prompt on submit", () => {
     render(<ChatPanel sessionID="s1" />)
-    const input = screen.getByPlaceholderText("向 gyc 描述你要完成的任务…")
+    const input = screen.getByPlaceholderText("描述任务，或输入 / 查看命令…")
     fireEvent.change(input, { target: { value: "你好" } })
     fireEvent.keyDown(input, { key: "Enter" })
     expect(promptAsync).toHaveBeenCalledWith({
