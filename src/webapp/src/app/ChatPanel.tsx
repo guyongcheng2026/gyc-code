@@ -20,12 +20,12 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const [sendError, setSendError] = useState<string | null>(null)
   const [planMode, setPlanMode] = useState(false)
 
-  const onCommand = async (name: string, args: string) => {
-    try {
-      await command(sessionID, name, args)
-    } catch (err) {
+  const onCommand = (name: string, args: string) => {
+    // session.command 是同步端点（阻塞至命令回合完成）；这里 fire-and-forget，
+    // 命令输出经 SSE 流式呈现，避免 UI 卡住。
+    command(sessionID, name, args).catch((err) => {
       setSendError(err instanceof Error ? err.message : String(err))
-    }
+    })
   }
 
   return (
