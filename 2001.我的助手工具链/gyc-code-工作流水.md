@@ -733,3 +733,6 @@
 
 - [OK] 2026-08-15 [3c3eff1] feat(webapp): build pipeline generates embedded UI manifest; serve via existing serveUIEffect
   - [FILES] 6: build.mjs, package.json, scripts/build-webapp.mjs, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/shared/ui.ts, tsconfig.json
+
+- [OK] 2026-08-15 [68e84e2] feat(webapp): protocol hooks (useSessions/useEvents) over generated SDK
+  - [FILES] 4: src/webapp/src/client/sdk.ts, src/webapp/src/client/useEvents.ts, src/webapp/src/client/useSessions.test.ts, src/webapp/src/client/useSessions.ts
