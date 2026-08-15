@@ -739,3 +739,6 @@
 
 - [OK] 2026-08-15 [22a029f] feat(webapp): chat state reducer (message upsert, idle/busy)
   - [FILES] 3: .gitignore, src/webapp/src/state/chatReducer.test.ts, src/webapp/src/state/chatReducer.ts
+
+- [OK] 2026-08-15 [beb9fcc] feat(webapp): useChatSession hydrate + event-driven incremental updates
+  - [FILES] 2: src/webapp/src/client/useChatSession.test.ts, src/webapp/src/client/useChatSession.ts
