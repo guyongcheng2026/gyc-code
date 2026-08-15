@@ -766,3 +766,6 @@
 
 - [OK] 2026-08-15 [a86344c] chore: 移除 alibaba/alibaba-cn 及 4 个 alibaba 套餐型提供商与其模型
   - [FILES] 3: scripts/gen-models-snapshot.mjs, scripts/sync-models.mjs, src/core/models-dev-snapshot.ts
+
+- [OK] 2026-08-15 [8ea10f1] chore: 清理 transform.ts 中 alibaba/alibaba-cn 专属请求逻辑
+  - [FILES] 1: src/gyccode/provider/transform.ts
