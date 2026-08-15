@@ -781,3 +781,6 @@
 
 - [OK] 2026-08-15 [e258eaf] feat(webapp): P2 IDE four-piece - file tree (git status), monaco viewer, session diff, xterm terminal + integrated layout
   - [FILES] 19: package.json, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.test.tsx, src/webapp/src/app/App.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileTree.tsx ...
+
+- [OK] 2026-08-15 [f0192e7] feat(webapp): P3 - deprecate gyc --mini (migrate to gyc web/tui), README web section, message virtualization (react-virtuoso), lazy-load monaco (main bundle 2.8MB->590KB)
+  - [FILES] 7: README.md, package.json, src/gyccode/cli/cmd/default.ts, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileViewer.tsx, src/webapp/src/app/MessageList.tsx ...
