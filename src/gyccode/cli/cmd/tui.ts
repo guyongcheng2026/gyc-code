@@ -15,6 +15,7 @@ import { writeHeapSnapshot } from "v8"
 import { ServerAuth } from "@/server/auth"
 import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@gyccode/tui/terminal-win32"
+import { Worker } from "node:worker_threads"
 
 declare global {
   const GYCCODE_WORKER_PATH: string
@@ -208,7 +209,8 @@ export const TuiThreadCommand = cmd({
       }
       const cwd = Filesystem.resolve(process.cwd())
 
-      // TUI 整体由 Bun 运行（OpenTUI 原生渲染仅支持 Bun），此处使用 Web Worker API。
+      // TUI 整体由 Node 运行（OpenTUI 经 koffi 支持 Node），worker 经
+      // node:worker_threads 运行服务端（Rpc 已双通道兼容，无需 Bun Web Worker）。
       const worker = new Worker(file, {
         env: Object.fromEntries(
           Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),

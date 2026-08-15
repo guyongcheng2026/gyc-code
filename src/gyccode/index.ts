@@ -7,7 +7,6 @@ import { homedir, EOL } from "os"
 import { join, dirname } from "path"
 import { fileURLToPath } from "url"
 import { win32EnableUtf8Console } from "@gyccode/tui/terminal-win32"
-import { spawnBunSync } from "./cli/util/bun-runtime"
 
 // Load API keys from ~/.gyc/.env (fallback: ~/.codex/.env for existing setups) and project .env.
 const ENV_FILES = [
@@ -111,18 +110,6 @@ function show(out: string) {
   process.stderr.write(out)
 }
 
-// OpenTUI 原生渲染（@opentui/core FFI）仅支持 Bun（bun:ffi）；Node 无 node:ffi 模块，
-// TUI 无法在 Node 下初始化。Node 主进程检测到默认 TUI 命令时，交由 Bun 子进程
-// 运行 Bun 目标产物（dist-bun）接管 TUI；非 TUI 命令（run/agent/serve 等）保持 Node 运行。
-function spawnTuiUnderBun() {
-  const code = spawnBunSync([...hideBin(process.argv)])
-  if (code === undefined) {
-    console.error("TUI 需要 Bun 运行时产物（dist-bun 缺失或启动失败），请重新构建：bun run build")
-    process.exit(1)
-  }
-  process.exit(code)
-}
-
 const cli = yargs(args)
   .parserConfiguration({ "populate--": true })
   .scriptName("gyc")
@@ -174,17 +161,11 @@ if (isHelp) {
   }
   cli.command("db", "database tools")
 } else if (first && COMMANDS[first]) {
-  // 显式 `gyc tui`：OpenTUI 原生渲染仅支持 Bun，Node 下提升到 Bun 子进程。
-  if (first === "tui" && !process.versions.bun) {
-    spawnTuiUnderBun()
-  }
+  // 显式 `gyc tui`：OpenTUI 经 koffi 支持 Node，直接注册执行（无需 dist-bun Bun 产物）。
   await registerCommand(cli, COMMANDS[first]!)
 } else {
-  // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）。
-  // --mini 需要 OpenTUI（split-footer 交互），Node 下提升到 Bun。
-  if (!process.versions.bun && args.includes("--mini")) {
-    spawnTuiUnderBun()
-  }
+  // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）；
+  // --mini 由 DefaultCommand 内部转发 runMini（OpenTUI 经 koffi 支持 Node）。
   const def = await import("./cli/cmd/default")
   cli.command(def.DefaultCommand as never)
 }

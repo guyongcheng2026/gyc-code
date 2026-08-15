@@ -12,8 +12,8 @@ type Definition = {
 }
 
 // 消息通道统一适配：Web Worker（Bun/浏览器 onmessage/postMessage 全局）优先，
-// Node worker_threads（parentPort）兜底。TUI 整体由 Bun 运行，worker 线程为
-// Bun Web Worker，走 Web Worker 全局；Node worker_threads 场景仅作防御兼容。
+// Node worker_threads（parentPort）兜底。TUI 整体由 Node 运行，worker 线程经
+// node:worker_threads 创建；client 侧同样双通道兼容（node Worker 无 onmessage 属性）。
 function channel() {
   if (typeof onmessage !== "undefined" && typeof postMessage !== "undefined") {
     return {
@@ -56,13 +56,14 @@ export function emit(event: string, data: unknown) {
 
 export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
-  onmessage: ((this: Worker, ev: MessageEvent<any>) => any) | null
+  onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null
+  on?: (event: "message", listener: (data: string) => void) => void
 }) {
   const pending = new Map<number, (result: any) => void>()
   const listeners = new Map<string, Set<(data: any) => void>>()
   let id = 0
-  target.onmessage = async (evt) => {
-    const parsed = JSON.parse(evt.data)
+  const onMessage = (data: string) => {
+    const parsed = JSON.parse(data)
     if (parsed.type === "rpc.result") {
       const resolve = pending.get(parsed.id)
       if (resolve) {
@@ -77,6 +78,13 @@ export function client<T extends Definition>(target: {
           handler(parsed.data)
         }
       }
+    }
+  }
+  if (typeof target.on === "function") {
+    target.on("message", onMessage)
+  } else {
+    target.onmessage = async (evt) => {
+      onMessage(evt.data)
     }
   }
   return {

@@ -3,14 +3,13 @@
 // 三种形态：
 //   1. 传消息或 stdin 管道 → 非交互单轮（复用 RunCommand.handler，行为与 `gyc run` 完全一致）。
 //   2. 无参数且 stdout 为 TTY → 逐行对话（node:readline，Node 直跑，不依赖 OpenTUI）。
-//   3. --mini → 转发 TUI 的 mini 交互（需 Bun，Node 下由 index.ts 先提升）。
+//   3. --mini → 转发 TUI 的 mini 交互（OpenTUI 经 koffi 支持 Node，当前进程直跑）。
 import path from "path"
 import type { Argv } from "yargs"
 import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { readStdin } from "../../../core/util/read-stdin"
-import { spawnBunSync } from "../util/bun-runtime"
 import { Filesystem } from "@/util/filesystem"
 import { createGyccodeClient, type GyccodeClient } from "@gyccode/protocol/v2"
 import { FormatError, FormatUnknownError } from "../error"
@@ -544,6 +543,57 @@ const SLASH_COMMANDS = [
   "/quit",
 ]
 
+// 轻量解析 `tui [project] [--flag[=value]]` 文本为 TuiThreadCommand.handler 的 argv。
+// 交互模式内切换 TUI 无需再拉起 Bun 子进程（OpenTUI 经 koffi 支持 Node，无 dist-bun 产物）。
+const TUI_FLAG_KINDS: Record<string, "boolean" | "string"> = {
+  model: "string",
+  m: "string",
+  continue: "boolean",
+  c: "boolean",
+  session: "string",
+  s: "string",
+  fork: "boolean",
+  prompt: "string",
+  agent: "string",
+  auto: "boolean",
+  yolo: "boolean",
+  "dangerously-skip-permissions": "boolean",
+  mini: "boolean",
+  replay: "boolean",
+  "no-replay": "boolean",
+  "replay-limit": "string",
+  demo: "boolean",
+  port: "string",
+  hostname: "string",
+  mdns: "boolean",
+  "no-mdns": "boolean",
+  "mdns-domain": "string",
+  cors: "boolean",
+}
+function parseTuiArgs(rest: string): Record<string, unknown> {
+  const argv: Record<string, unknown> = {}
+  const tokens = rest.split(/\s+/).filter(Boolean)
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!
+    if (token.startsWith("--")) {
+      const [rawName, ...valueParts] = token.slice(2).split("=")
+      const name = rawName!
+      const inline = valueParts.join("=")
+      const kind = TUI_FLAG_KINDS[name]
+      // 布尔 flag：`--flag` 或 `--flag=true/false`；字符串 flag：内联值或下一 token。
+      let value: unknown = true
+      if (kind === "boolean") value = inline === "" ? true : inline !== "false"
+      else if (kind === "string") value = inline === "" ? tokens[++i] ?? "" : inline
+      const camel = name.replace(/-([a-z])/g, (_m, ch: string) => ch.toUpperCase())
+      argv[camel] = value
+      argv[name] = value // kebab 键同时保留（handler 有括号访问 kebab 的场景）
+    } else if (!token.startsWith("-")) {
+      argv.project = token
+    }
+  }
+  return argv
+}
+
 async function interactiveLoop(input: CliInput) {
   const root = Filesystem.resolve(process.env.PWD ?? process.cwd())
   const directory = input.directory ?? root
@@ -685,28 +735,23 @@ async function interactiveLoop(input: CliInput) {
         process.stdout.write(HELP_TEXT + "\n")
         continue
       }
-      // 模式切换：`gyc tui` / `gyc --mini`（或裸 `tui` / `--mini`）由 Bun 子进程
-      // 接管全屏交互（OpenTUI 仅支持 Bun）。先关闭 readline 恢复终端，再拉起
-      // 子进程；切换后本 CLI 进程退出（子进程独立运行，退出后回到 shell）。
+      // 模式切换：`gyc tui` / `gyc --mini`（或裸 `tui` / `--mini`）在当前进程
+      // 直接进入全屏 TUI（OpenTUI 经 koffi 支持 Node，无需 dist-bun Bun 产物）。
+      // 先关闭 readline 恢复终端，再执行 TUI；退出后本进程退出回到 shell。
       if (/^(?:gyc\s+)?tui(?:\s+.*)?$/i.test(text)) {
         process.stdin.setRawMode(false)
         process.stdin.pause()
-        const code = spawnBunSync(["tui"])
-        if (code === undefined) {
-          UI.error("TUI 需要 Bun 运行时产物（dist-bun 缺失或启动失败），请重新构建：bun run build")
-          process.exit(1)
-        }
-        process.exit(code)
+        const { TuiThreadCommand } = await import("./tui")
+        const rest = text.replace(/^(?:gyc\s+)?tui/i, "").trim()
+        await TuiThreadCommand.handler(parseTuiArgs(rest))
+        process.exit(0)
       }
       if (/^(?:gyc\s+)?(?:--mini|-i)$/i.test(text)) {
         process.stdin.setRawMode(false)
         process.stdin.pause()
-        const code = spawnBunSync(["--mini"])
-        if (code === undefined) {
-          UI.error("TUI 需要 Bun 运行时产物（dist-bun 缺失或启动失败），请重新构建：bun run build")
-          process.exit(1)
-        }
-        process.exit(code)
+        const { TuiThreadCommand } = await import("./tui")
+        await TuiThreadCommand.handler({ mini: true })
+        process.exit(0)
       }
       const sub = /^gyc\s+(\S+)/i.exec(text)
       if (sub) {
