@@ -6,7 +6,23 @@ vi.mock("@gyccode/protocol/v1", () => ({
   createGyccodeClient: () => ({
     session: {
       list: () => Promise.resolve({ data: [{ id: "sess-1" }, { id: "sess-2" }] }),
+      create: () => Promise.resolve({ data: { id: "sess-new" } }),
+      messages: () => Promise.resolve({ data: [] }),
+      promptAsync: () => Promise.resolve({}),
+      diff: () => Promise.resolve({ data: [] }),
+      postSessionIdPermissionsPermissionId: () => Promise.resolve({}),
     },
+    file: {
+      list: () => Promise.resolve({ data: [] }),
+      read: () => Promise.resolve({ data: { type: "text", content: "" } }),
+      status: () => Promise.resolve({ data: [] }),
+    },
+    pty: {
+      create: () => Promise.resolve({ data: { id: "pty-1" } }),
+      update: () => Promise.resolve({}),
+      remove: () => Promise.resolve({}),
+    },
+    global: { event: () => Promise.resolve({}) },
   }),
 }))
 
