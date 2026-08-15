@@ -763,3 +763,6 @@
 
 - [OK] 2026-08-15 [803e4a3] perf: TUI 迁移 Node 运行时，移除 dist-bun 扁平化分支
   - [FILES] 3: bin/gyc, build.mjs, docs/compose/plans/2026-08-15-tui-node-runtime-and-remove-alibaba.md
+
+- [OK] 2026-08-15 [a86344c] chore: 移除 alibaba/alibaba-cn 及 4 个 alibaba 套餐型提供商与其模型
+  - [FILES] 3: scripts/gen-models-snapshot.mjs, scripts/sync-models.mjs, src/core/models-dev-snapshot.ts
