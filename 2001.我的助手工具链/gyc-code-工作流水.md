@@ -775,3 +775,6 @@
 
 - [OK] 2026-08-15 [a7bb2cf] 修复 TUI 在 Node 运行时无法启动：移除 dist-bun 残留分支，用 koffi 适配 OpenTUI 的 node:ffi 依赖，修复 Worker 全局缺失与交互模式 tui 切换
   - [FILES] 8: package.json, scripts/apply-opentui-ffi-patch.cjs, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/tui.ts, src/gyccode/cli/util/bun-runtime.ts, src/gyccode/index.ts ...
+
+- [OK] 2026-08-15 [b802607] fix(tui): 统一 solid-js 产物避免双实例导致黑屏
+  - [FILES] 1: scripts/bun-solid-plugin.ts
