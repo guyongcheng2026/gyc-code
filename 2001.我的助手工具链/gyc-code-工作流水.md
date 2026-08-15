@@ -790,3 +790,6 @@
 
 - [OK] 2026-08-15 [f592f3a] docs: P4 cloud-ready abstraction boundary (v2 remote sandbox extension contract)
   - [FILES] 1: docs/compose/specs/2026-08-15-gyc-web-p4-cloud-ready.md
+
+- [OK] 2026-08-15 [4761375] docs: gyc web P0-P4 final report + mark P4 spec
+  - [FILES] 2: docs/compose/reports/gyc-web.md, docs/compose/specs/2026-08-15-gyc-web-p4-cloud-ready.md
