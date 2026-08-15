@@ -13,6 +13,7 @@ export const win32KernelLoader: Win32KernelLoader = {
         GetConsoleOutputCP: { args: [], returns: "u32" },
         SetConsoleCP: { args: ["u32"], returns: "i32" },
         GetConsoleCP: { args: [], returns: "u32" },
+        GetConsoleWindow: { args: [], returns: "ptr" },
       })
       const modeBuf = new Uint32Array(1)
       return {
@@ -28,6 +29,7 @@ export const win32KernelLoader: Win32KernelLoader = {
         GetConsoleOutputCP: () => k.symbols.GetConsoleOutputCP(),
         SetConsoleCP: (cp) => k.symbols.SetConsoleCP(cp),
         GetConsoleCP: () => k.symbols.GetConsoleCP(),
+        GetConsoleWindow: () => k.symbols.GetConsoleWindow(),
       }
     } catch {
       return undefined

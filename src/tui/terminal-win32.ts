@@ -148,3 +148,42 @@ export function win32InstallCtrlCGuard() {
 
   return unhook
 }
+
+/**
+ * 判断当前进程是否仍附加到某个控制台（仅 Windows）。
+ *
+ * GetConsoleWindow 返回调用进程附加的控制台窗口句柄；进程没有附加
+ * 到任何控制台（终端窗口已关闭）时返回 NULL/0。
+ */
+function win32HasConsole(): boolean {
+  if (!load()) return false
+  const win = k32!.GetConsoleWindow()
+  if (win == null) return false
+  // bun:ffi "ptr" 在有控制台时返回 number（句柄值），无控制台返回 null；
+  // koffi 统一转成 number。兼容两种返回。
+  return typeof win === "number" ? win !== 0 : true
+}
+
+/**
+ * 终端关闭检测：终端窗口/标签页关闭时触发 onClose。
+ *
+ * 为什么需要：Windows 关闭终端窗口时不会向子进程可靠传播 SIGHUP
+ * （Node/Bun 下 SIGHUP 仅 Unix 有效），TUI/CLI/mini 可能残留为孤儿进程
+ * 持续占用内存。此处提供跨运行时统一的检测：
+ * - Windows：轮询 GetConsoleWindow()，进程不再附加到控制台即判定终端已关闭；
+ * - 其他平台：监听 SIGHUP。
+ *
+ * 返回取消函数；检测不可用（如无法加载 kernel32）时返回空操作。
+ */
+export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () => void {
+  if (process.platform !== "win32") {
+    process.on("SIGHUP", onClose)
+    return () => process.off("SIGHUP", onClose)
+  }
+  if (!load()) return () => {}
+  const timer = setInterval(() => {
+    if (!win32HasConsole()) onClose()
+  }, intervalMs)
+  timer.unref?.()
+  return () => clearInterval(timer)
+}

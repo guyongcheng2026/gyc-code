@@ -201,6 +201,14 @@ export const {
             delete draft.message[sessionID]
             delete draft.todo[sessionID]
             delete draft.session_diff[sessionID]
+            // 与 session.deleted 保持一致：清理全部按 sessionID 索引的字段，
+            // 避免 LRU 淘汰的会话残留孤儿记录（长跑 + 浏览多会话时无限累积）。
+            delete draft.session_status[sessionID]
+            delete draft.session_cwd[sessionID]
+            delete draft.session_instructions[sessionID]
+            delete draft.session_goal[sessionID]
+            delete draft.permission[sessionID]
+            delete draft.question[sessionID]
           }),
         )
       })

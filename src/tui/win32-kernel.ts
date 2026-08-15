@@ -10,6 +10,8 @@ export interface Win32Kernel {
   GetConsoleOutputCP(): number
   SetConsoleCP(cp: number): number
   GetConsoleCP(): number
+  /** 返回调用进程附加的控制台窗口句柄；无控制台时返回 0/null。 */
+  GetConsoleWindow(): unknown
 }
 
 export interface Win32KernelLoader {

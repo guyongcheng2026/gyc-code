@@ -177,6 +177,9 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
       error = error ? error + EOL + err : err
       if (emit("error", { error: props.error })) continue
       UI.error(err)
+      // 会话级错误（如模型限流 / 认证失败）意味着本轮已终结：立即结束事件
+      // 消费，让调用方快速拿到错误并恢复提示符，而非继续空等 idle。
+      break
     }
 
     if (

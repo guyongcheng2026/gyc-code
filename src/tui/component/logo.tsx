@@ -2,7 +2,6 @@ import { RGBA, TextAttributes } from "@opentui/core"
 import { For, type JSX } from "solid-js"
 import { tint, useTheme } from "../context/theme"
 import { logo } from "../logo"
-import { InstallationVersion } from "@gyccode/core/installation/version"
 
 export function Logo() {
   const { theme } = useTheme()
@@ -57,11 +56,6 @@ export function Logo() {
           </box>
         )}
       </For>
-      <box flexDirection="row" justifyContent="center" paddingTop={1}>
-        <text fg={theme.textMuted} selectable={false}>
-          GYC CODE v{InstallationVersion}
-        </text>
-      </box>
     </box>
   )
 }

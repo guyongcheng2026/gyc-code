@@ -13,6 +13,7 @@ export const win32KernelLoader: Win32KernelLoader = {
       const GetConsoleOutputCP = lib.func("uint32_t __stdcall GetConsoleOutputCP()")
       const SetConsoleCP = lib.func("int32_t __stdcall SetConsoleCP(uint32_t cp)")
       const GetConsoleCP = lib.func("uint32_t __stdcall GetConsoleCP()")
+      const GetConsoleWindow = lib.func("void * __stdcall GetConsoleWindow()")
       return {
         GetStdHandle: (n) => Number(GetStdHandle(n)),
         GetConsoleMode: (h, out) => {
@@ -27,6 +28,7 @@ export const win32KernelLoader: Win32KernelLoader = {
         GetConsoleOutputCP: () => GetConsoleOutputCP(),
         SetConsoleCP: (cp) => SetConsoleCP(cp),
         GetConsoleCP: () => GetConsoleCP(),
+        GetConsoleWindow: () => Number(GetConsoleWindow()),
       }
     } catch {
       return undefined

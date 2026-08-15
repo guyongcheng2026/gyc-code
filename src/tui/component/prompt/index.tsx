@@ -55,7 +55,7 @@ import { createFadeIn } from "../../util/signal"
 import { DialogSkill } from "../dialog-skill"
 import { DialogWorkspaceUnavailable } from "../dialog-workspace-unavailable"
 import { useArgs } from "../../context/args"
-import { GYCCODE_BASE_MODE, useBindings, useCommandShortcut, useLeaderActive, useGyccodeKeymap } from "../../keymap"
+import { GYCCODE_BASE_MODE, useBindings, useLeaderActive, useGyccodeKeymap } from "../../keymap"
 import { useTuiConfig } from "../../config"
 import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
@@ -169,8 +169,6 @@ export function Prompt(props: PromptProps) {
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useGyccodeKeymap()
-  const agentShortcut = useCommandShortcut("agent.cycle")
-  const paletteShortcut = useCommandShortcut("command.palette.show")
   const renderer = useRenderer()
   const exit = useExit()
   const dimensions = useTerminalDimensions()
@@ -1733,26 +1731,7 @@ title: "打开编辑器",
                         )
                       }}
                     </Show>
-                    <text fg={theme.text}>
-                      {agentShortcut()} <span style={{ fg: theme.textMuted }}>切换模式</span>
-                    </text>
-                    <text fg={theme.text}>
-                      {paletteShortcut()} <span style={{ fg: theme.textMuted }}>设置</span>
-                    </text>
                   </box>
-                  <Show when={status().type === "idle"}>
-                    <box gap={2} flexDirection="row">
-                      <text fg={theme.text}>
-                        @ <span style={{ fg: theme.textMuted }}>添加文件</span>
-                      </text>
-                      <text fg={theme.text}>
-                        $ <span style={{ fg: theme.textMuted }}>子代理</span>
-                      </text>
-                      <text fg={theme.text}>
-                        / <span style={{ fg: theme.textMuted }}>命令</span>
-                      </text>
-                    </box>
-                  </Show>
                 </Match>
                 <Match when={store.mode === "shell"}>
                   <text fg={theme.text}>

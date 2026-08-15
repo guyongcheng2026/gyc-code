@@ -14,6 +14,7 @@ import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { Global } from "@gyccode/core/global"
 import { openEditor } from "@gyccode/tui/editor"
 import { registerGyccodeKeymap } from "@gyccode/tui/keymap"
+import { watchTerminalClose } from "@gyccode/tui/terminal-win32"
 import { Session as SessionApi } from "@/session/session"
 import * as Locale from "@/util/locale"
 import { resolveInteractiveStdin } from "./runtime.stdin"
@@ -302,6 +303,10 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
 
     attachSigint()
 
+    // 终端窗口/标签页关闭时自动退出（Windows 控制台检测 + Unix SIGHUP），
+    // 避免 mini 残留为孤儿进程占用内存。
+    const cancelTerminalWatch = watchTerminalClose(() => footer.requestExit())
+
     const close = async (next: {
       showExit: boolean
       sessionTitle?: string
@@ -314,6 +319,7 @@ export async function createRuntimeLifecycle(input: LifecycleInput): Promise<Lif
 
       closed = true
       detachSigint()
+      cancelTerminalWatch()
       let wroteExit = false
 
       try {
