@@ -42,6 +42,10 @@ const SHARED = {
     "koffi",
     "@koromix/koffi-*",
     "jsonc-parser",
+    // node-pty 是原生二进制（optional 依赖 @lydell/node-pty-win32-x64/conpty.node），
+    // 打包进 dist 会破坏其内部 requireBinary 对原生模块的解析（PTY 500）。
+    // external 化后 dist 运行时从 node_modules 解析（与 koffi 同模式）。
+    "@lydell/node-pty",
     "@ai-sdk/amazon-bedrock",
     "@ai-sdk/anthropic",
     "@ai-sdk/azure",
