@@ -802,3 +802,6 @@
 
 - [OK] 2026-08-15 [1b5b442] feat(webapp): light theme default (Claude lightTheme) + dark toggle persisted; theme-aware xterm
   - [FILES] 5: src/webapp/src/app/App.tsx, src/webapp/src/app/TerminalPanel.tsx, src/webapp/src/client/useTheme.ts, src/webapp/src/index.css, src/webapp/src/theme.ts
+
+- [OK] 2026-08-15 [5fc44e5] feat(webapp): Claude Code feature coverage - slash command menu (session.command + command.list), session actions (fork/abort/summarize), status bar (cost/tokens/todo), hash session nav
+  - [FILES] 9: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SlashMenu.tsx, src/webapp/src/app/StatusBar.tsx ...
