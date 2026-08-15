@@ -718,3 +718,9 @@
 
 - [OK] 2026-08-15 [4e49bd6] 修复 CLI 交互内模式切换：识别 gyc tui / gyc --mini，关闭 readline 后由 Bun 子进程接管，解决切换 TUI 挂起与误发模型消息
   - [FILES] 3: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/util/bun-runtime.ts, src/gyccode/index.ts
+
+- [OK] 2026-08-15 [a7624b3] docs: mark phase-1 node-migration plan complete (54 checkboxes) + verification record
+  - [FILES] 1: docs/compose/plans/2026-08-14-opencode2-node-migration.md
+
+- [OK] 2026-08-15 [ad1e721] feat(webapp): scaffold src/webapp workspace package (React+Vite+TS)
+  - [FILES] 4: src/webapp/index.html, src/webapp/package.json, src/webapp/tsconfig.json, src/webapp/vite.config.ts
