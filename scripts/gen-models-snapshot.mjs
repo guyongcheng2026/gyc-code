@@ -18,7 +18,7 @@ const OUT = join(ROOT, "src", "core", "models-dev-snapshot.ts")
 // 主流供应商白名单（国内生态 + 国际通用），覆盖 95% 以上实际使用场景
 const WHITELIST = [
   // 国内
-  "zhipuai", "deepseek", "moonshotai", "moonshotai-cn", "alibaba", "alibaba-cn",
+  "zhipuai", "deepseek", "moonshotai", "moonshotai-cn",
   "minimax", "minimax-cn", "stepfun", "siliconflow", "modelscope", "qiniu-ai", "xiaomi",
   // 国际
   "anthropic", "openai", "google", "meta", "mistral", "cohere", "nvidia", "xai",

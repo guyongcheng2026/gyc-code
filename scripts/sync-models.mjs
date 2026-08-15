@@ -18,6 +18,16 @@ const OUT_FILE = join(OUT_DIR, "api.json")
 
 const SOURCE = process.env.GYCCODE_MODELS_SOURCE ?? "https://models.opencode.ai/api.json"
 
+// 从镜像中排除的提供商（用户要求删除 alibaba 及对应 LLM，避免重新 sync 时回归）。
+const DENYLIST = new Set([
+  "alibaba",
+  "alibaba-cn",
+  "alibaba-token-plan",
+  "alibaba-token-plan-cn",
+  "alibaba-coding-plan",
+  "alibaba-coding-plan-cn",
+])
+
 const res = await fetch(SOURCE, {
   headers: { "user-agent": "gyc-code/models-mirror" },
   signal: AbortSignal.timeout(30_000),
@@ -35,6 +45,8 @@ try {
   console.error("[失败] 响应不是合法 JSON")
   process.exit(1)
 }
+
+for (const key of DENYLIST) delete parsed[key]
 
 const providers = Object.keys(parsed)
 const models = Object.values(parsed).reduce((sum, p) => sum + Object.keys(p.models ?? {}).length, 0)
