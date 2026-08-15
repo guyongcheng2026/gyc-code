@@ -793,3 +793,6 @@
 
 - [OK] 2026-08-15 [4761375] docs: gyc web P0-P4 final report + mark P4 spec
   - [FILES] 2: docs/compose/reports/gyc-web.md, docs/compose/specs/2026-08-15-gyc-web-p4-cloud-ready.md
+
+- [OK] 2026-08-15 [4a38127] feat(webapp): Claude Code dark palette + Codex app layout - theme tokens from reference theme.ts, centered chat column, session/file sidebar, rounded prompt box
+  - [FILES] 15: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileTree.tsx ...
