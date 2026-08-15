@@ -817,3 +817,6 @@
 
 - [OK] 2026-08-15 [5b65c7c] feat(webapp): brand/self-dev conformance (gyc brand tokens, Chinese UI, remove 3rd-party refs) + model picker (provider.list+switchModel) + plan/build/compose mode switcher (v2 switchAgent, default build)
   - [FILES] 14: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx, src/webapp/src/app/ModeSwitcher.tsx, src/webapp/src/app/ModelPicker.tsx ...
+
+- [OK] 2026-08-15 [896b3a8] docs: gyc web report - brand conformance, model picker, plan/build/compose modes, stability verification
+  - [FILES] 1: docs/compose/reports/gyc-web.md
