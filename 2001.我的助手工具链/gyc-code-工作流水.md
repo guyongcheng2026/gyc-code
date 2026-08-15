@@ -736,3 +736,6 @@
 
 - [OK] 2026-08-15 [68e84e2] feat(webapp): protocol hooks (useSessions/useEvents) over generated SDK
   - [FILES] 4: src/webapp/src/client/sdk.ts, src/webapp/src/client/useEvents.ts, src/webapp/src/client/useSessions.test.ts, src/webapp/src/client/useSessions.ts
+
+- [OK] 2026-08-15 [22a029f] feat(webapp): chat state reducer (message upsert, idle/busy)
+  - [FILES] 3: .gitignore, src/webapp/src/state/chatReducer.test.ts, src/webapp/src/state/chatReducer.ts
