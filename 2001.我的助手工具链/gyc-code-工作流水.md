@@ -754,3 +754,6 @@
 
 - [OK] 2026-08-15 [c8fe066] feat(webapp): tool permission approval cards (permission.updated -> postSessionIdPermissionsPermissionId)
   - [FILES] 6: src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PermissionCard.tsx, src/webapp/src/client/usePermissions.ts, src/webapp/src/state/permissionReducer.test.ts, src/webapp/src/state/permissionReducer.ts
+
+- [OK] 2026-08-15 [afa30d0] fix(webapp): consume SSE stream actively (lazy AsyncGenerator needs iteration); exclude webapp from bun test; E2E verified conversational loop (create->promptAsync->stream->idle)
+  - [FILES] 2: package.json, src/webapp/src/client/useEvents.ts
