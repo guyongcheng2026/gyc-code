@@ -748,3 +748,6 @@
 
 - [OK] 2026-08-15 [546eddd] feat(webapp): chat UI (session list + streaming message list + prompt input), align reducer with real protocol (info/parts, message.part.updated)
   - [FILES] 12: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SessionList.tsx ...
+
+- [OK] 2026-08-15 [2e9a718] fix: TUI 主界面/会话窗口恢复简洁风格并全面中文化；终端关闭自动退出进程；修复 sync 孤儿记录泄漏；进程链扁平化省 ~300MB
+  - [FILES] 16: bin/gyc, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run/runtime.lifecycle.ts, src/gyccode/cli/cmd/run/stream-cli.ts, src/tui/app.tsx, src/tui/component/logo.tsx ...
