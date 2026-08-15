@@ -14,6 +14,7 @@ verify-ext.out
 # Data & state
 .data/
 state/
+!src/webapp/src/state/
 *.db
 *.sqlite
 
