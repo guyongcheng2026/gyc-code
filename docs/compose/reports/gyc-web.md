@@ -22,8 +22,11 @@ commits: ad1e721..5fc44e5
 - **P2 IDE 四件套**：文件树、monaco 查看器、会话 Diff、xterm 终端 + 集成布局。
 - **P3 命令与打磨**：`gyc --mini` 废弃提示、README、消息虚拟化（react-virtuoso）、monaco 懒加载（主包 2.8MB→590KB）。
 - **P4 云就绪**：agent runtime 云就绪抽象边界文档化（v2 远程沙箱扩展点，不实现沙箱）。
-- **视觉**：Claude Code 明暗主题（默认**亮色**，取自 reference `theme.ts` lightTheme/darkTheme）+ Codex app 布局（左侧栏项目/线程、居中聊天列、底部圆角输入框）；`useTheme` 切换并持久化。
-- **功能覆盖**（对齐 Claude Code）：斜杠命令菜单（`session.command` + `command.list`，覆盖 /model /compact /clear /status /permissions /memory 等）、会话操作（Fork/停止/摘要）、状态栏（cost/tokens/todo）、`#sessionId` 深链导航。
+- **视觉**：gyc 品牌明暗主题（默认**亮色**，品牌橙 #D77757）+ 现代桌面布局（左侧栏项目/线程、居中聊天列、底部圆角输入框）；`useTheme` 切换并持久化。
+- **功能覆盖**：斜杠命令菜单（`session.command` + `command.list`）、会话操作（分支/停止/摘要）、状态栏（成本/Token 数/待办）、`#sessionId` 深链导航、**可见工具执行卡片**（工具名/输入/输出/状态）、**计划模式**。
+- **模型选择器**：`provider.list` → 576 模型，`v2 switchModel` 切换；会话详情实时显示当前模型。
+- **三模式（复刻 TUI）**：plan / build / compose（agent 切换，`v2 switchAgent`，默认 build），会话创建时 agent 默认 build。
+- **品牌化 + 纯自主研发**：CSS/主题 token 全部改用 gyc 品牌命名（`--brand` 等），界面文本全中文，移除代码中第三方品牌引用（opencode/Claude/Codex/DeepSeek）。
 - **PTY 修复**：externalize `@lydell/node-pty`，修复打包后原生二进制解析失败（pty.create 500）→ 200 且进程运行。
 
 ## Architecture
@@ -80,6 +83,8 @@ bun build.mjs               # 构建 CLI 双目标 + webapp + 内嵌清单
 - **托管 E2E**：`gyc web` 后 `/` 内嵌 HTML（CSP）、`/assets/*` 200、`/session`/`/file`/`/file/status` 200。
 - **对话闭环 E2E**：生成 SDK 走 webapp 同链路——创建会话 → SSE → `promptAsync` → busy/part.updated/idle → LLM 回复（DeepSeek）PASS。
 - **PTY E2E**：`pty.create` → 200（进程 running）；`/command` → 200（命令列表）；斜杠命令菜单基于服务端命令引擎。
+- **模型 + 三模式 E2E**：`provider.list` → 576 模型；`switchAgent` plan→compose→build 全部 OK；`switchModel` OK。
+- **页面稳定性**：`gyc web` 启动后 `/` + 资源 200，30 次连续会话请求全部成功，server 持续存活。
 - **构建**：`bun build.mjs` 全绿；monaco 代码分割生效（主 590KB + 惰性 2.2MB chunk 均入清单）。
 
 ### 已知限制
