@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "paths": {
+      "opencode-web-ui.gen.ts": ["./src/gyccode/server/generated/opencode-web-ui.gen.ts"],
       "@/*": [
         "./src/gyccode/*"
       ],

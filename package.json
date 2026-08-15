@@ -14,7 +14,8 @@
     "build": "bun build.mjs",
     "start": "bun dist/index.js",
     "test": "bun test --preload ./scripts/bun-solid-preload.ts",
-    "prepack": "bun run build",
+    "webapp:build": "node scripts/build-webapp.mjs",
+    "prepack": "bun run webapp:build && bun run build",
     "prepublishOnly": "bun run build"
   },
   "dependencies": {
@@ -210,6 +211,7 @@
   "files": [
     "bin",
     "dist",
+    "src/webapp/dist",
     "scripts/bun-solid-preload.ts",
     "README.md",
     "LICENSE"

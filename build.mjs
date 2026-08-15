@@ -17,6 +17,15 @@ const gen = spawnSync(process.execPath, ["scripts/gen-compose-bundle.mjs"], {
 })
 if (gen.status !== 0) process.exit(gen.status ?? 1)
 
+// 构建 webapp 并生成内嵌 Web UI 清单（serveUIEffect 托管）。GYCCODE_SKIP_WEBAPP=1 可跳过。
+if (process.env.GYCCODE_SKIP_WEBAPP !== "1") {
+  const web = spawnSync(process.execPath, ["scripts/build-webapp.mjs"], {
+    stdio: "inherit",
+    windowsHide: true,
+  })
+  if (web.status !== 0) process.exit(web.status ?? 1)
+}
+
 const SHARED = {
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
   format: "esm",
