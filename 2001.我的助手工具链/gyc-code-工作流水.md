@@ -769,3 +769,6 @@
 
 - [OK] 2026-08-15 [8ea10f1] chore: 清理 transform.ts 中 alibaba/alibaba-cn 专属请求逻辑
   - [FILES] 1: src/gyccode/provider/transform.ts
+
+- [OK] 2026-08-15 [7a2339a] chore: 移除 @ai-sdk/alibaba external（源码零引用，alibaba 走 openai-compatible）
+  - [FILES] 2: build.mjs, scripts/verify-external.mjs
