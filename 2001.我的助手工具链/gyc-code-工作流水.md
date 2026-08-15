@@ -784,3 +784,6 @@
 
 - [OK] 2026-08-15 [f0192e7] feat(webapp): P3 - deprecate gyc --mini (migrate to gyc web/tui), README web section, message virtualization (react-virtuoso), lazy-load monaco (main bundle 2.8MB->590KB)
   - [FILES] 7: README.md, package.json, src/gyccode/cli/cmd/default.ts, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileViewer.tsx, src/webapp/src/app/MessageList.tsx ...
+
+- [OK] 2026-08-15 [8796162] fix(cli): type-assert TuiThreadCommand.handler args in interactive mode switch (pre-existing looseness surfaced by tsc)
+  - [FILES] 1: src/gyccode/cli/cmd/default.ts
