@@ -796,3 +796,6 @@
 
 - [OK] 2026-08-15 [4a38127] feat(webapp): Claude Code dark palette + Codex app layout - theme tokens from reference theme.ts, centered chat column, session/file sidebar, rounded prompt box
   - [FILES] 15: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileTree.tsx ...
+
+- [OK] 2026-08-15 [f3f52d3] fix(server): externalize @lydell/node-pty in build - bundled dist broke its native requireBinary (PTY 500); pty.create now 200 + process running
+  - [FILES] 1: build.mjs
