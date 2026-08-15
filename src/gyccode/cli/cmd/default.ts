@@ -743,7 +743,7 @@ async function interactiveLoop(input: CliInput) {
         process.stdin.pause()
         const { TuiThreadCommand } = await import("./tui")
         const rest = text.replace(/^(?:gyc\s+)?tui/i, "").trim()
-        await TuiThreadCommand.handler(parseTuiArgs(rest))
+        await TuiThreadCommand.handler(parseTuiArgs(rest) as Parameters<typeof TuiThreadCommand.handler>[0])
         process.exit(0)
       }
       if (/^(?:gyc\s+)?(?:--mini|-i)$/i.test(text)) {
@@ -754,7 +754,7 @@ async function interactiveLoop(input: CliInput) {
         process.stdin.setRawMode(false)
         process.stdin.pause()
         const { TuiThreadCommand } = await import("./tui")
-        await TuiThreadCommand.handler({ mini: true })
+        await TuiThreadCommand.handler({ mini: true } as Parameters<typeof TuiThreadCommand.handler>[0])
         process.exit(0)
       }
       const sub = /^gyc\s+(\S+)/i.exec(text)
