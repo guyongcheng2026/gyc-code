@@ -805,3 +805,6 @@
 
 - [OK] 2026-08-15 [5fc44e5] feat(webapp): Claude Code feature coverage - slash command menu (session.command + command.list), session actions (fork/abort/summarize), status bar (cost/tokens/todo), hash session nav
   - [FILES] 9: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SlashMenu.tsx, src/webapp/src/app/StatusBar.tsx ...
+
+- [OK] 2026-08-15 [e2d521b] docs: update gyc web report - light theme, Claude Code feature coverage, PTY fix
+  - [FILES] 1: docs/compose/reports/gyc-web.md
