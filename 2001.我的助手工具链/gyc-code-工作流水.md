@@ -799,3 +799,6 @@
 
 - [OK] 2026-08-15 [f3f52d3] fix(server): externalize @lydell/node-pty in build - bundled dist broke its native requireBinary (PTY 500); pty.create now 200 + process running
   - [FILES] 1: build.mjs
+
+- [OK] 2026-08-15 [1b5b442] feat(webapp): light theme default (Claude lightTheme) + dark toggle persisted; theme-aware xterm
+  - [FILES] 5: src/webapp/src/app/App.tsx, src/webapp/src/app/TerminalPanel.tsx, src/webapp/src/client/useTheme.ts, src/webapp/src/index.css, src/webapp/src/theme.ts
