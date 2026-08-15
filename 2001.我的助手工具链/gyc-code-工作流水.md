@@ -808,3 +808,6 @@
 
 - [OK] 2026-08-15 [e2d521b] docs: update gyc web report - light theme, Claude Code feature coverage, PTY fix
   - [FILES] 1: docs/compose/reports/gyc-web.md
+
+- [OK] 2026-08-15 [0cffc37] feat(webapp): visible tool execution cards (DeepSeek harness) + plan mode toggle (Claude plan-then-execute); render tool/reasoning/subtask/patch/agent/file parts
+  - [FILES] 5: src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx, src/webapp/src/app/PartView.tsx, src/webapp/src/client/useChatSession.ts, src/webapp/src/state/chatReducer.ts
