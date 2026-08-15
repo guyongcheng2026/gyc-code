@@ -745,3 +745,6 @@
 
 - [OK] 2026-08-15 [0425630] feat(webapp): send prompt via session.promptAsync (non-blocking)
   - [FILES] 2: src/webapp/src/client/useSendPrompt.test.ts, src/webapp/src/client/useSendPrompt.ts
+
+- [OK] 2026-08-15 [546eddd] feat(webapp): chat UI (session list + streaming message list + prompt input), align reducer with real protocol (info/parts, message.part.updated)
+  - [FILES] 12: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SessionList.tsx ...
