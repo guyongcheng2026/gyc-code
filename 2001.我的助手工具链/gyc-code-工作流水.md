@@ -760,3 +760,6 @@
 
 - [OK] 2026-08-15 [07f2eb2] docs: gyc web P0+P1 final report + mark spec/plan
   - [FILES] 3: docs/compose/plans/2026-08-15-gyc-web.md, docs/compose/reports/gyc-web.md, docs/compose/specs/2026-08-15-gyc-web-design.md
+
+- [OK] 2026-08-15 [803e4a3] perf: TUI 迁移 Node 运行时，移除 dist-bun 扁平化分支
+  - [FILES] 3: bin/gyc, build.mjs, docs/compose/plans/2026-08-15-tui-node-runtime-and-remove-alibaba.md
