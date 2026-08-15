@@ -1,4 +1,4 @@
-import { Virtuoso } from "react-virtuoso"
+﻿import { Virtuoso } from "react-virtuoso"
 import type { ChatMessage } from "../state/chatReducer"
 import { PartView } from "./PartView"
 
@@ -18,7 +18,7 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
             {m.role === "user" ? (
               <span style={{ color: "var(--inactive)" }}>你</span>
             ) : (
-              <span style={{ color: "var(--claude)" }}>gyc</span>
+              <span style={{ color: "var(--brand)" }}>gyc</span>
             )}
           </div>
           <div style={{ wordBreak: "break-word" }}>
@@ -30,3 +30,4 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
     />
   )
 }
+

@@ -1,9 +1,9 @@
-/* gyc web 视觉：Claude Code 明暗主题（默认亮色）+ Codex app 布局风格 */
+﻿/* gyc web 视觉：gyc 品牌明暗主题（默认亮色）+ 现代桌面布局风格 */
 
 :root,
 [data-theme="light"] {
-  --claude: #D77757;
-  --claude-shimmer: #F59575;
+  --brand: #D77757;
+  --brand-shimmer: #F59575;
   --text: #000000;
   --inverse-text: #FFFFFF;
   --inactive: #666666;
@@ -39,8 +39,8 @@
 }
 
 [data-theme="dark"] {
-  --claude: #D77757;
-  --claude-shimmer: #EB9F7F;
+  --brand: #D77757;
+  --brand-shimmer: #EB9F7F;
   --text: #FFFFFF;
   --inverse-text: #000000;
   --inactive: #999999;
@@ -123,7 +123,7 @@ body {
   background: var(--inactive);
 }
 
-/* 按钮：Codex 风格 */
+/* 按钮 */
 .btn {
   font-family: inherit;
   font-size: 13px;
@@ -145,13 +145,13 @@ body {
   cursor: default;
 }
 .btn-primary {
-  background: var(--claude);
+  background: var(--brand);
   border-color: transparent;
   color: #fff;
   font-weight: 600;
 }
 .btn-primary:hover {
-  background: var(--claude-shimmer);
+  background: var(--brand-shimmer);
   border-color: transparent;
 }
 .btn-ghost {
@@ -252,3 +252,5 @@ body {
   padding: 10px 12px;
   margin: 8px 0;
 }
+
+

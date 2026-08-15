@@ -1,4 +1,4 @@
-import type { ChatPart } from "../state/chatReducer"
+﻿import type { ChatPart } from "../state/chatReducer"
 
 const TOOL_STATUS: Record<string, { label: string; color: string }> = {
   pending: { label: "待执行", color: "var(--inactive)" },
@@ -102,7 +102,7 @@ export function PartView({ part }: { part: ChatPart }) {
       ) : null
     case "agent":
       return part.text ? (
-        <div style={{ fontSize: 12, color: "var(--plan-mode)", margin: "4px 0" }}>🤖 agent: {part.text}</div>
+        <div style={{ fontSize: 12, color: "var(--plan-mode)", margin: "4px 0" }}>🤖 子代理: {part.text}</div>
       ) : null
     case "file":
       return part.text ? (
@@ -116,3 +116,4 @@ export function PartView({ part }: { part: ChatPart }) {
       )
   }
 }
+

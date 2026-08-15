@@ -19,6 +19,7 @@ vi.mock("@gyccode/protocol/v1", () => ({
       command: () => Promise.resolve({}),
     },
     command: { list: () => Promise.resolve({ data: [] }) },
+    provider: { list: () => Promise.resolve({ data: { all: [] } }) },
     global: { event: () => Promise.resolve({}) },
   }),
 }))

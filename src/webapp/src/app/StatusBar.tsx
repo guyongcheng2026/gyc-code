@@ -1,4 +1,4 @@
-import type { SessionInfo } from "../client/useSessionInfo"
+﻿import type { SessionInfo } from "../client/useSessionInfo"
 
 function fmtCost(cost?: number): string {
   if (cost === undefined) return ""
@@ -12,7 +12,7 @@ export function StatusBar({ info }: { info: SessionInfo | null }) {
   const items = [
     info.status ? `状态: ${info.status}` : "",
     fmtCost(info.cost),
-    total > 0 ? `tokens: ${total.toLocaleString()}` : "",
+    total > 0 ? `Token 数: ${total.toLocaleString()}` : "",
     info.todos.length > 0 ? `待办: ${info.todos.filter((x) => !x.done).length}/${info.todos.length}` : "",
   ].filter(Boolean)
 
@@ -34,3 +34,4 @@ export function StatusBar({ info }: { info: SessionInfo | null }) {
     </div>
   )
 }
+

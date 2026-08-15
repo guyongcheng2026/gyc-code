@@ -1,11 +1,11 @@
-// gyc web 视觉主题：Claude Code 明暗主题配色（提取自 reference utils/theme.ts darkTheme / lightTheme）
-// 布局遵循 Codex 桌面版（居中聊天列 + 左侧栏 + 底部圆角输入框）。默认亮色。
+﻿// gyc web 视觉主题：gyc 品牌明暗配色（品牌橙 #D77757）+ 现代桌面编码助手布局
+// 布局遵循现代编码助手桌面版（居中聊天列 + 左侧栏 + 底部圆角输入框）。默认亮色。
 
 export type ThemeName = "light" | "dark"
 
 type ThemeTokens = {
-  claude: string
-  claudeShimmer: string
+  brand: string
+  brandShimmer: string
   text: string
   inverseText: string
   inactive: string
@@ -38,10 +38,10 @@ type ThemeTokens = {
   terminalBackground: string
 }
 
-// Claude Code 亮色主题（lightTheme）+ 应用级 token
+// 亮色主题 + 应用级 token
 export const lightTheme: ThemeTokens = {
-  claude: "#D77757",
-  claudeShimmer: "#F59575",
+  brand: "#D77757",
+  brandShimmer: "#F59575",
   text: "#000000",
   inverseText: "#FFFFFF",
   inactive: "#666666",
@@ -74,10 +74,10 @@ export const lightTheme: ThemeTokens = {
   terminalBackground: "#FFFFFF",
 }
 
-// Claude Code 深色主题（darkTheme）+ 应用级 token
+// 深色主题 + 应用级 token
 export const darkTheme: ThemeTokens = {
-  claude: "#D77757",
-  claudeShimmer: "#EB9F7F",
+  brand: "#D77757",
+  brandShimmer: "#EB9F7F",
   text: "#FFFFFF",
   inverseText: "#000000",
   inactive: "#999999",
@@ -111,3 +111,5 @@ export const darkTheme: ThemeTokens = {
 }
 
 export const themes: Record<ThemeName, ThemeTokens> = { light: lightTheme, dark: darkTheme }
+
+

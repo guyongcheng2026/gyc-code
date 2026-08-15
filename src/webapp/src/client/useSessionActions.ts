@@ -1,7 +1,8 @@
-import { useCallback } from "react"
+﻿import { useCallback } from "react"
 import { sdk } from "./sdk"
+import { v2 } from "./v2"
 
-// 会话操作：对齐 Claude Code 的会话管理能力。
+// 会话操作：会话管理能力。
 export function useSessionActions(directory?: string) {
   const rename = useCallback(
     async (id: string, title: string) => {
@@ -54,5 +55,22 @@ export function useSessionActions(directory?: string) {
     [directory],
   )
 
-  return { rename, fork, remove, abort, summarize, revert, command }
+  // 切换会话 agent（模式：build / plan / compose），走 v2 switchAgent
+  const switchAgent = useCallback(
+    async (id: string, agent: string) => {
+      await v2(directory).v2.session.switchAgent({ sessionID: id, agent })
+    },
+    [directory],
+  )
+
+  // 切换会话模型，走 v2 switchModel
+  const switchModel = useCallback(
+    async (id: string, providerID: string, modelID: string) => {
+      await v2(directory).v2.session.switchModel({ sessionID: id, model: { providerID, id: modelID } })
+    },
+    [directory],
+  )
+
+  return { rename, fork, remove, abort, summarize, revert, command, switchAgent, switchModel }
 }
+

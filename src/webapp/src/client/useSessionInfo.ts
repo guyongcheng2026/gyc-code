@@ -7,6 +7,8 @@ export type SessionInfo = {
   title?: string | null
   cost?: number
   tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
+  model?: { providerID: string; modelID: string }
+  agent?: string
   status?: string
   todos: { content: string; done?: boolean }[]
 }
@@ -47,12 +49,20 @@ export function useSessionInfo(sessionID: string | null, directory?: string) {
     void sdk(directory)
       .session.get({ path: { id: sessionID } })
       .then((res) => {
-        const s = res.data as { title?: string; cost?: number; tokens?: SessionInfo["tokens"] }
+        const s = res.data as {
+          title?: string
+          cost?: number
+          tokens?: SessionInfo["tokens"]
+          model?: SessionInfo["model"]
+          agent?: string
+        }
         setInfo((prev) => ({
           id: sessionID,
           title: s.title ?? prev?.title,
           cost: s.cost ?? prev?.cost,
           tokens: s.tokens ?? prev?.tokens,
+          model: s.model ?? prev?.model,
+          agent: s.agent ?? prev?.agent,
           status: prev?.status,
           todos: prev?.todos ?? [],
         }))

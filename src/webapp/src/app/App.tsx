@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+﻿import { useEffect, useState } from "react"
 import { useSessions } from "../client/useSessions"
 import { useFileTree } from "../client/useFileTree"
 import { useTheme } from "../client/useTheme"
@@ -52,7 +52,7 @@ export function App() {
       }}
     >
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-        {/* 左栏：会话（Codex 项目/线程）+ 文件 */}
+        {/* 左栏：会话（项目/线程）+ 文件 */}
         <aside
           style={{
             display: "flex",
@@ -94,7 +94,7 @@ export function App() {
             }}
           >
             <span style={{ fontWeight: 700, marginRight: 12, fontSize: 13 }}>
-              gyc<span style={{ color: "var(--claude)" }}>·</span>web
+              gyc<span style={{ color: "var(--brand)" }}>·</span>web
             </span>
             {!filePath ? (
               <>
@@ -126,7 +126,7 @@ export function App() {
             </button>
           </div>
 
-          {/* 居中内容（Codex：结果区居中，max-width） */}
+          {/* 居中内容（结果区居中，max-width） */}
           <div style={{ flex: 1, minHeight: 0, display: "flex", justifyContent: "center" }}>
             <div
               style={{
@@ -173,3 +173,5 @@ export function App() {
     </main>
   )
 }
+
+
