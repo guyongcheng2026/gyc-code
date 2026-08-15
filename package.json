@@ -131,7 +131,9 @@
     "ws": "8.21.0",
     "xdg-basedir": "5.1.0",
     "yargs": "18.0.0",
-    "zod": "*"
+    "zod": "*",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@babel/core": "7.28.4",
@@ -180,7 +182,14 @@
     "vite-plugin-solid": "*",
     "@babel/preset-typescript": "7.27.1",
     "babel-plugin-module-resolver": "5.0.2",
-    "babel-preset-solid": "1.9.12"
+    "babel-preset-solid": "1.9.12",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "vitest": "^3.0.0",
+    "jsdom": "^25.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/dom": "^10.0.0"
   },
   "engines": {
     "bun": ">=1.0.0",
@@ -195,7 +204,8 @@
     "src/schema",
     "src/server",
     "src/tui",
-    "src/ui"
+    "src/ui",
+    "src/webapp"
   ],
   "files": [
     "bin",
