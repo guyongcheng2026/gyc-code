@@ -1,16 +1,22 @@
 import { useState } from "react"
 import { useChatSession } from "../client/useChatSession"
 import { useSendPrompt } from "../client/useSendPrompt"
+import { usePermissions } from "../client/usePermissions"
 import { MessageList } from "./MessageList"
 import { PromptInput } from "./PromptInput"
+import { PermissionCard } from "./PermissionCard"
 
 export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { messages, busy } = useChatSession(sessionID)
   const { send } = useSendPrompt(sessionID)
+  const { queue, resolve } = usePermissions(sessionID)
   const [sendError, setSendError] = useState<string | null>(null)
 
   return (
     <section style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+      {queue.map((p) => (
+        <PermissionCard key={p.id} item={p} onResolve={resolve} />
+      ))}
       <MessageList messages={messages} />
       {sendError ? <p style={{ color: "red" }}>{sendError}</p> : null}
       <PromptInput

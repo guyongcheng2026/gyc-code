@@ -4,7 +4,10 @@ import { ChatPanel } from "./ChatPanel"
 
 const promptAsync = vi.fn(() => Promise.resolve({}))
 vi.mock("@gyccode/protocol/v1", () => ({
-  createGyccodeClient: () => ({ session: { promptAsync } }),
+  createGyccodeClient: () => ({
+    session: { promptAsync, postSessionIdPermissionsPermissionId: () => Promise.resolve({}) },
+    global: { event: () => Promise.resolve({}) },
+  }),
 }))
 vi.mock("../client/useChatSession", () => ({
   useChatSession: () => ({ messages: [], idle: true, busy: false }),
