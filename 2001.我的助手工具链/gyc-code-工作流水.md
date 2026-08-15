@@ -811,3 +811,6 @@
 
 - [OK] 2026-08-15 [0cffc37] feat(webapp): visible tool execution cards (DeepSeek harness) + plan mode toggle (Claude plan-then-execute); render tool/reasoning/subtask/patch/agent/file parts
   - [FILES] 5: src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx, src/webapp/src/app/PartView.tsx, src/webapp/src/client/useChatSession.ts, src/webapp/src/state/chatReducer.ts
+
+- [OK] 2026-08-15 [31e0acd] fix(webapp): slash command fire-and-forget (session.command is synchronous/blocking - avoid freezing UI)
+  - [FILES] 1: src/webapp/src/app/ChatPanel.tsx
