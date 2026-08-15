@@ -1,5 +1,10 @@
 # gyc web 设计文档（gyc mini → gyc web）
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/gyc-web.md)
+
 > 日期：2026-08-15
 > 背景：将当前 gyc 的轻量交互版本（`gyc --mini`）改造为 Web IDE 版本（`gyc web`）。
 > 参考：Claude Code web / Codex web 的架构与交互设计（Web IDE 四件套）。
