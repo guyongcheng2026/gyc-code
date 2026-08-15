@@ -13,7 +13,8 @@
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
     "start": "bun dist/index.js",
-    "test": "bun test --preload ./scripts/bun-solid-preload.ts",
+    "test": "bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp",
+    "test:web": "npx vitest run --config src/webapp/vitest.config.ts src/webapp",
     "webapp:build": "node scripts/build-webapp.mjs",
     "prepack": "bun run webapp:build && bun run build",
     "prepublishOnly": "bun run build"
