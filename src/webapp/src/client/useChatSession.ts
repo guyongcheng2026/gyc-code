@@ -27,7 +27,23 @@ export function useChatSession(sessionID: string | null, directory?: string) {
       const messages: ChatMessage[] = list.map(({ info, parts }) => ({
         id: info.id,
         role: info.role === "user" ? "user" : "assistant",
-        parts: parts.map((p) => ({ id: p.id, type: p.type, text: p.text })),
+        parts: parts.map((p) => {
+          const anyPart = p as unknown as Record<string, unknown>
+          return {
+            id: p.id,
+            type: p.type,
+            text: p.text,
+            tool: anyPart.tool as string | undefined,
+            callID: anyPart.callID as string | undefined,
+            title: anyPart.title as string | undefined,
+            state: anyPart.state as ChatPart["state"],
+            output: anyPart.output as string | undefined,
+            error: anyPart.error as string | undefined,
+            reason: anyPart.reason as string | undefined,
+            prompt: anyPart.prompt as string | undefined,
+            description: anyPart.description as string | undefined,
+          } as ChatPart
+        }),
         error: info.error,
       }))
       dispatch({ type: "hydrate", sessionID: id, messages })

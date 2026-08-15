@@ -1,5 +1,6 @@
 import { Virtuoso } from "react-virtuoso"
 import type { ChatMessage } from "../state/chatReducer"
+import { PartView } from "./PartView"
 
 export function MessageList({ messages }: { messages: ChatMessage[] }) {
   return (
@@ -20,8 +21,8 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
               <span style={{ color: "var(--claude)" }}>gyc</span>
             )}
           </div>
-          <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {m.parts?.map((p) => (p.type === "text" ? p.text : `[${p.type}]`)).join("") || ""}
+          <div style={{ wordBreak: "break-word" }}>
+            {m.parts?.map((p) => <PartView key={p.id} part={p} />) ?? ""}
           </div>
           {m.error ? <div style={{ color: "var(--error)", marginTop: 4 }}>错误: {String(m.error)}</div> : null}
         </div>

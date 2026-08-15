@@ -18,6 +18,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { commands } = useCommands()
   const { info } = useSessionInfo(sessionID)
   const [sendError, setSendError] = useState<string | null>(null)
+  const [planMode, setPlanMode] = useState(false)
 
   const onCommand = async (name: string, args: string) => {
     try {
@@ -49,6 +50,13 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         ) : null}
         <button
           className="btn btn-ghost"
+          style={planMode ? { color: "var(--plan-mode)", borderColor: "var(--plan-mode)" } : undefined}
+          onClick={() => setPlanMode((v) => !v)}
+        >
+          🗒 {planMode ? "计划模式" : "对话模式"}
+        </button>
+        <button
+          className="btn btn-ghost"
           onClick={async () => {
             const id = await fork(sessionID)
             if (id) window.location.hash = `#${id}`
@@ -73,7 +81,11 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
           disabled={busy}
           commands={commands}
           onSubmit={(text) => {
-            send(text).catch((err) => setSendError(err instanceof Error ? err.message : String(err)))
+            // 计划模式：先计划后执行（借鉴 DeepSeek harness plan-then-execute / Claude plan mode）
+            const prompt = planMode
+              ? `先不要修改任何代码。请先针对以下需求制定一份详细计划，包含：步骤拆解、每步风险、最终如何验证。计划确定后等我确认再执行。\n\n需求：${text}`
+              : text
+            send(prompt).catch((err) => setSendError(err instanceof Error ? err.message : String(err)))
           }}
           onCommand={onCommand}
         />

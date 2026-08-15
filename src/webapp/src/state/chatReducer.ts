@@ -1,4 +1,29 @@
-export type ChatPart = { id: string; type: string; text?: string }
+export type ToolState =
+  | { status: "pending"; input: Record<string, unknown>; time: { start: number } }
+  | { status: "running"; input: Record<string, unknown>; title?: string; time: { start: number } }
+  | {
+      status: "completed"
+      input: Record<string, unknown>
+      output: string
+      title: string
+      time: { start: number; end: number }
+    }
+  | { status: "error"; input: Record<string, unknown>; error: string; time: { start: number; end: number } }
+
+export type ChatPart = {
+  id: string
+  type: string
+  text?: string
+  tool?: string
+  callID?: string
+  title?: string
+  state?: ToolState
+  output?: string
+  error?: string
+  reason?: string
+  prompt?: string
+  description?: string
+}
 
 export type ChatMessage = {
   id: string
@@ -16,7 +41,22 @@ export type ChatState = {
 
 export const initialChatState = (): ChatState => ({ sessionID: null, messages: [], idle: true, busy: false })
 
-type PartPayload = { id: string; type: string; text?: string; sessionID?: string; messageID?: string }
+type PartPayload = {
+  id: string
+  type: string
+  text?: string
+  tool?: string
+  callID?: string
+  title?: string
+  state?: ToolState
+  output?: string
+  error?: string
+  reason?: string
+  prompt?: string
+  description?: string
+  sessionID?: string
+  messageID?: string
+}
 
 type ChatAction =
   | { type: "message.updated"; properties: { info: ChatMessage } }
@@ -47,9 +87,26 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const messages = state.messages.map((m) => {
         if (m.id !== messageID) return m
         const existing = m.parts.find((p) => p.id === part.id)
+        // 保留工具/步骤等字段（非文本部分在流式更新时仅更新字段本身）
+        const meta: Partial<ChatPart> = {
+          tool: part.tool,
+          callID: part.callID,
+          title: part.title,
+          state: part.state,
+          output: part.output,
+          error: part.error,
+          reason: part.reason,
+          prompt: part.prompt,
+          description: part.description,
+        }
         const nextPart: ChatPart = existing
-          ? { ...existing, text: (existing.text ?? "") + delta }
-          : { id: part.id, type: part.type, text: (part.text ?? "") + delta }
+          ? { ...existing, ...meta, text: part.type === "text" ? (existing.text ?? "") + delta : part.text }
+          : {
+              id: part.id,
+              type: part.type,
+              text: part.type === "text" ? (part.text ?? "") + delta : part.text,
+              ...meta,
+            }
         const parts = existing ? m.parts.map((p) => (p.id === part.id ? nextPart : p)) : [...m.parts, nextPart]
         return { ...m, parts }
       })
