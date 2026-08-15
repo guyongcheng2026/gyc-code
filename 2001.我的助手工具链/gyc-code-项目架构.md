@@ -12,7 +12,7 @@
 
 | 层 | 技术 |
 |----|------|
-| 运行时 | **双运行时**：非 TUI 命令 Node 直跑 `dist/`；TUI 由 Bun 子进程跑 `dist-bun/`（OpenTUI 原生渲染仅支持 Bun bun:ffi，Node 无 node:ffi 模块）。默认入口三形态：`gyc`（无参，TTY）纯 CLI 逐行对话（Node）；`gyc "消息"`/管道 非交互单轮（Node）；`gyc tui` 全屏 TUI（Bun）；`gyc --mini` 转发 split-footer 交互（Node 下提升 Bun） |
+| 运行时 | **单运行时 Node**：全部命令（含 TUI）由 Node 直跑 `dist/`。OpenTUI 的 node:ffi 依赖经 `scripts/apply-opentui-ffi-patch.cjs` 用 koffi 适配（postinstall 注入）。默认入口三形态：`gyc`（无参，TTY）纯 CLI 逐行对话（Node）；`gyc "消息"`/管道 非交互单轮（Node）；`gyc tui` 全屏 TUI（Node）；`gyc --mini` 转发 split-footer 交互（Node，进程内切换） |
 | 语言 | TypeScript（ESM） |
 | TUI | OpenTUI（`@opentui/core`、`@opentui/solid`，SolidJS 渲染） |
 | 后端架构 | Effect（`effect`、`@effect/platform-node`、`@effect/sql-sqlite-bun`） |
@@ -35,8 +35,9 @@
 | `src/gyccode/memory/` | 记忆系统（`hermes-bridge.ts` 桥接本地记忆文件） |
 | `src/core/` | 核心框架层（v1 config / flag / v1 config 解析） |
 | `src/protocol/` | 协议层：`v1`/`v2` 自研协议客户端 + `plugin` 插件类型（原 opencode SDK/plugin 本地化，2026-08-12 起零外部依赖） |
-| `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`、`gen-compose-bundle.mjs`） |
-| `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker；双目标构建：node → `dist/`、bun → `dist-bun/`） |
+| `scripts/` | 构建与补丁（`bun-solid-plugin.ts`、`apply-opentui-patch.cjs`、`apply-opentui-ffi-patch.cjs`、`gen-compose-bundle.mjs`） |
+| `build.mjs` | Bun.build 打包脚本（entrypoints: index + tui worker；单目标构建：node → `dist/`） |
+| `dist/` | 构建产物（node 目标，全部命令由 Node 直跑） |
 | `dist/` | 构建产物（node 目标，非 TUI 命令由 Node 直跑） |
 | `dist-bun/` | 构建产物（bun 目标，TUI 由 Bun 子进程跑；OpenTUI 渲染 + bun:sqlite 原生支持） |
 
@@ -71,14 +72,14 @@ bun run build          # 构建 dist（含 tui worker 与 WASM 资产）
 bun start              # bun dist/index.js
 gyc                    # 无参：readline 逐行对话（Node 直跑）
 gyc "<问题>"            # 传消息：非交互单轮（等价 gyc run）
-gyc tui                # 全屏 TUI（Node 下自动提升 Bun 子进程）
-gyc --mini             # split-footer 交互（Node 下自动提升 Bun）
+gyc tui                # 全屏 TUI（Node 直跑，OpenTUI node:ffi 经 koffi 适配）
+gyc --mini             # split-footer 交互（Node，进程内切换）
 gyc run "<问题>" -m <provider>/<model>   # 非交互运行
 ```
 
 - 全局 `gyc` 是 bun 安装的 shim，指向本地仓库源码目录；**改源码后必须 rebuild 才生效**
 - 构建产物为 ESM 分包；WASM 通过相对路径解析（`resolveWasm` 基于 `import.meta.url`）
-- 默认入口（2026-08-15 改造）：`cli/cmd/default.ts` 三形态分发；非交互单轮复用 `run.ts` handler（行为与 `gyc run` 完全一致）；交互用 `node:readline/promises` 逐行对话（无 OpenTUI 依赖）；`--mini` 转发 `runMini`（需 Bun）
+- 默认入口（2026-08-15 改造）：`cli/cmd/default.ts` 三形态分发；非交互单轮复用 `run.ts` handler（行为与 `gyc run` 完全一致）；交互用 `node:readline/promises` 逐行对话（无 OpenTUI 依赖）；`tui`/`--mini` 在交互模式内经 `parseTuiArgs` 进程内 `await import` 切换（2026-08-15 修复）
 
 ## 五·五、目录结构对齐 Claude Code（2026-08-08 → 2026-08-13 移除门面层）
 
