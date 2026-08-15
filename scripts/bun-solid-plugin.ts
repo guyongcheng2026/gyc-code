@@ -7,6 +7,7 @@ import moduleResolver from "babel-plugin-module-resolver"
 import solid from "babel-preset-solid"
 import { plugin as registerBunPlugin, type BunPlugin } from "bun"
 import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 
 export type ResolveImportPath = (specifier: string) => string | null
 
@@ -78,9 +79,26 @@ export function resetSolidTransformPluginState(): void {
 }
 
 export function createSolidTransformPlugin(input: CreateSolidTransformPluginOptions = {}): BunPlugin {
+  const solidJsSolidPath = fileURLToPath(import.meta.resolve("solid-js/dist/solid.js"))
+  const solidJsStorePath = fileURLToPath(import.meta.resolve("solid-js/store/dist/store.js"))
+  const solidJsWebPath = fileURLToPath(import.meta.resolve("solid-js/web/dist/web.js"))
+
   return {
     name: "bun-plugin-solid",
     setup: (build) => {
+      // @opentui/solid 直接依赖 solid-js/dist/solid.js，而业务代码 import "solid-js"
+      // 走 exports 会解析到不同文件（如 dist/server.js），导致运行时出现两份 solid-js
+      // （各自的 Owner/context 全局状态互相独立）。这里统一重定向到同一份 dist/solid.js。
+      build.onResolve({ filter: /^solid-js$/ }, () => ({
+        path: solidJsSolidPath,
+      }))
+      build.onResolve({ filter: /^solid-js\/store$/ }, () => ({
+        path: solidJsStorePath,
+      }))
+      build.onResolve({ filter: /^solid-js\/web$/ }, () => ({
+        path: solidJsWebPath,
+      }))
+
       build.onLoad({ filter: /[/\\]node_modules[/\\]solid-js[/\\]dist[/\\]server\.js(?:[?#].*)?$/ }, (args) => {
         const path = sourcePath(args.path).replace("server.js", "solid.js")
         return { contents: readFileSync(path, "utf-8"), loader: "js" }
