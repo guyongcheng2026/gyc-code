@@ -778,3 +778,6 @@
 
 - [OK] 2026-08-15 [b802607] fix(tui): 统一 solid-js 产物避免双实例导致黑屏
   - [FILES] 1: scripts/bun-solid-plugin.ts
+
+- [OK] 2026-08-15 [e258eaf] feat(webapp): P2 IDE four-piece - file tree (git status), monaco viewer, session diff, xterm terminal + integrated layout
+  - [FILES] 19: package.json, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.test.tsx, src/webapp/src/app/App.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileTree.tsx ...
