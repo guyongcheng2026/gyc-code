@@ -333,9 +333,6 @@ function applyCaching(msgs: ModelMessage[], model: Provider.Model): ModelMessage
     copilot: {
       copilot_cache_control: { type: "ephemeral" },
     },
-    alibaba: {
-      cacheControl: { type: "ephemeral" },
-    },
   }
 
   for (const msg of unique([...system, ...final])) {
@@ -1164,20 +1161,6 @@ export function options(input: {
   ) {
     result["thinking"] = { type: "adaptive", display: "summarized" }
     result["effort"] = "high"
-  }
-
-  // Enable thinking for reasoning models on alibaba-cn (DashScope).
-  // DashScope's OpenAI-compatible API requires `enable_thinking: true` in the request body
-  // to return reasoning_content. Without it, models like kimi-k2.5, qwen-plus, qwen3, qwq,
-  // deepseek-r1, etc. never output thinking/reasoning tokens.
-  // Note: kimi-k2-thinking is excluded as it returns reasoning_content by default.
-  if (
-    input.model.providerID === "alibaba-cn" &&
-    input.model.capabilities.reasoning &&
-    input.model.api.npm === "@ai-sdk/openai-compatible" &&
-    !modelId.includes("kimi-k2-thinking")
-  ) {
-    result["enable_thinking"] = true
   }
 
   if (input.providerOptions?.setCacheKey !== false) {
