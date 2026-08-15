@@ -742,3 +742,6 @@
 
 - [OK] 2026-08-15 [beb9fcc] feat(webapp): useChatSession hydrate + event-driven incremental updates
   - [FILES] 2: src/webapp/src/client/useChatSession.test.ts, src/webapp/src/client/useChatSession.ts
+
+- [OK] 2026-08-15 [0425630] feat(webapp): send prompt via session.promptAsync (non-blocking)
+  - [FILES] 2: src/webapp/src/client/useSendPrompt.test.ts, src/webapp/src/client/useSendPrompt.ts
