@@ -757,3 +757,6 @@
 
 - [OK] 2026-08-15 [afa30d0] fix(webapp): consume SSE stream actively (lazy AsyncGenerator needs iteration); exclude webapp from bun test; E2E verified conversational loop (create->promptAsync->stream->idle)
   - [FILES] 2: package.json, src/webapp/src/client/useEvents.ts
+
+- [OK] 2026-08-15 [07f2eb2] docs: gyc web P0+P1 final report + mark spec/plan
+  - [FILES] 3: docs/compose/plans/2026-08-15-gyc-web.md, docs/compose/reports/gyc-web.md, docs/compose/specs/2026-08-15-gyc-web-design.md
