@@ -1,6 +1,44 @@
-/* gyc web 视觉：Claude Code 深色配色（提取自 reference theme.ts darkTheme）+ Codex app 布局风格 */
+/* gyc web 视觉：Claude Code 明暗主题（默认亮色）+ Codex app 布局风格 */
 
-:root {
+:root,
+[data-theme="light"] {
+  --claude: #D77757;
+  --claude-shimmer: #F59575;
+  --text: #000000;
+  --inverse-text: #FFFFFF;
+  --inactive: #666666;
+  --subtle: #AFAFAF;
+  --prompt-border: #999999;
+  --success: #2C7A39;
+  --error: #AB2B3F;
+  --warning: #966C1E;
+  --permission: #5769F7;
+  --suggestion: #5769F7;
+  --plan-mode: #006666;
+  --auto-accept: #8700FF;
+  --diff-added: #69DB7C;
+  --diff-removed: #FFA8B4;
+  --diff-added-dimmed: #C7E1CB;
+  --diff-removed-dimmed: #FDD2D8;
+  --diff-added-word: #2F9D44;
+  --diff-removed-word: #D1454B;
+  --user-msg-bg: #F0F0F0;
+  --user-msg-bg-hover: #FCFCFC;
+  --actions-bg: #E8ECF4;
+  --selection-bg: #B4D5FF;
+  --bash-msg-bg: #FAF5FA;
+
+  --app-bg: #FFFFFF;
+  --panel-bg: #F3F3F3;
+  --panel-bg-hover: #E8E8E8;
+  --border: #D6D6D6;
+  --border-subtle: #E6E6E6;
+  --input-bg: #FFFFFF;
+  --code-bg: #F6F8FA;
+  --terminal-bg: #FFFFFF;
+}
+
+[data-theme="dark"] {
   --claude: #D77757;
   --claude-shimmer: #EB9F7F;
   --text: #FFFFFF;
@@ -33,10 +71,11 @@
   --border: #3C3C3C;
   --border-subtle: #2A2A2A;
   --input-bg: #3C3C3C;
-  --input-bg-hover: #464646;
   --code-bg: #1A1A1A;
   --terminal-bg: #0D1117;
+}
 
+:root {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC",
     "Microsoft YaHei", sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
@@ -44,6 +83,7 @@
   --font-size-sm: 12px;
   --radius: 8px;
   --radius-sm: 6px;
+  color-scheme: light dark;
 }
 
 * {
@@ -67,7 +107,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* 滚动条（VS Code 暗色风格） */
+/* 滚动条 */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -83,7 +123,7 @@ body {
   background: var(--inactive);
 }
 
-/* 按钮：Codex 风格——克制、细边框、圆角，hover 微亮 */
+/* 按钮：Codex 风格 */
 .btn {
   font-family: inherit;
   font-size: 13px;
@@ -107,7 +147,7 @@ body {
 .btn-primary {
   background: var(--claude);
   border-color: transparent;
-  color: #1a1a1a;
+  color: #fff;
   font-weight: 600;
 }
 .btn-primary:hover {
@@ -168,7 +208,7 @@ body {
   border-radius: var(--radius);
 }
 
-/* 消息（Codex 风格：居中宽列） */
+/* 消息 */
 .msg {
   padding: 8px 12px;
   border-radius: var(--radius);

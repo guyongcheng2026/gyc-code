@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { useSessions } from "../client/useSessions"
 import { useFileTree } from "../client/useFileTree"
+import { useTheme } from "../client/useTheme"
 import { sdk } from "../client/sdk"
 import { SessionList } from "./SessionList"
 import { ChatPanel } from "./ChatPanel"
@@ -18,6 +19,7 @@ export function App() {
   const [filePath, setFilePath] = useState<string | null>(null)
   const [showTerminal, setShowTerminal] = useState(true)
   const tree = useFileTree()
+  const { theme, toggle } = useTheme()
 
   const onNew = async () => {
     const res = await sdk().session.create({ body: {} })
@@ -105,7 +107,10 @@ export function App() {
                 ← 返回
               </button>
             )}
-            <button className="btn btn-ghost" style={{ marginLeft: "auto" }} onClick={() => setShowTerminal((v) => !v)}>
+            <button className="btn btn-ghost" style={{ marginLeft: "auto" }} onClick={toggle}>
+              {theme === "light" ? "🌙 深色" : "☀️ 亮色"}
+            </button>
+            <button className="btn btn-ghost" onClick={() => setShowTerminal((v) => !v)}>
               {showTerminal ? "收起终端" : "展开终端"}
             </button>
           </div>

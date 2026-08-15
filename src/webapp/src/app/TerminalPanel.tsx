@@ -3,8 +3,17 @@ import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import "@xterm/xterm/css/xterm.css"
 import { connectPty, usePty, type PtyConnection } from "../client/usePty"
+import { useTheme } from "../client/useTheme"
 
 type PtyEntry = { id: string; title: string; conn: PtyConnection }
+
+// 从 CSS 变量读取当前主题的终端/文字颜色（xterm 需要具体色值）。
+function terminalColors() {
+  const cs = getComputedStyle(document.documentElement)
+  const bg = cs.getPropertyValue("--terminal-bg").trim() || "#FFFFFF"
+  const fg = cs.getPropertyValue("--text").trim() || "#000000"
+  return { background: bg, foreground: fg }
+}
 
 export function TerminalPanel() {
   const { create, updateSize } = usePty()
@@ -14,6 +23,7 @@ export function TerminalPanel() {
   const [error, setError] = useState<string | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const { theme } = useTheme()
 
   const addTerminal = async () => {
     setError(null)
@@ -36,7 +46,8 @@ export function TerminalPanel() {
     // 连接（若尚未连接）
     let conn = entry.conn
     if (!entry.conn.send) {
-      const term = new Terminal({ cursorBlink: true, fontSize: 13, theme: { background: "var(--terminal-bg)" } })
+      const { background, foreground } = terminalColors()
+      const term = new Terminal({ cursorBlink: true, fontSize: 13, theme: { background, foreground } })
       const fit = new FitAddon()
       term.loadAddon(fit)
       termRef.current = term
@@ -73,6 +84,15 @@ export function TerminalPanel() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  // 主题切换时实时更新激活终端配色（无需重连）
+  useEffect(() => {
+    const term = termRef.current
+    if (!term) return
+    const { background, foreground } = terminalColors()
+    term.options.theme = { background, foreground }
+    term.refresh(0, term.rows - 1)
+  }, [theme])
 
   const closeActive = useCallback(() => {
     if (!activeID) return

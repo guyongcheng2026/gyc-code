@@ -1,58 +1,113 @@
-// gyc web 视觉主题：Claude Code 深色主题配色（提取自 reference utils/theme.ts darkTheme）
-// 布局遵循 Codex 桌面版（居中聊天列 + 左侧栏 + 底部圆角输入框）。
-export const theme = {
-  // Claude 品牌橙
+// gyc web 视觉主题：Claude Code 明暗主题配色（提取自 reference utils/theme.ts darkTheme / lightTheme）
+// 布局遵循 Codex 桌面版（居中聊天列 + 左侧栏 + 底部圆角输入框）。默认亮色。
+
+export type ThemeName = "light" | "dark"
+
+type ThemeTokens = {
+  claude: string
+  claudeShimmer: string
+  text: string
+  inverseText: string
+  inactive: string
+  subtle: string
+  promptBorder: string
+  success: string
+  error: string
+  warning: string
+  permission: string
+  planMode: string
+  autoAccept: string
+  diffAdded: string
+  diffRemoved: string
+  diffAddedDimmed: string
+  diffRemovedDimmed: string
+  diffAddedWord: string
+  diffRemovedWord: string
+  userMessageBackground: string
+  userMessageBackgroundHover: string
+  actionsBackground: string
+  selectionBg: string
+  bashMessageBackground: string
+  appBackground: string
+  panelBackground: string
+  panelBackgroundHover: string
+  border: string
+  borderSubtle: string
+  inputBackground: string
+  codeBackground: string
+  terminalBackground: string
+}
+
+// Claude Code 亮色主题（lightTheme）+ 应用级 token
+export const lightTheme: ThemeTokens = {
+  claude: "#D77757",
+  claudeShimmer: "#F59575",
+  text: "#000000",
+  inverseText: "#FFFFFF",
+  inactive: "#666666",
+  subtle: "#AFAFAF",
+  promptBorder: "#999999",
+  success: "#2C7A39",
+  error: "#AB2B3F",
+  warning: "#966C1E",
+  permission: "#5769F7",
+  planMode: "#006666",
+  autoAccept: "#8700FF",
+  diffAdded: "#69DB7C",
+  diffRemoved: "#FFA8B4",
+  diffAddedDimmed: "#C7E1CB",
+  diffRemovedDimmed: "#FDD2D8",
+  diffAddedWord: "#2F9D44",
+  diffRemovedWord: "#D1454B",
+  userMessageBackground: "#F0F0F0",
+  userMessageBackgroundHover: "#FCFCFC",
+  actionsBackground: "#E8ECF4",
+  selectionBg: "#B4D5FF",
+  bashMessageBackground: "#FAF5FA",
+  appBackground: "#FFFFFF",
+  panelBackground: "#F3F3F3",
+  panelBackgroundHover: "#E8E8E8",
+  border: "#D6D6D6",
+  borderSubtle: "#E6E6E6",
+  inputBackground: "#FFFFFF",
+  codeBackground: "#F6F8FA",
+  terminalBackground: "#FFFFFF",
+}
+
+// Claude Code 深色主题（darkTheme）+ 应用级 token
+export const darkTheme: ThemeTokens = {
   claude: "#D77757",
   claudeShimmer: "#EB9F7F",
-  // 文字
   text: "#FFFFFF",
   inverseText: "#000000",
   inactive: "#999999",
   subtle: "#505050",
   promptBorder: "#888888",
-  // 语义色
   success: "#4EBA65",
   error: "#FF6B80",
   warning: "#FFC107",
   permission: "#B1B9F9",
-  suggestion: "#B1B9F9",
   planMode: "#48968C",
   autoAccept: "#AF87FF",
-  // Diff
   diffAdded: "#225C2B",
   diffRemoved: "#7A2936",
   diffAddedDimmed: "#47584A",
   diffRemovedDimmed: "#69484D",
   diffAddedWord: "#38A660",
   diffRemovedWord: "#B3596B",
-  // 背景
   userMessageBackground: "#373737",
   userMessageBackgroundHover: "#464646",
-  messageActionsBackground: "#2C323E",
+  actionsBackground: "#2C323E",
   selectionBg: "#264F78",
   bashMessageBackground: "#413C41",
-  memoryBackground: "#374146",
-  // 子代理色
-  agent: {
-    red: "#DC2626",
-    blue: "#2563EB",
-    green: "#16A34A",
-    yellow: "#CA8A04",
-    purple: "#9333EA",
-    orange: "#EA580C",
-    pink: "#DB2777",
-    cyan: "#0891B2",
-  },
-  // 应用级（web 端）
   appBackground: "#1E1E1E",
   panelBackground: "#252526",
   panelBackgroundHover: "#2A2D2E",
   border: "#3C3C3C",
   borderSubtle: "#2A2A2A",
   inputBackground: "#3C3C3C",
-  inputBackgroundHover: "#464646",
   codeBackground: "#1A1A1A",
   terminalBackground: "#0D1117",
-} as const
+}
 
-export type ThemeTokens = typeof theme
+export const themes: Record<ThemeName, ThemeTokens> = { light: lightTheme, dark: darkTheme }
