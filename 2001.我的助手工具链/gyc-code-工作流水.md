@@ -727,3 +727,6 @@
 
 - [OK] 2026-08-15 [f27753e] chore(webapp): wire src/webapp workspace + react/vitest deps, exclude from solid tsconfig
   - [FILES] 3: package.json, src/webapp/vitest.config.ts, tsconfig.json
+
+- [OK] 2026-08-15 [e6992cd] feat(webapp): hello page with session list via generated SDK
+  - [FILES] 4: src/webapp/src/app/App.test.tsx, src/webapp/src/app/App.tsx, src/webapp/src/index.css, src/webapp/src/main.tsx
