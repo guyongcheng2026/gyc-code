@@ -730,3 +730,6 @@
 
 - [OK] 2026-08-15 [e6992cd] feat(webapp): hello page with session list via generated SDK
   - [FILES] 4: src/webapp/src/app/App.test.tsx, src/webapp/src/app/App.tsx, src/webapp/src/index.css, src/webapp/src/main.tsx
+
+- [OK] 2026-08-15 [3c3eff1] feat(webapp): build pipeline generates embedded UI manifest; serve via existing serveUIEffect
+  - [FILES] 6: build.mjs, package.json, scripts/build-webapp.mjs, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/shared/ui.ts, tsconfig.json
