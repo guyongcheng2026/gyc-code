@@ -787,3 +787,6 @@
 
 - [OK] 2026-08-15 [8796162] fix(cli): type-assert TuiThreadCommand.handler args in interactive mode switch (pre-existing looseness surfaced by tsc)
   - [FILES] 1: src/gyccode/cli/cmd/default.ts
+
+- [OK] 2026-08-15 [f592f3a] docs: P4 cloud-ready abstraction boundary (v2 remote sandbox extension contract)
+  - [FILES] 1: docs/compose/specs/2026-08-15-gyc-web-p4-cloud-ready.md
