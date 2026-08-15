@@ -724,3 +724,6 @@
 
 - [OK] 2026-08-15 [ad1e721] feat(webapp): scaffold src/webapp workspace package (React+Vite+TS)
   - [FILES] 4: src/webapp/index.html, src/webapp/package.json, src/webapp/tsconfig.json, src/webapp/vite.config.ts
+
+- [OK] 2026-08-15 [f27753e] chore(webapp): wire src/webapp workspace + react/vitest deps, exclude from solid tsconfig
+  - [FILES] 3: package.json, src/webapp/vitest.config.ts, tsconfig.json
