@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
-import { DiffEditor } from "@monaco-editor/react"
-import { loader } from "@monaco-editor/react"
+import { DiffEditor, loader } from "@monaco-editor/react"
 import { useSessionDiff, type FileDiff } from "../client/useSessionDiff"
 
 function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
@@ -8,10 +7,12 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
 
   useEffect(() => {
     let cancelled = false
-    loader.init().then(
-      () => { if (!cancelled) setReady(true) },
-      () => { if (!cancelled) setReady(false) },
-    )
+    void import("../monaco/setup")
+      .then(() => loader.init())
+      .then(
+        () => { if (!cancelled) setReady(true) },
+        () => { if (!cancelled) setReady(false) },
+      )
     return () => { cancelled = true }
   }, [])
 

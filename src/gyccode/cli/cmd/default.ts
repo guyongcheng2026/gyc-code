@@ -520,7 +520,7 @@ const HELP_TEXT = [
   "    /permissions       显示当前会话权限规则",
   "  模式切换：",
   "    gyc tui            切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
-  "    gyc --mini         切换到 split-footer 交互（当前 CLI 退出，由 mini 接管）",
+    "    gyc --mini         切换到 split-footer 交互（已废弃，请用 `gyc web` / `gyc tui`）",
   "",
   "  提示：输入 / 后按 Tab 可补全命令。",
   "",
@@ -747,6 +747,10 @@ async function interactiveLoop(input: CliInput) {
         process.exit(0)
       }
       if (/^(?:gyc\s+)?(?:--mini|-i)$/i.test(text)) {
+        process.stderr.write(
+          "\x1b[33m!  gyc --mini 已废弃，请使用 `gyc web`（浏览器 Web IDE）或 `gyc tui`（终端全屏 TUI）。\n" +
+            "    当前仍以兼容模式启动，后续版本将移除。\x1b[0m\n",
+        )
         process.stdin.setRawMode(false)
         process.stdin.pause()
         const { TuiThreadCommand } = await import("./tui")
@@ -914,6 +918,11 @@ export const DefaultCommand = effectCmd({
     yield* Effect.promise(async () => {
       const mini = args.mini || args.interactive
       if (mini) {
+        // --mini 已废弃：保留短期兼容（仍启动 mini），并提示迁移到 gyc web / gyc tui。
+        process.stderr.write(
+          "\x1b[33m!  gyc --mini 已废弃，请使用 `gyc web`（浏览器 Web IDE）或 `gyc tui`（终端全屏 TUI）。\n" +
+            "    当前仍以兼容模式启动，后续版本将移除。\x1b[0m\n",
+        )
         // --mini 转发 TUI 的 split-footer 交互（Node 下 index.ts 已提升到 Bun）。
         const { runMini } = await import("./run")
         await runMini({

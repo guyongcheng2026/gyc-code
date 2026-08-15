@@ -73,6 +73,18 @@ gyc memory read         read memories
 gyc memory write        write to memory
 ```
 
+## Web IDE（gyc web）
+
+`gyc web` 启动本地 server 并打开浏览器内的 Web IDE（对齐 Claude Code web / Codex web 交互），包含：聊天面板（流式消息、工具审批）、文件树（git 状态）、文件查看器（monaco 编辑器）、会话 Diff 视图、集成终端（xterm）。
+
+```bash
+gyc web                 # 启动 server 并自动打开浏览器（默认本机）
+gyc web --port 4100     # 指定端口
+gyc web --password xxx  # 启用鉴权
+```
+
+> 注：`gyc --mini` 已废弃（保留短期兼容并提示迁移），请使用 `gyc web`（Web IDE）或 `gyc tui`（终端全屏 TUI）。
+
 ## 测试
 
 ```bash

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react"
-import Editor from "@monaco-editor/react"
-import { loader } from "@monaco-editor/react"
+import Editor, { loader } from "@monaco-editor/react"
 import { useFileContent } from "../client/useFileContent"
 
 const LANG_BY_EXT: Record<string, string> = {
@@ -21,12 +20,15 @@ export function FileViewer({ path }: { path: string }) {
   const { content, loading, error } = useFileContent(path)
   const [monacoReady, setMonacoReady] = useState(false)
 
+  // 按需加载 monaco：首次打开文件时才下载编辑器内核（setup 会配置 loader 与 worker）。
   useEffect(() => {
     let cancelled = false
-    loader.init().then(
-      () => { if (!cancelled) setMonacoReady(true) },
-      () => { if (!cancelled) setMonacoReady(false) },
-    )
+    void import("../monaco/setup")
+      .then(() => loader.init())
+      .then(
+        () => { if (!cancelled) setMonacoReady(true) },
+        () => { if (!cancelled) setMonacoReady(false) },
+      )
     return () => { cancelled = true }
   }, [])
 
