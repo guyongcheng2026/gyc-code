@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 // gyc - gyc-code CLI launcher
 // Prefers the prebuilt dist bundle (fastest); falls back to TS source via Bun.
-// Bun runtime: import the bundle in-process (avoids node->bun double spawn,
-// cold start ~2.9s -> ~0.9s on this machine). Node runtime (npm global shim):
-// spawn the Bun runtime as before.
+// 统一运行时策略：所有命令（含 TUI/--mini）都走 Node 目标 dist。
+// TUI 的 OpenTUI 原生渲染经 koffi（opentui.dll）在 Node 下可用，worker 经
+// node:worker_threads 运行，故无需再为 TUI 切到 Bun 运行时（Bun 常驻内存
+// 回收不稳定，实测 TUI 私有内存可达 1.6GB；Node 常驻更省更稳）。
 
 const { existsSync, readFileSync } = require("fs")
 const path = require("path")
@@ -76,17 +77,9 @@ async function main() {
       await import(distEntry)
       return
     }
-    const args = process.argv.slice(2)
-    const first = args.find((a) => !a.startsWith("-"))
-    // 进程链扁平化（省 ~300MB 中间层内存）：TUI/mini 依赖 OpenTUI（仅 Bun），
-    // 直接在本进程 import dist-bun 运行，跳过 node(dist) 与 bun 跳板两层；
-    // dist-bun 缺失时回退到 Node 路径（由 index.ts 再提升到 Bun）。
-    const distBunEntry = path.join(here, "..", "dist-bun", "index.js")
-    if ((first === "tui" || args.includes("--mini") || args.includes("-i")) && existsSync(distBunEntry)) {
-      await import(pathToFileURL(distBunEntry).href)
-      return
-    }
-    spawnBun(findNode(), [distEntry, ...args])
+    // TUI/--mini 也统一走 Node 目标 dist：OpenTUI 经 koffi 支持 Node，
+    // 不再依赖 dist-bun（Bun 目标）以避免 Bun 常驻内存回收不稳定的问题。
+    spawnBun(findNode(), [distEntry, ...process.argv.slice(2)])
     return
   }
   spawnBun(process.execPath, [

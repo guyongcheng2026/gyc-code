@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process"
 import { rmSync } from "node:fs"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
-// 目标运行时策略（双运行时并存）：
-// - 默认（GYC_RUNTIME 未设）：双构建 —— node 目标 → dist/（Node 跑非 TUI 命令，
-//   低内存快启动）；bun 目标 → dist-bun/（Bun 跑 TUI，OpenTUI 原生渲染仅支持
-//   Bun 的 bun:ffi，Node 无 node:ffi 模块）。
-// - 设 GYC_RUNTIME=bun：只构建 Bun 目标 → dist/（回退到纯 Bun 运行）。
+// 目标运行时策略（统一 Node）：
+// - 默认（GYC_RUNTIME 未设）：只构建 Node 目标 → dist/。TUI/--mini 也走
+//   Node（OpenTUI 经 koffi 支持 Node 的 opentui.dll FFI），避免 Bun 常驻
+//   内存回收不稳定（TUI 私有内存实测可达 1.6GB）。
+// - 设 GYC_RUNTIME=bun：构建 Bun 目标 → dist/（回退到纯 Bun 运行）。
 const runtime = process.env.GYC_RUNTIME ?? "node"
 
 // 构建前重新生成 compose 技能 bundle，保证运行产物与 .bundle 目录一致。
@@ -87,8 +87,8 @@ async function buildOnce(targetRuntime, outdir) {
 }
 
 if (runtime === "node") {
+  // TUI/--mini 也走 Node 目标：OpenTUI 经 koffi 支持 Node，无需 dist-bun（Bun 目标）。
   await buildOnce("node", "./dist")
-  await buildOnce("bun", "./dist-bun")
 } else {
   await buildOnce("bun", "./dist")
 }
