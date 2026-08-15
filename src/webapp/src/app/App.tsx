@@ -13,7 +13,7 @@ import { TerminalPanel } from "./TerminalPanel"
 type MainTab = "chat" | "diff"
 
 export function App() {
-  const { sessions, reload } = useSessions()
+  const { sessions, reload, remove } = useSessions()
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState<MainTab>("chat")
   const [filePath, setFilePath] = useState<string | null>(null)
@@ -71,7 +71,19 @@ export function App() {
             <div style={{ fontSize: 11, color: "var(--inactive)", padding: "6px 8px", letterSpacing: "0.05em" }}>
               线程
             </div>
-            <SessionList sessions={sessions} selected={selected} onSelect={setSelected} onNew={onNew} />
+            <SessionList
+              sessions={sessions}
+              selected={selected}
+              onSelect={setSelected}
+              onNew={onNew}
+              onDelete={(id) => {
+                if (id === selected) {
+                  setSelected(null)
+                  window.location.hash = ""
+                }
+                remove(id).catch(() => {})
+              }}
+            />
           </div>
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 6px" }}>
             <div style={{ fontSize: 11, color: "var(--inactive)", padding: "6px 8px", letterSpacing: "0.05em" }}>

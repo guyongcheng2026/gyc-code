@@ -16,11 +16,13 @@ export function SessionList({
   selected,
   onSelect,
   onNew,
+  onDelete,
 }: {
   sessions: SessionItem[]
   selected: string | null
   onSelect: (id: string) => void
   onNew: () => void
+  onDelete: (id: string) => void
 }) {
   return (
     <div>
@@ -34,8 +36,21 @@ export function SessionList({
             onClick={() => onSelect(s.id)}
             style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}
           >
-            <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
-              {s.title ?? s.id.slice(0, 12)}
+            <span style={{ display: "flex", alignItems: "center", width: "100%" }}>
+              <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
+                {s.title ?? s.id.slice(0, 12)}
+              </span>
+              <button
+                className="btn btn-ghost"
+                title="删除会话"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(s.id)
+                }}
+                style={{ padding: "0 6px", fontSize: 14, lineHeight: 1, color: "var(--error)" }}
+              >
+                ×
+              </button>
             </span>
             {s.id !== selected ? (
               <span style={{ fontSize: 11, color: "var(--inactive)" }}>{relativeTime(s.time?.created)}</span>

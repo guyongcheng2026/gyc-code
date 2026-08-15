@@ -7,11 +7,13 @@ export function PromptInput({
   commands,
   onSubmit,
   onCommand,
+  onTabCycle,
 }: {
   disabled: boolean
   commands: CommandItem[]
   onSubmit: (text: string) => void
   onCommand: (name: string, args: string) => void
+  onTabCycle?: (delta: number) => void
 }) {
   const [value, setValue] = useState("")
   const [menuOpen, setMenuOpen] = useState(false)
@@ -59,6 +61,20 @@ export function PromptInput({
       setSelected((s) => (s - 1 + filtered.length) % filtered.length)
     } else if (e.key === "Escape") {
       setMenuOpen(false)
+    } else if (e.key === "Tab") {
+      e.preventDefault()
+      if (filtered.length > 0) {
+        // 斜杠命令菜单打开：TAB 补全命令
+        const cmd = filtered[selected]
+        if (cmd) {
+          setValue(`/${cmd.name} `)
+          setSelected(0)
+          setMenuOpen(true)
+        }
+      } else {
+        // 无命令菜单：TAB 循环模式（Shift+TAB 反向），复刻 TUI agent.cycle
+        onTabCycle?.(e.shiftKey ? -1 : 1)
+      }
     }
   }
 

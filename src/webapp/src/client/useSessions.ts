@@ -21,9 +21,18 @@ export function useSessions() {
     }
   }, [])
 
+  // 删除历史会话
+  const remove = useCallback(
+    async (id: string) => {
+      await sdk().session.delete({ path: { id } })
+      await reload()
+    },
+    [reload],
+  )
+
   useEffect(() => {
     void reload()
   }, [reload])
 
-  return { sessions, loading, error, reload }
+  return { sessions, loading, error, reload, remove }
 }
