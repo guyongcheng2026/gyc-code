@@ -820,3 +820,6 @@
 
 - [OK] 2026-08-15 [896b3a8] docs: gyc web report - brand conformance, model picker, plan/build/compose modes, stability verification
   - [FILES] 1: docs/compose/reports/gyc-web.md
+
+- [OK] 2026-08-15 [d418599] fix(webapp): 5 issues - model select actually applied (promptAsync carries session model), mode switcher to prompt footer + TAB cycle (TUI parity), remove duplicate plan-mode toggle, session delete, Virtuoso auto-scroll fix
+  - [FILES] 6: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SessionList.tsx, src/webapp/src/client/useSendPrompt.ts, src/webapp/src/client/useSessions.ts
