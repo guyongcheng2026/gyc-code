@@ -1,5 +1,10 @@
 # gyc web 云就绪抽象边界（v2 远程沙箱预留）
 
+> [!NOTE]
+> This document may not reflect the current implementation.
+> See the final report for up-to-date state:
+> [Final Report](../reports/gyc-web.md)
+
 > 日期：2026-08-15
 > 阶段：P4（云就绪）—— 只文档化抽象边界与扩展点，**不实现远程沙箱**。
 > 关联：`docs/compose/specs/2026-08-15-gyc-web-design.md`（§3 总体架构「v2=远程沙箱（预留接口）」）。
