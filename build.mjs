@@ -59,7 +59,6 @@ const SHARED = {
     "@ai-sdk/togetherai",
     "@ai-sdk/perplexity",
     "@ai-sdk/vercel",
-    "@ai-sdk/alibaba",
     "@openrouter/ai-sdk-provider",
     "venice-ai-sdk-provider",
     "ai-gateway-provider",
