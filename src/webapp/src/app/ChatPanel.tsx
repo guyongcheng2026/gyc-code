@@ -13,18 +13,24 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const [sendError, setSendError] = useState<string | null>(null)
 
   return (
-    <section style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-      {queue.map((p) => (
-        <PermissionCard key={p.id} item={p} onResolve={resolve} />
-      ))}
-      <MessageList messages={messages} />
-      {sendError ? <p style={{ color: "red" }}>{sendError}</p> : null}
-      <PromptInput
-        disabled={busy}
-        onSubmit={(text) => {
-          send(text).catch((err) => setSendError(err instanceof Error ? err.message : String(err)))
-        }}
-      />
+    <section style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, height: "100%" }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "16px 24px" }}>
+        {queue.map((p) => (
+          <PermissionCard key={p.id} item={p} onResolve={resolve} />
+        ))}
+        <MessageList messages={messages} />
+      </div>
+      {sendError ? (
+        <div style={{ padding: "0 24px", color: "var(--error)", fontSize: 13 }}>{sendError}</div>
+      ) : null}
+      <div style={{ padding: "8px 24px 16px" }}>
+        <PromptInput
+          disabled={busy}
+          onSubmit={(text) => {
+            send(text).catch((err) => setSendError(err instanceof Error ? err.message : String(err)))
+          }}
+        />
+      </div>
     </section>
   )
 }

@@ -10,14 +10,43 @@ export function PermissionCard({
   const pattern = Array.isArray(item.pattern) ? item.pattern.join(", ") : item.pattern
   const detail = item.metadata && "command" in item.metadata ? String(item.metadata.command) : pattern
   return (
-    <div style={{ border: "1px solid #555", borderRadius: 8, padding: 12, margin: 8, background: "#1c1c1c" }}>
-      <strong>{item.title}</strong>
-      <p>
-        工具: <code>{item.type}</code>
-      </p>
-      {detail ? <pre style={{ whiteSpace: "pre-wrap" }}>{detail}</pre> : null}
-      <button onClick={() => onResolve(item.id, true)}>允许</button>
-      <button onClick={() => onResolve(item.id, false)}>拒绝</button>
+    <div className="tool-card">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <span className="badge" style={{ background: "var(--permission)", color: "#1a1a1a", fontWeight: 700 }}>
+          {item.type.slice(0, 1).toUpperCase()}
+        </span>
+        <strong style={{ fontSize: 13 }}>{item.title}</strong>
+        <code style={{ color: "var(--inactive)", fontSize: 12 }}>{item.type}</code>
+      </div>
+      {detail ? (
+        <pre
+          style={{
+            whiteSpace: "pre-wrap",
+            fontFamily: "var(--font-mono)",
+            fontSize: 12,
+            color: "var(--inactive)",
+            margin: "0 0 8px",
+          }}
+        >
+          {detail}
+        </pre>
+      ) : null}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          className="btn"
+          style={{ borderColor: "var(--success)", color: "var(--success)", fontWeight: 600 }}
+          onClick={() => onResolve(item.id, true)}
+        >
+          允许
+        </button>
+        <button
+          className="btn"
+          style={{ borderColor: "var(--error)", color: "var(--error)" }}
+          onClick={() => onResolve(item.id, false)}
+        >
+          拒绝
+        </button>
+      </div>
     </div>
   )
 }

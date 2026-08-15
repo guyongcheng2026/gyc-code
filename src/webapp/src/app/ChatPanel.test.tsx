@@ -16,7 +16,7 @@ vi.mock("../client/useChatSession", () => ({
 describe("ChatPanel", () => {
   it("sends prompt on submit", () => {
     render(<ChatPanel sessionID="s1" />)
-    const input = screen.getByPlaceholderText("输入消息…")
+    const input = screen.getByPlaceholderText("向 gyc 描述你要完成的任务…")
     fireEvent.change(input, { target: { value: "你好" } })
     fireEvent.keyDown(input, { key: "Enter" })
     expect(promptAsync).toHaveBeenCalledWith({

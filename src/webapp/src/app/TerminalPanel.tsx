@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+﻿import { useCallback, useEffect, useRef, useState } from "react"
 import { Terminal } from "@xterm/xterm"
 import { FitAddon } from "@xterm/addon-fit"
 import "@xterm/xterm/css/xterm.css"
@@ -36,7 +36,7 @@ export function TerminalPanel() {
     // 连接（若尚未连接）
     let conn = entry.conn
     if (!entry.conn.send) {
-      const term = new Terminal({ cursorBlink: true, fontSize: 13, theme: { background: "#0d1117" } })
+      const term = new Terminal({ cursorBlink: true, fontSize: 13, theme: { background: "var(--terminal-bg)" } })
       const fit = new FitAddon()
       term.loadAddon(fit)
       termRef.current = term
@@ -84,8 +84,8 @@ export function TerminalPanel() {
   }, [activeID, ptys])
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "#0d1117" }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 8px", borderBottom: "1px solid #333" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", background: "var(--terminal-bg)" }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 8px", borderBottom: "1px solid var(--border-subtle)" }}>
         <button onClick={addTerminal}>+ 终端</button>
         {ptys.map((p) => (
           <button key={p.id} onClick={() => setActiveID(p.id)} style={{ opacity: p.id === activeID ? 1 : 0.6 }}>
@@ -93,7 +93,7 @@ export function TerminalPanel() {
           </button>
         ))}
         {activeID ? <button onClick={closeActive}>关闭</button> : null}
-        {error ? <span style={{ color: "red", fontSize: 12 }}>{error}</span> : null}
+        {error ? <span style={{ color: "var(--error)", fontSize: 12 }}>{error}</span> : null}
       </div>
       <div ref={containerRef} style={{ flex: 1, minHeight: 0, padding: 4 }} />
     </div>
@@ -106,3 +106,4 @@ function emptyConn(): PtyConnection {
     disconnect: () => {},
   }
 }
+

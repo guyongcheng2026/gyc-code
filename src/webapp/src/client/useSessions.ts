@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { sdk } from "./sdk"
 
-export type SessionItem = { id: string; title?: string | null }
+export type SessionItem = { id: string; title?: string | null; time?: { created: number } }
 
 export function useSessions() {
   const [sessions, setSessions] = useState<SessionItem[]>([])

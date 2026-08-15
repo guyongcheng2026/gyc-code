@@ -18,10 +18,10 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
 
   return (
     <div key={index} style={{ marginBottom: 16 }}>
-      <h4 style={{ margin: "8px 0" }}>
-        {diff.file}
-        <span style={{ color: "#7cb342" }}> +{diff.additions}</span>
-        <span style={{ color: "#e06c75" }}> -{diff.deletions}</span>
+      <h4 style={{ margin: "8px 0", fontSize: 13 }}>
+        <code>{diff.file}</code>
+        <span style={{ color: "var(--diff-added-word)" }}> +{diff.additions}</span>
+        <span style={{ color: "var(--diff-removed-word)" }}> -{diff.deletions}</span>
       </h4>
       {ready ? (
         <DiffEditor
@@ -32,7 +32,7 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
           options={{ readOnly: true, minimap: { enabled: false }, renderSideBySide: true, fontSize: 12 }}
         />
       ) : (
-        <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, background: "#1c1c1c", padding: 8 }}>
+        <pre style={{ whiteSpace: "pre-wrap", fontSize: 12, background: "var(--code-bg)", padding: 8 }}>
           {diff.before}
         </pre>
       )}
@@ -43,9 +43,9 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
 export function DiffView({ sessionID }: { sessionID: string | null }) {
   const { diffs, loading, error } = useSessionDiff(sessionID)
 
-  if (loading) return <div style={{ padding: 24 }}>加载 diff…</div>
-  if (error) return <div style={{ padding: 24, color: "red" }}>{error}</div>
-  if (!diffs.length) return <div style={{ padding: 24, color: "#888" }}>暂无文件改动</div>
+  if (loading) return <div style={{ padding: 24, color: "var(--inactive)" }}>加载 diff…</div>
+  if (error) return <div style={{ padding: 24, color: "var(--error)" }}>{error}</div>
+  if (!diffs.length) return <div style={{ padding: 24, color: "var(--inactive)" }}>暂无文件改动</div>
 
   return (
     <div style={{ padding: 8, overflowY: "auto", height: "100%" }}>

@@ -1,3 +1,214 @@
-:root { color-scheme: dark; }
-body { margin: 0; font-family: system-ui, sans-serif; background: #111; color: #eee; }
-main { padding: 24px; max-width: 720px; margin: 0 auto; }
+/* gyc web 视觉：Claude Code 深色配色（提取自 reference theme.ts darkTheme）+ Codex app 布局风格 */
+
+:root {
+  --claude: #D77757;
+  --claude-shimmer: #EB9F7F;
+  --text: #FFFFFF;
+  --inverse-text: #000000;
+  --inactive: #999999;
+  --subtle: #505050;
+  --prompt-border: #888888;
+  --success: #4EBA65;
+  --error: #FF6B80;
+  --warning: #FFC107;
+  --permission: #B1B9F9;
+  --suggestion: #B1B9F9;
+  --plan-mode: #48968C;
+  --auto-accept: #AF87FF;
+  --diff-added: #225C2B;
+  --diff-removed: #7A2936;
+  --diff-added-dimmed: #47584A;
+  --diff-removed-dimmed: #69484D;
+  --diff-added-word: #38A660;
+  --diff-removed-word: #B3596B;
+  --user-msg-bg: #373737;
+  --user-msg-bg-hover: #464646;
+  --actions-bg: #2C323E;
+  --selection-bg: #264F78;
+  --bash-msg-bg: #413C41;
+
+  --app-bg: #1E1E1E;
+  --panel-bg: #252526;
+  --panel-bg-hover: #2A2D2E;
+  --border: #3C3C3C;
+  --border-subtle: #2A2A2A;
+  --input-bg: #3C3C3C;
+  --input-bg-hover: #464646;
+  --code-bg: #1A1A1A;
+  --terminal-bg: #0D1117;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-size: 14px;
+  --font-size-sm: 12px;
+  --radius: 8px;
+  --radius-sm: 6px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size);
+  color: var(--text);
+  background: var(--app-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* 滚动条（VS Code 暗色风格） */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--inactive);
+}
+
+/* 按钮：Codex 风格——克制、细边框、圆角，hover 微亮 */
+.btn {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--panel-bg-hover);
+  border-color: var(--prompt-border);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn-primary {
+  background: var(--claude);
+  border-color: transparent;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: var(--claude-shimmer);
+  border-color: transparent;
+}
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+}
+.btn-ghost:hover {
+  background: var(--panel-bg-hover);
+}
+
+/* 输入框 */
+.text-input {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 10px 12px;
+  flex: 1;
+  min-width: 0;
+}
+.text-input::placeholder {
+  color: var(--inactive);
+}
+
+/* 侧栏项 */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--inactive);
+  font-size: 13px;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sidebar-item:hover {
+  background: var(--panel-bg-hover);
+  color: var(--text);
+}
+.sidebar-item.active {
+  background: var(--selection-bg);
+  color: var(--text);
+}
+
+/* 面板 */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+/* 消息（Codex 风格：居中宽列） */
+.msg {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+}
+.msg-user {
+  background: var(--user-msg-bg);
+}
+.msg-user:hover {
+  background: var(--user-msg-bg-hover);
+}
+
+/* 代码块 */
+.code-block {
+  background: var(--code-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  overflow: auto;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+/* 徽标 */
+.badge {
+  display: inline-block;
+  min-width: 16px;
+  text-align: center;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* 工具调用卡片 */
+.tool-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin: 8px 0;
+}

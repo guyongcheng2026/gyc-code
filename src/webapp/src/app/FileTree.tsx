@@ -32,14 +32,16 @@ export function FileTree({
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              background: selected === node.path ? "#2a3a4a" : "transparent",
+              borderRadius: 4,
+              color: selected === node.path ? "var(--text)" : "var(--inactive)",
+              background: selected === node.path ? "var(--selection-bg)" : "transparent",
             }}
           >
-            <span style={{ color: "#777", display: "inline-block", width: 14 }}>
+            <span style={{ color: "var(--inactive)", display: "inline-block", width: 14 }}>
               {node.type === "directory" ? (expanded ? "▾" : "▸") : ""}
             </span>
-            <span style={{ color: node.type === "directory" ? "#9cdcfe" : "#ccc" }}>{node.name}</span>
-            {mark ? <span style={{ marginLeft: 6, color: "#e5c07b" }}>{mark}</span> : null}
+            <span style={{ color: node.type === "directory" ? "var(--permission)" : "var(--text)" }}>{node.name}</span>
+            {mark ? <span className="badge" style={{ marginLeft: 6, background: "var(--warning)", color: "#1a1a1a" }}>{mark}</span> : null}
           </div>
           {expanded && children
             ? children.map((c) => renderNode(c, depth + 1))

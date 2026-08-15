@@ -29,65 +29,128 @@ export function App() {
   }
 
   return (
-    <main style={{ display: "flex", flexDirection: "column", height: "100vh", margin: 0 }}>
-      <header
-        style={{
-          display: "flex", alignItems: "center", gap: 16, padding: "6px 16px",
-          borderBottom: "1px solid #333", background: "#161b22", fontSize: 14,
-        }}
-      >
-        <strong>gyc web</strong>
-        <span style={{ color: "#888" }}>编码智能体</span>
-        <button onClick={() => setShowTerminal((v) => !v)} style={{ marginLeft: "auto" }}>
-          {showTerminal ? "收起终端" : "展开终端"}
-        </button>
-      </header>
-
+    <main
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100vh",
+        margin: 0,
+        background: "var(--app-bg)",
+      }}
+    >
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
-        {/* 左栏：会话列表 + 文件树 */}
-        <aside style={{ display: "flex", flexDirection: "column", width: 240, borderRight: "1px solid #333", background: "#0d1117" }}>
-          <div style={{ borderBottom: "1px solid #333", maxHeight: "38%", overflowY: "auto" }}>
+        {/* 左栏：会话（Codex 项目/线程）+ 文件 */}
+        <aside
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: 260,
+            borderRight: "1px solid var(--border-subtle)",
+            background: "var(--panel-bg)",
+          }}
+        >
+          <div style={{ padding: 10, borderBottom: "1px solid var(--border-subtle)" }}>
+            <button className="btn btn-primary" onClick={onNew} style={{ width: "100%", fontWeight: 600 }}>
+              + 新会话
+            </button>
+          </div>
+          <div style={{ borderBottom: "1px solid var(--border-subtle)", maxHeight: "40%", overflowY: "auto", padding: "4px 6px" }}>
+            <div style={{ fontSize: 11, color: "var(--inactive)", padding: "6px 8px", letterSpacing: "0.05em" }}>
+              线程
+            </div>
             <SessionList sessions={sessions} selected={selected} onSelect={setSelected} onNew={onNew} />
           </div>
-          <div style={{ flex: 1, minHeight: 0, padding: 4 }}>
-            <div style={{ fontSize: 12, color: "#888", padding: "4px 8px" }}>文件</div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 6px" }}>
+            <div style={{ fontSize: 11, color: "var(--inactive)", padding: "6px 8px", letterSpacing: "0.05em" }}>
+              项目
+            </div>
             <FileTree state={tree.state} selected={filePath} onSelect={setFilePath} onToggle={tree.toggle} />
           </div>
         </aside>
 
-        {/* 主区：对话 / Diff / 文件 */}
+        {/* 主区：居中内容列 */}
         <section style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-          {filePath ? (
-            <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "4px 8px", borderBottom: "1px solid #333" }}>
-                <button onClick={() => setFilePath(null)}>← 返回</button>
-                <code style={{ fontSize: 12 }}>{filePath}</code>
-              </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                <FileViewer path={filePath} />
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: 8, padding: "4px 8px", borderBottom: "1px solid #333" }}>
-                <button onClick={() => setTab("chat")} style={{ opacity: tab === "chat" ? 1 : 0.6 }}>对话</button>
-                <button onClick={() => setTab("diff")} style={{ opacity: tab === "diff" ? 1 : 0.6 }}>改动</button>
-              </div>
-              <div style={{ flex: 1, minHeight: 0 }}>
-                {tab === "chat" ? (
-                  selected ? <ChatPanel sessionID={selected} /> : <div style={{ padding: 24, color: "#888" }}>选择或新建一个会话</div>
+          {/* 顶部标签栏 */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 16px",
+              borderBottom: "1px solid var(--border-subtle)",
+            }}
+          >
+            <span style={{ fontWeight: 700, marginRight: 12, fontSize: 13 }}>
+              gyc<span style={{ color: "var(--claude)" }}>·</span>web
+            </span>
+            {!filePath ? (
+              <>
+                <button
+                  className="btn btn-ghost"
+                  style={{ opacity: tab === "chat" ? 1 : 0.55 }}
+                  onClick={() => setTab("chat")}
+                >
+                  对话
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  style={{ opacity: tab === "diff" ? 1 : 0.55 }}
+                  onClick={() => setTab("diff")}
+                >
+                  改动
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-ghost" onClick={() => setFilePath(null)}>
+                ← 返回
+              </button>
+            )}
+            <button className="btn btn-ghost" style={{ marginLeft: "auto" }} onClick={() => setShowTerminal((v) => !v)}>
+              {showTerminal ? "收起终端" : "展开终端"}
+            </button>
+          </div>
+
+          {/* 居中内容（Codex：结果区居中，max-width） */}
+          <div style={{ flex: 1, minHeight: 0, display: "flex", justifyContent: "center" }}>
+            <div
+              style={{
+                width: "100%",
+                maxWidth: filePath || tab === "diff" ? "100%" : 760,
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {filePath ? (
+                <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: "6px 16px", fontSize: 12, color: "var(--inactive)", borderBottom: "1px solid var(--border-subtle)" }}>
+                    <code>{filePath}</code>
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <FileViewer path={filePath} />
+                  </div>
+                </div>
+              ) : tab === "chat" ? (
+                selected ? (
+                  <ChatPanel sessionID={selected} />
                 ) : (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--inactive)" }}>
+                    选择或新建一个会话
+                  </div>
+                )
+              ) : (
+                <div style={{ flex: 1, minHeight: 0 }}>
                   <DiffView sessionID={selected} />
-                )}
-              </div>
-            </>
-          )}
+                </div>
+              )}
+            </div>
+          </div>
         </section>
       </div>
 
       {/* 底部终端 */}
       {showTerminal ? (
-        <div style={{ height: 220, borderTop: "1px solid #333" }}>
+        <div style={{ height: 220, borderTop: "1px solid var(--border-subtle)" }}>
           <TerminalPanel />
         </div>
       ) : null}

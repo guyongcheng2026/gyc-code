@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+﻿import { useEffect, useState } from "react"
 import Editor, { loader } from "@monaco-editor/react"
 import { useFileContent } from "../client/useFileContent"
 
@@ -33,7 +33,7 @@ export function FileViewer({ path }: { path: string }) {
   }, [])
 
   if (loading) return <div style={{ padding: 24 }}>加载中…</div>
-  if (error) return <div style={{ padding: 24, color: "red" }}>{error}</div>
+  if (error) return <div style={{ padding: 24, color: "var(--error)" }}>{error}</div>
   if (!content) return null
 
   // monaco 未就绪时回退纯文本预览
@@ -55,3 +55,4 @@ export function FileViewer({ path }: { path: string }) {
     />
   )
 }
+

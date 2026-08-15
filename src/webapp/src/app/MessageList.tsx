@@ -8,12 +8,22 @@ export function MessageList({ messages }: { messages: ChatMessage[] }) {
       data={messages}
       followOutput="smooth"
       itemContent={(_, m) => (
-        <div key={m.id} style={{ padding: "6px 12px" }}>
-          <strong>{m.role === "user" ? "你" : "gyc"}</strong>
-          <pre style={{ whiteSpace: "pre-wrap", fontFamily: "inherit", margin: "4px 0" }}>
-            {m.parts?.map((p) => (p.type === "text" ? p.text : `[${p.type}]`)).join("")}
-          </pre>
-          {m.error ? <p style={{ color: "red" }}>错误: {String(m.error)}</p> : null}
+        <div
+          key={m.id}
+          className={`msg${m.role === "user" ? " msg-user" : ""}`}
+          style={{ margin: "4px 0", lineHeight: 1.6 }}
+        >
+          <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+            {m.role === "user" ? (
+              <span style={{ color: "var(--inactive)" }}>你</span>
+            ) : (
+              <span style={{ color: "var(--claude)" }}>gyc</span>
+            )}
+          </div>
+          <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+            {m.parts?.map((p) => (p.type === "text" ? p.text : `[${p.type}]`)).join("") || ""}
+          </div>
+          {m.error ? <div style={{ color: "var(--error)", marginTop: 4 }}>错误: {String(m.error)}</div> : null}
         </div>
       )}
     />

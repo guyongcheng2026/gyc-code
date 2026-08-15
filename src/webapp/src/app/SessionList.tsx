@@ -1,5 +1,16 @@
 import type { SessionItem } from "../client/useSessions"
 
+function relativeTime(created?: number): string {
+  if (!created) return ""
+  const diff = Date.now() - created
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return "刚刚"
+  if (min < 60) return `${min} 分钟前`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr} 小时前`
+  return `${Math.floor(hr / 24)} 天前`
+}
+
 export function SessionList({
   sessions,
   selected,
@@ -12,26 +23,26 @@ export function SessionList({
   onNew: () => void
 }) {
   return (
-    <aside style={{ width: 220, borderRight: "1px solid #333", padding: 8, overflowY: "auto" }}>
-      <button onClick={onNew} style={{ width: "100%", marginBottom: 8 }}>
-        + 新会话
-      </button>
-      <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        {sessions.map((s) => (
-          <li
+    <div>
+      {sessions.length === 0 ? (
+        <div style={{ padding: "8px 10px", fontSize: 12, color: "var(--inactive)" }}>暂无会话</div>
+      ) : (
+        sessions.map((s) => (
+          <div
             key={s.id}
+            className={`sidebar-item${s.id === selected ? " active" : ""}`}
             onClick={() => onSelect(s.id)}
-            style={{
-              cursor: "pointer",
-              padding: 6,
-              borderRadius: 4,
-              background: s.id === selected ? "#2a2a2a" : "transparent",
-            }}
+            style={{ flexDirection: "column", alignItems: "flex-start", gap: 2 }}
           >
-            {s.title ?? s.id.slice(0, 8)}
-          </li>
-        ))}
-      </ul>
-    </aside>
+            <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
+              {s.title ?? s.id.slice(0, 12)}
+            </span>
+            {s.id !== selected ? (
+              <span style={{ fontSize: 11, color: "var(--inactive)" }}>{relativeTime(s.time?.created)}</span>
+            ) : null}
+          </div>
+        ))
+      )}
+    </div>
   )
 }
