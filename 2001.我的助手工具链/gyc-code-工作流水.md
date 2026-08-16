@@ -838,3 +838,6 @@
 
 - [OK] 2026-08-16 [f02f0ef] P0 mini 迁移完成：移除 gyc --mini（cli/web 已补齐对齐，功能 100% 覆盖）
   - [FILES] 47: docs/compose/reports/mini-migration-matrix.md, src/gyccode/cli/cmd/attach.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/demo.ts, src/gyccode/cli/cmd/run/entry.body.ts ...
+
+- [OK] 2026-08-16 [0288357] P1 重构 normalizeMessages：纯函数管道 + 消除 any + filterEmpty 单次遍历
+  - [FILES] 2: src/gyccode/provider/transform.test.ts, src/gyccode/provider/transform.ts
