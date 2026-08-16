@@ -829,3 +829,6 @@
 
 - [OK] 2026-08-16 [23b5833] feat: mini 功能迁移补齐 - web 问题问答/权限始终允许/variant/后台子代理 + CLI 交互权限审批与问答 + /continue /variant
   - [FILES] 14: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/stream-cli.interactive.test.ts, src/gyccode/cli/cmd/run/stream-cli.ts, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/ModelPicker.tsx ...
+
+- [OK] 2026-08-16 [b8ef7f1] feat: web 文件引用附加（方案 A）+ mini 迁移覆盖界定
+  - [FILES] 3: src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/client/useSendPrompt.ts
