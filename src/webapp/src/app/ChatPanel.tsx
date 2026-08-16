@@ -120,7 +120,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         <PromptInput
           disabled={busy}
           commands={commands}
-          onSubmit={(text) => send(text, info?.model).catch(err)}
+          onSubmit={(text, files) => send(text, info?.model, files).catch(err)}
           onCommand={onCommand}
           onTabCycle={cycleMode}
         />
