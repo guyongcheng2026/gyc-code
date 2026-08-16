@@ -41,6 +41,7 @@ gyc-cli-src-backup/
 # Local runtime state
 .hermes/
 .workbuddy/
+.codebuddy/
 
 # Local debug scripts
 .temp-*.cjs
