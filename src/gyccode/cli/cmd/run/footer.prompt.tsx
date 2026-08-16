@@ -419,6 +419,9 @@ export function createPromptState(input: PromptInput): PromptState {
       } satisfies SlashOption,
       { kind: "slash", name: "new", display: "/new", description: "开始新会话" } satisfies SlashOption,
       { kind: "slash", name: "exit", display: "/exit", description: "关闭 GycCode" } satisfies SlashOption,
+      { kind: "slash", name: "context", display: "/context", description: "显示当前会话上下文用量" } satisfies SlashOption,
+      { kind: "slash", name: "copy", display: "/copy", description: "复制最近助手回复到剪贴板" } satisfies SlashOption,
+      { kind: "slash", name: "branch", display: "/branch", description: "分支当前会话并切换到新分支" } satisfies SlashOption,
     ]
     const hidden = new Set(builtins.map((item) => item.name))
     const showSkillMenu = !shell() && skillCommands().length > 0 && !hasSkillsCommand()

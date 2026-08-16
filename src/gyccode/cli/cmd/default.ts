@@ -17,6 +17,7 @@ import { streamLoop } from "./run/stream-cli"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { RunCommand } from "./run"
+import { writeClipboardOsc52, writeCopyTempFile } from "./run/copy.shared"
 import { watchTerminalClose } from "@gyccode/tui/terminal-win32"
 
 function formatRunError(error: unknown) {
@@ -622,13 +623,88 @@ async function runSlashCommand(
     }
     case "context": {
       try {
-        const result = await sdk.v2.session.context({ sessionID })
-        if (result.error) {
-          UI.error(formatRunError(result.error))
-        } else {
-          const messages = result.data?.data ?? []
-          process.stdout.write(`当前上下文包含 ${messages.length} 条消息。\n`)
+        const [ctxRes, session] = await Promise.all([
+          sdk.v2.session.context({ sessionID }),
+          sdk.session.get({ sessionID }).catch(() => undefined),
+        ])
+        if (ctxRes.error) {
+          UI.error(formatRunError(ctxRes.error))
+          return "continue"
         }
+        const messages = ctxRes.data?.data ?? []
+        const data = session?.data
+        const model = data?.model
+          ? `${data.model.providerID}/${data.model.id}${data.model.variant && data.model.variant !== "default" ? ` (${data.model.variant})` : ""}`
+          : undefined
+        const t = data?.tokens
+        const tokens = t
+          ? `输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning} · 缓存读 ${t.cache.read} / 写 ${t.cache.write}`
+          : undefined
+        const userCount = messages.filter((m) => m.type === "user").length
+        const assistantCount = messages.filter((m) => m.type === "assistant").length
+        const otherCount = messages.length - userCount - assistantCount
+        process.stdout.write(
+          [
+            `上下文：${messages.length} 条消息`,
+            ...(model ? [`模型:   ${model}`] : []),
+            ...(tokens ? [`Token:  ${tokens}`] : []),
+            `消息:   用户 ${userCount} · 助手 ${assistantCount}${otherCount > 0 ? ` · 其他 ${otherCount}` : ""}`,
+          ].join("\n") + "\n",
+        )
+      } catch (e) {
+        UI.error(formatRunError(e))
+      }
+      return "continue"
+    }
+    case "copy": {
+      try {
+        const res = await sdk.session.messages({ sessionID })
+        if (res.error) {
+          UI.error(formatRunError(res.error))
+          return "continue"
+        }
+        const messages = res.data ?? []
+        const texts: string[] = []
+        for (let i = messages.length - 1; i >= 0 && texts.length < 20; i--) {
+          const msg = messages[i]
+          if (!msg || msg.info.role !== "assistant") continue
+          const text = msg.parts
+            .filter((p) => p.type === "text")
+            .map((p) => (p as { text: string }).text)
+            .join("\n\n")
+            .trim()
+          if (text) texts.push(text)
+        }
+        const content = texts.join("\n\n---\n\n")
+        if (!content) {
+          process.stdout.write("当前会话没有可复制的助手回复。\n")
+          return "continue"
+        }
+        const charCount = content.length
+        const lineCount = content.split("\n").length
+        const tmpPath = await writeCopyTempFile(content)
+        const copied = writeClipboardOsc52(content)
+        process.stdout.write(`已复制 ${charCount} 字符 ${lineCount} 行${copied ? "" : "（终端不支持剪贴板）"}。\n`)
+        if (tmpPath) process.stdout.write(`同时已写入 ${tmpPath}\n`)
+      } catch (e) {
+        UI.error(formatRunError(e))
+      }
+      return "continue"
+    }
+    case "branch": {
+      try {
+        const res = await sdk.session.fork({ sessionID })
+        if (res.error) {
+          UI.error(formatRunError(res.error))
+          return "continue"
+        }
+        const next = res.data?.id
+        if (!next) {
+          UI.error("分支创建失败")
+          return "continue"
+        }
+        currentSessionId = next
+        process.stdout.write(`已分支会话：${res.data?.title ?? "(未命名)"}\n当前会话已切换到分支。原会话可用 /continue 恢复。\n`)
       } catch (e) {
         UI.error(formatRunError(e))
       }
@@ -681,6 +757,8 @@ const HELP_TEXT = [
   "    /status            显示版本/模型/会话/目录信息",
   "    /cost              显示当前会话 token 用量与成本",
   "    /context           显示当前会话上下文消息数",
+  "    /copy              复制最近助手回复到剪贴板（同时写入临时文件兜底）",
+  "    /branch            分支当前会话并切换到新分支",
   "    /permissions       显示当前会话权限规则",
   "  模式切换：",
   "    gyc tui            切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
@@ -705,6 +783,8 @@ const SLASH_COMMANDS = [
   "/status",
   "/cost",
   "/context",
+  "/copy",
+  "/branch",
   "/permissions",
   "/exit",
   "/quit",

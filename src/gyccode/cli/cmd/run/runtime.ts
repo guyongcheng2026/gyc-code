@@ -20,6 +20,7 @@ import { resolveModelInfo, resolveRunTuiConfig, resolveSessionInfo } from "./run
 import { createRuntimeLifecycle } from "./runtime.lifecycle"
 import { trace } from "./trace"
 import { cycleVariant, formatModelLabel, resolveSavedVariant, resolveVariant, saveVariant } from "./variant.shared"
+import { writeClipboardOsc52, writeCopyTempFile } from "./copy.shared"
 import type { LocalReplayAnchor, LocalReplayRow, RunInput, RunPrompt, RunProvider, StreamCommit } from "./types"
 
 /** @internal Exported for testing */
@@ -540,6 +541,53 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
       await state.demo.start()
     }
 
+    // 切换当前会话（/new 与 /branch 共用）：重置流、状态与 footer，指向新会话。
+    const resetForNewSession = async (created: { sessionID: string; sessionTitle?: string; agent?: string }) => {
+      await footer.idle().catch(() => {})
+      await state.stream?.then((item) => item.handle.close()).catch(() => {})
+      state.stream = undefined
+      state.session = undefined
+      state.selectSubagent = undefined
+      state.shown = false
+      state.sessionID = created.sessionID
+      state.sessionTitle = created.sessionTitle ?? state.sessionTitle
+      state.agent = created.agent ?? state.agent
+      state.history = []
+      state.localRows = []
+      includeFiles = true
+      state.demo = input.demo
+        ? createRunDemo({
+            footer,
+            sessionID: state.sessionID,
+            thinking: input.thinking,
+            limits: () => state.limits,
+          })
+        : undefined
+      log?.write("session.switch", {
+        sessionID: state.sessionID,
+      })
+      footer.event({
+        type: "stream.subagent",
+        state: {
+          tabs: [],
+          details: {},
+          permissions: [],
+          questions: [],
+        },
+      })
+      footer.event({ type: "stream.view", view: { type: "prompt" } })
+      footer.event({
+        type: "stream.patch",
+        patch: {
+          phase: "idle",
+          duration: "",
+          usage: "",
+          first: true,
+        },
+      })
+      await state.demo?.start()
+    }
+
     const mod = await import("./runtime.queue")
     const createSession = input.createSession
     await mod.runPromptQueue({
@@ -568,55 +616,13 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
                 model: state.model,
                 variant: state.activeVariant,
               })
-              await footer.idle().catch(() => {})
-              await state.stream?.then((item) => item.handle.close()).catch(() => {})
-              state.stream = undefined
-              state.session = undefined
-              state.selectSubagent = undefined
-              state.shown = false
-              state.sessionID = created.sessionID
-              state.sessionTitle = created.sessionTitle
-              state.agent = created.agent ?? state.agent
-              state.history = []
-              state.localRows = []
-              includeFiles = true
-              state.demo = input.demo
-                ? createRunDemo({
-                    footer,
-                    sessionID: state.sessionID,
-                    thinking: input.thinking,
-                    limits: () => state.limits,
-                  })
-                : undefined
-              log?.write("session.new", {
-                sessionID: state.sessionID,
-              })
-              footer.event({
-                type: "stream.subagent",
-                state: {
-                  tabs: [],
-                  details: {},
-                  permissions: [],
-                  questions: [],
-                },
-              })
-              footer.event({ type: "stream.view", view: { type: "prompt" } })
-              footer.event({
-                type: "stream.patch",
-                patch: {
-                  phase: "idle",
-                  duration: "",
-                  usage: "",
-                  first: true,
-                },
-              })
+              await resetForNewSession(created)
               footer.append({
                 kind: "system",
                 text: `new session ${state.sessionID}`,
                 phase: "final",
                 source: "system",
               })
-              await state.demo?.start()
             } catch (error) {
               footer.event({
                 type: "stream.patch",
@@ -637,6 +643,128 @@ async function runInteractiveRuntime(input: RunRuntimeInput, deps: RunRuntimeDep
             }
           }
         : undefined,
+      // 本地命令（/context /copy /branch）：与 cli/web 三端行为一致，不经过模型。
+      onLocalCommand: async (name, args) => {
+        const sdk = ctx.sdk
+        const sessionID = state.sessionID
+        if (name === "context") {
+          try {
+            const [ctxRes, session] = await Promise.all([
+              sdk.v2.session.context({ sessionID }),
+              sdk.session.get({ sessionID }).catch(() => undefined),
+            ])
+            const messages = ctxRes.data?.data ?? []
+            const data = session?.data
+            const model = data?.model
+              ? `${data.model.providerID}/${data.model.id}${data.model.variant && data.model.variant !== "default" ? ` (${data.model.variant})` : ""}`
+              : undefined
+            const t = data?.tokens
+            const tokens = t
+              ? `输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning} · 缓存读 ${t.cache.read} / 写 ${t.cache.write}`
+              : undefined
+            const userCount = messages.filter((m) => m.type === "user").length
+            const assistantCount = messages.filter((m) => m.type === "assistant").length
+            const otherCount = messages.length - userCount - assistantCount
+            footer.append({
+              kind: "system",
+              text: [
+                `上下文：${messages.length} 条消息`,
+                ...(model ? [`模型:   ${model}`] : []),
+                ...(tokens ? [`Token:  ${tokens}`] : []),
+                `消息:   用户 ${userCount} · 助手 ${assistantCount}${otherCount > 0 ? ` · 其他 ${otherCount}` : ""}`,
+              ].join("\n"),
+              phase: "final",
+              source: "system",
+            })
+          } catch (error) {
+            footer.append({
+              kind: "system",
+              text: `无法读取上下文：${error instanceof Error ? error.message : String(error)}`,
+              phase: "final",
+              source: "system",
+            })
+          }
+          return
+        }
+        if (name === "copy") {
+          try {
+            const res = await sdk.session.messages({ sessionID })
+            const messages = res.data ?? []
+            const texts: string[] = []
+            for (let i = messages.length - 1; i >= 0 && texts.length < 20; i--) {
+              const msg = messages[i]
+              if (!msg || msg.info.role !== "assistant") continue
+              const text = msg.parts
+                .filter((p) => p.type === "text")
+                .map((p) => (p as { text: string }).text)
+                .join("\n\n")
+                .trim()
+              if (text) texts.push(text)
+            }
+            const content = texts.join("\n\n---\n\n")
+            if (!content) {
+              footer.append({
+                kind: "system",
+                text: "当前会话没有可复制的助手回复。",
+                phase: "final",
+                source: "system",
+              })
+              return
+            }
+            const charCount = content.length
+            const lineCount = content.split("\n").length
+            const tmpPath = await writeCopyTempFile(content)
+            const copied = writeClipboardOsc52(content)
+            footer.append({
+              kind: "system",
+              text: [
+                `已复制 ${charCount} 字符 ${lineCount} 行${copied ? "" : "（终端不支持剪贴板）"}。`,
+                ...(tmpPath ? [`同时已写入 ${tmpPath}`] : []),
+              ].join("\n"),
+              phase: "final",
+              source: "system",
+            })
+          } catch (error) {
+            footer.append({
+              kind: "system",
+              text: `复制失败：${error instanceof Error ? error.message : String(error)}`,
+              phase: "final",
+              source: "system",
+            })
+          }
+          return
+        }
+        if (name === "branch") {
+          try {
+            const res = await sdk.session.fork({ sessionID })
+            const next = res.data?.id
+            if (!next) {
+              footer.append({
+                kind: "system",
+                text: "分支创建失败。",
+                phase: "final",
+                source: "system",
+              })
+              return
+            }
+            footer.append({
+              kind: "system",
+              text: `已分支会话：${res.data?.title ?? "(未命名)"}\n当前会话已切换到分支。原会话可用 /continue 恢复。`,
+              phase: "final",
+              source: "system",
+            })
+            await resetForNewSession({ sessionID: next, sessionTitle: res.data?.title })
+          } catch (error) {
+            footer.append({
+              kind: "system",
+              text: `分支失败：${error instanceof Error ? error.message : String(error)}`,
+              phase: "final",
+              source: "system",
+            })
+          }
+          return
+        }
+      },
       run: async (prompt, signal) => {
         if (state.demo && (await state.demo.prompt(prompt, signal))) {
           return

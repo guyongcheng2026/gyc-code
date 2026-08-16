@@ -1,3 +1,9 @@
-﻿// 由 scripts/build-webapp.mjs 在构建时覆盖为真实清单（URL 路径 → 磁盘绝对路径）。
-// 占位空清单：embeddedUI() 返回 null → serveUIEffect 走 dev 代理回退。
-export default {} as Record<string, string>
+// 由 scripts/build-webapp.mjs 生成，勿手改。
+export default {
+  "assets/editor.worker-DbG82rLA.js": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\assets\\editor.worker-DbG82rLA.js",
+  "assets/index-CbiSdrM7.css": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\assets\\index-CbiSdrM7.css",
+  "assets/index-DeH_-nsd.js": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\assets\\index-DeH_-nsd.js",
+  "assets/setup-CEBMl5tG.js": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\assets\\setup-CEBMl5tG.js",
+  "assets/setup-CJ4XsiPy.css": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\assets\\setup-CJ4XsiPy.css",
+  "index.html": "C:\\Users\\谷勇成\\gyc-cli\\src\\webapp\\dist\\index.html"
+} as Record<string, string>

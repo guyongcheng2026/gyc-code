@@ -1,4 +1,4 @@
-﻿import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useChatSession } from "../client/useChatSession"
 import { useSendPrompt } from "../client/useSendPrompt"
 import { usePermissions } from "../client/usePermissions"
@@ -17,6 +17,13 @@ import { ModeSwitcher, type ModeID } from "./ModeSwitcher"
 
 const MODE_ORDER: ModeID[] = ["build", "plan", "compose"]
 
+// 本地斜杠命令（与 CLI/TUI 三端一致；服务端 command.list 之外的客户端命令）。
+const LOCAL_COMMANDS = [
+  { name: "context", description: "显示当前会话上下文用量（消息数/模型/Token）" },
+  { name: "copy", description: "复制最近助手回复到剪贴板" },
+  { name: "branch", description: "分支当前会话并切换到新分支" },
+]
+
 export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { messages, busy } = useChatSession(sessionID)
   const { send } = useSendPrompt(sessionID)
@@ -27,6 +34,14 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { info, refresh: refreshInfo } = useSessionInfo(sessionID)
   const { models, loading: modelsLoading } = useModels()
   const [sendError, setSendError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const showNotice = (text: string) => {
+    setNotice(text)
+    window.setTimeout(() => setNotice(null), 8000)
+  }
+
+  const allCommands = useMemo(() => [...LOCAL_COMMANDS, ...commands], [commands])
 
   const currentAgent = (info?.agent ?? "build") as ModeID
   const currentModel = info?.model ? `${info.model.providerID}/${info.model.modelID}` : ""
@@ -59,7 +74,67 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         .catch(err)
   }
 
-  const onCommand = (name: string, args: string) => {
+  const onCommand = async (name: string, _args: string) => {
+    if (name === "context") {
+      const userCount = messages.filter((m) => m.role === "user").length
+      const assistantCount = messages.filter((m) => m.role === "assistant").length
+      const otherCount = messages.length - userCount - assistantCount
+      const model = info?.model
+        ? `${info.model.providerID}/${info.model.modelID}${info.model.variant && info.model.variant !== "default" ? ` (${info.model.variant})` : ""}`
+        : undefined
+      const t = info?.tokens
+      const tokens = t
+        ? `输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning} · 缓存读 ${t.cache.read} / 写 ${t.cache.write}`
+        : undefined
+      showNotice(
+        [
+          `上下文：${messages.length} 条消息`,
+          ...(model ? [`模型:   ${model}`] : []),
+          ...(tokens ? [`Token:  ${tokens}`] : []),
+          `消息:   用户 ${userCount} · 助手 ${assistantCount}${otherCount > 0 ? ` · 其他 ${otherCount}` : ""}`,
+        ].join("\n"),
+      )
+      return
+    }
+    if (name === "copy") {
+      const texts: string[] = []
+      for (let i = messages.length - 1; i >= 0 && texts.length < 20; i--) {
+        const msg = messages[i]
+        if (!msg || msg.role !== "assistant") continue
+        const text = msg.parts
+          .filter((p) => p.type === "text")
+          .map((p) => p.text ?? "")
+          .join("\n\n")
+          .trim()
+        if (text) texts.push(text)
+      }
+      const content = texts.join("\n\n---\n\n")
+      if (!content) {
+        showNotice("当前会话没有可复制的助手回复。")
+        return
+      }
+      try {
+        await navigator.clipboard.writeText(content)
+        showNotice(`已复制 ${content.length} 字符 ${content.split("\n").length} 行。`)
+      } catch {
+        showNotice("浏览器剪贴板不可用，请手动选择复制。")
+      }
+      return
+    }
+    if (name === "branch") {
+      try {
+        const id = await fork(sessionID)
+        if (id) {
+          showNotice("已分支会话并切换到新分支。")
+          window.location.hash = `#${id}`
+        } else {
+          showNotice("分支创建失败。")
+        }
+      } catch (e) {
+        err(e)
+      }
+      return
+    }
     // session.command 是同步端点（阻塞至命令回合完成）；这里 fire-and-forget，
     // 命令输出经 SSE 流式呈现，避免 UI 卡住。
     command(sessionID, name, args).catch(err)
@@ -114,12 +189,27 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         <MessageList messages={messages} />
       </div>
       {sendError ? <div style={{ padding: "0 24px", color: "var(--error)", fontSize: 13 }}>{sendError}</div> : null}
+      {notice ? (
+        <div
+          style={{
+            margin: "0 24px 8px",
+            padding: "8px 12px",
+            borderRadius: 8,
+            fontSize: 13,
+            whiteSpace: "pre-wrap",
+            background: "var(--selection-bg)",
+            border: "1px solid var(--border)",
+          }}
+        >
+          {notice}
+        </div>
+      ) : null}
 
       {/* 输入区 + footer（模式 + 模型，与 TUI 位置一致：输入框下方左侧） */}
       <div style={{ padding: "8px 24px 10px" }}>
         <PromptInput
           disabled={busy}
-          commands={commands}
+          commands={allCommands}
           onSubmit={(text, files) => send(text, info?.model, files).catch(err)}
           onCommand={onCommand}
           onTabCycle={cycleMode}

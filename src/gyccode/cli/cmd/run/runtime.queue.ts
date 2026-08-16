@@ -29,6 +29,7 @@ export type QueueInput = {
   trace?: Trace
   onSend?: (prompt: RunPrompt) => void
   onNewSession?: () => void | Promise<void>
+  onLocalCommand?: (name: string, args: string) => void | Promise<void>
   run: (prompt: RunPrompt, signal: AbortSignal) => Promise<void>
 }
 
@@ -125,6 +126,54 @@ export async function runPromptQueue(input: QueueInput): Promise<void> {
 
           const queued = state.queued.find((item) => item.prompt === prompt)
           if (queued) removeLocalQueued(queued)
+
+          // 本地命令（/context /copy /branch）：与 /new /exit 同级的客户端命令，
+          // 由 runtime 直接执行，不发送给模型。三端（cli/web/tui）行为一致。
+          const localMatch =
+            prompt.mode !== "shell" ? prompt.text.trim().match(/^\/(context|copy|branch)(?:\s+(.*))?$/) : undefined
+          if (localMatch) {
+            syncQueue()
+            if (!input.onLocalCommand) {
+              emit(
+                {
+                  type: "stream.patch",
+                  patch: {
+                    status: "local commands unavailable",
+                  },
+                },
+                {
+                  status: "local commands unavailable",
+                },
+              )
+              continue
+            }
+            emit(
+              {
+                type: "stream.patch",
+                patch: {
+                  phase: "running",
+                  status: `running /${localMatch[1]}`,
+                },
+              },
+              {
+                phase: "running",
+                status: `running /${localMatch[1]}`,
+              },
+            )
+            await input.onLocalCommand(localMatch[1], (localMatch[2] ?? "").trim())
+            emit(
+              {
+                type: "stream.patch",
+                patch: {
+                  phase: "idle",
+                },
+              },
+              {
+                phase: "idle",
+              },
+            )
+            continue
+          }
 
           if (prompt.mode !== "shell" && isNewCommand(prompt.text)) {
             syncQueue()

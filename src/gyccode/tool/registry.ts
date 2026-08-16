@@ -19,6 +19,9 @@ import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { BriefTool } from "./brief"
+import { SleepTool } from "./sleep"
+import { ToolSearchTool, type SearchToolSource } from "./toolsearch"
+import { ConfigTool } from "./config"
 import * as Tool from "./tool"
 import { Config } from "@/config/config"
 import { type ToolContext as PluginToolContext, type ToolDefinition } from "@gyccode/protocol/plugin"
@@ -132,6 +135,13 @@ const layer = Layer.effect(
       : undefined
     const codeModeTool = codeMode ? yield* codeMode.CodeModeTool : undefined
 
+    // 独立工具（无 state 依赖）：sleep 等待、config 读写配置。
+    const sleep = yield* SleepTool
+    const configtool = yield* ConfigTool
+    // 工具搜索：搜索源在 state 构建时由 fn 内赋值（避免循环依赖与额外的环境需求）。
+    let toolSearchSources: (() => Effect.Effect<readonly SearchToolSource[]>) | undefined
+    const toolsearch = yield* ToolSearchTool(() => (toolSearchSources ? toolSearchSources() : Effect.succeed([])))
+
     const state = yield* InstanceState.make<State>(
       Effect.fn("ToolRegistry.state")(function* (ctx) {
         const custom: Tool.Def[] = []
@@ -242,8 +252,18 @@ const layer = Layer.effect(
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
           brief: Tool.init(brieftool),
+          sleep: Tool.init(sleep),
+          config: Tool.init(configtool),
           ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
         })
+
+        // 工具搜索（tool_search）：搜索源引用本 fn 内的工具快照（builtin + custom）。
+        toolSearchSources = () =>
+          Effect.succeed([
+            ...Object.values(tool).map((item) => ({ id: item.id, description: item.description })),
+            ...custom.map((item) => ({ id: item.id, description: item.description })),
+          ])
+        const toolSearchDef = yield* Tool.init(toolsearch)
 
         return {
           custom,
@@ -267,6 +287,9 @@ const layer = Layer.effect(
             tool.search,
             tool.skill,
             tool.patch,
+            tool.sleep,
+            tool.config,
+            toolSearchDef,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
