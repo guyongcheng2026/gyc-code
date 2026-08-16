@@ -832,3 +832,6 @@
 
 - [OK] 2026-08-16 [b8ef7f1] feat: web 文件引用附加（方案 A）+ mini 迁移覆盖界定
   - [FILES] 3: src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/client/useSendPrompt.ts
+
+- [OK] 2026-08-16 [75bed72] P0 三端对齐：ToolSearch/Config/Sleep 工具 + /context /copy /branch 命令
+  - [FILES] 15: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run/copy.shared.ts, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/cli/cmd/run/runtime.queue.ts, src/gyccode/cli/cmd/run/runtime.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts ...
