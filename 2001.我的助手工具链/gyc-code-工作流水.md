@@ -826,3 +826,6 @@
 
 - [OK] 2026-08-16 [8099878] chore: snap-sim 快照压测资产入库并实测（4 场景全绿，write-tree 短路省 3924ms/step）
   - [FILES] 2: docs/BUG-REVIEW-2026-08-14-round3.md, src/gyccode/snapshot/snap-sim.test.ts
+
+- [OK] 2026-08-16 [23b5833] feat: mini 功能迁移补齐 - web 问题问答/权限始终允许/variant/后台子代理 + CLI 交互权限审批与问答 + /continue /variant
+  - [FILES] 14: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/stream-cli.interactive.test.ts, src/gyccode/cli/cmd/run/stream-cli.ts, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/ModelPicker.tsx ...
