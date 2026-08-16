@@ -40,6 +40,14 @@ export function useSessionActions(directory?: string) {
     [directory],
   )
 
+  // 压缩会话上下文（保留摘要后截断历史），走 v2 session.compact
+  const compact = useCallback(
+    async (id: string) => {
+      await v2(directory).v2.session.compact({ sessionID: id })
+    },
+    [directory],
+  )
+
   const revert = useCallback(
     async (id: string, messageID: string) => {
       await sdk(directory).session.revert({ path: { id }, body: { messageID } })
@@ -73,12 +81,15 @@ export function useSessionActions(directory?: string) {
 
   // 切换会话模型，走 v2 switchModel
   const switchModel = useCallback(
-    async (id: string, providerID: string, modelID: string) => {
-      await v2(directory).v2.session.switchModel({ sessionID: id, model: { providerID, id: modelID } })
+    async (id: string, providerID: string, modelID: string, variant?: string) => {
+      await v2(directory).v2.session.switchModel({
+        sessionID: id,
+        model: { providerID, id: modelID, ...(variant ? { variant } : {}) },
+      })
     },
     [directory],
   )
 
-  return { rename, fork, remove, abort, summarize, revert, command, switchAgent, switchModel, background }
+  return { rename, fork, remove, abort, summarize, compact, revert, command, switchAgent, switchModel, background }
 }
 

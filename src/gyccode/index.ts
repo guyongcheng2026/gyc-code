@@ -165,7 +165,6 @@ if (isHelp) {
   await registerCommand(cli, COMMANDS[first]!)
 } else {
   // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）；
-  // --mini 由 DefaultCommand 内部转发 runMini（OpenTUI 经 koffi 支持 Node）。
   const def = await import("./cli/cmd/default")
   cli.command(def.DefaultCommand as never)
 }

@@ -1,7 +1,6 @@
 // 流式事件渲染（纯 CLI 版）：把 session 事件流镜像到 stdout。
 // 非交互 CLI（gyc run / gyc "msg"）与纯 CLI 交互（gyc 无参）共用，
 // 保证两种入口的流式输出行为完全一致。
-// 注意：与 run/stream.ts（mini 交互模式的 footer 桥接）无关，勿混淆。
 import { EOL } from "os"
 import { UI } from "../../ui"
 import { type GyccodeClient, type ToolPart } from "@gyccode/protocol/v2"
@@ -90,6 +89,13 @@ export type StreamQuestion = {
   reject: (requestID: string) => Promise<unknown>
 }
 
+export type SubagentInfo = {
+  type: string
+  description?: string
+  status: string
+  title?: string
+}
+
 export type StreamLoopInput = {
   client: GyccodeClient
   events: Awaited<ReturnType<GyccodeClient["event"]["subscribe"]>>
@@ -99,12 +105,13 @@ export type StreamLoopInput = {
   auto: boolean
   interactive?: StreamInteractive
   question?: StreamQuestion
+  onSubagent?: (info: SubagentInfo) => void
 }
 
 // 消费一个已订阅的事件流并镜像到 stdout/UI，直到会话 idle。
 // 返回会话错误文本（若有）；调用方据此设置退出码。
 export async function streamLoop(input: StreamLoopInput): Promise<string | undefined> {
-  const { client, events, sessionID, format, thinking, auto, interactive, question } = input
+  const { client, events, sessionID, format, thinking, auto, interactive, question, onSubagent } = input
   const toggles = new Map<string, boolean>()
   let error: string | undefined
 
@@ -160,6 +167,19 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
         if (toggles.get(part.id) === true) continue
         await tool(part)
         toggles.set(part.id, true)
+      }
+
+      // 子代理状态收集（CLI /subagents 数据源）：task 工具任意状态都记录。
+      if (part.type === "tool" && part.tool === "task" && onSubagent) {
+        const status = part.state.status
+        const input = "input" in part.state ? (part.state as { input?: { subagent_type?: string; description?: string } }).input : undefined
+        const title = "title" in part.state ? (part.state as { title?: string }).title : undefined
+        onSubagent({
+          type: input?.subagent_type ?? "task",
+          description: input?.description,
+          status,
+          title,
+        })
       }
 
       if (part.type === "step-start") {

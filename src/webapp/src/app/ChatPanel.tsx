@@ -29,7 +29,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { send } = useSendPrompt(sessionID)
   const { queue, resolve } = usePermissions(sessionID)
   const { requests, reply, reject } = useQuestions(sessionID)
-  const { command, abort, fork, summarize, switchAgent, switchModel, background } = useSessionActions()
+  const { command, abort, fork, summarize, compact, switchAgent, switchModel, background } = useSessionActions()
   const { commands } = useCommands()
   const { info, refresh: refreshInfo } = useSessionInfo(sessionID)
   const { models, loading: modelsLoading } = useModels()
@@ -42,6 +42,11 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   }
 
   const allCommands = useMemo(() => [...LOCAL_COMMANDS, ...commands], [commands])
+
+  // 是否有运行中的子代理（task 工具）：有则显示「后台化」按钮（对齐 mini 子代理面板）。
+  const runningSubagent = messages.some((m) =>
+    m.parts.some((p) => p.tool === "task" && p.state?.status === "running"),
+  )
 
   const currentAgent = (info?.agent ?? "build") as ModeID
   const currentModel = info?.model ? `${info.model.providerID}/${info.model.modelID}` : ""
@@ -137,7 +142,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
     }
     // session.command 是同步端点（阻塞至命令回合完成）；这里 fire-and-forget，
     // 命令输出经 SSE 流式呈现，避免 UI 卡住。
-    command(sessionID, name, args).catch(err)
+    command(sessionID, name, _args).catch(err)
   }
 
   return (
@@ -176,6 +181,22 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         <button className="btn btn-ghost" onClick={() => summarize(sessionID).catch(() => {})}>
           摘要
         </button>
+        <button
+          className="btn btn-ghost"
+          onClick={() => compact(sessionID).catch(() => {})}
+          title="压缩会话上下文（保留摘要）"
+        >
+          压缩
+        </button>
+        {runningSubagent ? (
+          <button
+            className="btn btn-ghost"
+            onClick={() => background(sessionID).catch(() => {})}
+            title="将阻塞子代理转为后台运行"
+          >
+            ↻ 后台化
+          </button>
+        ) : null}
       </div>
 
       {/* 消息区（Virtuoso 自行滚动，保证 followOutput 生效） */}

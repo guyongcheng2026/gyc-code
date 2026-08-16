@@ -4,7 +4,7 @@ import { sdk } from "./sdk"
 export type PromptFile = { url: string; filename?: string; mime?: string }
 export type PromptPart =
   | { type: "text"; text: string }
-  | { type: "file"; url: string; filename?: string; mime?: string }
+  | { type: "file"; url: string; filename?: string; mime: string }
 export type SendModel = { providerID: string; modelID: string }
 
 export function buildPromptParts(text: string, files: PromptFile[] = []): PromptPart[] {

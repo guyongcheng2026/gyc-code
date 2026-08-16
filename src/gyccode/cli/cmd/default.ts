@@ -3,17 +3,17 @@
 // 三种形态：
 //   1. 传消息或 stdin 管道 → 非交互单轮（复用 RunCommand.handler，行为与 `gyc run` 完全一致）。
 //   2. 无参数且 stdout 为 TTY → 逐行对话（node:readline，Node 直跑，不依赖 OpenTUI）。
-//   3. --mini → 转发 TUI 的 mini 交互（OpenTUI 经 koffi 支持 Node，当前进程直跑）。
 import path from "path"
+import { pathToFileURL } from "url"
 import type { Argv } from "yargs"
 import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { readStdin } from "../../../core/util/read-stdin"
 import { Filesystem } from "@/util/filesystem"
-import { createGyccodeClient, type GyccodeClient } from "@gyccode/protocol/v2"
+import { createGyccodeClient, type CommandV2Info, type GyccodeClient } from "@gyccode/protocol/v2"
 import { FormatError, FormatUnknownError } from "../error"
-import { streamLoop } from "./run/stream-cli"
+import { streamLoop, type SubagentInfo } from "./run/stream-cli"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { RunCommand } from "./run"
@@ -39,7 +39,10 @@ type CliInput = {
   agent?: string
   thinking: boolean
   auto: boolean
+  files?: string[]
 }
+
+type SubagentRecord = SubagentInfo & { at: string }
 
 function parseModelInput(value: string | undefined): { providerID: string; modelID: string } | undefined {
   if (!value) return undefined
@@ -127,28 +130,60 @@ function createStreamInteractive(): NonNullable<Parameters<typeof streamLoop>[0]
   }
 }
 
+// 把 --file 附加文件解析为 file part（本地路径引用，复用 run 单轮的文件语义）。
+async function resolveFileParts(files: string[], directory?: string): Promise<Array<{ type: "file"; url: string; filename: string; mime: string }>> {
+  const parts: Array<{ type: "file"; url: string; filename: string; mime: string }> = []
+  for (const filePath of files) {
+    const resolved = path.resolve(directory ?? process.cwd(), filePath)
+    if (!(await Filesystem.exists(resolved))) {
+      process.stdout.write(`文件不存在：${filePath}\n`)
+      continue
+    }
+    parts.push({
+      type: "file",
+      url: pathToFileURL(resolved).href,
+      filename: path.basename(resolved),
+      mime: "text/plain",
+    })
+  }
+  return parts
+}
+
+// 订阅事件流并渲染到 stdout，同时收集子代理（task 工具）状态供 /subagents 使用。
+function runStreamLoop(
+  sdk: GyccodeClient,
+  sessionID: string,
+  input: CliInput,
+  subagents: SubagentRecord[],
+): Promise<string | undefined> {
+  return sdk.event.subscribe().then((events) =>
+    streamLoop({
+      client: sdk,
+      events,
+      sessionID,
+      format: "default",
+      thinking: input.thinking,
+      auto: input.auto,
+      interactive: createStreamInteractive(),
+      question: {
+        reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
+        reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
+      },
+      onSubagent: (info) => subagents.push({ ...info, at: new Date().toLocaleTimeString() }),
+    }),
+  )
+}
+
 // 一轮对话：订阅事件流 → prompt → 流式渲染直到 idle。
 
-async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, input: CliInput) {
-  const events = await sdk.event.subscribe()
-  const completed = streamLoop({
-    client: sdk,
-    events,
-    sessionID,
-    format: "default",
-    thinking: input.thinking,
-    auto: input.auto,
-    interactive: createStreamInteractive(),
-    question: {
-      reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
-      reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
-    },
-  })
+async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, input: CliInput, subagents: SubagentRecord[]) {
+  const fileParts = await resolveFileParts(input.files ?? [], input.directory)
+  const completed = runStreamLoop(sdk, sessionID, input, subagents)
   const result = await sdk.session.prompt({
     sessionID,
     model: parseModelInput(input.model),
     variant: input.variant,
-    parts: [{ type: "text", text }],
+    parts: [...fileParts, { type: "text", text }],
   })
   if (result.error) {
     UI.error(formatRunError(result.error))
@@ -324,7 +359,22 @@ async function runSlashCommand(
   command: string,
   args: string,
   input: CliInput,
+  dynamicCommands: Map<string, CommandV2Info>,
+  subagents: SubagentRecord[],
 ): Promise<"continue" | "exit"> {
+  const dynamic = dynamicCommands.get(command)
+  if (dynamic) {
+    // 动态命令（内置 init/review、技能、项目命令、MCP 命令）：经 session.command 服务端执行。
+    try {
+      const completed = runStreamLoop(sdk, sessionID, input, subagents)
+      const result = await sdk.session.command({ sessionID, command: dynamic.name, arguments: args })
+      if (result.error) UI.error(formatRunError(result.error))
+      await completed
+    } catch (e) {
+      UI.error(formatRunError(e))
+    }
+    return "continue"
+  }
   switch (command) {
     case "exit":
     case "quit":
@@ -730,6 +780,49 @@ async function runSlashCommand(
       }
       return "continue"
     }
+    case "editor": {
+      // 外部编辑器（$EDITOR / $VISUAL）编写消息。
+      try {
+        const { tmpdir } = await import("os")
+        const { spawnSync } = await import("node:child_process")
+        const editor = process.env.EDITOR || process.env.VISUAL
+        if (!editor) {
+          process.stdout.write("未检测到编辑器。请设置 EDITOR 环境变量（Windows 示例：`set EDITOR=code --wait`）。\n")
+          return "continue"
+        }
+        const tmpFile = path.join(tmpdir(), `gyc-editor-${Date.now()}.md`)
+        const result = spawnSync(editor, [tmpFile], { stdio: "inherit", shell: true })
+        if (result.status !== 0) {
+          UI.error(`编辑器退出码 ${result.status ?? "unknown"}`)
+          return "continue"
+        }
+        const content = await Filesystem.readText(tmpFile).catch(() => "")
+        try {
+          const { unlink } = await import("node:fs/promises")
+          await unlink(tmpFile)
+        } catch {}
+        if (!content.trim()) {
+          process.stdout.write("编辑器内容为空，已取消。\n")
+          return "continue"
+        }
+        await runTurn(sdk, sessionID, content.trim(), input, subagents)
+      } catch (e) {
+        UI.error(formatRunError(e))
+      }
+      return "continue"
+    }
+    case "subagents": {
+      if (subagents.length === 0) {
+        process.stdout.write("当前会话暂无子代理运行记录。子代理（task 工具）状态会在每轮结束时记录。\n")
+      } else {
+        process.stdout.write("最近子代理（task 工具）:\n")
+        for (const item of subagents.slice(-20).reverse()) {
+          const mark = item.status === "running" ? "•" : item.status === "completed" ? "✓" : "✗"
+          process.stdout.write(`  ${mark} ${item.type}${item.description ? ` — ${item.description}` : ""} [${item.status}] ${item.at}\n`)
+        }
+      }
+      return "continue"
+    }
     default:
       process.stdout.write(
         `未知命令 /${command}。输入 /help 查看可用命令。\n`,
@@ -760,9 +853,10 @@ const HELP_TEXT = [
   "    /copy              复制最近助手回复到剪贴板（同时写入临时文件兜底）",
   "    /branch            分支当前会话并切换到新分支",
   "    /permissions       显示当前会话权限规则",
+  "    /editor            在外部编辑器（$EDITOR）中编写消息",
+  "    /subagents         查看最近子代理运行状态",
   "  模式切换：",
   "    gyc tui            切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
-    "    gyc --mini         切换到 split-footer 交互（已废弃，请用 `gyc web` / `gyc tui`）",
   "",
   "  提示：输入 / 后按 Tab 可补全命令。",
   "",
@@ -786,6 +880,8 @@ const SLASH_COMMANDS = [
   "/copy",
   "/branch",
   "/permissions",
+  "/editor",
+  "/subagents",
   "/exit",
   "/quit",
 ]
@@ -805,11 +901,6 @@ const TUI_FLAG_KINDS: Record<string, "boolean" | "string"> = {
   auto: "boolean",
   yolo: "boolean",
   "dangerously-skip-permissions": "boolean",
-  mini: "boolean",
-  replay: "boolean",
-  "no-replay": "boolean",
-  "replay-limit": "string",
-  demo: "boolean",
   port: "string",
   hostname: "string",
   mdns: "boolean",
@@ -845,6 +936,22 @@ async function interactiveLoop(input: CliInput) {
   const root = Filesystem.resolve(process.env.PWD ?? process.cwd())
   const directory = input.directory ?? root
   const sdk = await createLocalClient(directory)
+  // 动态命令（内置 init/review、技能、项目命令、MCP 命令）：来自服务端 command.list。
+  const dynamicCommands = new Map<string, CommandV2Info>()
+  try {
+    const res = await sdk.v2.command.list({ location: { directory } })
+    for (const item of res.data?.data ?? []) {
+      if (item.name) dynamicCommands.set(item.name, item)
+    }
+  } catch {}
+  const commandCandidates = () => {
+    const names = new Set<string>()
+    for (const cmd of SLASH_COMMANDS) names.add(cmd)
+    for (const name of dynamicCommands.keys()) names.add("/" + name)
+    return [...names].sort()
+  }
+  // 子代理运行记录（/subagents 数据源）：由 streamLoop 的 onSubagent 回调收集。
+  const subagents: SubagentRecord[] = []
   const model = parseModelInput(input.model)
   const created = await sdk.session.create({
     title: undefined,
@@ -894,7 +1001,7 @@ async function interactiveLoop(input: CliInput) {
         const m = /^\/([^\s]*)/.exec(buffer)
         // 输入 / 或 /前缀 时显示匹配命令；仅一个 / 时显示全部命令。
         menu = m
-          ? SLASH_COMMANDS.filter((cmd) => cmd.startsWith("/" + m[1]) && cmd !== buffer.trim())
+          ? commandCandidates().filter((cmd) => cmd.startsWith("/" + m[1]) && cmd !== buffer.trim())
           : []
         selected = 0
       }
@@ -982,8 +1089,8 @@ async function interactiveLoop(input: CliInput) {
         process.stdout.write(HELP_TEXT + "\n")
         continue
       }
-      // 模式切换：`gyc tui` / `gyc --mini`（或裸 `tui` / `--mini`）在当前进程
-      // 直接进入全屏 TUI（OpenTUI 经 koffi 支持 Node，无需 dist-bun Bun 产物）。
+      // 模式切换：`gyc tui`（或裸 `tui`）在当前进程直接进入全屏 TUI
+      // （OpenTUI 经 koffi 支持 Node，无需 dist-bun Bun 产物）。
       // 先关闭 readline 恢复终端，再执行 TUI；退出后本进程退出回到 shell。
       if (/^(?:gyc\s+)?tui(?:\s+.*)?$/i.test(text)) {
         process.stdin.setRawMode(false)
@@ -993,20 +1100,9 @@ async function interactiveLoop(input: CliInput) {
         await TuiThreadCommand.handler(parseTuiArgs(rest) as Parameters<typeof TuiThreadCommand.handler>[0])
         process.exit(0)
       }
-      if (/^(?:gyc\s+)?(?:--mini|-i)$/i.test(text)) {
-        process.stderr.write(
-          "\x1b[33m!  gyc --mini 已废弃，请使用 `gyc web`（浏览器 Web IDE）或 `gyc tui`（终端全屏 TUI）。\n" +
-            "    当前仍以兼容模式启动，后续版本将移除。\x1b[0m\n",
-        )
-        process.stdin.setRawMode(false)
-        process.stdin.pause()
-        const { TuiThreadCommand } = await import("./tui")
-        await TuiThreadCommand.handler({ mini: true } as Parameters<typeof TuiThreadCommand.handler>[0])
-        process.exit(0)
-      }
       const sub = /^gyc\s+(\S+)/i.exec(text)
       if (sub) {
-        process.stdout.write(`交互模式内仅支持 tui / --mini 切换；其他子命令请 /exit 后运行 gyc ${sub[1]}\n`)
+        process.stdout.write(`交互模式内仅支持 tui 切换；其他子命令请 /exit 后运行 gyc ${sub[1]}\n`)
         continue
       }
       if (text.startsWith("/")) {
@@ -1014,22 +1110,22 @@ async function interactiveLoop(input: CliInput) {
         // 命令前缀自动补全：若输入是某个斜杠命令的前缀（且非精确命中），
         // 自动补全为完整命令（Codex 风格：输入 /mo → 执行 /model）。
         const full = "/" + command
-        if (!SLASH_COMMANDS.includes(full)) {
-          const matches = SLASH_COMMANDS.filter((cmd) => cmd.startsWith(full))
+        if (!commandCandidates().includes(full)) {
+          const matches = commandCandidates().filter((cmd) => cmd.startsWith(full))
           if (matches.length === 1) {
             const [matched] = matches
             process.stdout.write(`${matched}\n`)
             const [fullCmd, ...fullRest] = matched.slice(1).split(" ")
-            const outcome = await runSlashCommand(sdk, currentSessionId, fullCmd, [fullRest.join(" "), rest.join(" ")].filter(Boolean).join(" "), input)
+            const outcome = await runSlashCommand(sdk, currentSessionId, fullCmd, [fullRest.join(" "), rest.join(" ")].filter(Boolean).join(" "), input, dynamicCommands, subagents)
             if (outcome === "exit") break
             continue
           }
         }
-        const outcome = await runSlashCommand(sdk, currentSessionId, command, rest.join(" "), input)
+        const outcome = await runSlashCommand(sdk, currentSessionId, command, rest.join(" "), input, dynamicCommands, subagents)
         if (outcome === "exit") break
         continue
       }
-      await runTurn(sdk, currentSessionId, text, input)
+      await runTurn(sdk, currentSessionId, text, input, subagents)
       await renderStatusLine(sdk, currentSessionId, input)
     }
   } finally {
@@ -1129,18 +1225,6 @@ export const DefaultCommand = effectCmd({
         type: "boolean",
         describe: "show thinking blocks",
       })
-      .option("mini", {
-        type: "boolean",
-        hidden: true,
-        default: false,
-      })
-      .option("interactive", {
-        alias: ["i"],
-        type: "boolean",
-        hidden: true,
-        describe: "legacy alias for --mini",
-        default: false,
-      })
       .option("auto", {
         type: "boolean",
         describe: "auto-approve permissions that are not explicitly denied (dangerous!)",
@@ -1163,31 +1247,6 @@ export const DefaultCommand = effectCmd({
       }),
   handler: Effect.fn("Cli.default")(function* (args) {
     yield* Effect.promise(async () => {
-      const mini = args.mini || args.interactive
-      if (mini) {
-        // --mini 已废弃：保留短期兼容（仍启动 mini），并提示迁移到 gyc web / gyc tui。
-        process.stderr.write(
-          "\x1b[33m!  gyc --mini 已废弃，请使用 `gyc web`（浏览器 Web IDE）或 `gyc tui`（终端全屏 TUI）。\n" +
-            "    当前仍以兼容模式启动，后续版本将移除。\x1b[0m\n",
-        )
-        // --mini 转发 TUI 的 split-footer 交互（Node 下 index.ts 已提升到 Bun）。
-        const { runMini } = await import("./run")
-        await runMini({
-          directory: args.dir,
-          attach: args.attach,
-          password: args.password,
-          username: args.username,
-          continue: args.continue,
-          session: args.session,
-          fork: args.fork,
-          model: args.model,
-          agent: args.agent,
-          prompt: [...args.message, ...(args["--"] || [])].join(" "),
-          demo: args.demo,
-        })
-        return
-      }
-
       const message = [...args.message, ...(args["--"] || [])].join(" ")
       // 仅在无 message/command 时才读取 stdin（有参数时不阻塞等待管道/终端 EOF）。
       const piped =
@@ -1224,6 +1283,7 @@ export const DefaultCommand = effectCmd({
         agent: args.agent,
         thinking: args.thinking ?? false,
         auto: args.auto || args.yolo || args["dangerously-skip-permissions"],
+        files: args.file,
       })
     })
   }),
