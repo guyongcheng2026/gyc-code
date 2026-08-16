@@ -850,3 +850,6 @@
 
 - [OK] 2026-08-16 [41eacdb] fix(tui): 修复 Windows TUI 崩溃与中文乱码 — 移除 stdin setEncoding、流式 TextDecoder 解码
   - [FILES] 4: bin/gyc, src/core/pty.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/index.ts
+
+- [OK] 2026-08-16 [86e7a0d] chore: gitignore 增加 .codebuddy/ 本地记忆目录
+  - [FILES] 1: .gitignore
