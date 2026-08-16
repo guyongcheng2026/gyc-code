@@ -140,8 +140,8 @@
 - 已删除该游离文件（无引用，删除安全）。
 
 ## 三、待办（环境恢复后）
-1. 运行压测脚本（4 场景）验证 `gc --auto` 与 `write-tree` 短路的实测收益。
-2. 将 `snap-sim` 作为正式测试资产入库（`src/gyccode/snapshot/snap-sim.test.ts`）。
+1. ~~运行压测脚本（4 场景）验证 `gc --auto` 与 `write-tree` 短路的实测收益。~~ ✅ **已完成（2026-08-16）**：`snap-sim.test.ts` 4 场景全绿（git 2.47.1.windows.1），write-tree 短路省 3924ms/step，`gc --auto` 阈值内 no-op（1625ms）远快于全量 gc（9754ms）。
+2. ~~将 `snap-sim` 作为正式测试资产入库（`src/gyccode/snapshot/snap-sim.test.ts`）。~~ ✅ **已完成（2026-08-16）**：资产已入库，通过 `bun test src/gyccode/snapshot/snap-sim.test.ts` 显式运行。
 
 ---
 
@@ -266,8 +266,8 @@
 **结论**：均为有意设计或合规要求，无需清理。
 
 ## 五、待办（环境恢复后）
-1. 运行压测脚本（4 场景）验证 `gc --auto` 与 `write-tree` 短路的实测收益。
-2. 将 `snap-sim` 作为正式测试资产入库（`src/gyccode/snapshot/snap-sim.test.ts`）。
+1. ~~运行压测脚本（4 场景）验证 `gc --auto` 与 `write-tree` 短路的实测收益。~~ ✅ 已完成（2026-08-16，见 §三）。
+2. ~~将 `snap-sim` 作为正式测试资产入库（`src/gyccode/snapshot/snap-sim.test.ts`）。~~ ✅ 已完成（2026-08-16）。
 3. 可选：CH 值投影到 finish 状态栏（当前仅在侧边栏）。
 
 ## 二、TODO/FIXME 92 处分类结果（代码精炼维度）
@@ -308,7 +308,7 @@
 
 - 修改文件：`src/gyccode/worktree/index.ts`（P1 安全修复 + 冗余清理）
 - lint：无新增诊断
-- 压测环境：仍受限；`snap-sim` 待入库为正式测试资产；`benchmark.test.ts` 为有效能力基线（20 项 CLI 测试）。
+- 压测环境：已恢复；`snap-sim` 已入库为正式测试资产（2026-08-16，4 场景全绿）；`benchmark.test.ts` 为有效能力基线（20 项 CLI 测试）。
 
 ---
 
@@ -402,4 +402,4 @@
 
 1. `composer/index.ts`：需用户确认完善或删除。
 2. `executeStream not implemented`（`sqlite.node.ts:103`/`sqlite.bun.ts:102`）：无调用方，低优先级。
-3. 环境恢复后运行压测脚本。
+3. ~~环境恢复后运行压测脚本。~~ ✅ 已完成（2026-08-16，`snap-sim.test.ts` 4 场景全绿）。
