@@ -823,3 +823,6 @@
 
 - [OK] 2026-08-15 [d418599] fix(webapp): 5 issues - model select actually applied (promptAsync carries session model), mode switcher to prompt footer + TAB cycle (TUI parity), remove duplicate plan-mode toggle, session delete, Virtuoso auto-scroll fix
   - [FILES] 6: src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/PromptInput.tsx, src/webapp/src/app/SessionList.tsx, src/webapp/src/client/useSendPrompt.ts, src/webapp/src/client/useSessions.ts
+
+- [OK] 2026-08-16 [8099878] chore: snap-sim 快照压测资产入库并实测（4 场景全绿，write-tree 短路省 3924ms/step）
+  - [FILES] 2: docs/BUG-REVIEW-2026-08-14-round3.md, src/gyccode/snapshot/snap-sim.test.ts
