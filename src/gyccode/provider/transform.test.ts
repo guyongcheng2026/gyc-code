@@ -1,4 +1,5 @@
 ﻿import { describe, test, expect } from "bun:test"
+import type { ModelMessage } from "ai"
 import type { Provider } from "./provider"
 
 function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string; providerID?: string }): any {
@@ -118,7 +119,7 @@ describe("normalizeMessages", () => {
 
   test("scrubs illegal toolCallId characters for claude", () => {
     const msgs = [
-      { role: "assistant", content: [{ type: "tool-call", toolCallId: "a#b c", toolName: "bash", args: {} }] },
+      { role: "assistant", content: [{ type: "tool-call", toolCallId: "a#b c", toolName: "bash", input: {} }] },
     ] as ModelMessage[]
     const out = normalizeMessages(msgs, modelFor({ id: "claude-sonnet-4-6", npm: "@ai-sdk/anthropic" }), {})
     const part = (out[0].content as Array<{ type: string; toolCallId: string }>)[0]
@@ -129,7 +130,7 @@ describe("normalizeMessages", () => {
     const msgs = [
       {
         role: "assistant",
-        content: [{ type: "tool-call", toolCallId: "call-1234567890", toolName: "bash", args: {} }],
+        content: [{ type: "tool-call", toolCallId: "call-1234567890", toolName: "bash", input: {} }],
       },
       { role: "tool", content: [{ type: "tool-result", toolCallId: "call-1234567890", output: { type: "text", value: "ok" } }] },
       { role: "user", content: "next" },
