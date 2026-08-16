@@ -5,6 +5,9 @@
 // TUI 的 OpenTUI 原生渲染经 koffi（opentui.dll）在 Node 下可用，worker 经
 // node:worker_threads 运行，故无需再为 TUI 切到 Bun 运行时（Bun 常驻内存
 // 回收不稳定，实测 TUI 私有内存可达 1.6GB；Node 常驻更省更稳）。
+// 注意：不要在此处对 stdout/stderr 调用 setEncoding，也不要用 cmd.exe /c chcp
+// 包裹子进程——前者破坏 OpenTUI 输出路径，后者破坏 Ctrl+C 信号传递；
+// 控制台 UTF-8 由进程内 win32EnableUtf8Console()（kernel32 代码页 65001）解决。
 
 const { existsSync, readFileSync } = require("fs")
 const path = require("path")

@@ -35,6 +35,12 @@ for (const file of ENV_FILES) {
 // 导致 TUI 底部 spinner（Braille 字符）与中文状态文本显示为乱码。启动时
 // 将控制台输出代码页切换为 UTF-8（65001），幂等且对 Windows Terminal 无副作用。
 win32EnableUtf8Console()
+// 注意：禁止对 stdin/stdout/stderr 调用 setEncoding。
+// 1) Windows 控制台 TTY 上 stdin.setEncoding 会触发 libuv 断言崩溃
+//    （Assertion failed: 0, file src\win\req-inl.h）；
+// 2) OpenTUI 的 StdinParser 依赖原始字节流（Buffer）解析键盘事件，
+//    设置编码后 data 事件变为 string，中文输入、/命令选择、模型切换全部失效。
+// 乱码问题由 win32EnableUtf8Console() 切换控制台代码页 65001 解决。
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { FormatError } from "./cli/error"

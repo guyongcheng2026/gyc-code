@@ -982,6 +982,14 @@ async function interactiveLoop(input: CliInput) {
       let cursor = 0
       let selected = 0
       let menu: string[] = []
+      // 流式 UTF-8 解码器：中文 IME 输入以多字节序列到达，且可能跨 chunk 拆分。
+      // stream:true 语义下，不完整的尾部序列由解码器内部暂存，直到后续字节补齐
+      // 才输出完整字符——逐字节喂入即可，无需手工维护字节缓冲区。
+      // （注意：非流式 decode 会把不完整序列直接替换为 U+FFFD，造成中文乱码。）
+      const decoder = new TextDecoder("utf-8")
+      const decodeByte = (b: number): string => decoder.decode(new Uint8Array([b]), { stream: true })
+      const flushDecoder = (): string => decoder.decode()
+
       const render = () => {
         // 输入行：回到行首清行，重绘提示符 + 输入 + 光标归位。
         process.stdout.write("\r\x1b[K" + CYAN_PROMPT + "?\x1b[0m " + buffer)
@@ -1037,6 +1045,8 @@ async function interactiveLoop(input: CliInput) {
             input.pause()
             process.exit(0)
           } else if (ch === 13 || ch === 10) {
+            // 刷新解码器（处理可能残留的不完整 UTF-8 序列）
+            buffer += flushDecoder()
             process.stdout.write("\r\x1b[K\n")
             input.setRawMode(false)
             input.pause()
@@ -1050,6 +1060,8 @@ async function interactiveLoop(input: CliInput) {
               render()
             }
           } else if (ch === 127 || ch === 8) {
+            // 退格：先刷新解码器，再删除一个字符
+            buffer += flushDecoder()
             if (cursor > 0) {
               buffer = buffer.slice(0, cursor - 1) + buffer.slice(cursor)
               cursor--
@@ -1059,10 +1071,14 @@ async function interactiveLoop(input: CliInput) {
           } else if (ch === 27) {
             esc = "\x1b"
           } else {
-            buffer = buffer.slice(0, cursor) + String.fromCharCode(ch) + buffer.slice(cursor)
-            cursor++
-            refreshMenu()
-            render()
+            // 普通字符：流式解码；不完整的多字节序列由解码器暂存，返回空串
+            const decoded = decodeByte(ch)
+            if (decoded) {
+              buffer = buffer.slice(0, cursor) + decoded + buffer.slice(cursor)
+              cursor += decoded.length
+              refreshMenu()
+              render()
+            }
           }
         }
       })

@@ -4,6 +4,7 @@ import { makeLocationNode } from "./effect/app-node"
 import type { Disp, Proc } from "#pty"
 import { Context, Effect, Layer, Schema, Types } from "effect"
 import { Pty } from "@gyccode/schema/pty"
+import { existsSync } from "node:fs"
 import { Config } from "./config"
 import { EventV2 } from "./event"
 import { Location } from "./location"
@@ -169,9 +170,19 @@ const layer = Layer.effect(
 
     const create = Effect.fn("Pty.create")(function* (input: CreateInput) {
       const id = PtyID.ascending()
-      const command = input.command || Shell.preferred(Config.latest(yield* config.entries(), "shell"))
-      const args = Shell.login(command) ? [...(input.args ?? []), "-l"] : [...(input.args ?? [])]
       const cwd = input.cwd || location.directory
+      // input.command 可能是带参数的完整命令行（如 "cmd /c echo hi"），
+      // 而 node-pty 在 Windows 下 spawn 的 file 必须是单个可执行文件路径，
+      // 不能把整条命令行当 file。检测到含空格且不是真实存在的文件时，
+      // 回退为用配置 shell 包裹执行该命令行。
+      const shellFile = Shell.preferred(Config.latest(yield* config.entries(), "shell"))
+      let command = input.command ?? shellFile
+      let args = [...(input.args ?? [])]
+      if (!input.args && input.command && /\s/.test(input.command) && !existsSync(input.command)) {
+        command = shellFile
+        args = Shell.args(shellFile, input.command, cwd)
+      }
+      if (Shell.login(command)) args = [...args, "-l"]
       const env = {
         ...process.env,
         ...input.env,
