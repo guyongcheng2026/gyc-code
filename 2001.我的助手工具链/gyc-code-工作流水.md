@@ -841,3 +841,6 @@
 
 - [OK] 2026-08-16 [0288357] P1 重构 normalizeMessages：纯函数管道 + 消除 any + filterEmpty 单次遍历
   - [FILES] 2: src/gyccode/provider/transform.test.ts, src/gyccode/provider/transform.ts
+
+- [OK] 2026-08-16 [ec5650f] fix(provider): 修复 transform.test.ts tsc 回归（ModelMessage 导入 + ToolCallPart.input）
+  - [FILES] 1: src/gyccode/provider/transform.test.ts
