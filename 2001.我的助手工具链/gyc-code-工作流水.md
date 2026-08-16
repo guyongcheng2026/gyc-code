@@ -835,3 +835,6 @@
 
 - [OK] 2026-08-16 [75bed72] P0 三端对齐：ToolSearch/Config/Sleep 工具 + /context /copy /branch 命令
   - [FILES] 15: src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run/copy.shared.ts, src/gyccode/cli/cmd/run/footer.prompt.tsx, src/gyccode/cli/cmd/run/runtime.queue.ts, src/gyccode/cli/cmd/run/runtime.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts ...
+
+- [OK] 2026-08-16 [f02f0ef] P0 mini 迁移完成：移除 gyc --mini（cli/web 已补齐对齐，功能 100% 覆盖）
+  - [FILES] 47: docs/compose/reports/mini-migration-matrix.md, src/gyccode/cli/cmd/attach.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/run.ts, src/gyccode/cli/cmd/run/demo.ts, src/gyccode/cli/cmd/run/entry.body.ts ...
