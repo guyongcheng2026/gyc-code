@@ -1,7 +1,6 @@
 # Dependencies
 node_modules/
 .bun/
-bun.lock
 bun.lockb
 
 # Build output
