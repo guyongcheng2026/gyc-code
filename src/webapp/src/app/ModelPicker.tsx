@@ -4,13 +4,17 @@ import type { ModelOption } from "../client/useModels"
 export function ModelPicker({
   models,
   current,
+  currentVariant,
   loading,
   onSelect,
+  onSelectVariant,
 }: {
   models: ModelOption[]
   current: string
+  currentVariant?: string
   loading: boolean
   onSelect: (label: string) => void
+  onSelectVariant?: (variant: string | undefined) => void
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
@@ -50,6 +54,37 @@ export function ModelPicker({
             style={{ borderBottom: "1px solid var(--border-subtle)" }}
             autoFocus
           />
+          {current && onSelectVariant ? (() => {
+            const selected = models.find((m) => m.label === current)
+            if (!selected || selected.variants.length === 0) return null
+            return (
+              <div style={{ borderTop: "1px solid var(--border-subtle)", padding: "6px 8px" }}>
+                <div style={{ fontSize: 11, color: "var(--inactive)", marginBottom: 4 }}>变体 variant</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {["", ...selected.variants].map((variant) => {
+                    const active = (variant || "") === (currentVariant || "")
+                    return (
+                      <button
+                        key={variant || "default"}
+                        className="btn"
+                        style={{
+                          fontSize: 11,
+                          padding: "2px 8px",
+                          borderColor: active ? "var(--border)" : "var(--border-subtle)",
+                          color: active ? "var(--fg)" : "var(--inactive)",
+                          background: active ? "var(--selection-bg)" : "transparent",
+                          fontWeight: active ? 600 : 400,
+                        }}
+                        onClick={() => onSelectVariant(variant || undefined)}
+                      >
+                        {variant || "默认"}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })() : null}
           <div style={{ maxHeight: 320, overflowY: "auto" }}>
             {filtered.length === 0 ? (
               <div style={{ padding: 12, color: "var(--inactive)", fontSize: 12 }}>无匹配模型</div>

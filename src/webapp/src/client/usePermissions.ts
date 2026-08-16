@@ -22,13 +22,13 @@ export function usePermissions(sessionID: string | null, directory?: string) {
   })
 
   const resolve = useCallback(
-    async (permissionID: string, allow: boolean) => {
+    async (permissionID: string, response: "once" | "always" | "reject") => {
       if (!sessionID) return
       await sdk(directory).postSessionIdPermissionsPermissionId({
         path: { id: sessionID, permissionID },
-        body: { response: allow ? "once" : "reject" },
+        body: { response },
       })
-      dispatch({ type: "permission.replied", properties: { sessionID, permissionID, response: "once" } })
+      dispatch({ type: "permission.replied", properties: { sessionID, permissionID, response } })
     },
     [sessionID, directory],
   )

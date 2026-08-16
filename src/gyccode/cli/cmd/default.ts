@@ -23,10 +23,10 @@ function formatRunError(error: unknown) {
   return FormatError(error) ?? FormatUnknownError(error)
 }
 
-// 交互模式下用户在场，但第一版无授权 UI，权限保持与 `gyc run` 相同的拒绝规则
-// （permission.asked 事件由 streamLoop 打印提示并自动拒绝，安全默认）。
+// 交互模式下权限与问题问答由 streamLoop 的 interactive 回调在线处理
+// （permission: y=允许一次 / a=始终允许 / n=拒绝；question: 逐问回答）。
+// plan_enter/plan_exit 保持拒绝（plan 模式仅通过 gyc tui / gyc web 使用）。
 const INTERACTIVE_PERMISSIONS: PermissionV1.Ruleset = [
-  { permission: "question", action: "deny", pattern: "*" },
   { permission: "plan_enter", action: "deny", pattern: "*" },
   { permission: "plan_exit", action: "deny", pattern: "*" },
 ]
@@ -66,7 +66,68 @@ async function createLocalClient(directory: string): Promise<GyccodeClient> {
   })
 }
 
+// 交互模式下的临时单行输入（readline 独立实例；raw 输入循环已暂停 stdin）。
+async function readLine(prompt: string): Promise<string> {
+  const { createInterface } = await import("node:readline/promises")
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    return await rl.question(prompt)
+  } finally {
+    rl.close()
+    try {
+      process.stdin.pause()
+    } catch {}
+  }
+}
+
+// 构建 streamLoop 的交互回调：权限审批（y/a/n）与问题问答（数字选择/自定义）。
+function createStreamInteractive(): NonNullable<Parameters<typeof streamLoop>[0]["interactive"]> {
+  return {
+    askPermission: async (permission) => {
+      UI.println(
+        UI.Style.TEXT_WARNING_BOLD + "!",
+        UI.Style.TEXT_NORMAL +
+          `permission requested: ${permission.permission} (${permission.patterns.join(", ")})`,
+      )
+      UI.println("  [y] 允许一次  [a] 始终允许  [n/Enter] 拒绝")
+      for (;;) {
+        const line = (await readLine("  > ")).trim().toLowerCase()
+        if (line === "y") return "once"
+        if (line === "a") return "always"
+        if (line === "n" || line === "" || line === "q") return "reject"
+      }
+    },
+    askQuestion: async (request) => {
+      request.questions.forEach((question, index) => {
+        UI.println(`  Q${index + 1}: ${question.question}`)
+        question.options.forEach((option, j) =>
+          UI.println(`    [${j + 1}] ${option.label}${option.description ? " — " + option.description : ""}`),
+        )
+        if (question.custom !== false) UI.println("    [0] 自定义答案")
+      })
+      const line = await readLine("  回答（每问用 | 分隔，多选用逗号）: ")
+      const parts = line.split("|")
+      return request.questions.map((question, index) => {
+        const raw = (parts[index] ?? "").trim()
+        if (!raw) return []
+        return raw
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean)
+          .map((item) => {
+            const num = Number(item)
+            if (Number.isInteger(num) && num >= 1 && num <= question.options.length) {
+              return question.options[num - 1]!.label
+            }
+            return item
+          })
+      })
+    },
+  }
+}
+
 // 一轮对话：订阅事件流 → prompt → 流式渲染直到 idle。
+
 async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, input: CliInput) {
   const events = await sdk.event.subscribe()
   const completed = streamLoop({
@@ -76,6 +137,11 @@ async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, inpu
     format: "default",
     thinking: input.thinking,
     auto: input.auto,
+    interactive: createStreamInteractive(),
+    question: {
+      reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
+      reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
+    },
   })
   const result = await sdk.session.prompt({
     sessionID,
@@ -283,6 +349,46 @@ async function runSlashCommand(
       await renderWelcome(sdk, nextID, input)
       return "continue"
     }
+    case "continue":
+    case "resume": {
+      let target = args.trim()
+      if (!target) {
+        try {
+          const list = await sdk.session.list()
+          const sessions = (list.data ?? []).filter((s) => s && typeof s.id === "string")
+          if (sessions.length === 0) {
+            process.stdout.write("没有可继续的会话。\n")
+            return "continue"
+          }
+          process.stdout.write("最近会话（按更新时间排序）：\n")
+          const choices: ListChoice[] = sessions.slice(0, 10).map((s) => ({
+            label: `${s.title || s.id}${s.agent ? ` [${s.agent}]` : ""}`,
+            value: s.id,
+          }))
+          const chosen = await selectFromList("选择要继续的会话（Enter 确认）", choices)
+          if (!chosen) {
+            process.stdout.write("已取消。\n")
+            return "continue"
+          }
+          target = chosen
+        } catch (e) {
+          UI.error(formatRunError(e))
+          return "continue"
+        }
+      }
+      try {
+        const session = await sdk.session.get({ sessionID: target }).catch(() => undefined)
+        if (!session?.data) {
+          UI.error(`会话不存在: ${target}`)
+          return "continue"
+        }
+        currentSessionId = target
+        process.stdout.write(`已继续会话: ${target}（${session.data.title || "(未命名)"}）\n`)
+      } catch (e) {
+        UI.error(formatRunError(e))
+      }
+      return "continue"
+    }
     case "compact": {
       try {
         const result = await sdk.v2.session.compact({ sessionID })
@@ -361,6 +467,62 @@ async function runSlashCommand(
         } else {
           process.stdout.write(`已切换到模型: ${parsed.providerID}/${parsed.modelID}\n`)
         }
+      } catch (e) {
+        UI.error(formatRunError(e))
+      }
+      return "continue"
+    }
+    case "variant": {
+      try {
+        const session = await sdk.session.get({ sessionID })
+        const current = session.data?.model
+        if (!current) {
+          UI.error("当前会话未设置显式模型，无法查看/切换变体")
+          return "continue"
+        }
+        const listRes = await sdk.v2.model.list()
+        const info = (listRes.data?.data ?? []).find(
+          (m) => m.providerID === current.providerID && m.id === current.id,
+        )
+        const variants = (info?.variants ?? []).map((v) => v.id)
+        const currentVariant = current.variant && current.variant !== "default" ? current.variant : undefined
+        const applyVariant = async (variant: string | undefined) => {
+          const result = await sdk.v2.session.switchModel({
+            sessionID,
+            model: { providerID: current.providerID, id: current.id, variant },
+          })
+          if (result.error) {
+            UI.error(formatRunError(result.error))
+          } else {
+            process.stdout.write(`已切换变体: ${variant ?? "默认"}\n`)
+          }
+        }
+        if (!args.trim()) {
+          if (variants.length === 0) {
+            process.stdout.write(`模型 ${current.providerID}/${current.id} 无可用变体（当前: ${currentVariant ?? "默认"}）。\n`)
+            return "continue"
+          }
+          const choices: ListChoice[] = [
+            { label: `默认${currentVariant ? "" : "  ✓"}`, value: "" },
+            ...variants.map((v) => ({
+              label: `${v}${v === currentVariant ? "  ✓" : ""}`,
+              value: v,
+            })),
+          ]
+          const chosen = await selectFromList(`选择变体（当前: ${currentVariant ?? "默认"}）`, choices)
+          if (chosen === undefined) {
+            process.stdout.write("已取消。\n")
+            return "continue"
+          }
+          await applyVariant(chosen || undefined)
+          return "continue"
+        }
+        const target = args.trim()
+        if (target !== "default" && !variants.includes(target)) {
+          UI.error(`变体不可用: ${target}（可选: ${variants.join(", ") || "无"}）`)
+          return "continue"
+        }
+        await applyVariant(target === "default" ? undefined : target)
       } catch (e) {
         UI.error(formatRunError(e))
       }
@@ -511,8 +673,10 @@ const HELP_TEXT = [
   "    /exit  /quit       退出",
   "    /help              显示本帮助",
   "    /clear  /new       清空当前会话上下文，开启全新会话",
+  "    /continue [id]    继续最近会话（无参数时列出最近 10 个供选择）",
   "    /compact           压缩当前会话上下文（保留摘要）",
   "    /model [name]      查看当前模型，或切换模型（如 /model deepseek/deepseek-v4-flash）",
+  "    /variant [name]   查看当前模型变体，或切换（如 /variant high）",
   "    /agent [name]      查看当前 agent，或切换 agent",
   "    /status            显示版本/模型/会话/目录信息",
   "    /cost              显示当前会话 token 用量与成本",
@@ -531,9 +695,12 @@ const HELP_TEXT = [
 const SLASH_COMMANDS = [
   "/help",
   "/clear",
+  "/continue",
+  "/resume",
   "/new",
   "/compact",
   "/model",
+  "/variant",
   "/agent",
   "/status",
   "/cost",

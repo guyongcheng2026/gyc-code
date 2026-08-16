@@ -638,6 +638,12 @@ export const RunCommand = effectCmd({
             format: args.format === "json" ? "json" : "default",
             thinking,
             auto,
+            // 非交互单轮：问题问答无人在场，打印后自动拒绝，避免会话挂起等待。
+            question: {
+              reply: (requestID, answers) =>
+                client.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
+              reject: (requestID) => client.v2.session.question.reject({ sessionID, requestID }),
+            },
           }).catch((e) => {
             console.error(e)
             process.exitCode = 1

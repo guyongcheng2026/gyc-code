@@ -5,7 +5,7 @@ export function PermissionCard({
   onResolve,
 }: {
   item: PermissionItem
-  onResolve: (permissionID: string, allow: boolean) => void
+  onResolve: (permissionID: string, response: "once" | "always" | "reject") => void
 }) {
   const pattern = Array.isArray(item.pattern) ? item.pattern.join(", ") : item.pattern
   const detail = item.metadata && "command" in item.metadata ? String(item.metadata.command) : pattern
@@ -35,14 +35,21 @@ export function PermissionCard({
         <button
           className="btn"
           style={{ borderColor: "var(--success)", color: "var(--success)", fontWeight: 600 }}
-          onClick={() => onResolve(item.id, true)}
+          onClick={() => onResolve(item.id, "once")}
         >
-          允许
+          允许一次
+        </button>
+        <button
+          className="btn"
+          style={{ borderColor: "var(--border)", color: "var(--success)" }}
+          onClick={() => onResolve(item.id, "always")}
+        >
+          始终允许
         </button>
         <button
           className="btn"
           style={{ borderColor: "var(--error)", color: "var(--error)" }}
-          onClick={() => onResolve(item.id, false)}
+          onClick={() => onResolve(item.id, "reject")}
         >
           拒绝
         </button>

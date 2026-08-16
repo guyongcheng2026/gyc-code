@@ -7,7 +7,7 @@ export type SessionInfo = {
   title?: string | null
   cost?: number
   tokens?: { input: number; output: number; reasoning: number; cache: { read: number; write: number } }
-  model?: { providerID: string; modelID: string }
+  model?: { providerID: string; modelID: string; variant?: string }
   agent?: string
   status?: string
   todos: { content: string; done?: boolean }[]

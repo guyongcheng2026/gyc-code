@@ -2,6 +2,7 @@
 import { useChatSession } from "../client/useChatSession"
 import { useSendPrompt } from "../client/useSendPrompt"
 import { usePermissions } from "../client/usePermissions"
+import { useQuestions } from "../client/useQuestions"
 import { useSessionActions } from "../client/useSessionActions"
 import { useCommands } from "../client/useCommands"
 import { useSessionInfo } from "../client/useSessionInfo"
@@ -9,6 +10,7 @@ import { useModels } from "../client/useModels"
 import { MessageList } from "./MessageList"
 import { PromptInput } from "./PromptInput"
 import { PermissionCard } from "./PermissionCard"
+import { QuestionCard } from "./QuestionCard"
 import { StatusBar } from "./StatusBar"
 import { ModelPicker } from "./ModelPicker"
 import { ModeSwitcher, type ModeID } from "./ModeSwitcher"
@@ -19,7 +21,8 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const { messages, busy } = useChatSession(sessionID)
   const { send } = useSendPrompt(sessionID)
   const { queue, resolve } = usePermissions(sessionID)
-  const { command, abort, fork, summarize, switchAgent, switchModel } = useSessionActions()
+  const { requests, reply, reject } = useQuestions(sessionID)
+  const { command, abort, fork, summarize, switchAgent, switchModel, background } = useSessionActions()
   const { commands } = useCommands()
   const { info, refresh: refreshInfo } = useSessionInfo(sessionID)
   const { models, loading: modelsLoading } = useModels()
@@ -27,6 +30,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
 
   const currentAgent = (info?.agent ?? "build") as ModeID
   const currentModel = info?.model ? `${info.model.providerID}/${info.model.modelID}` : ""
+  const currentVariant = info?.model?.variant
 
   const err = (e: unknown) => setSendError(e instanceof Error ? e.message : String(e))
 
@@ -43,6 +47,14 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
     const [providerID, modelID] = label.split("/")
     if (providerID && modelID)
       switchModel(sessionID, providerID, modelID)
+        .then(() => refreshInfo())
+        .catch(err)
+  }
+
+  const onVariantSelect = (variant: string | undefined) => {
+    const [providerID, modelID] = currentModel.split("/")
+    if (providerID && modelID)
+      switchModel(sessionID, providerID, modelID, variant)
         .then(() => refreshInfo())
         .catch(err)
   }
@@ -96,6 +108,9 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         {queue.map((p) => (
           <PermissionCard key={p.id} item={p} onResolve={resolve} />
         ))}
+        {requests.map((r) => (
+          <QuestionCard key={r.id} request={r} onReply={reply} onReject={reject} />
+        ))}
         <MessageList messages={messages} />
       </div>
       {sendError ? <div style={{ padding: "0 24px", color: "var(--error)", fontSize: 13 }}>{sendError}</div> : null}
@@ -111,7 +126,14 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         />
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "6px 4px 0" }}>
           <ModeSwitcher current={currentAgent} disabled={busy} onSelect={setMode} />
-          <ModelPicker models={models} current={currentModel} loading={modelsLoading} onSelect={onModelSelect} />
+          <ModelPicker
+            models={models}
+            current={currentModel}
+            currentVariant={currentVariant}
+            loading={modelsLoading}
+            onSelect={onModelSelect}
+            onSelectVariant={onVariantSelect}
+          />
         </div>
         <StatusBar info={info} />
       </div>

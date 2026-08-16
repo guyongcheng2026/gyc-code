@@ -61,6 +61,35 @@ async function toolError(part: ToolPart) {
   }
 }
 
+export type PermissionAsk = {
+  id: string
+  sessionID: string
+  permission: string
+  patterns: Array<string>
+}
+
+export type QuestionAsk = {
+  id: string
+  sessionID: string
+  questions: Array<{
+    header: string
+    question: string
+    options: Array<{ label: string; description?: string }>
+    multiple?: boolean
+    custom?: boolean
+  }>
+}
+
+export type StreamInteractive = {
+  askPermission: (permission: PermissionAsk) => Promise<"once" | "always" | "reject">
+  askQuestion: (request: QuestionAsk) => Promise<Array<Array<string>> | undefined>
+}
+
+export type StreamQuestion = {
+  reply: (requestID: string, answers: Array<Array<string>>) => Promise<unknown>
+  reject: (requestID: string) => Promise<unknown>
+}
+
 export type StreamLoopInput = {
   client: GyccodeClient
   events: Awaited<ReturnType<GyccodeClient["event"]["subscribe"]>>
@@ -68,12 +97,14 @@ export type StreamLoopInput = {
   format: "default" | "json"
   thinking: boolean
   auto: boolean
+  interactive?: StreamInteractive
+  question?: StreamQuestion
 }
 
 // 消费一个已订阅的事件流并镜像到 stdout/UI，直到会话 idle。
 // 返回会话错误文本（若有）；调用方据此设置退出码。
 export async function streamLoop(input: StreamLoopInput): Promise<string | undefined> {
-  const { client, events, sessionID, format, thinking, auto } = input
+  const { client, events, sessionID, format, thinking, auto, interactive, question } = input
   const toggles = new Map<string, boolean>()
   let error: string | undefined
 
@@ -199,6 +230,12 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
           requestID: permission.id,
           reply: "once",
         })
+      } else if (interactive) {
+        const reply = await interactive.askPermission(permission)
+        await client.permission.reply({
+          requestID: permission.id,
+          reply,
+        })
       } else {
         UI.println(
           UI.Style.TEXT_WARNING_BOLD + "!",
@@ -209,6 +246,32 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
           requestID: permission.id,
           reply: "reject",
         })
+      }
+    }
+
+    if (event.type === "question.asked") {
+      const request = event.properties as QuestionAsk
+      if (request.sessionID !== sessionID) continue
+
+      if (interactive) {
+        const answers = await interactive.askQuestion(request)
+        if (answers) {
+          await question?.reply(request.id, answers)
+        } else {
+          await question?.reject(request.id)
+        }
+      } else if (question) {
+        const labels = request.questions.map((item) => item.header).join(", ")
+        UI.println(
+          UI.Style.TEXT_WARNING_BOLD + "!",
+          UI.Style.TEXT_NORMAL + `question requested: ${labels}; auto-rejecting`,
+        )
+        await question.reject(request.id)
+      } else {
+        UI.println(
+          UI.Style.TEXT_WARNING_BOLD + "!",
+          UI.Style.TEXT_NORMAL + "question requested; no question handler, leaving unanswered",
+        )
       }
     }
   }

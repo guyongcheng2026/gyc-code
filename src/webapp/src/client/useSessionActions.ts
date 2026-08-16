@@ -63,6 +63,14 @@ export function useSessionActions(directory?: string) {
     [directory],
   )
 
+  // 后台化阻塞子代理（detach 后继续后台运行），走 v2 experimental.session.background
+  const background = useCallback(
+    async (id: string) => {
+      await v2(directory).experimental.session.background({ sessionID: id })
+    },
+    [directory],
+  )
+
   // 切换会话模型，走 v2 switchModel
   const switchModel = useCallback(
     async (id: string, providerID: string, modelID: string) => {
@@ -71,6 +79,6 @@ export function useSessionActions(directory?: string) {
     [directory],
   )
 
-  return { rename, fork, remove, abort, summarize, revert, command, switchAgent, switchModel }
+  return { rename, fork, remove, abort, summarize, revert, command, switchAgent, switchModel, background }
 }
 
