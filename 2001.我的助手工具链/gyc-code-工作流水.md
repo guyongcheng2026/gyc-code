@@ -844,3 +844,6 @@
 
 - [OK] 2026-08-16 [ec5650f] fix(provider): 修复 transform.test.ts tsc 回归（ModelMessage 导入 + ToolCallPart.input）
   - [FILES] 1: src/gyccode/provider/transform.test.ts
+
+- [OK] 2026-08-16 [6e0b69d] chore(deps): 依赖治理三件套 — bun.lock 入库、通配符固化、effect 全家桶对齐
+  - [FILES] 3: .gitignore, bun.lock, package.json
