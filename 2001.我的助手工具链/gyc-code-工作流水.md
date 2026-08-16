@@ -847,3 +847,6 @@
 
 - [OK] 2026-08-16 [6e0b69d] chore(deps): 依赖治理三件套 — bun.lock 入库、通配符固化、effect 全家桶对齐
   - [FILES] 3: .gitignore, bun.lock, package.json
+
+- [OK] 2026-08-16 [41eacdb] fix(tui): 修复 Windows TUI 崩溃与中文乱码 — 移除 stdin setEncoding、流式 TextDecoder 解码
+  - [FILES] 4: bin/gyc, src/core/pty.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/index.ts
