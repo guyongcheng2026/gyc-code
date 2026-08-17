@@ -10,6 +10,33 @@ import { Global } from "@gyccode/core/global"
 const skillConcurrency = 4
 const fileConcurrency = 8
 
+// 远程 index.json 的字段不可信：name/file 均不得逃逸缓存目录
+// （对齐 v2 版 src/core/skill/discovery.ts 的 isSafeSegment/isSafeRelativePath）。
+function isSafeSegment(value: string) {
+  return (
+    value.length > 0 &&
+    value !== "." &&
+    value !== ".." &&
+    !value.includes("/") &&
+    !value.includes("\\") &&
+    !value.includes("\0")
+  )
+}
+
+function isSafeRelativePath(value: string) {
+  const segments = value.split("/")
+  return (
+    value.length > 0 &&
+    !value.includes("\\") &&
+    !value.includes("\0") &&
+    !value.includes("?") &&
+    !value.includes("#") &&
+    !path.posix.isAbsolute(value) &&
+    !path.win32.isAbsolute(value) &&
+    segments.every((segment) => segment !== "" && segment !== "." && segment !== "..")
+  )
+}
+
 class IndexSkill extends Schema.Class<IndexSkill>("IndexSkill")({
   name: Schema.String,
   files: Schema.Array(Schema.String),
@@ -64,13 +91,20 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | Path.Path | HttpClient
 
       if (!data) return []
 
-      const missing = data.skills.filter((skill) => !skill.files.includes("SKILL.md"))
-      yield* Effect.forEach(
-        missing,
-        (skill) => Effect.logWarning("skill entry missing SKILL.md", { url: index, skill: skill.name }),
-        { discard: true },
+      for (const skill of data.skills) {
+        if (!skill.files.includes("SKILL.md")) {
+          yield* Effect.logWarning("skill entry missing SKILL.md", { url: index, skill: skill.name })
+        } else if (!isSafeSegment(skill.name) || !skill.files.every((file) => isSafeRelativePath(file))) {
+          // 路径穿越防护：拒绝逃逸缓存目录的 name/file，避免远程 index 任意写文件
+          yield* Effect.logError("skill entry contains unsafe path, skipped", { url: index, skill: skill.name })
+        }
+      }
+      const list = data.skills.filter(
+        (skill) =>
+          skill.files.includes("SKILL.md") &&
+          isSafeSegment(skill.name) &&
+          skill.files.every((file) => isSafeRelativePath(file)),
       )
-      const list = data.skills.filter((skill) => skill.files.includes("SKILL.md"))
 
       const dirs = yield* Effect.forEach(
         list,

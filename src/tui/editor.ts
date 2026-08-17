@@ -32,16 +32,36 @@ export async function openEditor(input: { value: string; renderer: CliRenderer; 
   input.renderer.currentRenderBuffer.clear()
   try {
     await new Promise<void>((resolve, reject) => {
-      const parts = editor.split(" ")
-      const child = spawn(parts[0]!, [...parts.slice(1), file], {
+      // 解析带引号的 $VISUAL/$EDITOR（支持 "C:\Program Files\...\code.exe" 形式）；
+      // 不再启用 shell：args 数组原生传参，含空格的 tmp 路径不会被拆断
+      const parts = [...editor.matchAll(/"([^"]*)"|(\S+)/g)].map((m) => m[1] ?? m[2]) as string[]
+      const args = [...parts.slice(1), file]
+      const spawnOpts = {
         cwd: input.cwd && existsSync(input.cwd) ? input.cwd : process.cwd(),
-        stdio: [input.stdin ?? "inherit", "inherit", "inherit"],
-        shell: process.platform === "win32",
-      })
-      child.on("error", reject)
-      child.on("exit", (code, signal) => {
-        if (code === 0) return resolve()
-        reject(new Error(`Editor exited with ${signal ? `signal ${signal}` : `code ${code}`}`))
+        stdio: [input.stdin ?? "inherit", "inherit", "inherit"] as const,
+      }
+      const child = spawn(parts[0]!, args, spawnOpts)
+      const settle = (c: ReturnType<typeof spawn>) => {
+        c.on("exit", (code, signal) => {
+          if (code === 0) return resolve()
+          reject(new Error(`Editor exited with ${signal ? `signal ${signal}` : `code ${code}`}`))
+        })
+      }
+      settle(child)
+      // Windows 上 .cmd/.bat shim（如 code）无法被非 shell spawn 执行：
+      // spawn error 时降级为 shell 模式并对含空格参数加引号重试
+      child.once("error", (err: NodeJS.ErrnoException) => {
+        if (err.code !== "ENOENT" && err.code !== "EINVAL") {
+          reject(err)
+          return
+        }
+        const quoted = [parts[0]!, ...parts.slice(1), file].map((a) => (a.includes(" ") ? `"${a}"` : a))
+        const retry = spawn(quoted.join(" "), {
+          ...spawnOpts,
+          shell: process.platform === "win32",
+        })
+        retry.on("error", reject)
+        settle(retry)
       })
     })
     return (await readFile(file, "utf8")) || undefined

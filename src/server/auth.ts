@@ -1,6 +1,14 @@
 export * as ServerAuth from "./auth"
 
 import { Config as EffectConfig, Context, Effect, Layer, Option, Redacted } from "effect"
+import { createHash, timingSafeEqual } from "node:crypto"
+
+// 恒定时间比较：先哈希到等长摘要再比对，避免字符串短路比较的计时侧信道
+function safeEqual(a: string, b: string) {
+  const ha = createHash("sha256").update(a).digest()
+  const hb = createHash("sha256").update(b).digest()
+  return timingSafeEqual(ha, hb)
+}
 
 export type Credentials = {
   password?: string
@@ -44,8 +52,8 @@ export function required(config: Info) {
 export function authorized(credentials: DecodedCredentials, config: Info) {
   return (
     Option.isSome(config.password) &&
-    credentials.username === config.username &&
-    Redacted.value(credentials.password) === config.password.value
+    safeEqual(credentials.username, config.username) &&
+    safeEqual(Redacted.value(credentials.password), config.password.value)
   )
 }
 

@@ -1,11 +1,14 @@
 import { TextAttributes } from "@opentui/core"
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createResource, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { useToast } from "../ui/toast"
 import { useClipboard } from "../context/clipboard"
 import { useBindings } from "../keymap"
-import { execSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+const execFileAsync = promisify(execFile)
 
 interface GitStatus {
   staged: string[]
@@ -16,36 +19,50 @@ interface GitStatus {
   behind: number
 }
 
-function runGit(args: string[], cwd?: string): string {
+const EMPTY_STATUS: GitStatus = { staged: [], unstaged: [], untracked: [], branch: "unknown", ahead: 0, behind: 0 }
+
+// 异步 + 参数数组直传（不走 shell）：避免 execSync 阻塞渲染线程（大仓库下
+// 3 条 git 串行最坏 15s 冻结），同时消除命令拼接注入面。
+async function runGit(args: string[], cwd?: string): Promise<string> {
   try {
-    return execSync(`git ${args.join(" ")}`, {
+    const { stdout } = await execFileAsync("git", args, {
       encoding: "utf8",
       timeout: 5000,
       cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim()
+      maxBuffer: 4 * 1024 * 1024,
+    })
+    return stdout.trim()
   } catch {
     return ""
   }
 }
 
-function parseStatus(cwd?: string): GitStatus {
-  const branch = runGit(["rev-parse", "--abbrev-ref", "HEAD"], cwd) || "unknown"
-  const output = runGit(["status", "--porcelain=v1", "-z"], cwd)
+async function parseStatus(cwd?: string): Promise<GitStatus> {
+  const branch = (await runGit(["rev-parse", "--abbrev-ref", "HEAD"], cwd)) || "unknown"
+  const output = await runGit(["status", "--porcelain=v1", "-z"], cwd)
   const staged: string[] = []
   const unstaged: string[] = []
   const untracked: string[] = []
 
-  for (const line of output.split("\0")) {
+  const entries = output.split("\0")
+  for (let i = 0; i < entries.length; i++) {
+    const line = entries[i]!
     if (!line) continue
     const status = line[0]
     const file = line.slice(3)
+    // -z 格式下重命名/复制条目后跟第二个 NUL 段（原路径），需一并消费
+    if (status === "R" || status === "C") {
+      const origin = entries[i + 1] ?? ""
+      i += 1
+      staged.push(origin ? `${origin} -> ${file}` : file)
+      continue
+    }
     if (status === "?") untracked.push(file)
-    else if (status === "A" || status === "M" || status === "D" || status === "R") staged.push(file)
+    else if (status === "A" || status === "M" || status === "D") staged.push(file)
     else unstaged.push(file)
   }
 
-  const tracking = runGit(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], cwd)
+  const tracking = await runGit(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], cwd)
   const [behind, ahead] = tracking.split(/\s+/).map((n) => parseInt(n, 10) || 0)
 
   return { staged, unstaged, untracked, branch, ahead, behind }
@@ -59,7 +76,9 @@ export function DialogCommit() {
 
   dialog.setSize("large")
 
-  const status = createMemo<GitStatus>(() => parseStatus())
+  const [statusResource] = createResource(() => parseStatus())
+  // latest 在加载完成前为 undefined，用空状态兜底，下游 memo/视图逻辑不变
+  const status = createMemo<GitStatus>(() => statusResource.latest ?? EMPTY_STATUS)
 
   const totalChanges = createMemo(
     () =>

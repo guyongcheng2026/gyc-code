@@ -123,30 +123,37 @@ function matchesCron(expr: CronExpression, date: Date): boolean {
 
   const matchMin = expr.minute.values.includes(min)
   const matchHour = expr.hour.values.includes(hour)
-  const matchDom = expr.dayOfMonth.values.includes(dom)
   const matchMonth = expr.month.values.includes(month)
-  // cron 规范：当 dayOfMonth 和 dayOfWeek 都不是 * 时，满足任一即匹配
-  // 但简化实现：两者都需匹配（标准 cron 行为是 OR，这里用 AND 更保守）
-  // 实际上标准 cron：如果两者都被限制，则用 OR
+  const domRestricted = expr.dayOfMonth.values.length !== 31
+  const dowRestricted = expr.dayOfWeek.values.length !== 8
+  const matchDom = expr.dayOfMonth.values.includes(dom)
+  // cron 中 7 也表示周日
   const matchDow = expr.dayOfWeek.values.includes(dow) || expr.dayOfWeek.values.includes(0)
+  // 标准 cron 语义：dayOfMonth 与 dayOfWeek 都被限定时取 OR（任一满足），
+  // 只有一个被限定时取该字段，都为 * 时恒真
+  const dayMatch =
+    domRestricted && dowRestricted
+      ? matchDom || matchDow
+      : domRestricted
+        ? matchDom
+        : dowRestricted
+          ? matchDow
+          : true
 
-  return matchMin && matchHour && matchMonth && matchDom && matchDow
+  return matchMin && matchHour && matchMonth && dayMatch
 }
 
 /** 将 cron 表达式转为人类可读描述 */
 export function cronToHuman(expr: CronExpression): string {
-  const fmtField = (f: CronField, names?: string[]): string => {
+  const fmtField = (f: CronField, min: number, max: number): string => {
     if (f.values.length === 0) return ""
-    const all = names
-      ? names.length
-      : f.values[f.values.length - 1] - f.values[0] + 1
-    const isFull = names
-      ? f.values.length === names.length
-      : f.values.length === all
+    // 只有显式覆盖整个合法区间（min..max）才显示 "*"，
+    // 单值（如 minute=30）不能因 all=len 误判为满区间
+    const isFull = f.values.length === max - min + 1 && f.values[0] === min && f.values[f.values.length - 1] === max
     if (isFull) return "*"
     return f.values.join(",")
   }
-  return `${fmtField(expr.minute)} ${fmtField(expr.hour)} ${fmtField(expr.dayOfMonth)} ${fmtField(expr.month, MONTH_NAMES)} ${fmtField(expr.dayOfWeek, DAY_NAMES)}`
+  return `${fmtField(expr.minute, 0, 59)} ${fmtField(expr.hour, 0, 23)} ${fmtField(expr.dayOfMonth, 1, 31)} ${fmtField(expr.month, 1, 12)} ${fmtField(expr.dayOfWeek, 0, 7)}`
 }
 
 // ─── Cron 任务存储 ────────────────────────────────────────────
@@ -159,6 +166,8 @@ export interface CronTask {
   durable: boolean
   nextRun: number // 下次触发的时间戳（ms）
   createdAt: number
+  /** 触发时把 prompt 投递到哪个会话 */
+  sessionID: string
 }
 
 const CRON_FILE = path.join(Global.Path.data, "scheduled_tasks.json")
@@ -176,9 +185,15 @@ export interface CronSchedulerInterface {
     prompt: string
     recurring: boolean
     durable: boolean
+    sessionID: string
   }) => Effect.Effect<CronTask>
   readonly list: () => Effect.Effect<CronTask[]>
   readonly remove: (id: string) => Effect.Effect<void>
+  /**
+   * 任务触发后调用：one-shot 删除；recurring 把 nextRun 推进到下一次匹配。
+   * 由调度方（session prompt 层的触发循环）在成功投递 prompt 后调用。
+   */
+  readonly markFired: (id: string) => Effect.Effect<void>
 }
 
 export class CronSchedulerService extends Context.Service<CronSchedulerService>()("@gyccode/CronScheduler") {}
@@ -190,7 +205,11 @@ const layer = Layer.effect(
 
     const readDurable = Effect.fn("CronScheduler.readDurable")(function* () {
       return yield* fs.readJson(CRON_FILE).pipe(
-        Effect.map((data) => (Array.isArray(data) ? (data as CronTask[]) : [])),
+        Effect.map((data) =>
+          Array.isArray(data)
+            ? (data as CronTask[]).filter((t) => typeof t.sessionID === "string" && t.sessionID !== "")
+            : [],
+        ),
         Effect.catch(() => Effect.succeed([] as CronTask[])),
       )
     })
@@ -204,6 +223,7 @@ const layer = Layer.effect(
       prompt: string
       recurring: boolean
       durable: boolean
+      sessionID: string
     }): Effect.Effect<CronTask> {
       const expr = parseCronExpression(input.cron)
       const nextRun = nextCronRunMs(expr, Date.now())
@@ -227,6 +247,7 @@ const layer = Layer.effect(
         durable: input.durable,
         nextRun,
         createdAt: Date.now(),
+        sessionID: input.sessionID,
       }
 
       if (input.durable) {
@@ -259,7 +280,29 @@ const layer = Layer.effect(
       }
     })
 
-    return CronSchedulerService.of({ add, list, remove })
+    const markFired = Effect.fn("CronScheduler.markFired")(function* (id: string): Effect.Effect<void> {
+      const session = sessionTasks.get(id)
+      if (session) {
+        const next = session.recurring ? nextCronRunMs(parseCronExpression(session.cron), Date.now()) : null
+        if (next === null) {
+          sessionTasks.delete(id)
+          return
+        }
+        sessionTasks.set(id, { ...session, nextRun: next })
+        return
+      }
+      const durable = yield* readDurable()
+      const task = durable.find((t) => t.id === id)
+      if (!task) return
+      const next = task.recurring ? nextCronRunMs(parseCronExpression(task.cron), Date.now()) : null
+      if (next === null) {
+        yield* writeDurable(durable.filter((t) => t.id !== id))
+        return
+      }
+      yield* writeDurable(durable.map((t) => (t.id === id ? { ...t, nextRun: next } : t)))
+    })
+
+    return CronSchedulerService.of({ add, list, remove, markFired })
   }),
 )
 
@@ -306,7 +349,7 @@ export const ScheduleCronTool = Tool.define(
       parameters: Parameters,
       execute: (
         params: Schema.Schema.Type<typeof Parameters>,
-        _ctx: Tool.Context,
+        ctx: Tool.Context,
       ) =>
         Effect.gen(function* () {
           const recurring = parseBoolean(params.recurring ?? true)
@@ -320,6 +363,7 @@ export const ScheduleCronTool = Tool.define(
             prompt: params.prompt,
             recurring,
             durable,
+            sessionID: ctx.sessionID,
           })
 
           const where = durable

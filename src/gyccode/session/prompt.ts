@@ -57,6 +57,7 @@ import { ProviderV2 } from "@gyccode/core/provider"
 import { eq } from "drizzle-orm"
 import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
+import { CronSchedulerService, CronScheduler } from "@/tool/cron"
 import { SessionTools } from "./tools"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
 import { readMemories, writeMemoryFile, syncMemories } from "../memory/memory-bridge"
@@ -1942,6 +1943,43 @@ const layer = Layer.effect(
       return result
     })
 
+    // ─── Cron 触发循环 ─────────────────────────────────────────
+    // schedule_cron 创建的任务在此消费：每 30s 轮询到期任务，把 prompt 投递
+    // 到任务所属会话，成功后 markFired（one-shot 删除 / recurring 推进）。
+    // 放在 Prompt 层而非 Cron 工具层，是为了直接复用本 layer 的 prompt 函数，
+    // 避免工具层反向依赖会话层形成环。
+    const cronScheduler = yield* CronSchedulerService
+    const cronTick = Effect.gen(function* () {
+      const tasks = yield* cronScheduler.list()
+      const now = Date.now()
+      for (const task of tasks) {
+        if (task.nextRun > now) continue
+        yield* Effect.gen(function* () {
+          const info = yield* sessions.get(task.sessionID).pipe(Effect.ignore)
+          if (info === undefined) {
+            // 会话已不存在：任务失效，直接清理，避免每轮重复失败
+            yield* cronScheduler.remove(task.id).pipe(Effect.ignore)
+            yield* Effect.logWarning("cron task target session missing, removed", { id: task.id })
+            return
+          }
+          yield* prompt({
+            sessionID: task.sessionID,
+            parts: [{ type: "text", text: `[定时任务 ${task.id}] ${task.prompt}` }],
+          }).pipe(Effect.ignore)
+          yield* cronScheduler.markFired(task.id).pipe(Effect.ignore)
+          yield* Effect.logInfo("cron task fired", { id: task.id })
+        }).pipe(Effect.ignore)
+      }
+    })
+    yield* cronTick
+      .pipe(
+        Effect.catchCause((cause) => Effect.logWarning("cron tick failed", { cause })),
+        Effect.andThen(Effect.sleep("30 seconds")),
+        Effect.forever,
+        Effect.forkScoped,
+      )
+      .pipe(Effect.ignore)
+
     return Service.of({
       cancel,
       prompt,
@@ -2087,6 +2125,7 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    CronScheduler.node,
   ],
 })
 

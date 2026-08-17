@@ -1,6 +1,6 @@
 import { TextAttributes } from "@opentui/core"
 import { InstallationChannel, InstallationVersion } from "@gyccode/core/installation/version"
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createResource, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { useSync } from "../context/sync"
@@ -9,7 +9,10 @@ import { useClipboard } from "../context/clipboard"
 import { useToast } from "../ui/toast"
 import { useBindings } from "../keymap"
 import { describeOS, describeTerminal } from "../util/system"
-import { execSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+const execFileAsync = promisify(execFile)
 
 type CheckResult = {
   label: string
@@ -18,10 +21,14 @@ type CheckResult = {
   detail?: string
 }
 
-function checkCommand(cmd: string): string | null {
+async function checkCommand(cmd: string): Promise<string | null> {
   try {
-    const output = execSync(`${cmd} --version`, { encoding: "utf8", timeout: 5000, stdio: ["pipe", "pipe", "pipe"] })
-    return output.trim().split("\n")[0]
+    const { stdout } = await execFileAsync(cmd, ["--version"], {
+      encoding: "utf8",
+      timeout: 5000,
+      maxBuffer: 1024 * 1024,
+    })
+    return stdout.trim().split("\n")[0]
   } catch {
     return null
   }
@@ -37,7 +44,13 @@ export function DialogDoctor() {
 
   dialog.setSize("large")
 
+  // 外部工具版本检查异步并行执行，避免 execSync 阻塞渲染线程
+  const [toolResource] = createResource(() =>
+    Promise.all([checkCommand("git"), checkCommand("rg")]).then(([gitVer, rgVer]) => ({ gitVer, rgVer })),
+  )
+
   const checks = createMemo<CheckResult[]>(() => {
+    const tools = toolResource.latest ?? { gitVer: null as string | null, rgVer: null as string | null }
     const results: CheckResult[] = []
 
     // 版本信息
@@ -72,7 +85,7 @@ export function DialogDoctor() {
     })
 
     // 外部工具检查
-    const gitVer = checkCommand("git")
+    const gitVer = tools.gitVer
     results.push({
       label: "Git",
       value: gitVer ?? "未安装",
@@ -80,7 +93,7 @@ export function DialogDoctor() {
       detail: gitVer ? undefined : "Git 未安装或不在 PATH 中，版本控制功能不可用",
     })
 
-    const rgVer = checkCommand("rg")
+    const rgVer = tools.rgVer
     results.push({
       label: "ripgrep",
       value: rgVer ?? "未安装",

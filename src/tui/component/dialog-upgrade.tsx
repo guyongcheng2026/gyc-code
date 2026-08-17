@@ -6,16 +6,21 @@ import { useDialog } from "../ui/dialog"
 import { useSDK } from "../context/sdk"
 import { useToast } from "../ui/toast"
 import { DialogConfirm } from "../ui/dialog-confirm"
-import { execSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 
-function getLatestVersion(): string | null {
+const execFileAsync = promisify(execFile)
+
+async function getLatestVersion(): Promise<string | null> {
   try {
-    const output = execSync("npm view @gyccode/cli version 2>nul", {
+    // 参数数组直传，不依赖平台 shell 重定向（原 "2>nul" 为 Windows 专有语法，
+    // POSIX 下会在工作目录创建名为 nul 的垃圾文件）；stderr 由 pipe 捕获。
+    const { stdout } = await execFileAsync("npm", ["view", "@gyccode/cli", "version"], {
       encoding: "utf8",
       timeout: 10000,
-      stdio: ["pipe", "pipe", "pipe"],
+      maxBuffer: 1024 * 1024,
     })
-    return output.trim() || null
+    return stdout.trim() || null
   } catch {
     return null
   }
@@ -46,7 +51,7 @@ export function DialogUpgrade() {
 
   const checkLatest = async () => {
     setChecking(true)
-    const version = getLatestVersion()
+    const version = await getLatestVersion()
     setLatest(version)
     setChecking(false)
   }

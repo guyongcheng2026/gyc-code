@@ -1,12 +1,15 @@
 import { TextAttributes } from "@opentui/core"
 import { InstallationVersion } from "@gyccode/core/installation/version"
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, createResource, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
 import { useDialog } from "../ui/dialog"
 import { useToast } from "../ui/toast"
 import { useClipboard } from "../context/clipboard"
 import { useBindings } from "../keymap"
-import { execSync } from "node:child_process"
+import { execFile } from "node:child_process"
+import { promisify } from "node:util"
+
+const execFileAsync = promisify(execFile)
 
 interface ReleaseNote {
   version: string
@@ -14,13 +17,18 @@ interface ReleaseNote {
   notes: string[]
 }
 
-function getReleaseNotes(): ReleaseNote[] {
+async function getReleaseNotes(): Promise<ReleaseNote[]> {
   try {
-    const output = execSync("git log --oneline -20 --format=%H|%s|%ci", {
-      encoding: "utf8",
-      timeout: 5000,
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim()
+    const { stdout } = await execFileAsync(
+      "git",
+      ["log", "--oneline", "-20", "--format=%H|%s|%ci"],
+      {
+        encoding: "utf8",
+        timeout: 5000,
+        maxBuffer: 4 * 1024 * 1024,
+      },
+    )
+    const output = stdout.trim()
 
     if (!output) return []
 
@@ -48,7 +56,8 @@ export function DialogReleaseNotes() {
 
   dialog.setSize("large")
 
-  const notes = createMemo(() => getReleaseNotes())
+  const [notesResource] = createResource(() => getReleaseNotes())
+  const notes = createMemo(() => notesResource.latest ?? [])
 
   const copy = () => {
     const text = notes()

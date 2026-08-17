@@ -28,7 +28,10 @@ function decodeCredential(input: string) {
 
 function credentialFromRequest(request: HttpServerRequest.HttpServerRequest) {
   const url = new URL(request.url, "http://localhost")
-  const token = url.searchParams.get(AUTH_TOKEN_QUERY)
+  // query 凭据仅限 WebSocket 升级请求（浏览器无法在 upgrade 上自定义头）；
+  // 普通请求一律走 Authorization 头，避免凭据泄漏到访问日志/代理/浏览器历史
+  const isUpgrade = (request.headers.upgrade ?? "").toLowerCase() === "websocket"
+  const token = isUpgrade ? url.searchParams.get(AUTH_TOKEN_QUERY) : null
   if (token) return decodeCredential(token)
   const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
   if (match) return decodeCredential(match[1])
