@@ -278,9 +278,13 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           // 全部被 ignore：若 drop() 移除过索引条目则索引已变，需 write-tree
           if (!allow.length) return ignored.size > 0
 
+          // 仅对未跟踪且未被 ignore 的候选做 stat：large 集合只被 untracked
+          // 侧消费（block），对已跟踪文件 stat 是纯浪费——每次 step-finish
+          // 的候选全量 stat 是 HDD 上的磁头寻道热点。
+          const candidates = untracked.filter((item) => !ignored.has(item))
           const large = new Set(
             (yield* Effect.all(
-              allow.map((item) =>
+              candidates.map((item) =>
                 fs
                   .stat(path.join(state.worktree, item))
                   .pipe(Effect.catch(() => Effect.void))
@@ -295,7 +299,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
               { concurrency: 8 },
             )).filter((item): item is string => Boolean(item)),
           )
-          const block = new Set(untracked.filter((item) => large.has(item)))
+          const block = new Set(candidates.filter((item) => large.has(item)))
           yield* sync(Array.from(block))
           // Stage only the allowed candidate paths so snapshot updates stay scoped.
           yield* stage(allow.filter((item) => !block.has(item)))
@@ -639,9 +643,12 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                   }
                   const out = batch.stdout
 
-                  const fail = (msg: string, extra?: Record<string, string>) => {
+                  // 降级到逐文件 git show 前记录原因：大 repo 上该路径
+                  // 触发频率与性能劣化程度需要可观测，静默降级无法排查。
+                  const fail = Effect.fnUntraced(function* (msg: string, extra?: Record<string, string>) {
+                    yield* Effect.logWarning(msg, extra ?? {})
                     return undefined
-                  }
+                  })
 
                   const map = new Map<string, { before: string; after: string }>()
                   const dec = new TextDecoder()
@@ -650,7 +657,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                     let end = i
                     while (end < out.length && out[end] !== 10) end += 1
                     if (end >= out.length) {
-                      return fail(
+                      return yield* fail(
                         "git cat-file --batch returned a truncated header during snapshot diff, falling back to per-file git show",
                       )
                     }
@@ -665,7 +672,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
 
                     const match = head.match(/^[0-9a-f]+ blob (\d+)$/)
                     if (!match) {
-                      return fail(
+                      return yield* fail(
                         "git cat-file --batch returned an unexpected header during snapshot diff, falling back to per-file git show",
                         { head },
                       )
@@ -673,7 +680,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
 
                     const size = Number(match[1])
                     if (!Number.isInteger(size) || size < 0 || i + size >= out.length || out[i + size] !== 10) {
-                      return fail(
+                      return yield* fail(
                         "git cat-file --batch returned truncated content during snapshot diff, falling back to per-file git show",
                         { head },
                       )
@@ -687,7 +694,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                   }
 
                   if (i !== out.length) {
-                    return fail(
+                    return yield* fail(
                       "git cat-file --batch returned trailing data during snapshot diff, falling back to per-file git show",
                     )
                   }

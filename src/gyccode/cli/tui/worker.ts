@@ -10,12 +10,36 @@ import { Heap } from "@/cli/heap"
 import { AppRuntime } from "@/effect/app-runtime"
 import { Effect } from "effect"
 import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecycle"
+import { Global } from "@gyccode/core/global"
+import { appendFile, mkdir } from "node:fs/promises"
+import path from "node:path"
 
 Heap.start()
 
-const onUnhandledRejection = (_error: unknown) => {}
+// 原实现是空函数，静默吞掉所有未捕获异常，形成诊断黑洞。现在至少写入
+// gyccode.log（绝不写 stdout/stderr，避免污染 TUI 渲染），进程存活语义
+// 不变。5 秒节流防异常风暴刷盘——与 logging.ts 的 WARN 节流策略一致。
+const logWorkerCrash = (() => {
+  let last = 0
+  return (kind: string, error: unknown) => {
+    const now = Date.now()
+    if (now - last < 5_000) return
+    last = now
+    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error)
+    void mkdir(Global.Path.log, { recursive: true })
+      .then(() =>
+        appendFile(
+          path.join(Global.Path.log, "gyccode.log"),
+          `timestamp=${new Date().toISOString()} level=Error run=worker ${kind} message=${detail}\n`,
+        ),
+      )
+      .catch(() => {})
+  }
+})()
 
-const onUncaughtException = (_error: Error) => {}
+const onUnhandledRejection = (error: unknown) => logWorkerCrash("unhandledRejection", error)
+
+const onUncaughtException = (error: Error) => logWorkerCrash("uncaughtException", error)
 
 process.on("unhandledRejection", onUnhandledRejection)
 process.on("uncaughtException", onUncaughtException)

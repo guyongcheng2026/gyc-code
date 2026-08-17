@@ -13,6 +13,19 @@ export const CODE_MODE_TOOL = "execute"
 
 const DESCRIPTION = "Run a confined orchestration script with access to connected MCP tools."
 
+// 受限解释器的资源边界。CodeMode.make 的 limits 全部可选、缺省即"无限制"，
+// 若不显式传入，一段失控脚本（死循环 / 无限递归调用 MCP 工具 / 累积超大输出）
+// 会拖垮整个会话进程。这里给出宽裕但有限的默认值：
+// - timeoutMs：墙钟超时。单个 MCP 调用自带超时，此处约束脚本整体；10 分钟足够
+//   覆盖多轮编排，同时阻断死循环。
+// - maxToolCalls：工具调用次数上限。正常编排脚本远低于此值；500 次足以阻断
+//   无限循环调用，又不会误伤合法的批量编排。
+// - maxOutputBytes：模型可见输出的字节上限。解释器内部累积的字符串在此截断，
+//   防止 OOM；最终进入上下文前仍会经过 message-v2 的工具输出截断层。
+const CODE_MODE_TIMEOUT_MS = 10 * 60 * 1000
+const CODE_MODE_MAX_TOOL_CALLS = 500
+const CODE_MODE_MAX_OUTPUT_BYTES = 1024 * 1024
+
 export const Parameters = Schema.Struct({
   code: Schema.String.annotate({
     description: "Script body executed by the confined interpreter.",
@@ -239,6 +252,13 @@ export const CodeModeTool = Tool.define(
 
         const runtime = CodeMode.make({
           tools: toolTree(catalog, callTool),
+          // 显式资源边界：CodeMode 的 limits 缺省即无限制，失控脚本（死循环 /
+          // 无限递归调用 MCP 工具 / 累积超大输出）会拖垮会话进程。
+          limits: {
+            timeoutMs: CODE_MODE_TIMEOUT_MS,
+            maxToolCalls: CODE_MODE_MAX_TOOL_CALLS,
+            maxOutputBytes: CODE_MODE_MAX_OUTPUT_BYTES,
+          },
           onToolCallStart: ({ index, name, input }) =>
             Effect.suspend(() => {
               const shown = (() => {

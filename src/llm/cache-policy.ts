@@ -15,10 +15,14 @@
 import { CacheHint, type CachePolicy, type CachePolicyObject } from "./schema/options"
 import { LLMRequest, Message, ToolDefinition, type ContentPart } from "./schema/messages"
 
+// tail:2 在最后两条消息上滚动断点：turn 内每轮工具往返把新增尾部写入
+// 缓存（写 1.25x），下一轮以 0.1x 读回；配合 tools+system 恰好用满
+// Anthropic 4 断点配额（协议层超配额自动丢弃，见 anthropic-messages.ts）。
+// ≥2 次往返即净赚；仅 latest-user-message 时 turn 内尾部每轮全价重发。
 const AUTO: CachePolicyObject = {
   tools: true,
   system: true,
-  messages: "latest-user-message",
+  messages: { tail: 2 },
 }
 
 const NONE: CachePolicyObject = {}

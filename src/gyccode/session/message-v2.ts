@@ -45,9 +45,10 @@ interface FetchDecompressionError extends Error {
 export const SYNTHETIC_ATTACHMENT_PROMPT = "Attached media from tool result:"
 export { isMedia }
 
-function truncateToolOutput(text: string, maxChars?: number) {
+function truncateToolOutput(text: string, maxChars?: number, tool?: string) {
   if (!maxChars || text.length <= maxChars) return text
   const omitted = text.length - maxChars
+  if (tool) recordTruncation(tool, omitted)
   return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
 }
 
@@ -150,6 +151,33 @@ function freezeDecision(id: string, cap: number | undefined): void {
 /** Reset frozen decisions (used by tests). */
 export function resetTruncationDecisions(): void {
   truncationDecisions.clear()
+}
+
+// ─── 截断观测（幻觉率前置信号）─────────────────────────────────
+// 证据截断（read/grep/glob 输出 cap）会迫使模型基于不完整信息补全，是幻觉率
+// 的同一旋钮两端。按工具类型统计截断次数与被省略字符数，为 TOOL_TYPE_CAPS
+// 阈值（2K↔4K）的闭环调参提供数据基础，避免拍脑袋回调。指标只读、零依赖、
+// 仅在实际发生截断时自增，序列化热路径开销为一次 Map.get。
+const truncationStats = new Map<string, { count: number; omittedChars: number }>()
+
+function recordTruncation(tool: string, omittedChars: number): void {
+  const entry = truncationStats.get(tool)
+  if (entry) {
+    entry.count++
+    entry.omittedChars += omittedChars
+  } else {
+    truncationStats.set(tool, { count: 1, omittedChars })
+  }
+}
+
+/** 当前截断统计快照（按工具类型）。供 /insights、诊断或测试读取。 */
+export function truncationStatsSnapshot(): Record<string, { count: number; omittedChars: number }> {
+  return Object.fromEntries(truncationStats)
+}
+
+/** Reset truncation stats (used by tests). */
+export function resetTruncationStats(): void {
+  truncationStats.clear()
 }
 
 /** 仅保留真实截断（cap < 当前输出长度）的条目；无任何截断返回 undefined。
@@ -501,6 +529,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
               : truncateToolOutput(
                   part.state.output,
                   toolCapForOutput(toolCaps, part.callID, part.state.output, part.tool, options?.toolOutputMaxChars),
+                  part.tool,
                 )
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 

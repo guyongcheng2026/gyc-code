@@ -31,6 +31,12 @@ const MCP_RESOURCE_TOOLS = {
   read: "read_mcp_resource",
 } as const
 const MAX_MCP_RESOURCE_BLOB_BYTES = 10 * 1024 * 1024
+// 流式工具（如 shell）每个输出 chunk 都会调用 ctx.metadata；不节流时每个
+// chunk 触发一次 updatePartLive 的 SQLite upsert，且 metadata.output 是累计
+// 后的全文（最多 30KB），等于逐 chunk 全量重写 —— 磁盘 I/O 第一热点。
+// 200ms 窗口内合并为一次落盘；工具结束由 completeToolCall 写入最终态，
+// 丢掉的只是运行中的中间帧，不影响结果。
+const METADATA_PERSIST_INTERVAL_MS = 200
 const SUPPORTED_MCP_RESOURCE_ATTACHMENT_MIMES = new Set([
   "application/pdf",
   "image/gif",
@@ -65,20 +71,29 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
     extra: { model: input.model, bypassAgentCheck: input.bypassAgentCheck, promptOps: input.promptOps },
     agent: input.agent.name,
     messages: input.messages,
-    metadata: (val) =>
-      input.processor.updateToolCall(options.toolCallId, (match) => {
-        if (!["running", "pending"].includes(match.state.status)) return match
-        return {
-          ...match,
-          state: {
-            title: val.title,
-            metadata: val.metadata,
-            status: "running",
-            input: args,
-            time: { start: Date.now() },
-          },
-        }
-      }),
+    // 节流状态在单次工具执行内（每个 execute 创建一个新 context 闭包），
+    // 不跨工具调用共享；首帧（lastPersist=0）总是立即落盘。
+    metadata: (() => {
+      let lastPersist = 0
+      return (val: { title?: string; metadata?: Record<string, unknown> }) => {
+        const now = Date.now()
+        if (now - lastPersist < METADATA_PERSIST_INTERVAL_MS) return Effect.void
+        lastPersist = now
+        return input.processor.updateToolCall(options.toolCallId, (match) => {
+          if (!["running", "pending"].includes(match.state.status)) return match
+          return {
+            ...match,
+            state: {
+              title: val.title,
+              metadata: val.metadata,
+              status: "running",
+              input: args,
+              time: { start: Date.now() },
+            },
+          }
+        })
+      }
+    })(),
     ask: (req) =>
       permission
         .ask({

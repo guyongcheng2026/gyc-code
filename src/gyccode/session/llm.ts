@@ -395,8 +395,20 @@ const live: Layer.Layer<
             // Hold a permit for the whole stream lifetime (acquireRelease is
             // scoped to the Stream.scoped wrapper, so the permit is released
             // only after the stream is drained or interrupted).
+            // 等待耗时观测：等待超阈值说明已达 maxStreams 上限在本地排队，
+            // 此时用户感知的"首字慢"并非 provider 延迟。
             const result = yield* Effect.acquireRelease(
-              semaphore.take(1),
+              Effect.gen(function* () {
+                const start = Date.now()
+                yield* semaphore.take(1)
+                const waitMs = Date.now() - start
+                if (waitMs > 200) {
+                  yield* Effect.logInfo("llm stream waited for concurrency permit", {
+                    "session.id": input.sessionID,
+                    waitMs,
+                  })
+                }
+              }),
               () => semaphore.release(1),
             ).pipe(Effect.flatMap(() => run({ ...input, abort: ctrl.signal })))
 

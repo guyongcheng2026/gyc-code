@@ -102,9 +102,14 @@ export const WebSearchTool = Tool.define(
     const http = yield* HttpClient.HttpClient
     const flags = yield* RuntimeFlags.Service
 
+    // 年份在模块加载时固定一次：工具定义位于 prompt cache 断点 1（tools
+    // 末尾）之前，若每次调用实时计算，跨年瞬间描述变化会使整个 tools 段
+    // 缓存前缀失效。进程跨年存活仅失效一次，属可接受边界。
+    const year = new Date().getFullYear().toString()
+
     return {
       get description() {
-        return DESCRIPTION.replace("{{year}}", new Date().getFullYear().toString())
+        return DESCRIPTION.replace("{{year}}", year)
       },
       parameters: Parameters,
       execute: (params: Schema.Schema.Type<typeof Parameters>, ctx: Tool.Context) =>
