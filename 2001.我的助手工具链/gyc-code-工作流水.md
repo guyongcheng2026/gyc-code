@@ -880,3 +880,6 @@
 
 - [OK] 2026-08-17 [3fe60af] fix: 修复第九轮审查的1个功能性bug与7项问题
   - [FILES] 11: bin/gyc, scripts/build-webapp.mjs, src/gyccode/cli/heap.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/routes/instance/httpapi/groups/file.ts, src/gyccode/server/routes/instance/httpapi/handlers/file.ts ...
+
+- [OK] 2026-08-17 [5500147] feat: fork MiMo Code compose 模式完整能力（actor 适配层 + bundle 同步 + 契约测试 + TUI 过滤）
+  - [FILES] 20: src/gyccode/agent/agent.ts, src/gyccode/skill/compose/.bundle/brainstorm/scripts/frame-template.html, src/gyccode/skill/compose/.bundle/brainstorm/scripts/start-server.sh, src/gyccode/skill/compose/.bundle/brainstorm/visual-companion.md, src/gyccode/skill/compose/.bundle/debug/CREATION-LOG.md, src/gyccode/skill/compose/.bundle/execute/SKILL.md ...
