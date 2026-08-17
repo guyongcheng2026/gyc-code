@@ -874,3 +874,6 @@
 
 - [OK] 2026-08-17 [6176d26] fix(security): 凭据DPAPI加密(Windows)+web命令非loopback无密码拒绝暴露
   - [FILES] 3: src/core/credential.ts, src/core/util/dpapi.ts, src/gyccode/cli/cmd/web.ts
+
+- [OK] 2026-08-17 [343147b] fix(perf): 事件日志7天/32MB裁剪+维护限频+缓存tail2断点+同步IO消除TLA+DPAPI配套与异常观测
+  - [FILES] 12: src/core/database/database.ts, src/core/global.ts, src/gyccode/cli/tui/worker.ts, src/gyccode/session/llm.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/tools.ts ...
