@@ -16,6 +16,7 @@ import { ReadTool } from "./read"
 import { TaskTool } from "./task"
 import { TaskManage } from "./task-manage"
 import { SwarmTool } from "./swarm"
+import { ActorTool } from "./actor"
 import { Database } from "@gyccode/core/database/database"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
@@ -114,6 +115,7 @@ const layer = Layer.effect(
     const taskGet = TaskManage.get(taskManageService)
     const taskStop = TaskManage.stop(taskManageService)
     const swarm = yield* SwarmTool
+    const actor = yield* ActorTool
     const read = yield* ReadTool
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
@@ -254,6 +256,7 @@ const layer = Layer.effect(
           write: Tool.init(writetool),
           task: Tool.init(task),
           swarm: Tool.init(swarm),
+          actor: Tool.init(actor),
           taskList: Tool.init(taskList),
           taskGet: Tool.init(taskGet),
           taskStop: Tool.init(taskStop),

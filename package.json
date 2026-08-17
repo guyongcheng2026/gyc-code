@@ -9,7 +9,7 @@
   },
   "main": "./src/gyccode/index.ts",
   "scripts": {
-    "postinstall": "node scripts/apply-opentui-patch.cjs && node scripts/apply-opentui-ffi-patch.cjs",
+    "postinstall": "node scripts/apply-opentui-patch.cjs && node scripts/apply-opentui-ffi-patch.cjs && node scripts/apply-opentui-orphan-patch.cjs",
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
     "start": "bun dist/index.js",

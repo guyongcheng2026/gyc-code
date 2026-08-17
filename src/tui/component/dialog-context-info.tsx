@@ -148,7 +148,7 @@ export function DialogContextInfo() {
         {(w) => (
           <text fg={contextColor()}>
             {tokens().toLocaleString()} / {Token.format(w().effective)} tokens（{percent()}%）
-            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : ""}
+            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : undefined}
           </text>
         )}
       </Show>

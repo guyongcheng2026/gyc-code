@@ -144,8 +144,7 @@ export function View(props: { api: TuiPluginApi; session_id: string }) {
       <Show when={state().limit}>
         {(win) => (
           <text fg={theme().textMuted}>
-            limit {Token.format(win().effective)}
-            {win().source === "config" ? ` of ${Token.format(win().hard)}` : ""}
+            {`limit ${Token.format(win().effective)}${win().source === "config" ? ` of ${Token.format(win().hard)}` : ""}`}
           </text>
         )}
       </Show>

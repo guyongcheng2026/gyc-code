@@ -141,7 +141,7 @@ export function DialogCost() {
         {(w) => (
           <text fg={theme.textMuted}>
             {totalTokens().toLocaleString()} / {Token.format(w().effective)} tokens（{percent()}%）
-            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : ""}
+            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : undefined}
           </text>
         )}
       </Show>
