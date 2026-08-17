@@ -877,3 +877,6 @@
 
 - [OK] 2026-08-17 [343147b] fix(perf): 事件日志7天/32MB裁剪+维护限频+缓存tail2断点+同步IO消除TLA+DPAPI配套与异常观测
   - [FILES] 12: src/core/database/database.ts, src/core/global.ts, src/gyccode/cli/tui/worker.ts, src/gyccode/session/llm.ts, src/gyccode/session/message-v2.ts, src/gyccode/session/tools.ts ...
+
+- [OK] 2026-08-17 [3fe60af] fix: 修复第九轮审查的1个功能性bug与7项问题
+  - [FILES] 11: bin/gyc, scripts/build-webapp.mjs, src/gyccode/cli/heap.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/routes/instance/httpapi/groups/file.ts, src/gyccode/server/routes/instance/httpapi/handlers/file.ts ...
