@@ -862,3 +862,6 @@
 
 - [OK] 2026-08-17 [95e43cf] fix: 限流fatal快速失败+凭据递归过滤+品牌诚实化恢复OpenCode Zen+根目录清理
   - [FILES] 10: console.error('CRON_FIXED_FAIL', do-commit.cmd, run-verify.cmd, run-verify2.cmd, src/core/plugin/provider/gyccode.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts ...
+
+- [OK] 2026-08-17 [d312402] fix: 14维度审查修复—cron触发循环(P0)+技能仓库路径穿越防护+TUI异步化+恒定时间鉴权+cron语义修正
+  - [FILES] 10: src/gyccode/session/prompt.ts, src/gyccode/skill/discovery.ts, src/gyccode/tool/cron.ts, src/server/auth.ts, src/server/middleware/authorization.ts, src/tui/component/dialog-commit.tsx ...
