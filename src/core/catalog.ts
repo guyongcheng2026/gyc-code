@@ -222,13 +222,6 @@ const layer = Layer.effect(
             }
           }
 
-          // 无配置默认时，优先 Zen 网关免费模型（三端统一默认 LLM）。
-          const fallback = (yield* result.model.available()).find(
-            (model) =>
-              model.providerID === ProviderV2.ID.gyccode && model.id === ModelV2.ID.make("deepseek-v4-flash-free"),
-          )
-          if (fallback) return fallback
-
           return Option.getOrUndefined(
             pipe(
               yield* result.model.available(),

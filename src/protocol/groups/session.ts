@@ -222,21 +222,8 @@ export const makeSessionGroup = <I extends HttpApiMiddleware.AnyId, S>(sessionLo
           }),
         ),
     )
-    .add(
-      HttpApiEndpoint.post("session.compact", "/api/session/:sessionID/compact", {
-        params: { sessionID: Session.ID },
-        success: HttpApiSchema.NoContent,
-        error: [SessionNotFoundError, ServiceUnavailableError],
-      })
-        .middleware(sessionLocationMiddleware)
-        .annotateMerge(
-          OpenApi.annotations({
-            identifier: "v2.session.compact",
-            summary: "Compact session",
-            description: "Compact a session conversation.",
-          }),
-        ),
-    )
+    // v2 session.compact 已移除：服务端从未实现（原样返回 OperationUnavailableError），
+    // 压缩会话统一走 v1 POST /session/{id}/summarize（三端一致）。
     .add(
       HttpApiEndpoint.post("session.wait", "/api/session/:sessionID/wait", {
         params: { sessionID: Session.ID },

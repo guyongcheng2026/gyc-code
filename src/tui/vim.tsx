@@ -19,7 +19,7 @@ function isManagedTextarea(target: Renderable | null | undefined) {
  * 因此 NORMAL 模式下单字符按键（h/j/k/l 等）执行光标命令而不插入字符；
  * INSERT 模式下本层仅接管 escape（切换到 NORMAL），其余按键照常插入。
  */
-export function useVimKeymap() {
+export function useVimKeymap(options?: { busy?: () => boolean }) {
   const renderer = useRenderer()
   const kv = useKV()
 
@@ -41,7 +41,14 @@ export function useVimKeymap() {
   })
 
   const inNormal = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "normal" && textareaFocused()
-  const inInsert = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "insert" && textareaFocused()
+
+  // 会话忙碌（流式输出）时 INSERT 层让位：escape 的中断语义（session.interrupt）
+  // 优先于 vim 模式切换，否则 vim 开启后无法用 escape 中断会话。
+  const inInsert = () => {
+    if (kv.get(VIM_MODE_KEY, false) !== true) return false
+    if (vimState() !== "insert" || !textareaFocused()) return false
+    return options?.busy?.() !== true
+  }
 
   const focusedEditor = () => {
     const target = renderer.currentFocusedEditor

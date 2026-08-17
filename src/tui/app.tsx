@@ -417,8 +417,15 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const pluginRuntime = usePluginRuntime()
   const attention = createTuiAttention({ renderer, config: tuiConfig, kv })
   const clipboard = useClipboard()
-  // Vim 键绑定层：消费 KV vim_mode_enabled，提供 NORMAL/INSERT 模式编辑
-  useVimKeymap()
+  // Vim 键绑定层：消费 KV vim_mode_enabled，提供 NORMAL/INSERT 模式编辑。
+  // busy（会话流式输出）时 vim INSERT 层让位 escape，保证中断会话可用。
+  useVimKeymap({
+    busy: () => {
+      if (route.data.type !== "session") return false
+      const status = sync.data.session_status[route.data.sessionID]
+      return status?.type === "busy" || status?.type === "retry"
+    },
+  })
 
   const api = createTuiApi(
     createTuiApiAdapters({

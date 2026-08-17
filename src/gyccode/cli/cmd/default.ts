@@ -170,7 +170,11 @@ function runStreamLoop(
         reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
         reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
       },
-      onSubagent: (info) => subagents.push({ ...info, at: new Date().toLocaleTimeString() }),
+      onSubagent: (info) => {
+        subagents.push({ ...info, at: new Date().toLocaleTimeString() })
+        // 有界环形缓冲：与展示口径（最近 20 条）对齐，防止 24h 长会话线性增长
+        if (subagents.length > 100) subagents.splice(0, subagents.length - 100)
+      },
     }),
   )
 }
@@ -219,6 +223,7 @@ async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliIn
   } catch {
     // 读取失败不影响启动，使用默认值。
   }
+  statusModel = modelLabel
 
   const dir = input.directory ?? process.cwd()
   // 归一化 home 目录为 ~，对齐 Codex 的 directory 展示。
@@ -255,28 +260,12 @@ async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliIn
 }
 
 // 渲染底部状态行（Codex 风格）：model · directory，dim 灰色。
-async function renderStatusLine(sdk: GyccodeClient, sessionID: string, input: CliInput) {
-  let modelLabel = input.model ?? "default"
-  try {
-    const [cfg, session] = await Promise.all([
-      sdk.config.get(),
-      sdk.session.get({ sessionID }).catch(() => undefined),
-    ])
-    const data = session?.data
-    if (data?.model) {
-      modelLabel = data.model.id.includes("/")
-        ? data.model.id
-        : `${data.model.providerID}/${data.model.id}`
-    } else if (cfg.data?.model) {
-      modelLabel = cfg.data.model
-    }
-  } catch {
-    // 忽略读取失败。
-  }
+// 本地渲染（模型标签取 statusModel 缓存，启动/切换模型时更新），零网络往返。
+async function renderStatusLine(_sdk: GyccodeClient, _sessionID: string, input: CliInput) {
   const dir = input.directory ?? process.cwd()
   const homedir = (await import("os")).homedir()
   const displayDir = dir === homedir ? "~" : dir.startsWith(homedir + "\\") ? "~" + dir.slice(homedir.length) : dir
-  process.stdout.write(`\n\x1b[90m${modelLabel} · ${displayDir}\x1b[0m\n`)
+  process.stdout.write(`\n\x1b[90m${statusModel} · ${displayDir}\x1b[0m\n`)
 }
 
 // 通用 CLI 列表选择器（Codex/Claude Code 风格）：
@@ -499,6 +488,7 @@ async function runSlashCommand(
             UI.error(formatRunError(result.error))
           } else {
             process.stdout.write(`已切换到模型: ${parsed.providerID}/${parsed.modelID}\n`)
+            statusModel = `${parsed.providerID}/${parsed.modelID}`
           }
         } catch (e) {
           UI.error(formatRunError(e))
@@ -792,6 +782,12 @@ async function runSlashCommand(
           process.stdout.write("未检测到编辑器。请设置 EDITOR 环境变量（Windows 示例：`set EDITOR=code --wait`）。\n")
           return "continue"
         }
+        // EDITOR 语义应为“命令 + 静态参数”（shell:true 仅为支持含空格命令），
+        // 拒绝管道/替换等元字符，防止共享环境配置中的注入。
+        if (/[;&|`$()<>\n]/.test(editor)) {
+          process.stdout.write("EDITOR 含不支持的 shell 元字符，已拒绝执行。\n")
+          return "continue"
+        }
         const tmpFile = path.join(tmpdir(), `gyc-editor-${Date.now()}.md`)
         const result = spawnSync(editor, [tmpFile], { stdio: "inherit", shell: true })
         if (result.status !== 0) {
@@ -859,6 +855,8 @@ async function runSlashCommand(
 
 // 当前会话 ID 的可变引用，供 /clear 重建会话后更新。
 let currentSessionId = ""
+// 状态行模型标签缓存（启动/切换模型时更新），状态行本地渲染零网络往返。
+let statusModel = "default"
 
 const HELP_TEXT = [
   "gyc 纯 CLI 交互",
@@ -1230,11 +1228,12 @@ async function interactiveLoop(input: CliInput) {
         // 清掉菜单区固定高度。
         for (let i = 0; i < MENU_HEIGHT; i++) process.stdout.write("\n\x1b[K")
         process.stdout.write("\x1b[" + MENU_HEIGHT + "A\n")
+        input.removeListener("data", onData)
         input.setRawMode(false)
         input.pause()
         resolve(text)
       }
-      input.on("data", (chunk) => {
+      const onData = (chunk: Buffer | string) => {
         const bytes = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk
         for (const byte of bytes) {
           const ch = byte as number
@@ -1254,6 +1253,7 @@ async function interactiveLoop(input: CliInput) {
           }
           if (ch === 3) {
             process.stdout.write("\n")
+            input.removeListener("data", onData)
             input.setRawMode(false)
             input.pause()
             process.exit(0)
@@ -1345,7 +1345,8 @@ async function interactiveLoop(input: CliInput) {
             }
           }
         }
-      })
+      }
+      input.on("data", onData)
       refreshMenu()
       render()
     })

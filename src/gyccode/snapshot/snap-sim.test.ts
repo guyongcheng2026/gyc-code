@@ -102,7 +102,10 @@ async function initRepo(root: string, name: string): Promise<Repo> {
   return repo
 }
 
-describe("snap-sim 快照压测（4 场景）", () => {
+// 压测默认关闭（~160s 重度磁盘 IO：1000 文件 add / 多轮 write-tree / gc 循环），
+// 避免日常 bun test 全量触发持续磁盘满负荷（发热/噪声/SSD 写放大）。
+// 显式开启：GYCCODE_SNAP_SIM=1 bun test src/gyccode/snapshot/snap-sim.test.ts
+describe.skipIf(process.env.GYCCODE_SNAP_SIM !== "1")("snap-sim 快照压测（4 场景）", () => {
   let root: string
 
   beforeAll(async () => {

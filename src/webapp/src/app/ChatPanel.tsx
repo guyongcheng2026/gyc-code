@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useChatSession } from "../client/useChatSession"
 import { useSendPrompt } from "../client/useSendPrompt"
 import { usePermissions } from "../client/usePermissions"
@@ -36,9 +36,12 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   const [sendError, setSendError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
+  const noticeTimer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(noticeTimer.current), [])
   const showNotice = (text: string) => {
     setNotice(text)
-    window.setTimeout(() => setNotice(null), 8000)
+    window.clearTimeout(noticeTimer.current)
+    noticeTimer.current = window.setTimeout(() => setNotice(null), 8000)
   }
 
   const allCommands = useMemo(() => [...LOCAL_COMMANDS, ...commands], [commands])

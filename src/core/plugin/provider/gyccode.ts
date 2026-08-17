@@ -101,7 +101,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
 
     yield* ctx.integration.transform((draft) => {
       draft.update("gyccode", (integration) => {
-        integration.name = "OpenCode Zen"
+        integration.name = "GycCode 云端"
       })
       draft.method.update(oauth(http))
       draft.method.update({ integrationID: "gyccode", method: { type: "key", label: "API key (service account)" } })
@@ -166,7 +166,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
       // Always surface the gyccode gateway under its upstream brand name,
       // regardless of what the remote org config reports.
       catalog.provider.update(ProviderV2.ID.gyccode, (provider) => {
-        provider.name = "OpenCode Zen"
+        provider.name = "GycCode 云端"
       })
 
       // 内置登记 Zen 网关的免费模型 deepseek-v4-flash-free（三端默认 LLM，
@@ -183,8 +183,11 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
           model.capabilities.tools = true
           model.cost = []
           model.limit = { context: 128_000, output: 16_384 }
+          // TODO: 内置 gyccode provider 的请求组装链未通（调用 Zen 网关返回 UnknownError），
+          // 修复前保持 disabled——避免模型目录出现必然失败的选项；默认模型走 opencode
+          // provider（同 Zen 网关，已验证可用）。
           model.status = "active"
-          model.enabled = true
+          model.enabled = false
         })
       }
 
