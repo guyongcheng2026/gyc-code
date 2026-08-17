@@ -17,6 +17,7 @@ import { PtyGroup } from "./groups/pty"
 import { makeQuestionGroup } from "./groups/question"
 import { ReferenceGroup } from "./groups/reference"
 import { Authorization } from "./middleware/authorization"
+import { RateLimit } from "./middleware/rate-limit"
 import { LocationGroup } from "./groups/location"
 import { IntegrationGroup } from "./groups/integration"
 import { CredentialGroup } from "./groups/credential"
@@ -61,6 +62,7 @@ const makeApiFromGroup = <
       }),
     )
     .middleware(Authorization)
+    .middleware(RateLimit)
     .middleware(SchemaErrorMiddleware)
 
 export const makeApi = <

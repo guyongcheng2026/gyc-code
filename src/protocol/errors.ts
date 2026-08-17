@@ -16,6 +16,15 @@ export class UnauthorizedError extends Schema.TaggedErrorClass<UnauthorizedError
   { httpApiStatus: 401 },
 ) {}
 
+export class TooManyRequestsError extends Schema.TaggedErrorClass<TooManyRequestsError>()(
+  "TooManyRequestsError",
+  {
+    message: Schema.String,
+    retryAfterSeconds: Schema.optional(Schema.Number),
+  },
+  { httpApiStatus: 429 },
+) {}
+
 export class ConflictError extends Schema.TaggedErrorClass<ConflictError>()(
   "ConflictError",
   {

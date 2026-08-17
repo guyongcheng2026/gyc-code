@@ -19,6 +19,26 @@ const VAULT = "E:\\" + W.name
 const worklog = path.join(VAULT, W.dir, W.file)
 const REPO = process.cwd()
 const LOGFILE = path.join(REPO, ".git", "worklog-sync.log")
+// 防并发 TOCTOU：post-commit 钩子与手动补跑同时执行时，双方都读到“无该 hash”
+// 状态各自追加会导致重复条目。用 O_EXCL 锁文件互斥；残留锁超 10 分钟视为过期可抢占。
+const LOCKFILE = path.join(REPO, ".git", "worklog-sync.lock")
+const LOCK_STALE_MS = 10 * 60 * 1000
+function acquireLock() {
+  try {
+    fs.openSync(LOCKFILE, "wx")
+    return true
+  } catch {
+    try {
+      const stat = fs.statSync(LOCKFILE)
+      if (Date.now() - stat.mtimeMs > LOCK_STALE_MS) {
+        fs.rmSync(LOCKFILE, { force: true })
+        fs.openSync(LOCKFILE, "wx")
+        return true
+      }
+    } catch {}
+    return false
+  }
+}
 
 const glog = (m) => { try { fs.appendFileSync(LOGFILE, `[${new Date().toISOString()}] ${m}\n`, "utf8") } catch {} }
 // 读取既有日志文件：UTF-8 严格解码失败（如被记事本另存为 GBK）则按 GB18030 读入，
@@ -43,6 +63,18 @@ function git(root, args, opts = {}) {
 }
 
 function main() {
+  if (!acquireLock()) {
+    glog("another sync is running, skip")
+    return
+  }
+  try {
+    syncOnce()
+  } finally {
+    fs.rmSync(LOCKFILE, { force: true })
+  }
+}
+
+function syncOnce() {
   const head = git(REPO, ["rev-parse", "--short", "HEAD"])
   glog("HEAD=" + head)
   fs.mkdirSync(path.dirname(worklog), { recursive: true })

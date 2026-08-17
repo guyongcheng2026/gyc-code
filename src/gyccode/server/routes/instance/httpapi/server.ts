@@ -103,6 +103,7 @@ import { handlers } from "@gyccode/server/handlers"
 import { buildLocationServiceMap, LocationServiceMap } from "@gyccode/core/location-services"
 import { layer as locationLayer } from "@gyccode/server/location"
 import { sessionLocationLayer } from "@gyccode/server/middleware/session-location"
+import { rateLimitLayer } from "@gyccode/server/middleware/rate-limit"
 import { PtyEnvironment } from "@gyccode/server/pty-environment"
 import { schemaErrorLayer as v2SchemaErrorLayer } from "@gyccode/server/middleware/schema-error"
 import { workspaceHandlers } from "./handlers/workspace"
@@ -145,7 +146,7 @@ const rootApiRoutes = HttpApiBuilder.layer(RootHttpApi).pipe(
 )
 const eventApiRoutes = HttpApiBuilder.layer(EventApi).pipe(
   Layer.provide(eventHandlers),
-  Layer.provide([httpApiAuthLayer, workspaceRoutingLive, instanceContextLayer]),
+  Layer.provide([httpApiAuthLayer, workspaceRoutingLive, instanceContextLayer, rateLimitLayer]),
 )
 const ptyConnectApiRoutes = HttpApiBuilder.layer(PtyConnectApi).pipe(
   Layer.provide(ptyConnectHandlers),
@@ -177,7 +178,7 @@ const instanceRoutes = instanceApiRoutes.pipe(
 const serverRoutes = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(handlers),
   Layer.provide(PluginPtyEnvironment.layer),
-  Layer.provide([serverHttpApiAuthLayer, v2SchemaErrorLayer]),
+  Layer.provide([serverHttpApiAuthLayer, v2SchemaErrorLayer, rateLimitLayer]),
 )
 
 // `OpenApi.fromApi` is non-trivial; defer until /doc is actually hit so
