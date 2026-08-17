@@ -545,6 +545,7 @@ title: "打开编辑器",
         run: () => {
           dialog.replace(() => (
             <DialogSkill
+              agent={local.agent.current()?.name}
               onSelect={(skill) => {
                 input.setText(`/${skill} `)
                 setStore("prompt", {

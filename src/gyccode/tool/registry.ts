@@ -302,6 +302,7 @@ const layer = Layer.effect(
             tool.write,
             tool.task,
             tool.swarm,
+            tool.actor,
             tool.taskList,
             tool.taskGet,
             tool.taskStop,

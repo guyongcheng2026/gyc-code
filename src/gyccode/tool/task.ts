@@ -151,6 +151,11 @@ export const TaskTool = Tool.define(
         ...(next.permission.some((rule) => rule.permission === id)
           ? []
           : [{ permission: id, pattern: "*" as const, action: "deny" as const }]),
+        // actor 委托本工具派发子代理：子代理内同样默认禁用，防止经 actor
+        // 绕过上面的 task deny 形成递归派发（深度限制之外的纵深防御）。
+        ...(next.permission.some((rule) => rule.permission === "actor")
+          ? []
+          : [{ permission: "actor" as const, pattern: "*" as const, action: "deny" as const }]),
         ...(cfg.experimental?.primary_tools?.map((permission) => ({
           permission,
           pattern: "*" as const,

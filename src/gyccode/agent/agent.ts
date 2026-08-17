@@ -189,6 +189,7 @@ const layer = Layer.effect(
               Permission.fromConfig({
                 question: "allow",
                 skill: "allow",
+                actor: "allow",
               }),
               user,
             ),
