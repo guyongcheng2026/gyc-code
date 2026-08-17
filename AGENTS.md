@@ -24,8 +24,10 @@ gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\Users\谷勇
 
 ## 依赖豁免记录（2026-08-17 审查 Issue #11）
 
-- **effect v4 beta**：违反"仅稳定版"铁律的**唯一豁免项**。豁免原因：深度耦合（Schema/Layer/Effect 遍布 core 与 server），v3→v4 迁移成本高；且 beta 已造成生产事故（`Schema.Union` 可变参数运行时崩溃、`Schema.filter` 缺失）。
+- **effect v4 beta**：违反"仅稳定版"铁律的豁免项之一。豁免原因：深度耦合（Schema/Layer/Effect 遍布 core 与 server），v3→v4 迁移成本高；且 beta 已造成生产事故（`Schema.Union` 可变参数运行时崩溃、`Schema.filter` 缺失）。
 - **退出条件**：effect v4 首个 stable 发布后 48h 内升级锁定；期间新增代码禁用 v4-only 的不稳定 API（新 Schema API 先在 REPL 验证再引入）。
+- **drizzle-orm 1.0.0-rc.2**：豁免项之二（2026-08-17 依赖治理时确认）。npm `latest`=0.45.2，但本项目深度依赖 v1-only API（`drizzle-orm/effect-core/*`、`drizzle-orm/cache/core/*`，见 `src/effect-drizzle-sqlite/`），无法降级到 0.45.x。**处理**：锁定在 rc.2（不上调 rc.4/rc.5），与 effect v4 beta 同款"豁免 + 迁移计划"；drizzle 1.0 stable 发布后 48h 内升级锁定。
+- **依赖治理已落地（2026-08-17）**：`package.json` 全部 `^`/`~`/`*` 已固化为精确版本；webapp 专属依赖（react/react-dom/monaco/@xterm/react-virtuoso）与 typescript 已从 dependencies 移入 devDependencies（主链路 dist 入口零引用，webapp 走 vite 预构建 + 静态 manifest）。
 - 其余依赖（opentui 0.4.5 / @ai-sdk\* / koffi / fuzzysort，均 MIT）均为开源稳定版，无专有依赖。
 
 ## 铁律：界面、会话与显示内容必须使用简体中文（强制）
