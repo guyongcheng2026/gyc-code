@@ -2,6 +2,9 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { Effect, Stream } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { createHash } from "node:crypto"
+import { existsSync } from "node:fs"
+import { dirname, isAbsolute, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { ProxyUtil } from "../proxy-util"
 
 let embeddedUIPromise: Promise<Record<string, string> | null> | undefined
@@ -44,7 +47,31 @@ export function upstreamURL(path: string) {
 export function embeddedUI(disableEmbeddedWebUi: boolean) {
   if (disableEmbeddedWebUi) return Promise.resolve(null)
   return (embeddedUIPromise ??=
-    import("opencode-web-ui.gen.ts").then((module) => module.default as Record<string, string>).catch(() => null))
+    import("opencode-web-ui.gen.ts")
+      .then((module) => {
+        // 定位包根（向上查找 package.json）：源码模式本模块位于
+        // <repo>/src/gyccode/server/shared/，dist 模式 bundle 位于 <repo>/dist/，
+        // 两种场景均能在少数几级内命中。清单值为相对包根的路径，在此解析为
+        // 绝对路径，避免生成器把构建机器绝对路径硬编码入库。
+        let dir = dirname(fileURLToPath(import.meta.url))
+        let root = dir
+        for (let i = 0; i < 8; i++) {
+          if (existsSync(join(dir, "package.json"))) {
+            root = dir
+            break
+          }
+          const parent = dirname(dir)
+          if (parent === dir) break
+          dir = parent
+        }
+        return Object.fromEntries(
+          Object.entries(module.default as Record<string, string>).map(([key, value]) => [
+            key,
+            isAbsolute(value) ? value : join(root, value),
+          ]),
+        )
+      })
+      .catch(() => null))
 }
 
 function notFound() {

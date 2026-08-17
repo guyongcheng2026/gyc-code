@@ -9,6 +9,7 @@ import { Effect, Layer, Option } from "effect"
 import ignore from "ignore"
 import path from "path"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { ForbiddenError } from "@gyccode/protocol/errors"
 import { InstanceHttpApi } from "../api"
 
 export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handlers) =>
@@ -65,6 +66,9 @@ export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handl
 
     const list = Effect.fn("FileHttpApi.list")(function* (ctx: { query: { path: string } }) {
       const directory = (yield* InstanceState.context).directory
+      // 前置越界检查：与 content 端点一致，穿越请求返回 403 而非底层 defect(500)。
+      const listTarget = path.resolve(directory, ctx.query.path)
+      if (!FSUtil.contains(directory, listTarget)) return yield* new ForbiddenError({ message: "路径越界" })
       return yield* filesystem(
         Effect.gen(function* () {
           const fs = yield* FileSystem.Service
@@ -96,7 +100,7 @@ export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handl
     const content = Effect.fn("FileHttpApi.content")(function* (ctx: { query: { path: string } }) {
       const directory = (yield* InstanceState.context).directory
       const file = path.resolve(directory, ctx.query.path)
-      if (!FSUtil.contains(directory, file)) return yield* Effect.die(new Error("Path escapes the location"))
+      if (!FSUtil.contains(directory, file)) return yield* new ForbiddenError({ message: "路径越界" })
       if (!(yield* FSUtil.Service.use((fs) => fs.existsSafe(file)))) return { type: "text" as const, content: "" }
       return yield* filesystem(
         FileSystem.Service.use((fs) => fs.read({ path: RelativePath.make(ctx.query.path) })),

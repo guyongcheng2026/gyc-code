@@ -3,6 +3,7 @@ import { NonNegativeInt } from "@gyccode/core/schema"
 import { LSP } from "@/lsp/lsp"
 import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, OpenApi } from "effect/unstable/httpapi"
+import { ForbiddenError } from "@gyccode/protocol/errors"
 import { Authorization } from "../middleware/authorization"
 import { InstanceContextMiddleware } from "../middleware/instance-context"
 import {
@@ -138,6 +139,7 @@ export const FileApi = HttpApi.make("file")
         HttpApiEndpoint.get("list", FilePaths.list, {
           query: FileQuery,
           success: described(Schema.Array(LegacyEntry), "Files and directories"),
+          error: ForbiddenError,
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "file.list",
@@ -148,6 +150,7 @@ export const FileApi = HttpApi.make("file")
         HttpApiEndpoint.get("content", FilePaths.content, {
           query: FileQuery,
           success: described(LegacyContent, "File content"),
+          error: ForbiddenError,
         }).annotateMerge(
           OpenApi.annotations({
             identifier: "file.read",
@@ -162,7 +165,7 @@ export const FileApi = HttpApi.make("file")
           OpenApi.annotations({
             identifier: "file.status",
             summary: "Get file status",
-            description: "Get the git status of all files in the project.",
+            description: "Get the git status of all files in the project. 注意：尚未实现，当前始终返回空数组。",
           }),
         ),
       )

@@ -75,11 +75,22 @@ function credentialFromRequest(request: HttpServerRequest.HttpServerRequest) {
 }
 
 function credentialFromURL(url: URL, request: HttpServerRequest.HttpServerRequest) {
+  // auth_token 查询参数仅限 WebSocket 升级请求：浏览器 WebSocket API 无法
+  // 设置 Authorization 头，必须走 URL 传递；普通 HTTP 请求携带 auth_token
+  // 会被忽略，防止凭证经访问日志/Referer/浏览器历史泄漏。
   const token = url.searchParams.get(AUTH_TOKEN_QUERY)
-  if (token) return decodeCredential(token)
+  if (token && isWebSocketUpgrade(request)) return decodeCredential(token)
   const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
   if (match) return decodeCredential(match[1])
   return Effect.succeed(emptyCredential())
+}
+
+function isWebSocketUpgrade(request: HttpServerRequest.HttpServerRequest) {
+  return (
+    (request.headers.upgrade ?? "").toLowerCase() === "websocket" &&
+    /\bupgrade\b/i.test(request.headers.connection ?? "") &&
+    request.method === "GET"
+  )
 }
 
 function validateRawCredential<A, E, R>(

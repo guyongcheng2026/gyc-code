@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 // gyc - gyc-code CLI launcher
 // Prefers the prebuilt dist bundle (fastest); falls back to TS source via Bun.
 // 统一运行时策略：所有命令（含 TUI/--mini）都走 Node 目标 dist。

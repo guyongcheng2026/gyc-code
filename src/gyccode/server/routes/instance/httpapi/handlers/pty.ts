@@ -222,13 +222,32 @@ export const ptyConnectHandlers = HttpApiBuilder.group(PtyConnectApi, "pty-conne
 
         // Outbound frames flow through one queue drained by a single writer so replay, live
         // output, and the close frame keep their order.
+        // 溢出保护：慢消费者（网络阻塞/挂起不读）+ 高速输出 PTY 会在内存中
+        // 无界堆积（24h 高并发下 OOM）。积压字节超限即断开（1009），PTY 输出
+        // 是流式非关键数据，丢流优于进程崩溃。outboxBytes 只度量"当前未写出
+        // 的积压量"（drain 写出成功后扣减），不是连接累计输出总量——否则正常
+        // 长会话输出累计超限会被 1009 误杀。
+        const OUTBOX_BYTE_LIMIT = 16 * 1024 * 1024
+        let outboxBytes = 0
+        let outboxOverflowed = false
         const outbox = yield* Queue.unbounded<string | Uint8Array | Socket.CloseEvent>()
+        const offer = (chunk: string | Uint8Array | Socket.CloseEvent) => Queue.offerUnsafe(outbox, chunk)
+        const offerData = (chunk: string | Uint8Array) => {
+          if (outboxOverflowed) return
+          outboxBytes += typeof chunk === "string" ? chunk.length : chunk.byteLength
+          if (outboxBytes > OUTBOX_BYTE_LIMIT) {
+            outboxOverflowed = true
+            offer(new Socket.CloseEvent(1009, "output buffer overflow"))
+            return
+          }
+          offer(chunk)
+        }
         const attachment = yield* pty(
           Pty.Service.use((service) =>
             service.attach(ctx.params.ptyID, {
               cursor,
-              onData: (chunk) => Queue.offerUnsafe(outbox, chunk),
-              onEnd: () => Queue.offerUnsafe(outbox, new Socket.CloseEvent(1000)),
+              onData: offerData,
+              onEnd: () => offer(new Socket.CloseEvent(1000)),
             }),
           ),
         ).pipe(
@@ -236,13 +255,14 @@ export const ptyConnectHandlers = HttpApiBuilder.group(PtyConnectApi, "pty-conne
             "Pty.NotFoundError": () =>
               closeAccepted(new Socket.CloseEvent(4404, "session not found")).pipe(Effect.as(undefined)),
             "Pty.ExitedError": () =>
-              closeAccepted(new Socket.CloseEvent(4404, "session not found")).pipe(Effect.as(undefined)),
+              closeAccepted(new Socket.CloseEvent(4404, "session exited")).pipe(Effect.as(undefined)),
           }),
         )
         if (!attachment) return HttpServerResponse.empty()
 
-        for (const chunk of PtyProtocol.chunks(attachment.replay)) Queue.offerUnsafe(outbox, chunk)
-        Queue.offerUnsafe(outbox, PtyProtocol.metaFrame(attachment.cursor))
+        // replay/meta 同样计入积压字节，保证与 drain 的扣减口径一致。
+        for (const chunk of PtyProtocol.chunks(attachment.replay)) offerData(chunk)
+        offerData(PtyProtocol.metaFrame(attachment.cursor))
         attachment.activate()
 
         const drain = Effect.gen(function* () {
@@ -250,6 +270,9 @@ export const ptyConnectHandlers = HttpApiBuilder.group(PtyConnectApi, "pty-conne
             const item = yield* Queue.take(outbox)
             yield* write(item)
             if (item instanceof Socket.CloseEvent) return
+            // 写出成功即扣减，使 outboxBytes 始终等于"当前积压量"而非
+            // 连接累计输出——否则正常长会话输出累计超限会被 1009 误杀。
+            outboxBytes -= typeof item === "string" ? item.length : item.byteLength
           }
         })
 
