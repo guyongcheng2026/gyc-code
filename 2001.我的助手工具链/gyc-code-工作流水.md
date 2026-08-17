@@ -859,3 +859,6 @@
 
 - [OK] 2026-08-17 [73b07b1] 修复: 审查14项逐一闭环——CLI stdin监听泄漏/vim拦截中断/死路模型降级/v2 compact死端点移除/EDITOR元字符拒绝/状态行零网络/ChatPanel定时器清理/压测env开关/品牌化GycCode云端/effect豁免记录
   - [FILES] 13: AGENTS.md, do-commit.cmd, src/core/catalog.ts, src/core/plugin/provider/gyccode.ts, src/core/session.ts, src/gyccode/cli/cmd/default.ts ...
+
+- [OK] 2026-08-17 [95e43cf] fix: 限流fatal快速失败+凭据递归过滤+品牌诚实化恢复OpenCode Zen+根目录清理
+  - [FILES] 10: console.error('CRON_FIXED_FAIL', do-commit.cmd, run-verify.cmd, run-verify2.cmd, src/core/plugin/provider/gyccode.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts ...
