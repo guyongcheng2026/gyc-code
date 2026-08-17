@@ -883,3 +883,6 @@
 
 - [OK] 2026-08-17 [5500147] feat: fork MiMo Code compose 模式完整能力（actor 适配层 + bundle 同步 + 契约测试 + TUI 过滤）
   - [FILES] 20: src/gyccode/agent/agent.ts, src/gyccode/skill/compose/.bundle/brainstorm/scripts/frame-template.html, src/gyccode/skill/compose/.bundle/brainstorm/scripts/start-server.sh, src/gyccode/skill/compose/.bundle/brainstorm/visual-companion.md, src/gyccode/skill/compose/.bundle/debug/CREATION-LOG.md, src/gyccode/skill/compose/.bundle/execute/SKILL.md ...
+
+- [OK] 2026-08-17 [1728030] fix: 修复 TUI 发送提示词失败——补全 actor 工具初始化（tool.actor 未定义致工具列表含 undefined 崩溃）
+  - [FILES] 6: package.json, scripts/apply-opentui-orphan-patch.cjs, src/gyccode/tool/registry.ts, src/tui/component/dialog-context-info.tsx, src/tui/component/dialog-cost.tsx, src/tui/feature-plugins/sidebar/context.tsx
