@@ -865,3 +865,6 @@
 
 - [OK] 2026-08-17 [d312402] fix: 14维度审查修复—cron触发循环(P0)+技能仓库路径穿越防护+TUI异步化+恒定时间鉴权+cron语义修正
   - [FILES] 10: src/gyccode/session/prompt.ts, src/gyccode/skill/discovery.ts, src/gyccode/tool/cron.ts, src/server/auth.ts, src/server/middleware/authorization.ts, src/tui/component/dialog-commit.tsx ...
+
+- [OK] 2026-08-17 [d312402] fix: 14维度审查修复—cron触发循环(P0)+技能仓库路径穿越防护+TUI异步化+恒定时间鉴权+cron语义修正
+  - [FILES] 10: src/gyccode/session/prompt.ts, src/gyccode/skill/discovery.ts, src/gyccode/tool/cron.ts, src/server/auth.ts, src/server/middleware/authorization.ts, src/tui/component/dialog-commit.tsx ...
