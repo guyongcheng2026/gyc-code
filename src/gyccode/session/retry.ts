@@ -14,6 +14,9 @@ export type RetryReason = "free_tier_limit" | "account_rate_limit" | (string & {
 
 export type Retryable = {
   message: string
+  // fatal = 终态限流（额度耗尽，重置按小时/天计，重试必然失败）：
+  // policy 呈现一次带 action 的状态后立即放弃，避免空转重试 1-2 分钟。
+  fatal?: boolean
   action?: {
     reason: RetryReason
     provider: string
@@ -102,6 +105,7 @@ export function retryable(error: Err, provider: string) {
     if (error.data.responseBody?.includes("FreeUsageLimitError")) {
       return {
         message: GO_UPSELL_MESSAGE,
+        fatal: true,
         action: {
           reason: "free_tier_limit",
           provider,
@@ -134,6 +138,7 @@ export function retryable(error: Err, provider: string) {
       const link = process.env.GYCCODE_UPGRADE_URL
       return {
         message: link ? `${message} - ${link}` : message,
+        fatal: true,
         action: {
           reason: "account_rate_limit",
           provider,
@@ -158,6 +163,13 @@ export function retryable(error: Err, provider: string) {
 
 function matchesRetryableMessage(value: unknown) {
   return typeof value === "string" && RETRYABLE_MESSAGE_PATTERNS.some((pattern) => pattern.test(value))
+}
+
+/** 终态限流错误的升级提示（放弃重试后由错误呈现侧调用）。非终态返回 undefined。 */
+export function actionFor(error: Err, provider: string): Retryable | undefined {
+  const result = retryable(error, provider)
+  if (result?.fatal !== true) return undefined
+  return result
 }
 
 function str(value: unknown) {
@@ -197,8 +209,11 @@ export function policy(opts: {
       const retry = retryable(error, opts.provider)
       if (!retry) return Cause.done(meta.attempt)
       const wait = delay(meta.attempt, SessionV1.APIError.isInstance(error) ? error : undefined)
-      // 长 retry-after（如免费额度耗尽返回 13 小时）直接放弃重试，避免 run 挂死
-      if (wait === undefined) return Cause.done(meta.attempt)
+      // 长 retry-after（如免费额度耗尽返回 13 小时）直接放弃重试，避免 run 挂死；
+      // 终态限流（额度耗尽，retry.fatal）同理：重试必然失败，立即让错误浮出，
+      // 升级提示由 halt 侧从错误中重建（actionFor），不在此处 set（Schedule step
+      // 内 Effect.gen 返回 Cause.done 会被误解析为 [state, duration] 而崩溃）。
+      if (wait === undefined || retry.fatal) return Cause.done(meta.attempt)
       return Effect.gen(function* () {
         const now = yield* Clock.currentTimeMillis
         yield* opts.set({

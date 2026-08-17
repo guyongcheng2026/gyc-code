@@ -656,6 +656,10 @@ const layer = Layer.effect(
           return
         }
         ctx.assistantMessage.error = error
+        // 终态限流（额度耗尽，fatal 快速失败）：把原始 429 文案替换为带升级/重置
+        // 信息的友好消息，确保放弃重试后用户可见失败原因与出路
+        const limit = SessionRetry.actionFor(error, input.model.providerID)
+        if (limit && typeof error.data?.message === "string") error.data.message = limit.message
         yield* events.publish(Session.Event.Error, {
           sessionID: ctx.assistantMessage.sessionID,
           error: ctx.assistantMessage.error,

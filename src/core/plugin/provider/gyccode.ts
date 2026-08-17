@@ -101,7 +101,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
 
     yield* ctx.integration.transform((draft) => {
       draft.update("gyccode", (integration) => {
-        integration.name = "GycCode 云端"
+        integration.name = "OpenCode Zen"
       })
       draft.method.update(oauth(http))
       draft.method.update({ integrationID: "gyccode", method: { type: "key", label: "API key (service account)" } })
@@ -166,7 +166,7 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
       // Always surface the gyccode gateway under its upstream brand name,
       // regardless of what the remote org config reports.
       catalog.provider.update(ProviderV2.ID.gyccode, (provider) => {
-        provider.name = "GycCode 云端"
+        provider.name = "OpenCode Zen"
       })
 
       // 内置登记 Zen 网关的免费模型 deepseek-v4-flash-free（三端默认 LLM，
@@ -183,9 +183,10 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
           model.capabilities.tools = true
           model.cost = []
           model.limit = { context: 128_000, output: 16_384 }
-          // TODO: 内置 gyccode provider 的请求组装链未通（调用 Zen 网关返回 UnknownError），
-          // 修复前保持 disabled——避免模型目录出现必然失败的选项；默认模型走 opencode
-          // provider（同 Zen 网关，已验证可用）。
+          // TODO: 2026-08-17 实测（curl 直连 Zen /chat/completions）：Bearer public 与
+          // 真实 key、流式与非流式、free 与付费模型一律返回 500 Internal server error，
+          // /v1/models 可正常列出——组装链本身已通，断点在上游网关 chat 接口。
+          // 上游恢复后把 enabled 改回 true 即可。
           model.status = "active"
           model.enabled = false
         })
@@ -240,8 +241,21 @@ function fetchProviders(http: HttpClient.HttpClient, value: CredentialValue) {
     )
 }
 
-function withoutCredentials(body: Readonly<Record<string, unknown>> | undefined) {
-  return Object.fromEntries(Object.entries(body ?? {}).filter(([key]) => key !== "apiKey" && key !== "headers"))
+// 凭据类键名（含常见变体）：远程配置里的凭据不得进入 request.body 随 LLM 请求外发
+const CREDENTIAL_KEY_PATTERN = /^(api[-_]?key|authorization|bearer[-_]?token|access[-_]?token|refresh[-_]?token|token|secret|password)$/i
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function withoutCredentials(body: Readonly<Record<string, unknown>> | undefined): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(body ?? {})) {
+    if (CREDENTIAL_KEY_PATTERN.test(key)) continue
+    // 递归过滤嵌套对象，防深层凭据透传
+    out[key] = isPlainObject(value) ? withoutCredentials(value) : value
+  }
+  return out
 }
 
 function remoteCost(input: NonNullable<(typeof ConfigProviderV1.Model.Type)["cost"]>) {
