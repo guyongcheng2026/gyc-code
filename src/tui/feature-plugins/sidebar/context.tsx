@@ -5,7 +5,7 @@ import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-j
 import { completedTPS, formatTPS, streamingTPS } from "./tps"
 import { Token } from "@/util/token"
 import * as Model from "../../util/model"
-import { DialogContext } from "../../component/dialog-context"
+import { DialogContextInfo } from "../../component/dialog-context-info"
 import { computeChRate, estimateMessage, hasTokenUsage, persistedTokens } from "./context-metrics"
 
 const id = "internal:sidebar-context"
@@ -123,7 +123,7 @@ export function View(props: { api: TuiPluginApi; session_id: string }) {
   })
 
   return (
-    <box onMouseDown={() => props.api.ui.dialog.replace(() => <DialogContext api={props.api} session_id={props.session_id} />)}>
+    <box onMouseDown={() => props.api.ui.dialog.replace(() => <DialogContextInfo />)}>
       <text fg={theme().text}>
         <b>Context</b>
       </text>

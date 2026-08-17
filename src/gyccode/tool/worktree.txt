@@ -1,0 +1,15 @@
+Use this tool to manage git worktrees for parallel development.
+
+Call this tool when:
+- You need to create an isolated worktree for experimental changes
+- You want to work on multiple features in parallel without stashing
+- You need to list or remove existing worktrees
+
+The worktree_enter tool creates a new git worktree with an isolated branch.
+The worktree_exit tool removes a worktree and its associated branch.
+The worktree_list tool shows all existing worktrees.
+
+Do NOT call this tool:
+- For simple single-branch work
+- When the project is not a git repository
+- When you don't need parallel branch isolation

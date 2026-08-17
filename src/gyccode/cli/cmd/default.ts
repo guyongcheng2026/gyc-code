@@ -12,6 +12,7 @@ import { effectCmd } from "../effect-cmd"
 import { readStdin } from "../../../core/util/read-stdin"
 import { Filesystem } from "@/util/filesystem"
 import { createGyccodeClient, type CommandV2Info, type GyccodeClient } from "@gyccode/protocol/v2"
+import fuzzysort from "fuzzysort"
 import { FormatError, FormatUnknownError } from "../error"
 import { streamLoop, type SubagentInfo } from "./run/stream-cli"
 import { InstallationVersion } from "@gyccode/core/installation/version"
@@ -250,8 +251,6 @@ async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliIn
   const lines: string[] = []
   lines.push(...box)
   lines.push("")
-  lines.push(`  ${DIM}Tip:${RESET} 直接输入问题开始对话，输入 ${CYAN}/help${RESET} 查看命令`)
-  lines.push("")
   process.stdout.write(lines.join("\n") + "\n")
 }
 
@@ -291,14 +290,14 @@ function selectFromList(title: string, items: ListChoice[]): Promise<string | un
       return
     }
     let index = 0
-    const CYAN = "\x1b[96m"
     const DIM = "\x1b[90m"
+    const BOLD = "\x1b[1m"
     const RESET = "\x1b[0m"
     const input = process.stdin
     const render = () => {
-      process.stdout.write("\r\x1b[K" + CYAN + "?" + RESET + " " + title + "\n")
+      process.stdout.write("\r\x1b[K" + title + "\n")
       items.forEach((item, i) => {
-        const marker = i === index ? CYAN + "›" + RESET : " "
+        const marker = i === index ? BOLD + "›" + RESET : " "
         const num = String(i + 1).padStart(2, " ")
         process.stdout.write(`\x1b[K  ${marker} ${DIM}${num}${RESET}  ${item.label}\n`)
       })
@@ -378,6 +377,7 @@ async function runSlashCommand(
   switch (command) {
     case "exit":
     case "quit":
+    case "q":
       return "exit"
     case "help":
       process.stdout.write(HELP_TEXT + "\n")
@@ -401,7 +401,8 @@ async function runSlashCommand(
       return "continue"
     }
     case "continue":
-    case "resume": {
+    case "resume":
+    case "sessions": {
       let target = args.trim()
       if (!target) {
         try {
@@ -453,7 +454,8 @@ async function runSlashCommand(
       }
       return "continue"
     }
-    case "model": {
+    case "model":
+    case "models": {
       if (!args.trim()) {
         // 无参数：弹出可用模型列表供选择（Claude Code /model 交互）。
         try {
@@ -823,11 +825,35 @@ async function runSlashCommand(
       }
       return "continue"
     }
-    default:
+    case "thinking": {
+      input.thinking = !input.thinking
+      process.stdout.write(`思考块显示：${input.thinking ? "开" : "关"}\n`)
+      return "continue"
+    }
+    case "env": {
       process.stdout.write(
-        `未知命令 /${command}。输入 /help 查看可用命令。\n`,
+        [
+          `版本:   GycCode v${InstallationVersion}`,
+          `平台:   ${process.platform}（${process.arch}）`,
+          `运行时: ${typeof Bun !== "undefined" ? `Bun ${Bun.version}` : `Node ${process.version}`}`,
+          `目录:   ${input.directory ?? process.cwd()}`,
+          `会话:   ${sessionID.slice(0, 8)}`,
+        ].join("\n") + "\n",
       )
       return "continue"
+    }
+    default: {
+      // TUI 界面命令：规格表内已知但需要图形界面，给出明确指引。
+      const spec = findSlashSpec(command)
+      if (spec?.tuiOnly) {
+        process.stdout.write(`/${spec.name} 是图形界面命令，纯 CLI 不支持。请使用 gyc tui 后执行 /${spec.name}。\n`)
+        return "continue"
+      }
+      process.stdout.write(
+        `未知命令 /${command}。输入 / 查看全部命令，或 Ctrl+P 打开命令面板。\n`,
+      )
+      return "continue"
+    }
   }
 }
 
@@ -838,53 +864,120 @@ const HELP_TEXT = [
   "gyc 纯 CLI 交互",
   "",
   "  直接输入问题并回车，逐轮对话（同一会话内保持上下文）。",
-  "  斜杠命令：",
-  "    /exit  /quit       退出",
-  "    /help              显示本帮助",
-  "    /clear  /new       清空当前会话上下文，开启全新会话",
-  "    /continue [id]    继续最近会话（无参数时列出最近 10 个供选择）",
-  "    /compact           压缩当前会话上下文（保留摘要）",
-  "    /model [name]      查看当前模型，或切换模型（如 /model deepseek/deepseek-v4-flash）",
-  "    /variant [name]   查看当前模型变体，或切换（如 /variant high）",
-  "    /agent [name]      查看当前 agent，或切换 agent",
-  "    /status            显示版本/模型/会话/目录信息",
-  "    /cost              显示当前会话 token 用量与成本",
-  "    /context           显示当前会话上下文消息数",
-  "    /copy              复制最近助手回复到剪贴板（同时写入临时文件兜底）",
-  "    /branch            分支当前会话并切换到新分支",
-  "    /permissions       显示当前会话权限规则",
-  "    /editor            在外部编辑器（$EDITOR）中编写消息",
-  "    /subagents         查看最近子代理运行状态",
-  "  模式切换：",
-  "    gyc tui            切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
+  "  斜杠命令与 gyc tui 保持一致。输入 / 弹出命令列表（↑/↓ 选择、Tab 补全、Enter 执行、Esc 关闭）。",
+  "  Ctrl+P 打开命令面板（全量命令过滤选择，与 tui 的 Ctrl+P 一致）。",
   "",
-  "  提示：输入 / 后按 Tab 可补全命令。",
+  "  常用命令：",
+  "    /new /clear         开启全新会话",
+  "    /sessions /continue 继续会话（无参数时列出最近 10 个供选择）",
+  "    /compact            压缩当前会话上下文",
+  "    /model /models      查看或切换模型",
+  "    /variant            查看或切换模型变体",
+  "    /agent              查看或切换 agent",
+  "    /status             显示版本/模型/会话/目录信息",
+  "    /cost               显示当前会话 token 用量与成本",
+  "    /context            显示当前会话上下文消息数",
+  "    /thinking           切换思考块显示",
+  "    /env                显示环境信息",
+  "    /copy               复制最近助手回复到剪贴板",
+  "    /branch             分支当前会话并切换到新分支",
+  "    /permissions        显示当前会话权限规则",
+  "    /editor             在外部编辑器（$EDITOR）中编写消息",
+  "    /subagents          查看最近子代理运行状态",
+  "  标注（仅 TUI）的命令需图形界面：输入 gyc tui 后使用。",
+  "  模式切换：",
+  "    gyc tui             切换到全屏 TUI（当前 CLI 退出，由 TUI 接管）",
   "",
   "  Ctrl-C 退出。",
 ].join("\n")
 
-// readline 补全候选：输入 / 后按 Tab 列出可用命令。
-const SLASH_COMMANDS = [
-  "/help",
-  "/clear",
-  "/continue",
-  "/resume",
-  "/new",
-  "/compact",
-  "/model",
-  "/variant",
-  "/agent",
-  "/status",
-  "/cost",
-  "/context",
-  "/copy",
-  "/branch",
-  "/permissions",
-  "/editor",
-  "/subagents",
-  "/exit",
-  "/quit",
+// ─── 斜杠命令规格表（与 gyc TUI 的命令面板/斜杠补全保持完全一致）──────────
+// 来源：src/tui/app.tsx appCommands + src/tui/routes/session/index.tsx sessionCommandList。
+// tuiOnly: 界面对话框类命令，CLI 下选中时提示改用 `gyc tui`。
+type SlashSpec = {
+  name: string
+  aliases?: string[]
+  desc: string
+  tuiOnly?: boolean
+}
+
+const SLASH_SPECS: SlashSpec[] = [
+  // 系统全局（appCommands）
+  { name: "help", desc: "显示帮助" },
+  { name: "exit", aliases: ["quit", "q"], desc: "退出" },
+  { name: "sessions", aliases: ["resume", "continue"], desc: "会话列表，选择继续" },
+  { name: "new", aliases: ["clear"], desc: "开启全新会话" },
+  { name: "models", aliases: ["mo"], desc: "查看/切换模型" },
+  { name: "variants", desc: "查看/切换模型变体", tuiOnly: true },
+  { name: "model", desc: "查看/切换模型" },
+  { name: "variant", desc: "查看/切换模型变体" },
+  { name: "agent", desc: "查看/切换 agent" },
+  { name: "agents", desc: "agent 列表", tuiOnly: true },
+  { name: "workspaces", desc: "工作区列表", tuiOnly: true },
+  { name: "mcps", desc: "MCP 服务器管理", tuiOnly: true },
+  { name: "connect", desc: "连接服务商", tuiOnly: true },
+  { name: "status", desc: "显示版本/模型/会话/目录信息" },
+  { name: "debug", desc: "调试信息", tuiOnly: true },
+  { name: "themes", desc: "主题切换", tuiOnly: true },
+  { name: "doctor", desc: "环境体检", tuiOnly: true },
+  { name: "config", desc: "配置查看/编辑", tuiOnly: true },
+  { name: "usage", desc: "用量统计", tuiOnly: true },
+  { name: "permissions", aliases: ["perms"], desc: "显示当前会话权限规则" },
+  { name: "vim", desc: "Vim 键绑定开关", tuiOnly: true },
+  { name: "login", desc: "登录", tuiOnly: true },
+  { name: "logout", desc: "登出", tuiOnly: true },
+  { name: "hooks", desc: "钩子管理", tuiOnly: true },
+  { name: "commit", desc: "提交变更", tuiOnly: true },
+  { name: "memory", aliases: ["mem"], desc: "记忆管理", tuiOnly: true },
+  { name: "upgrade", desc: "升级引导", tuiOnly: true },
+  { name: "release-notes", aliases: ["changelog"], desc: "更新日志", tuiOnly: true },
+  { name: "feedback", desc: "反馈提交", tuiOnly: true },
+  // 会话级（sessionCommandList）
+  { name: "compact", aliases: ["summary"], desc: "压缩当前会话上下文" },
+  { name: "share", desc: "分享会话", tuiOnly: true },
+  { name: "unshare", desc: "取消分享", tuiOnly: true },
+  { name: "rename", desc: "重命名会话", tuiOnly: true },
+  { name: "timeline", desc: "跳转到消息", tuiOnly: true },
+  { name: "fork", desc: "分叉会话", tuiOnly: true },
+  { name: "undo", desc: "撤回上一轮", tuiOnly: true },
+  { name: "redo", desc: "恢复撤回", tuiOnly: true },
+  { name: "rewind", desc: "回退到历史某点", tuiOnly: true },
+  { name: "plan", desc: "计划模式", tuiOnly: true },
+  { name: "cost", desc: "显示 token 用量与成本" },
+  { name: "context", desc: "显示上下文消息统计" },
+  { name: "timestamps", desc: "时间戳显示开关", tuiOnly: true },
+  { name: "thinking", desc: "思考块显示开关" },
+  { name: "copy", desc: "复制最近助手回复" },
+  { name: "export", desc: "导出会话记录", tuiOnly: true },
+  { name: "env", desc: "显示环境信息" },
+  { name: "add-dir", desc: "添加工作目录", tuiOnly: true },
+  { name: "output-style", desc: "输出风格选择", tuiOnly: true },
+  { name: "keybindings", desc: "键绑定列表", tuiOnly: true },
+  { name: "security-review", desc: "安全审查", tuiOnly: true },
+  { name: "ultraplan", desc: "超级计划", tuiOnly: true },
+  { name: "bughunter", desc: "Bug 猎手", tuiOnly: true },
+  { name: "insights", desc: "改进洞察", tuiOnly: true },
+  { name: "advisor", desc: "顾问建议", tuiOnly: true },
+  // CLI 扩展（TUI 无对应面板，保留为 CLI 专属）
+  { name: "branch", desc: "分支当前会话并切换" },
+  { name: "editor", desc: "外部编辑器编写消息" },
+  { name: "subagents", desc: "查看最近子代理状态" },
 ]
+
+// 菜单/补全候选：规格表全量（含别名）+ 服务端动态命令。
+// 动态命令（init/review、技能、MCP）在两个界面均可用，统一出现在斜杠菜单中。
+const SLASH_COMMANDS: string[] = (() => {
+  const names = new Set<string>()
+  for (const spec of SLASH_SPECS) {
+    names.add("/" + spec.name)
+    for (const alias of spec.aliases ?? []) names.add("/" + alias)
+  }
+  return [...names].sort()
+})()
+
+function findSlashSpec(command: string): SlashSpec | undefined {
+  return SLASH_SPECS.find((spec) => spec.name === command || spec.aliases?.includes(command))
+}
 
 // 轻量解析 `tui [project] [--flag[=value]]` 文本为 TuiThreadCommand.handler 的 argv。
 // 交互模式内切换 TUI 无需再拉起 Bun 子进程（OpenTUI 经 koffi 支持 Node，无 dist-bun 产物）。
@@ -971,17 +1064,64 @@ async function interactiveLoop(input: CliInput) {
     process.exit(1)
   }
 
-  // 自定义 raw 模式输入 + 实时斜杠命令菜单（Codex 风格）。
-  // 布局：输入行（› ...）在上，命令菜单行在下。每次按键用 \r 清行重绘。
-  const CYAN_PROMPT = "\x1b[96m"
+  // 自定义 raw 模式输入 + 实时斜杠命令菜单（与 gyc tui 的斜杠补全交互保持一致）。
+  // 布局：输入行（? ...）在上，垂直命令列表（名称 + 描述，选中高亮）在下。
+  // 按键与 TUI 对齐：↑/↓ 移动选择、Tab 补全、Enter 执行选中、Esc 关闭菜单、
+  // Ctrl+P 打开命令面板（全量命令 + 过滤 + 执行）。
   const DIM_MENU = "\x1b[90m"
+  const BOLD_MENU = "\x1b[1m"
   const RESET = "\x1b[0m"
+  const MENU_HEIGHT = 8
+
+  type MenuEntry = {
+    label: string // 含 /，如 /model（别名不单独成项，仅参与模糊匹配）
+    fill: string // 执行时的完整命令文本
+    desc: string
+    aliases: string // fuzzysort 匹配用（TUI autocomplete 同款第三 key）
+  }
+
+  // 候选构建对齐 TUI（prompt/autocomplete.tsx commands memo）：
+  // palette 斜杠命令 + 服务端命令（skill 跳过、mcp 带 :mcp 标记），按 display 字典序排序。
+  const buildMenu = (): MenuEntry[] => {
+    const entries: MenuEntry[] = []
+    const seen = new Set<string>()
+    for (const spec of SLASH_SPECS) {
+      if (seen.has(spec.name)) continue
+      seen.add(spec.name)
+      entries.push({
+        label: "/" + spec.name,
+        fill: "/" + spec.name,
+        desc: spec.tuiOnly ? spec.desc + "（仅 TUI）" : spec.desc,
+        aliases: (spec.aliases ?? []).map((alias) => "/" + alias).join(" "),
+      })
+    }
+    for (const [name, info] of dynamicCommands) {
+      if (seen.has(name)) continue
+      seen.add(name)
+      if (info.source === "skill") continue
+      entries.push({
+        label: "/" + name + (info.source === "mcp" ? ":mcp" : ""),
+        fill: "/" + name,
+        desc: info.description ?? "",
+        aliases: "",
+      })
+    }
+    entries.sort((a, b) => a.label.localeCompare(b.label))
+    return entries
+  }
+
   const promptWithMenu = (): Promise<string> =>
     new Promise((resolve) => {
       let buffer = ""
       let cursor = 0
       let selected = 0
-      let menu: string[] = []
+      let offset = 0 // 滚动窗口起点：保证选中项始终可见（对齐 TUI moveTo 滚动）
+      let menu: MenuEntry[] = []
+      // 面板模式（Ctrl+P）：过滤输入独立保存，Esc 退出恢复原输入。
+      let palette = false
+      let savedBuffer = ""
+      let savedCursor = 0
+      let menuHidden = false
       // 流式 UTF-8 解码器：中文 IME 输入以多字节序列到达，且可能跨 chunk 拆分。
       // stream:true 语义下，不完整的尾部序列由解码器内部暂存，直到后续字节补齐
       // 才输出完整字符——逐字节喂入即可，无需手工维护字节缓冲区。
@@ -990,33 +1130,110 @@ async function interactiveLoop(input: CliInput) {
       const decodeByte = (b: number): string => decoder.decode(new Uint8Array([b]), { stream: true })
       const flushDecoder = (): string => decoder.decode()
 
+      const filterText = (): string => (palette ? buffer : (/^\/([^\s]*)/.exec(buffer)?.[1] ?? ""))
+
+      // 过滤对齐 TUI（prompt/autocomplete.tsx options memo）：fuzzysort，
+      // keys = [label, description, aliases]，threshold 0，limit 10，
+      // 前缀命中（"/"+query）得分 ×2；无搜索词时返回全量（字典序）。
+      const filteredEntries = (): MenuEntry[] => {
+        const all = buildMenu()
+        const query = filterText()
+        if (!query) return all
+        return fuzzysort
+          .go(query, all, {
+            keys: [
+              (obj) => obj.label.trimEnd(),
+              "desc",
+              "aliases",
+            ],
+            threshold: 0,
+            limit: 10,
+            scoreFn: (objResults) => {
+              const displayResult = objResults[0]
+              let score = objResults.score
+              if (displayResult && displayResult.target.startsWith("/" + query)) {
+                score *= 2
+              }
+              return score
+            },
+          })
+          .map((result) => result.obj)
+      }
+
+      const viewportHeight = () => Math.min(MENU_HEIGHT, menu.length)
+
       const render = () => {
-        // 输入行：回到行首清行，重绘提示符 + 输入 + 光标归位。
-        process.stdout.write("\r\x1b[K" + CYAN_PROMPT + "?\x1b[0m " + buffer)
+        // 输入行：回到行首清行重绘（Codex 风格：无提示符前缀）。
+        const prefix = palette ? DIM_MENU + "命令" + RESET + " " : ""
+        process.stdout.write("\r\x1b[K" + prefix + buffer)
         const back = buffer.length - cursor
         if (back > 0) process.stdout.write("\x1b[" + back + "D")
-        // 菜单行：清行，若有命令则显示。
-        process.stdout.write("\n\x1b[K")
-        if (menu.length > 0) {
-          process.stdout.write(
-            DIM_MENU + menu.map((c, i) => (i === selected ? CYAN_PROMPT + c + RESET : c)).join("   ") + RESET,
-          )
+        // 菜单：固定高度滚动窗口（menu.slice(offset, offset+MENU_HEIGHT)），
+        // 选中项始终落在窗口内（moveTo 已保证），彻底消除"所见与所选错位"。
+        const visible = (!menuHidden && menu.length > 0) || (palette && menu.length > 0)
+        const shown = visible ? menu.slice(offset, offset + MENU_HEIGHT) : []
+        for (let i = 0; i < MENU_HEIGHT; i++) {
+          process.stdout.write("\n\x1b[K")
+          const entry = shown[i]
+          if (!entry) continue
+          const globalIndex = offset + i
+          const desc = entry.desc ? DIM_MENU + "  " + entry.desc + RESET : ""
+          if (globalIndex === selected) {
+            process.stdout.write(BOLD_MENU + "› " + entry.label + RESET + desc)
+          } else {
+            process.stdout.write(DIM_MENU + "  " + entry.label + RESET + desc)
+          }
         }
-        // 光标回到输入行。
-        process.stdout.write("\x1b[1A")
+        process.stdout.write("\x1b[" + MENU_HEIGHT + "A")
       }
+
       const refreshMenu = () => {
+        if (palette) {
+          menu = filteredEntries()
+          selected = 0
+          offset = 0
+          return
+        }
         const m = /^\/([^\s]*)/.exec(buffer)
-        // 输入 / 或 /前缀 时显示匹配命令；仅一个 / 时显示全部命令。
-        menu = m
-          ? commandCandidates().filter((cmd) => cmd.startsWith("/" + m[1]) && cmd !== buffer.trim())
-          : []
+        // 输入 / 或 /前缀 时显示匹配命令（与 TUI 一致：精确命中仍显示）。
+        menu = m && !menuHidden ? filteredEntries() : []
+        // 对齐 TUI createEffect：每次过滤变化重置 selected（并重置滚动窗口）。
         selected = 0
+        offset = 0
       }
+
+      // 对齐 TUI moveTo：更新选中项并滚动窗口保证其可见。
+      const moveTo = (next: number) => {
+        selected = next
+        const viewport = viewportHeight()
+        if (next < offset) {
+          offset = next
+        } else if (next + 1 > offset + viewport) {
+          offset = next + 1 - viewport
+        }
+      }
+      // 对齐 TUI move：循环移动（到顶回到底部，到底回到顶部）。
+      const move = (direction: -1 | 1) => {
+        if (menu.length === 0) return
+        let next = selected + direction
+        if (next < 0) next = menu.length - 1
+        if (next >= menu.length) next = 0
+        moveTo(next)
+      }
+
       let esc = ""
       const input = process.stdin
       input.setRawMode(true)
       input.resume()
+      const finish = (text: string) => {
+        process.stdout.write("\r\x1b[K")
+        // 清掉菜单区固定高度。
+        for (let i = 0; i < MENU_HEIGHT; i++) process.stdout.write("\n\x1b[K")
+        process.stdout.write("\x1b[" + MENU_HEIGHT + "A\n")
+        input.setRawMode(false)
+        input.pause()
+        resolve(text)
+      }
       input.on("data", (chunk) => {
         const bytes = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk
         for (const byte of bytes) {
@@ -1024,15 +1241,11 @@ async function interactiveLoop(input: CliInput) {
           if (esc) {
             esc += String.fromCharCode(ch)
             if (esc.length === 3) {
-              if (esc === "\x1b[A" && menu.length > 0) {
-                selected = (selected - 1 + menu.length) % menu.length
-                buffer = menu[selected]!
-                cursor = buffer.length
+              if (esc === "\x1b[A") {
+                move(-1)
                 render()
-              } else if (esc === "\x1b[B" && menu.length > 0) {
-                selected = (selected + 1) % menu.length
-                buffer = menu[selected]!
-                cursor = buffer.length
+              } else if (esc === "\x1b[B") {
+                move(1)
                 render()
               }
               esc = ""
@@ -1044,20 +1257,52 @@ async function interactiveLoop(input: CliInput) {
             input.setRawMode(false)
             input.pause()
             process.exit(0)
+          } else if (ch === 16) {
+            // Ctrl+P：切换命令面板（与 TUI 的 ctrl+p 命令面板一致）。
+            if (palette) {
+              palette = false
+              buffer = savedBuffer
+              cursor = savedCursor
+              refreshMenu()
+              render()
+            } else {
+              palette = true
+              savedBuffer = buffer
+              savedCursor = cursor
+              buffer = ""
+              cursor = 0
+              selected = 0
+              offset = 0
+              menuHidden = false
+              refreshMenu()
+              render()
+            }
           } else if (ch === 13 || ch === 10) {
             // 刷新解码器（处理可能残留的不完整 UTF-8 序列）
             buffer += flushDecoder()
-            process.stdout.write("\r\x1b[K\n")
-            input.setRawMode(false)
-            input.pause()
-            resolve(buffer)
+            if (palette) {
+              const entry = menu[selected]
+              finish(entry ? entry.fill : buffer)
+              return
+            }
+            // 菜单可见 + 纯 /xxx 输入：执行选中命令（对齐 TUI select）。
+            if (menu.length > 0 && /^\/\S*$/.test(buffer.trim())) {
+              finish(menu[selected]!.fill)
+              return
+            }
+            finish(buffer)
             return
           } else if (ch === 9) {
+            // Tab：与 TUI 的 prompt.autocomplete.complete 一致——同样执行选中项。
             if (menu.length > 0) {
-              selected = (selected + 1) % menu.length
-              buffer = menu[selected]!
-              cursor = buffer.length
-              render()
+              if (palette) {
+                finish(menu[selected]!.fill)
+                return
+              }
+              if (/^\/\S*$/.test(buffer.trim())) {
+                finish(menu[selected]!.fill)
+                return
+              }
             }
           } else if (ch === 127 || ch === 8) {
             // 退格：先刷新解码器，再删除一个字符
@@ -1065,23 +1310,43 @@ async function interactiveLoop(input: CliInput) {
             if (cursor > 0) {
               buffer = buffer.slice(0, cursor - 1) + buffer.slice(cursor)
               cursor--
+              if (!palette) menuHidden = false
               refreshMenu()
               render()
             }
           } else if (ch === 27) {
-            esc = "\x1b"
+            if (palette) {
+              // Esc：退出面板，恢复原输入。
+              palette = false
+              buffer = savedBuffer
+              cursor = savedCursor
+              refreshMenu()
+              render()
+            } else if (menu.length > 0) {
+              // Esc：对齐 TUI hide——斜杠模式下清空 /xxx 输入并关闭菜单。
+              menuHidden = true
+              buffer = ""
+              cursor = 0
+              menu = []
+              selected = 0
+              offset = 0
+              render()
+            }
+            esc = ""
           } else {
             // 普通字符：流式解码；不完整的多字节序列由解码器暂存，返回空串
             const decoded = decodeByte(ch)
             if (decoded) {
               buffer = buffer.slice(0, cursor) + decoded + buffer.slice(cursor)
               cursor += decoded.length
+              if (!palette) menuHidden = false
               refreshMenu()
               render()
             }
           }
         }
       })
+      refreshMenu()
       render()
     })
 
@@ -1096,7 +1361,7 @@ async function interactiveLoop(input: CliInput) {
   })
   try {
     for (;;) {
-      // Codex 风格的输入提示符：? （亮青色），带实时斜杠命令菜单。
+      // Codex 风格输入：无提示符前缀，带实时斜杠命令菜单。
       const line = await promptWithMenu()
       const text = line.trim()
       if (!text) continue
@@ -1141,6 +1406,8 @@ async function interactiveLoop(input: CliInput) {
         if (outcome === "exit") break
         continue
       }
+      // Codex 风格：提交后以 › 回显用户消息（dim 灰）。
+      process.stdout.write("\x1b[90m› " + text + "\x1b[0m\n")
       await runTurn(sdk, currentSessionId, text, input, subagents)
       await renderStatusLine(sdk, currentSessionId, input)
     }

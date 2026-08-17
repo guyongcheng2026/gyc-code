@@ -1,7 +1,11 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { httpClient } from "@gyccode/core/effect/app-node-platform"
 import { Ripgrep } from "@gyccode/core/ripgrep"
-import { PlanExitTool } from "./plan"
+import { PlanExitTool, PlanEnterTool } from "./plan"
+import { EnterWorktreeTool, ExitWorktreeTool, ListWorktreeTool } from "./worktree"
+import { NotebookEditTool } from "./notebook"
+import { ScheduleCronTool, CronDeleteTool, CronListTool, CronScheduler } from "./cron"
+import { McpAuthTool } from "./mcp-auth"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { ShellTool } from "./shell"
@@ -60,6 +64,7 @@ import { ModelV2 } from "@gyccode/core/model"
 import { MCP } from "@/mcp"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
+import { Worktree } from "@/worktree"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.gyccode || flags.exa || flags.parallel
@@ -114,6 +119,15 @@ const layer = Layer.effect(
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
     const plan = yield* PlanExitTool
+    const planEnter = yield* PlanEnterTool
+    const worktreeEnter = yield* EnterWorktreeTool
+    const worktreeExit = yield* ExitWorktreeTool
+    const worktreeList = yield* ListWorktreeTool
+    const notebook = yield* NotebookEditTool
+    const scheduleCron = yield* ScheduleCronTool
+    const cronDelete = yield* CronDeleteTool
+    const cronList = yield* CronListTool
+    const mcpAuth = yield* McpAuthTool
     const webfetch = yield* WebFetchTool
     const websearch = yield* WebSearchTool
     const shell = yield* ShellTool
@@ -251,6 +265,15 @@ const layer = Layer.effect(
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
+          planEnter: Tool.init(planEnter),
+          worktreeEnter: Tool.init(worktreeEnter),
+          worktreeExit: Tool.init(worktreeExit),
+          worktreeList: Tool.init(worktreeList),
+          notebook: Tool.init(notebook),
+          scheduleCron: Tool.init(scheduleCron),
+          cronDelete: Tool.init(cronDelete),
+          cronList: Tool.init(cronList),
+          mcpAuth: Tool.init(mcpAuth),
           brief: Tool.init(brieftool),
           sleep: Tool.init(sleep),
           config: Tool.init(configtool),
@@ -292,7 +315,13 @@ const layer = Layer.effect(
             toolSearchDef,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
-            ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
+            ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan, tool.planEnter] : []),
+            ...(flags.experimentalWorkspaces ? [tool.worktreeEnter, tool.worktreeExit, tool.worktreeList] : []),
+            tool.notebook,
+            tool.scheduleCron,
+            tool.cronDelete,
+            tool.cronList,
+            tool.mcpAuth,
           ],
           task: tool.task,
           read: tool.read,
@@ -497,6 +526,8 @@ export const node = LayerNode.make({
     MCP.node,
     Database.node,
     Ripgrep.node,
+    Worktree.node,
+    CronScheduler.node,
   ],
 })
 

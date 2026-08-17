@@ -1,0 +1,5 @@
+# Bun 全局配置
+[test]
+# webapp 测试由其自带的 vitest（jsdom 环境）负责，bun test 不扫（无 DOM 环境会误报失败）。
+# 运行 webapp 测试：cd src/webapp && bun run test
+exclude = ["src/webapp", "node_modules", "dist", "web-test*.log"]

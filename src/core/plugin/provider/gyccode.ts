@@ -169,6 +169,25 @@ export const GyccodePlugin = define<HttpClient.HttpClient | EventV2.Service | Sc
         provider.name = "OpenCode Zen"
       })
 
+      // 内置登记 Zen 网关的免费模型 deepseek-v4-flash-free（三端默认 LLM，
+      // public key 即可调用，零成本条目在无凭据时保持 enabled）。
+      if (!catalog.model.get(ProviderV2.ID.gyccode, ModelV2.ID.make("deepseek-v4-flash-free"))) {
+        catalog.model.update(ProviderV2.ID.gyccode, "deepseek-v4-flash-free", (model) => {
+          model.name = "DeepSeek V4 Flash Free"
+          model.api = {
+            id: "deepseek-v4-flash-free",
+            type: "aisdk",
+            package: "@ai-sdk/openai-compatible",
+            url: "https://opencode.ai/zen/v1",
+          }
+          model.capabilities.tools = true
+          model.cost = []
+          model.limit = { context: 128_000, output: 16_384 }
+          model.status = "active"
+          model.enabled = true
+        })
+      }
+
       const item = catalog.provider.get(ProviderV2.ID.gyccode)
       if (!item) return
       const hasKey = Boolean(process.env.GYCCODE_API_KEY || connected || item.provider.request.body.apiKey)

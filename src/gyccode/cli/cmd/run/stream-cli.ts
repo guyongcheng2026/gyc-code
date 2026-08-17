@@ -36,7 +36,7 @@ async function tool(part: ToolPart) {
     inline(next)
   } catch {
     inline({
-      icon: "\u2699",
+      icon: "🅃",
       title: part.tool,
     })
   }
@@ -139,7 +139,8 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
       toggles.get("start") !== true
     ) {
       UI.empty()
-      UI.println(`> ${event.properties.info.agent} · ${event.properties.info.modelID}`)
+      // Codex 风格：轮次头 dim 小字（无符号前缀）。
+      UI.println(`${UI.Style.TEXT_DIM}${event.properties.info.agent} · ${event.properties.info.modelID}${UI.Style.TEXT_NORMAL}`)
       UI.empty()
       toggles.set("start", true)
     }

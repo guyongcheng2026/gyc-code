@@ -178,12 +178,29 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
         >
           ⑂ 分支
         </button>
-        <button className="btn btn-ghost" onClick={() => summarize(sessionID).catch(() => {})}>
+        <button
+          className="btn btn-ghost"
+          onClick={() => {
+            const [providerID, modelID] = currentModel.split("/")
+            if (!providerID || !modelID) {
+              showNotice("尚未选择模型，无法生成摘要。")
+              return
+            }
+            summarize(sessionID, { providerID, modelID }).catch(err)
+          }}
+        >
           摘要
         </button>
         <button
           className="btn btn-ghost"
-          onClick={() => compact(sessionID).catch(() => {})}
+          onClick={() => {
+            const [providerID, modelID] = currentModel.split("/")
+            if (!providerID || !modelID) {
+              showNotice("尚未选择模型，无法压缩会话。")
+              return
+            }
+            compact(sessionID, { providerID, modelID }).catch(err)
+          }}
           title="压缩会话上下文（保留摘要）"
         >
           压缩

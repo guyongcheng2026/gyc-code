@@ -1,5 +1,6 @@
 import { render, TimeToFirstDraw, useRenderer, useTerminalDimensions } from "@opentui/solid"
 import { registerGyccodeSpinner } from "./component/register-spinner"
+import { useVimKeymap } from "./vim"
 import { createDefaultOpenTuiKeymap } from "@opentui/keymap/opentui"
 import { Deferred, Effect } from "effect"
 import { Global } from "@gyccode/core/global"
@@ -44,6 +45,19 @@ import { useConnected } from "./component/use-connected"
 import { DialogMcp } from "./component/dialog-mcp"
 import { DialogStatus } from "./component/dialog-status"
 import { DialogDebug } from "./component/dialog-debug"
+import { DialogDoctor } from "./component/dialog-doctor"
+import { DialogConfig } from "./component/dialog-config"
+import { DialogUsage } from "./component/dialog-usage"
+import { DialogPermissions } from "./component/dialog-permissions"
+import { DialogVim } from "./component/dialog-vim"
+import { DialogLogin } from "./component/dialog-login"
+import { DialogLogout } from "./component/dialog-logout"
+import { DialogHooks } from "./component/dialog-hooks"
+import { DialogCommit } from "./component/dialog-commit"
+import { DialogMemory } from "./component/dialog-memory"
+import { DialogUpgrade } from "./component/dialog-upgrade"
+import { DialogReleaseNotes } from "./component/dialog-release-notes"
+import { DialogFeedback } from "./component/dialog-feedback"
 import { DialogThemeList } from "./component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
 import { DialogAgent } from "./component/dialog-agent"
@@ -136,6 +150,19 @@ const appBindingCommands = [
   "app.toggle.diffwrap",
   "app.toggle.paste_summary",
   "app.toggle.session_directory_filter",
+  "gyccode.doctor",
+  "gyccode.config",
+  "gyccode.usage",
+  "gyccode.permissions",
+  "gyccode.vim",
+  "gyccode.login",
+  "gyccode.logout",
+  "gyccode.hooks",
+  "gyccode.commit",
+  "gyccode.memory",
+  "gyccode.upgrade",
+  "gyccode.release_notes",
+  "gyccode.feedback",
 ] as const
 
 export type TuiInput = {
@@ -390,6 +417,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const pluginRuntime = usePluginRuntime()
   const attention = createTuiAttention({ renderer, config: tuiConfig, kv })
   const clipboard = useClipboard()
+  // Vim 键绑定层：消费 KV vim_mode_enabled，提供 NORMAL/INSERT 模式编辑
+  useVimKeymap()
 
   const api = createTuiApi(
     createTuiApiAdapters({
@@ -426,10 +455,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     })
 
   // Let selection copy/dismiss win ahead of normal bindings when explicit copy is required.
+  // 注：flag 语义为"实验性禁用选择复制"——仅当用户显式设置时才跳过；默认启用。
   const offSelectionKeys = keymap.intercept(
     "key",
     ({ event }) => {
-      if (!Flag.GYCCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
+      if (Flag.GYCCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT) return
       Selection.handleSelectionKey(renderer, toast, event, clipboard)
     },
     { priority: 1 },
@@ -948,6 +978,126 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         run: () => {
           local.permission.toggle()
           dialog.clear()
+        },
+      },
+      {
+        name: "gyccode.doctor",
+        title: "环境诊断",
+        category: "系统",
+        slashName: "doctor",
+        run: () => {
+          dialog.replace(() => <DialogDoctor />)
+        },
+      },
+      {
+        name: "gyccode.config",
+        title: "查看配置",
+        category: "系统",
+        slashName: "config",
+        run: () => {
+          dialog.replace(() => <DialogConfig />)
+        },
+      },
+      {
+        name: "gyccode.usage",
+        title: "查看额度使用",
+        category: "系统",
+        slashName: "usage",
+        run: () => {
+          dialog.replace(() => <DialogUsage />)
+        },
+      },
+      {
+        name: "gyccode.permissions",
+        title: "权限管理",
+        category: "系统",
+        slashName: "permissions",
+        slashAliases: ["perms"],
+        run: () => {
+          dialog.replace(() => <DialogPermissions />)
+        },
+      },
+      {
+        name: "gyccode.vim",
+        title: "切换 Vim 模式",
+        category: "系统",
+        slashName: "vim",
+        run: () => {
+          dialog.replace(() => <DialogVim />)
+        },
+      },
+      {
+        name: "gyccode.login",
+        title: "账号登录",
+        category: "账号",
+        slashName: "login",
+        run: () => {
+          dialog.replace(() => <DialogLogin />)
+        },
+      },
+      {
+        name: "gyccode.logout",
+        title: "账号登出",
+        category: "账号",
+        slashName: "logout",
+        run: () => {
+          dialog.replace(() => <DialogLogout />)
+        },
+      },
+      {
+        name: "gyccode.hooks",
+        title: "查看 Hooks",
+        category: "系统",
+        slashName: "hooks",
+        run: () => {
+          dialog.replace(() => <DialogHooks />)
+        },
+      },
+      {
+        name: "gyccode.commit",
+        title: "Git 提交状态",
+        category: "Git",
+        slashName: "commit",
+        run: () => {
+          dialog.replace(() => <DialogCommit />)
+        },
+      },
+      {
+        name: "gyccode.memory",
+        title: "查看跨会话记忆",
+        category: "系统",
+        slashName: "memory",
+        slashAliases: ["mem"],
+        run: () => {
+          dialog.replace(() => <DialogMemory />)
+        },
+      },
+      {
+        name: "gyccode.upgrade",
+        title: "版本升级",
+        category: "系统",
+        slashName: "upgrade",
+        run: () => {
+          dialog.replace(() => <DialogUpgrade />)
+        },
+      },
+      {
+        name: "gyccode.release_notes",
+        title: "更新日志",
+        category: "系统",
+        slashName: "release-notes",
+        slashAliases: ["changelog"],
+        run: () => {
+          dialog.replace(() => <DialogReleaseNotes />)
+        },
+      },
+      {
+        name: "gyccode.feedback",
+        title: "提交反馈",
+        category: "系统",
+        slashName: "feedback",
+        run: () => {
+          dialog.replace(() => <DialogFeedback />)
         },
       },
     ].map((command) => ({

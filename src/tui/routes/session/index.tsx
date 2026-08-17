@@ -79,10 +79,19 @@ import { getScrollAcceleration } from "../../util/scroll"
 import { collapseToolOutput } from "../../util/collapse-tool-output"
 import { usePluginRuntime } from "../../plugin/runtime"
 import { DialogRetryAction } from "../../component/dialog-retry-action"
+import { DialogCost } from "../../component/dialog-cost"
+import { DialogContextInfo } from "../../component/dialog-context-info"
+import { DialogRewind } from "../../component/dialog-rewind"
+import { DialogPlan } from "../../component/dialog-plan"
+import { DialogSummary } from "../../component/dialog-summary"
 import { getRevertDiffFiles } from "../../util/revert-diff"
 import { GYCCODE_BASE_MODE, useBindings, useCommandShortcut, useGyccodeKeymap } from "../../keymap"
 import { usePathFormatter } from "../../context/path-format"
 import { LocationProvider } from "../../context/location"
+import { DialogPrompt } from "../../ui/dialog-prompt"
+import { DialogSelect } from "../../ui/dialog-select"
+import { InstallationVersion } from "@gyccode/core/installation/version"
+import * as TuiKeybind from "../../config/keybind"
 
 addDefaultParsers(parsers.parsers)
 
@@ -123,6 +132,11 @@ const sessionBindingCommands = [
   "session.unshare",
   "session.undo",
   "session.redo",
+  "session.cost",
+  "session.context",
+  "session.rewind",
+  "session.plan",
+  "session.summary",
   "session.sidebar.toggle",
   "session.toggle.conceal",
   "session.toggle.timestamps",
@@ -470,6 +484,13 @@ export function Session() {
     }
   }
 
+  // 提示注入：把预定义提示词写入输入框并立即提交（P2 辅助命令共用）
+  const sendPrompt = (text: string) => {
+    dialog.clear()
+    prompt?.set({ input: text, parts: [] })
+    prompt?.submit()
+  }
+
   const sessionCommandList = createMemo(() => [
     {
       title: session()?.share?.url ? "复制分享链接" : "分享会话",
@@ -651,32 +672,87 @@ export function Session() {
         dialog.clear()
       },
     },
-    {
-      title: "重做",
-      value: "session.redo",
-      category: "会话",
-      enabled: !!session()?.revert?.messageID,
-      slash: {
-        name: "redo",
-      },
-      run: () => {
-        dialog.clear()
-        const messageID = session()?.revert?.messageID
-        if (!messageID) return
-        const message = messages().find((x) => x.role === "user" && x.id > messageID)
-        if (!message) {
-          void sdk.client.session.unrevert({
+      {
+        title: "重做",
+        value: "session.redo",
+        category: "会话",
+        enabled: !!session()?.revert?.messageID,
+        slash: {
+          name: "redo",
+        },
+        run: () => {
+          dialog.clear()
+          const messageID = session()?.revert?.messageID
+          if (!messageID) return
+          const message = messages().find((x) => x.role === "user" && x.id > messageID)
+          if (!message) {
+            void sdk.client.session.unrevert({
+              sessionID: route.sessionID,
+            })
+            prompt?.set({ input: "", parts: [] })
+            return
+          }
+          void sdk.client.session.revert({
             sessionID: route.sessionID,
+            messageID: message.id,
           })
-          prompt?.set({ input: "", parts: [] })
-          return
-        }
-        void sdk.client.session.revert({
-          sessionID: route.sessionID,
-          messageID: message.id,
-        })
+        },
       },
-    },
+      {
+        title: "查看花费",
+        value: "session.cost",
+        category: "会话",
+        slash: {
+          name: "cost",
+        },
+        run: () => {
+          dialog.replace(() => <DialogCost />)
+        },
+      },
+      {
+        title: "上下文详情",
+        value: "session.context",
+        category: "会话",
+        slash: {
+          name: "context",
+        },
+        run: () => {
+          dialog.replace(() => <DialogContextInfo />)
+        },
+      },
+      {
+        title: "回退到历史某点",
+        value: "session.rewind",
+        category: "会话",
+        slash: {
+          name: "rewind",
+        },
+        run: () => {
+          dialog.replace(() => <DialogRewind />)
+        },
+      },
+      {
+        title: "计划模式",
+        value: "session.plan",
+        category: "会话",
+        slash: {
+          name: "plan",
+        },
+        run: () => {
+          dialog.replace(() => <DialogPlan />)
+        },
+      },
+      {
+        title: "会话摘要",
+        value: "session.summary",
+        category: "会话",
+        slash: {
+          name: "summary",
+        },
+        run: () => {
+          dialog.replace(() => <DialogSummary />)
+        },
+      },
     {
       title: sidebarVisible() ? "隐藏侧边栏" : "显示侧边栏",
       value: "session.sidebar.toggle",
@@ -1088,6 +1164,184 @@ export function Session() {
         dialog.clear()
         moveChild(-1)
       }),
+    },
+    {
+      title: "添加工作目录",
+      value: "session.add_dir",
+      category: "工作区",
+      slash: {
+        name: "add-dir",
+      },
+      run: async () => {
+        const value = await DialogPrompt.show(dialog, "添加工作目录", {
+          placeholder: "输入要加入会话工作范围的目录绝对路径",
+        })
+        if (!value || !value.trim()) return
+        const directory = normalizePath(value.trim())
+        sendPrompt(`请将目录 ${directory} 加入本会话的工作范围：后续任务可读写其中的文件。若目录不存在请告知。`)
+      },
+    },
+    {
+      title: "环境信息",
+      value: "session.env",
+      category: "工作区",
+      slash: {
+        name: "env",
+      },
+      run: () => {
+        dialog.replace(() => (
+          <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
+            <box flexDirection="row" justifyContent="space-between">
+              <text attributes={TextAttributes.BOLD} fg={theme.text}>
+                Env — 环境信息
+              </text>
+              <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
+                esc
+              </text>
+            </box>
+            <text fg={theme.textMuted}>版本：GycCode v{InstallationVersion}</text>
+            <text fg={theme.textMuted}>
+              平台：{process.platform}（{process.arch}）
+            </text>
+            <text fg={theme.textMuted}>运行时：{typeof Bun !== "undefined" ? `Bun ${Bun.version}` : `Node ${process.version}`}</text>
+            <text fg={theme.textMuted}>工作目录：{paths.cwd}</text>
+            <text fg={theme.textMuted}>会话目录：{session()?.directory ?? paths.cwd}</text>
+          </box>
+        ))
+      },
+    },
+    {
+      title: "输出风格",
+      value: "session.output_style",
+      category: "配置",
+      slash: {
+        name: "output-style",
+      },
+      run: () => {
+        const styles = [
+          { value: "default", title: "默认", description: "平衡简洁与完整" },
+          { value: "concise", title: "简洁", description: "最少输出，只保留关键结论与代码" },
+          { value: "verbose", title: "详细", description: "完整解释与推理过程" },
+          { value: "tutorial", title: "教程式", description: "面向初学者逐步解释" },
+        ]
+        dialog.replace(() => (
+          <DialogSelect
+            title="选择输出风格"
+            skipFilter={true}
+            renderFilter={false}
+            current={kv.get("output_style", "default")}
+            options={styles.map((item) => ({
+              ...item,
+              onSelect(dlg) {
+                kv.set("output_style", item.value)
+                dlg.clear()
+                if (item.value === "default") return
+                const instruction: Record<string, string> = {
+                  concise: "从现在起请保持简洁输出：直接给出结论与代码，省略客套与重复解释。",
+                  verbose: "从现在起请保持详细输出：给出完整推理过程、备选方案与权衡说明。",
+                  tutorial: "从现在起请以教程风格输出：逐步解释、标注关键概念，便于初学者跟随。",
+                }
+                sendPrompt(instruction[item.value] ?? "")
+              },
+            }))}
+          />
+        ))
+      },
+    },
+    {
+      title: "键绑定列表",
+      value: "session.keybindings",
+      category: "配置",
+      slash: {
+        name: "keybindings",
+      },
+      run: () => {
+        const rows = Object.entries(TuiKeybind.Definitions)
+          .map(([name, item]) => ({ name, key: String(item.default) }))
+          .filter((row) => row.key !== "none" && row.key !== "false")
+        dialog.setSize("large")
+        dialog.replace(() => (
+          <box paddingLeft={2} paddingRight={2} paddingBottom={1}>
+            <box flexDirection="row" justifyContent="space-between">
+              <text attributes={TextAttributes.BOLD} fg={theme.text}>
+                Keybindings — 键绑定（{rows.length} 项）
+              </text>
+              <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
+                esc
+              </text>
+            </box>
+            <scrollbox flexGrow={1} minHeight={0}>
+              <box flexDirection="column" gap={0}>
+                <For each={rows}>
+                  {(row) => (
+                    <text fg={theme.textMuted} wrapMode="none">
+                      <span style={{ fg: theme.text }}>{row.key}</span> — {row.name}
+                    </text>
+                  )}
+                </For>
+              </box>
+            </scrollbox>
+          </box>
+        ))
+      },
+    },
+    {
+      title: "安全审查",
+      value: "session.security_review",
+      category: "工作流",
+      slash: {
+        name: "security-review",
+      },
+      run: () =>
+        sendPrompt(
+          "请对当前工作区进行安全审查：1) 硬编码凭据、密钥与敏感信息泄露；2) 注入类漏洞（命令注入、SQL 注入、路径穿越、XSS）；3) 不安全的依赖与过时加密用法；4) 权限与沙箱配置问题。输出按严重程度（P0/P1/P2）分级的问题清单，每项包含文件路径、行号与修复建议；无问题的类别明确标注通过。",
+        ),
+    },
+    {
+      title: "超级计划",
+      value: "session.ultraplan",
+      category: "工作流",
+      slash: {
+        name: "ultraplan",
+      },
+      run: () =>
+        sendPrompt(
+          "请进入超级计划模式：先全面探索代码库理解现状，再为接下来的任务制定详尽实施计划——包含目标拆解、分步方案（每步含验证方式）、风险点与回滚策略、依赖顺序。仅输出计划，待我确认后再执行。",
+        ),
+    },
+    {
+      title: "Bug 猎手",
+      value: "session.bughunter",
+      category: "工作流",
+      slash: {
+        name: "bughunter",
+      },
+      run: () =>
+        sendPrompt(
+          "请化身 Bug 猎手审查当前工作区：主动寻找逻辑错误、边界条件缺陷、资源泄漏、并发竞态、错误处理缺失与类型安全问题。按 P0/P1/P2 输出问题清单（文件、行号、触发条件、修复建议），并指出你最怀疑的三个薄弱文件。",
+        ),
+    },
+    {
+      title: "改进洞察",
+      value: "session.insights",
+      category: "工作流",
+      slash: {
+        name: "insights",
+      },
+      run: () =>
+        sendPrompt(
+          "请分析当前工作区并给出改进洞察：1) 架构层面（模块边界、依赖方向、数据流）；2) 代码质量（重复、复杂度、死代码）；3) 性能（启动开销、热路径）；4) 可测试性与可观测性。每项洞察附文件定位与可落地的改进建议，按投入产出比排序。",
+        ),
+    },
+    {
+      title: "顾问建议",
+      value: "session.advisor",
+      category: "工作流",
+      slash: {
+        name: "advisor",
+      },
+      run: () =>
+        sendPrompt("请作为技术顾问评估当前任务与代码现状：指出我可能忽略的风险、更优的技术选型、以及下一步最值得做的三件事，并说明理由与取舍。"),
     },
   ])
 

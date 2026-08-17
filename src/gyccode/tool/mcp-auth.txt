@@ -1,0 +1,7 @@
+Trigger OAuth authentication for an MCP server that requires it.
+
+Usage:
+- server: The name of the MCP server to authenticate.
+- Call this tool when an MCP server is installed but requires authentication before its tools become available.
+- The tool returns an authorization URL to share with the user. Once the user completes authorization in their browser, the server's tools become available automatically.
+- If the server doesn't support OAuth or is already authenticated, an appropriate message is returned.

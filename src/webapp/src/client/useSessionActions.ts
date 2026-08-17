@@ -33,17 +33,25 @@ export function useSessionActions(directory?: string) {
     [directory],
   )
 
+  // v1 summarize 的 providerID/modelID 为必填（生成摘要所用模型），与 TUI 行为一致传当前模型。
   const summarize = useCallback(
-    async (id: string) => {
-      await sdk(directory).session.summarize({ path: { id } })
+    async (id: string, model: { providerID: string; modelID: string }) => {
+      await sdk(directory).session.summarize({
+        path: { id },
+        body: { providerID: model.providerID, modelID: model.modelID },
+      })
     },
     [directory],
   )
 
-  // 压缩会话上下文（保留摘要后截断历史），走 v2 session.compact
+  // 压缩会话上下文：与 TUI/CLI 三端一致，走 v1 session.summarize 生成摘要后截断。
+  // （v2 session.compact 服务端未实现，返回 OperationUnavailableError。）
   const compact = useCallback(
-    async (id: string) => {
-      await v2(directory).v2.session.compact({ sessionID: id })
+    async (id: string, model?: { providerID: string; modelID: string }) => {
+      await sdk(directory).session.summarize({
+        path: { id },
+        ...(model ? { body: { providerID: model.providerID, modelID: model.modelID } } : {}),
+      })
     },
     [directory],
   )
