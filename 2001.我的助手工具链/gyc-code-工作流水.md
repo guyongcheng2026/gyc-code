@@ -856,3 +856,6 @@
 
 - [OK] 2026-08-17 [7bb188b] 修复: TUI文本选择复制flag条件反转 + CLI界面codex化 + 默认LLM统一 + P2收尾批次
   - [FILES] 51: bunfig.toml, console.error('CRON_FIXED_FAIL', do-commit.cmd, docs/GAP-ANALYSIS-2026-08-16-vs-claude-code.md, run-verify.cmd, run-verify2.cmd ...
+
+- [OK] 2026-08-17 [73b07b1] 修复: 审查14项逐一闭环——CLI stdin监听泄漏/vim拦截中断/死路模型降级/v2 compact死端点移除/EDITOR元字符拒绝/状态行零网络/ChatPanel定时器清理/压测env开关/品牌化GycCode云端/effect豁免记录
+  - [FILES] 13: AGENTS.md, do-commit.cmd, src/core/catalog.ts, src/core/plugin/provider/gyccode.ts, src/core/session.ts, src/gyccode/cli/cmd/default.ts ...
