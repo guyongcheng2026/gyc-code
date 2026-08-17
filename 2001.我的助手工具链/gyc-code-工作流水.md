@@ -853,3 +853,6 @@
 
 - [OK] 2026-08-16 [86e7a0d] chore: gitignore 增加 .codebuddy/ 本地记忆目录
   - [FILES] 1: .gitignore
+
+- [OK] 2026-08-17 [7bb188b] 修复: TUI文本选择复制flag条件反转 + CLI界面codex化 + 默认LLM统一 + P2收尾批次
+  - [FILES] 51: bunfig.toml, console.error('CRON_FIXED_FAIL', do-commit.cmd, docs/GAP-ANALYSIS-2026-08-16-vs-claude-code.md, run-verify.cmd, run-verify2.cmd ...
