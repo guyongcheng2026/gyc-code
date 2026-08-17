@@ -871,3 +871,6 @@
 
 - [OK] 2026-08-17 [8706a42] chore(deps): 依赖治理—精确版本固化、webapp专属依赖移入devDependencies、drizzle-orm rc.2豁免记录
   - [FILES] 3: AGENTS.md, bun.lock, package.json
+
+- [OK] 2026-08-17 [6176d26] fix(security): 凭据DPAPI加密(Windows)+web命令非loopback无密码拒绝暴露
+  - [FILES] 3: src/core/credential.ts, src/core/util/dpapi.ts, src/gyccode/cli/cmd/web.ts
