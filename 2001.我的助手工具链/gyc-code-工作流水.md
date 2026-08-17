@@ -868,3 +868,6 @@
 
 - [OK] 2026-08-17 [7223d7b] feat: HTTP限流中间件(429令牌桶)+worklog-sync并发锁防重复
   - [FILES] 7: scripts/worklog-sync.mjs, src/gyccode/server/routes/instance/httpapi/server.ts, src/protocol/api.ts, src/protocol/errors.ts, src/protocol/middleware/rate-limit.ts, src/server/middleware/rate-limit.ts ...
+
+- [OK] 2026-08-17 [8706a42] chore(deps): 依赖治理—精确版本固化、webapp专属依赖移入devDependencies、drizzle-orm rc.2豁免记录
+  - [FILES] 3: AGENTS.md, bun.lock, package.json
