@@ -7,6 +7,7 @@ import { Integration } from "@gyccode/schema/integration"
 import { Database } from "./database/database"
 import { makeGlobalNode } from "./effect/app-node"
 import { CredentialTable } from "./credential/sql"
+import { protectSecret, unprotectSecret } from "./util/dpapi"
 
 export const ID = Credential.ID
 export type ID = Credential.ID
@@ -53,43 +54,80 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const { db } = yield* Database.Service
     const decode = Schema.decodeUnknownSync(Value)
+
+    // 凭据机密字段落盘加密（win32 DPAPI，密钥绑定当前用户；其他平台恒等）。
+    // 读取侧解密失败的凭据（跨账户/跨机拷贝的数据库）直接丢弃该条——
+    // 返回无法通过认证的密文没有意义，用户重新登录即可恢复。
+    const protectValue = (value: Credential.Value): Credential.Value => {
+      if (value.type === "key") return { ...value, key: protectSecret(value.key) }
+      return { ...value, refresh: protectSecret(value.refresh), access: protectSecret(value.access) }
+    }
+    const unprotectValue = (value: Credential.Value): Credential.Value => {
+      if (value.type === "key") return { ...value, key: unprotectSecret(value.key) }
+      return { ...value, refresh: unprotectSecret(value.refresh), access: unprotectSecret(value.access) }
+    }
+
+    // 解密失败的凭据 ID 收集队列：stored() 是同步函数无法直接 Effect.log，
+    // 调用方在查询结束后 flush 一次 warning，保证"静默丢弃"可排障
+    // （典型场景：数据库被跨机/跨账户拷贝，DPAPI 密文无法解密）。
+    let decodeFailures: string[] = []
     const stored = (row: typeof CredentialTable.$inferSelect) => {
       if (!row.integration_id) return
-      return new Info({
-        id: row.id,
-        integrationID: row.integration_id,
-        label: row.label,
-        value: decode(row.value),
-      })
+      try {
+        return new Info({
+          id: row.id,
+          integrationID: row.integration_id,
+          label: row.label,
+          value: unprotectValue(decode(row.value)),
+        })
+      } catch {
+        decodeFailures.push(row.id)
+        return undefined
+      }
+    }
+    const flushDecodeFailures = () => {
+      const ids = decodeFailures
+      decodeFailures = []
+      return ids.length
+        ? Effect.logWarning("credential decrypt failed; dropping (re-login to restore)", { ids })
+        : Effect.void
     }
 
     return Service.of({
       all: Effect.fn("Credential.all")(function* () {
-        return (yield* db
+        const rows = yield* db
           .select()
           .from(CredentialTable)
           .orderBy(asc(CredentialTable.time_created))
           .all()
-          .pipe(Effect.orDie)).flatMap((row) => {
+          .pipe(Effect.orDie)
+        const credentials = rows.flatMap((row) => {
           const credential = stored(row)
           return credential ? [credential] : []
         })
+        yield* flushDecodeFailures()
+        return credentials
       }),
       list: Effect.fn("Credential.list")(function* (integrationID) {
-        return (yield* db
+        const rows = yield* db
           .select()
           .from(CredentialTable)
           .where(eq(CredentialTable.integration_id, integrationID))
           .orderBy(asc(CredentialTable.time_created))
           .all()
-          .pipe(Effect.orDie)).flatMap((row) => {
+          .pipe(Effect.orDie)
+        const credentials = rows.flatMap((row) => {
           const credential = stored(row)
           return credential ? [credential] : []
         })
+        yield* flushDecodeFailures()
+        return credentials
       }),
       get: Effect.fn("Credential.get")(function* (id) {
         const row = yield* db.select().from(CredentialTable).where(eq(CredentialTable.id, id)).get().pipe(Effect.orDie)
-        return row ? stored(row) : undefined
+        const credential = row ? stored(row) : undefined
+        yield* flushDecodeFailures()
+        return credential
       }),
       create: Effect.fn("Credential.create")(function* (input) {
         const credential = new Info({
@@ -111,7 +149,7 @@ const layer = Layer.effect(
                   id: credential.id,
                   integration_id: credential.integrationID,
                   label: credential.label,
-                  value: credential.value,
+                  value: protectValue(credential.value),
                 })
                 .run()
             }),
@@ -123,7 +161,10 @@ const layer = Layer.effect(
         if (!updates.label && !updates.value) return
         yield* db
           .update(CredentialTable)
-          .set({ label: updates.label, value: updates.value })
+          .set({
+            label: updates.label,
+            value: updates.value === undefined ? undefined : protectValue(updates.value),
+          })
           .where(eq(CredentialTable.id, id))
           .run()
           .pipe(Effect.orDie)

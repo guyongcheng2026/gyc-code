@@ -37,10 +37,24 @@ export const WebCommand = effectCmd({
   instance: false,
   handler: Effect.fn("Cli.web")(function* (args) {
     const { Server } = yield* Effect.promise(() => import("../../server/server"))
-    if (!Flag.GYCCODE_SERVER_PASSWORD) {
-      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  GYCCODE_SERVER_PASSWORD is not set; server is unsecured.")
-    }
     const opts = yield* resolveNetworkOptions(args)
+    const isLoopback = opts.hostname === "127.0.0.1" || opts.hostname === "localhost" || opts.hostname === "::1"
+    if (!Flag.GYCCODE_SERVER_PASSWORD) {
+      if (!isLoopback) {
+        UI.println(
+          UI.Style.TEXT_DANGER_BOLD +
+            "!  Refusing to expose an unsecured server on a non-loopback address. Set GYCCODE_SERVER_PASSWORD before listening on " +
+            opts.hostname,
+        )
+        process.exit(1)
+      }
+      UI.println(UI.Style.TEXT_WARNING_BOLD + "!  GYCCODE_SERVER_PASSWORD is not set; server is unsecured (loopback only).")
+    } else if (!isLoopback) {
+      UI.println(
+        UI.Style.TEXT_WARNING_BOLD +
+          "!  Serving plain HTTP with Basic Auth over a non-loopback address; credential is transmitted in cleartext. Terminate TLS at a reverse proxy in production.",
+      )
+    }
     const server = yield* Effect.promise(() => Server.listen(opts))
     UI.empty()
     UI.println(UI.logo("  "))
