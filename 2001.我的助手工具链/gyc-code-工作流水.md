@@ -904,3 +904,6 @@
 
 - [OK] 2026-08-19 [5dffd8c] fix: 修复发送消息致服务进程崩溃——Bun 1.3.14 koffi NAPI finalizer bug 规避（防GC池+解密LRU缓存）
   - [FILES] 1: src/core/util/dpapi.ts
+
+- [OK] 2026-08-20 [044802e] 修复 gyc web 空白页：重建 web UI 清单并同步 index.js hash
+  - [FILES] 1: src/gyccode/server/generated/opencode-web-ui.gen.ts
