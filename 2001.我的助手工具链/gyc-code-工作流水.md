@@ -901,3 +901,6 @@
 
 - [OK] 2026-08-19 [5ed5c57] feat: web 终端面板默认自动创建首个终端会话
   - [FILES] 2: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/TerminalPanel.tsx
+
+- [OK] 2026-08-19 [5dffd8c] fix: 修复发送消息致服务进程崩溃——Bun 1.3.14 koffi NAPI finalizer bug 规避（防GC池+解密LRU缓存）
+  - [FILES] 1: src/core/util/dpapi.ts
