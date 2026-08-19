@@ -16,6 +16,17 @@ type Api = {
   readonly unprotect: (cipher: string) => string
 }
 
+// 防 GC 池：Bun 1.3.14 (win) 存在 NAPI finalizer 崩溃 bug —— koffi 创建的
+// native 包装对象（library/func/struct/decode 结果）被 GC 回收时在 finalizer
+// 里调用 napi_reference_unref 会 panic 整个进程（发送消息→读凭据→必崩）。
+// 规避：所有 koffi 对象在进程生命周期内保持强引用，finalizer 永不触发。
+// 池增长量 = 每次调用几十字节且解密结果另有 LRU 缓存，可忽略。
+const keepAlive: unknown[] = []
+
+// 解密结果 LRU：同一密文重复解密（每次 LLM 请求读凭据）直接命中，减少 DPAPI 调用与池增长
+const unprotectCache = new Map<string, string>()
+const UNPROTECT_CACHE_MAX = 128
+
 let cached: Api | undefined | null
 
 function load(): Api | undefined {
@@ -43,14 +54,19 @@ function init(): Api | undefined {
     )
     const localFree = kernel32.func("void * __stdcall LocalFree(void *mem)")
 
+    // koffi 句柄对象全部池化防 GC（见文件头注释）
+    keepAlive.push(koffi, crypt32, kernel32, BLOB, protectFn, unprotectFn, localFree)
+
     const protect = (plain: string) => {
       const buf = Buffer.from(plain, "utf8")
       const input = { cbSize: buf.length, pBlobData: buf }
       const output = { cbSize: 0, pBlobData: null }
+      keepAlive.push(buf, input, output)
       const ok = protectFn(input, null, null, null, null, CRYPTPROTECT_UI_FORBIDDEN, output)
       if (!ok || !output.pBlobData || output.cbSize === 0) throw new Error("CryptProtectData failed")
       try {
         const bytes = koffi.decode(output.pBlobData, "uint8_t", output.cbSize) as Uint8Array
+        keepAlive.push(bytes)
         return DPAPI_PREFIX + Buffer.from(bytes).toString("base64")
       } finally {
         localFree(output.pBlobData)
@@ -61,10 +77,12 @@ function init(): Api | undefined {
       const buf = Buffer.from(cipher.slice(DPAPI_PREFIX.length), "base64")
       const input = { cbSize: buf.length, pBlobData: buf }
       const output = { cbSize: 0, pBlobData: null }
+      keepAlive.push(buf, input, output)
       const ok = unprotectFn(input, null, null, null, null, CRYPTPROTECT_UI_FORBIDDEN, output)
       if (!ok || !output.pBlobData || output.cbSize === 0) throw new Error("CryptUnprotectData failed")
       try {
         const bytes = koffi.decode(output.pBlobData, "uint8_t", output.cbSize) as Uint8Array
+        keepAlive.push(bytes)
         return Buffer.from(bytes).toString("utf8")
       } finally {
         localFree(output.pBlobData)
@@ -90,9 +108,22 @@ export function protectSecret(plain: string): string {
  */
 export function unprotectSecret(value: string): string {
   if (!value.startsWith(DPAPI_PREFIX)) return value
+  const hit = unprotectCache.get(value)
+  if (hit !== undefined) {
+    // LRU 淘汰：命中即重插到末尾
+    unprotectCache.delete(value)
+    unprotectCache.set(value, hit)
+    return hit
+  }
   const api = load()
   if (!api) throw new Error("DPAPI cipher found but crypt32 unavailable")
-  return api.unprotect(value)
+  const plain = api.unprotect(value)
+  if (unprotectCache.size >= UNPROTECT_CACHE_MAX) {
+    const oldest = unprotectCache.keys().next().value
+    if (oldest !== undefined) unprotectCache.delete(oldest)
+  }
+  unprotectCache.set(value, plain)
+  return plain
 }
 
 export * as DPAPI from "./dpapi"
