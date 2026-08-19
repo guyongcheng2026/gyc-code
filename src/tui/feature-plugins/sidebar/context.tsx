@@ -9,7 +9,7 @@ import { DialogContextInfo } from "../../component/dialog-context-info"
 import { computeChRate, estimateMessage, hasTokenUsage, persistedTokens } from "./context-metrics"
 
 const id = "internal:sidebar-context"
-const REFRESH_MS = 2000
+const REFRESH_MS = 5000
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",

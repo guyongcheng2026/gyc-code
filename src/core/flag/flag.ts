@@ -43,7 +43,7 @@ export const Flag = {
     Config.withDefault(false),
   ),
   GYCCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT:
-    copy === undefined ? process.platform === "win32" : truthy("GYCCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"),
+    copy === undefined ? false : truthy("GYCCODE_EXPERIMENTAL_DISABLE_COPY_ON_SELECT"),
   GYCCODE_MODELS_URL: process.env["GYCCODE_MODELS_URL"],
   GYCCODE_MODELS_PATH: process.env["GYCCODE_MODELS_PATH"],
   GYCCODE_DB: process.env["GYCCODE_DB"],

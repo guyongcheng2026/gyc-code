@@ -111,7 +111,7 @@ export function usePromptWorkspace(sessionID?: string) {
       setCreatingDots(3)
       return
     }
-    const timer = setInterval(() => setCreatingDots((dots) => (dots % 3) + 1), 1000)
+    const timer = setInterval(() => setCreatingDots((dots) => (dots % 3) + 1), 2000)
     onCleanup(() => clearInterval(timer))
   })
 

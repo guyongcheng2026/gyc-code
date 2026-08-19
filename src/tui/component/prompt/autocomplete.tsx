@@ -124,7 +124,7 @@ export function Autocomplete(props: {
           lastPos = { x: anchor.x, y: anchor.y, width: anchor.width }
           setPositionTick((t) => t + 1)
         }
-      }, 200)
+      }, 500)
 
       onCleanup(() => clearInterval(interval))
     }

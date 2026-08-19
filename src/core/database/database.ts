@@ -21,18 +21,34 @@ type DatabaseShape = Effect.Success<typeof makeDatabase>
 // apply to new databases; existing databases need a one-time full VACUUM to
 // take effect (PRAGMA auto_vacuum returns 0 until then).
 const enableIncrementalVacuum = Effect.fn("Database.enableIncrementalVacuum")(function* (db: DatabaseShape) {
-  yield* db.run(sql`PRAGMA auto_vacuum = INCREMENTAL`).pipe(Effect.orDie)
-  const row = yield* db.get<{ auto_vacuum: number }>(sql`PRAGMA auto_vacuum`).pipe(Effect.orDie)
+  yield* db.run(sql`PRAGMA auto_vacuum = INCREMENTAL`).pipe(
+    Effect.catch((e) =>
+      Effect.logError("Failed to enable incremental vacuum", { error: e })
+    )
+  )
+  const row = yield* db.get<{ auto_vacuum: number }>(sql`PRAGMA auto_vacuum`).pipe(
+    Effect.catch((e) =>
+      Effect.logError("Failed to get auto_vacuum", { error: e })
+    )
+  )
   if (row?.auto_vacuum !== 2) {
     // Existing database: one-time full VACUUM to rebuild with auto-vacuum on.
-    yield* db.run(sql`VACUUM`).pipe(Effect.orDie)
+    yield* db.run(sql`VACUUM`).pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to vacuum", { error: e })
+      )
+    )
   }
 })
 
 // Reclaim freelist pages freed by deletes/updates since the last run. Cheap
 // and incremental, so it can run on every startup without blocking reads.
 const reclaimFreePages = Effect.fn("Database.reclaimFreePages")(function* (db: DatabaseShape) {
-  yield* db.run(sql`PRAGMA incremental_vacuum`).pipe(Effect.orDie)
+  yield* db.run(sql`PRAGMA incremental_vacuum`).pipe(
+    Effect.catch((e) =>
+      Effect.logError("Failed to reclaim free pages", { error: e })
+    )
+  )
 })
 
 // Prune raw event rows for sessions that have been inactive beyond the
@@ -55,7 +71,11 @@ const EVENT_LOG_MAX_BYTES = 32 * 1024 * 1024 // 32MB hard cap on the event log
 const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: DatabaseShape) {
   const tableExists = yield* db
     .get<{ name: string }>(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session'`)
-    .pipe(Effect.orDie)
+    .pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to check session table existence", { error: e })
+      )
+    )
   if (!tableExists) return
   const cutoff = Date.now() - EVENT_RETENTION_MS
   // event.aggregate_id is the session id; prune event rows only, keeping
@@ -67,12 +87,20 @@ const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: D
         SELECT id FROM session WHERE time_updated < ${cutoff}
       )
     `)
-    .pipe(Effect.orDie)
+    .pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to prune stale events by time", { error: e })
+      )
+    )
 
   // Size cap: drop whole sessions' events, oldest activity first, until the
   // event log is under the cap. Same semantics as time pruning above.
   while (true) {
-    const total = yield* db.get<{ b: number | null }>(sql`SELECT SUM(LENGTH(data)) AS b FROM event`).pipe(Effect.orDie)
+    const total = yield* db.get<{ b: number | null }>(sql`SELECT SUM(LENGTH(data)) AS b FROM event`).pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to get event log size", { error: e })
+      )
+    )
     if ((total?.b ?? 0) <= EVENT_LOG_MAX_BYTES) return
     const victim = yield* db
       .get<{ id: string; b: number }>(sql`
@@ -83,14 +111,22 @@ const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: D
         ORDER BY MIN(s.time_updated) ASC
         LIMIT 1
       `)
-      .pipe(Effect.orDie)
+      .pipe(
+        Effect.catch((e) =>
+          Effect.logError("Failed to find victim session for size pruning", { error: e })
+        )
+      )
     if (!victim) return
     yield* Effect.logWarning("event log over size cap, pruning oldest session events", {
       sessionID: victim.id,
       bytes: victim.b,
       cap: EVENT_LOG_MAX_BYTES,
     })
-    yield* db.run(sql`DELETE FROM event WHERE aggregate_id = ${victim.id}`).pipe(Effect.orDie)
+    yield* db.run(sql`DELETE FROM event WHERE aggregate_id = ${victim.id}`).pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to delete victim session events", { error: e })
+      )
+    )
   }
 })
 
@@ -114,7 +150,13 @@ const maintenanceDue = Effect.fn("Database.maintenanceDue")(function* (db: Datab
       SELECT (SELECT page_count FROM pragma_page_count) AS pages,
              (SELECT page_size FROM pragma_page_size) AS page_size
     `)
-    .pipe(Effect.orDie)
+    .pipe(
+      Effect.catch((e) =>
+        Effect.logWarning("Failed to get DB size for maintenanceDue", { error: e }).pipe(
+          Effect.andThen(Effect.succeed({ pages: 0, page_size: 0 }))
+        )
+      )
+    )
   if (!size || size.pages * size.page_size < MAINTENANCE_ALWAYS_UNDER_BYTES) return true
   // 用同步 readFileSync 而非 tryPromise：Database layer 会被测试用
   // Effect.runSync 执行，任何异步 Effect 都会让 runSync 崩溃。维护标记
