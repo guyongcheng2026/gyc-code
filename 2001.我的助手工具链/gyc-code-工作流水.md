@@ -886,3 +886,6 @@
 
 - [OK] 2026-08-17 [1728030] fix: 修复 TUI 发送提示词失败——补全 actor 工具初始化（tool.actor 未定义致工具列表含 undefined 崩溃）
   - [FILES] 6: package.json, scripts/apply-opentui-orphan-patch.cjs, src/gyccode/tool/registry.ts, src/tui/component/dialog-context-info.tsx, src/tui/component/dialog-cost.tsx, src/tui/feature-plugins/sidebar/context.tsx
+
+- [OK] 2026-08-19 [4ec942a] feat: web 界面对标 DSH Desktop 三轮完整对齐（渲染/交互/视图/性能）
+  - [FILES] 22: bun.lock, docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, package.json, src/webapp/package.json, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx ...
