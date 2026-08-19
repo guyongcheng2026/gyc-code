@@ -3,7 +3,7 @@ import { sdk } from "./sdk"
 
 export type SessionItem = { id: string; title?: string | null; time?: { created: number } }
 
-export function useSessions() {
+export function useSessions(directory?: string) {
   const [sessions, setSessions] = useState<SessionItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -12,22 +12,22 @@ export function useSessions() {
     setLoading(true)
     setError(null)
     try {
-      const res = await sdk().session.list()
+      const res = await sdk(directory).session.list()
       setSessions((res.data as SessionItem[]) ?? [])
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [directory])
 
   // 删除历史会话
   const remove = useCallback(
     async (id: string) => {
-      await sdk().session.delete({ path: { id } })
+      await sdk(directory).session.delete({ path: { id } })
       await reload()
     },
-    [reload],
+    [reload, directory],
   )
 
   useEffect(() => {

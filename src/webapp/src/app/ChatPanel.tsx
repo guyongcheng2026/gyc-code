@@ -25,14 +25,14 @@ const LOCAL_COMMANDS = [
   { name: "branch", description: "分支当前会话并切换到新分支" },
 ]
 
-export function ChatPanel({ sessionID, files }: { sessionID: string; files?: string[] }) {
-  const { messages, busy } = useChatSession(sessionID)
-  const { send, deliver } = useSendPrompt(sessionID)
-  const { queue, resolve } = usePermissions(sessionID)
-  const { requests, reply, reject } = useQuestions(sessionID)
-  const { command, abort, fork, summarize, compact, switchAgent, switchModel, background } = useSessionActions()
-  const { commands } = useCommands()
-  const { info, refresh: refreshInfo } = useSessionInfo(sessionID)
+export function ChatPanel({ sessionID, files, directory }: { sessionID: string; files?: string[]; directory?: string }) {
+  const { messages, busy } = useChatSession(sessionID, directory)
+  const { send, deliver } = useSendPrompt(sessionID, directory)
+  const { queue, resolve } = usePermissions(sessionID, directory)
+  const { requests, reply, reject } = useQuestions(sessionID, directory)
+  const { command, abort, fork, summarize, compact, switchAgent, switchModel, background } = useSessionActions(directory)
+  const { commands } = useCommands(directory)
+  const { info, refresh: refreshInfo } = useSessionInfo(sessionID, directory)
   const { models, loading: modelsLoading } = useModels()
   const [sendError, setSendError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)

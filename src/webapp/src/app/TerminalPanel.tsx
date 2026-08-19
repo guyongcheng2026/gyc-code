@@ -15,8 +15,8 @@ function terminalColors() {
   return { background: bg, foreground: fg }
 }
 
-export function TerminalPanel() {
-  const { create, updateSize } = usePty()
+export function TerminalPanel({ directory }: { directory?: string }) {
+  const { create, updateSize } = usePty(directory)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [ptys, setPtys] = useState<PtyEntry[]>([])
   const [activeID, setActiveID] = useState<string | null>(null)

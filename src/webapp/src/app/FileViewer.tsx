@@ -16,8 +16,8 @@ function guessLanguage(path: string): string {
   return LANG_BY_EXT[ext] ?? "plaintext"
 }
 
-export function FileViewer({ path }: { path: string }) {
-  const { content, loading, error } = useFileContent(path)
+export function FileViewer({ path, directory }: { path: string; directory?: string }) {
+  const { content, loading, error } = useFileContent(path, directory)
   const [monacoReady, setMonacoReady] = useState(false)
 
   // 按需加载 monaco：首次打开文件时才下载编辑器内核（setup 会配置 loader 与 worker）。

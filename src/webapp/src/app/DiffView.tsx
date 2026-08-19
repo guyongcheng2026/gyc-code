@@ -40,8 +40,8 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
   )
 }
 
-export function DiffView({ sessionID }: { sessionID: string | null }) {
-  const { diffs, loading, error } = useSessionDiff(sessionID)
+export function DiffView({ sessionID, directory }: { sessionID: string | null; directory?: string }) {
+  const { diffs, loading, error } = useSessionDiff(sessionID, directory)
 
   if (loading) return <div style={{ padding: 24, color: "var(--inactive)" }}>加载 diff…</div>
   if (error) return <div style={{ padding: 24, color: "var(--error)" }}>{error}</div>

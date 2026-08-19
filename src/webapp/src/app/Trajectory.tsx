@@ -76,8 +76,8 @@ function EventRow({ e, index, selected, onSelect }: { e: TrajectoryEvent; index:
   )
 }
 
-export function Trajectory({ sessionID }: { sessionID: string | null }) {
-  const { events, hasMore, loading, error, loadEarlier } = useSessionHistory(sessionID)
+export function Trajectory({ sessionID, directory }: { sessionID: string | null; directory?: string }) {
+  const { events, hasMore, loading, error, loadEarlier } = useSessionHistory(sessionID, directory)
   const [selectedID, setSelectedID] = useState<string | null>(null)
   const selected = useMemo(() => events.find((e) => e.id === selectedID), [events, selectedID])
 

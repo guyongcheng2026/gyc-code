@@ -910,6 +910,48 @@ body {
   padding: 4px 0;
 }
 
+/* 工作区选择菜单 */
+.ws-menu {
+  position: absolute;
+  top: "100%";
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 340px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 41;
+  overflow: hidden;
+}
+.ws-menu-title {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  color: var(--inactive);
+  word-break: break-all;
+}
+.ws-menu-recent {
+  border-top: 1px solid var(--border-subtle);
+  max-height: 180px;
+  overflow-y: auto;
+}
+.ws-menu-item {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-menu-item:hover {
+  background: var(--panel-bg-hover);
+}
+.ws-menu-item.active {
+  background: var(--selection-bg);
+}
+
 /* ---------- 输入区 ---------- */
 .prompt-bar {
   display: flex;

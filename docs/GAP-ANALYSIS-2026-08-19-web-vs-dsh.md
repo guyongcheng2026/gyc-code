@@ -103,3 +103,14 @@ DSH UI 包为编译产物（lib/*.js 无源码），功能基准取自各包 `RE
 - `Markdown.tsx`：CodeBlock 接 shiki（异步高亮，不支持语言降级纯文本，高亮块 max-height 480 滚动）；新增 TeX 公式——块级 `$$…$$`（围栏式与单行式）和 `\[…\]`，行内 `$…$`、`$$…$$` 与 `\(…\)`（KaTeX 首个公式才动态 import，渲染失败降级原文本）
 - `types/katex.d.ts`：katex 最小类型声明 + css 模块声明
 
+---
+
+# 第四轮（2026-08-19 工作区支持）
+
+验证清单发现「选择工作区」缺口：服务端早已有全链路能力（`x-gyccode-directory` header per-request 实例 + v2 `location.get` + 所有下游 hook 均带 directory 参数），但 webapp 前端从未接线。本轮补齐：
+
+- `client/useWorkspace.ts`：directory 全局状态（localStorage 持久化 `gyc-web-dir`）+ 最近列表（`gyc-web-dirs`，上限 8）+ v2 location.get 回显当前生效目录
+- `App.tsx` 顶栏 `WorkspaceMenu`：当前目录展示 + 绝对路径输入切换 + 最近列表 + 回到服务端默认；切换时清空 selected/filePath/hash
+- directory 全链路下发：useSessions/useFileTree/useEvents/ChatPanel（内部 7 个 hook）/DiffView/Trajectory/FileViewer/TerminalPanel
+- `useSessions.ts` 补 directory 参数（此前唯一缺失的 hook）
+

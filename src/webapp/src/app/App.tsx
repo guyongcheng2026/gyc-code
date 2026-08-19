@@ -3,6 +3,7 @@ import { useSessions } from "../client/useSessions"
 import { useFileTree } from "../client/useFileTree"
 import { useTheme } from "../client/useTheme"
 import { useEvents } from "../client/useEvents"
+import { useWorkspace } from "../client/useWorkspace"
 import { sdk } from "../client/sdk"
 import type { TreeNode } from "../state/fileTreeReducer"
 import { SessionList } from "./SessionList"
@@ -29,8 +30,105 @@ function flattenTree(root: TreeNode[], children: Record<string, TreeNode[]>): st
   return out
 }
 
+// 工作区选择器（对齐 DSH Workspace picker 的 web 形态：当前目录 + 路径输入 + 最近列表）
+function WorkspaceMenu({
+  directory,
+  current,
+  recent,
+  onSelect,
+}: {
+  directory: string | undefined
+  current: string | undefined
+  recent: string[]
+  onSelect: (dir: string | undefined) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [value, setValue] = useState("")
+  const label = (directory ?? current ?? "默认目录").split(/[\\/]).pop() || "默认目录"
+  return (
+    <div style={{ position: "relative", marginRight: 8 }}>
+      <button
+        className="btn btn-ghost"
+        style={{ fontSize: 12, maxWidth: 200 }}
+        title={directory ?? current}
+        onClick={() => setOpen((v) => !v)}
+      >
+        📁 {label} ▾
+      </button>
+      {open ? (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 40 }} onClick={() => setOpen(false)} />
+          <div className="ws-menu">
+            <div className="ws-menu-title">当前：{current ?? directory ?? "服务端默认"}</div>
+            <div style={{ display: "flex", gap: 6, padding: "6px 8px" }}>
+              <input
+                className="text-input"
+                placeholder="输入绝对路径切换工作区…"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && value.trim()) {
+                    onSelect(value.trim())
+                    setValue("")
+                    setOpen(false)
+                  }
+                }}
+                style={{ fontSize: 12 }}
+                autoFocus
+              />
+              <button
+                className="btn"
+                style={{ fontSize: 12 }}
+                onClick={() => {
+                  if (value.trim()) {
+                    onSelect(value.trim())
+                    setValue("")
+                    setOpen(false)
+                  }
+                }}
+              >
+                切换
+              </button>
+            </div>
+            {recent.length > 0 ? (
+              <div className="ws-menu-recent">
+                {recent.map((d) => (
+                  <div
+                    key={d}
+                    className={d === directory ? "ws-menu-item active" : "ws-menu-item"}
+                    onClick={() => {
+                      onSelect(d)
+                      setOpen(false)
+                    }}
+                    title={d}
+                  >
+                    {d}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {directory ? (
+              <button
+                className="btn btn-ghost"
+                style={{ width: "100%", fontSize: 11, borderTop: "1px solid var(--border-subtle)", borderRadius: 0 }}
+                onClick={() => {
+                  onSelect(undefined)
+                  setOpen(false)
+                }}
+              >
+                回到服务端默认目录
+              </button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
 export function App() {
-  const { sessions, reload, remove } = useSessions()
+  const { directory, select, recent, location } = useWorkspace()
+  const { sessions, reload, remove } = useSessions(directory)
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState<MainTab>("chat")
   const [filePath, setFilePath] = useState<string | null>(null)
@@ -41,11 +139,11 @@ export function App() {
   const [pendingMap, setPendingMap] = useState<Record<string, "permission" | "question" | undefined>>({})
   const [sidebarWidth, setSidebarWidth] = useState(260)
   const resizing = useRef(false)
-  const tree = useFileTree()
+  const tree = useFileTree(directory)
   const { pref, cycle } = useTheme()
 
   // 会话运行状态（对齐 DSH 侧栏运行指示器）：事件驱动维护 busyMap + pendingMap
-  useEvents(undefined, (e) => {
+  useEvents(directory, (e) => {
     const props = (e.properties ?? {}) as Record<string, unknown>
     const sid = (props.sessionID ?? props["sessionId"]) as string | undefined
     if (typeof sid !== "string") return
@@ -92,7 +190,7 @@ export function App() {
   }, [])
 
   const onNew = async () => {
-    const res = await sdk().session.create({ body: {} })
+    const res = await sdk(directory).session.create({ body: {} })
     const created = (res.data as { id: string } | undefined)?.id
     if (created) {
       setSelected(created)
@@ -186,6 +284,14 @@ export function App() {
             <span style={{ fontWeight: 700, marginRight: 12, fontSize: 13 }}>
               gyc<span style={{ color: "var(--brand)" }}>·</span>web
             </span>
+            <WorkspaceMenu directory={directory} current={location?.directory} recent={recent} onSelect={(dir) => {
+              if (dir !== directory) {
+                select(dir)
+                setSelected(null)
+                setFilePath(null)
+                window.location.hash = ""
+              }
+            }} />
             {!filePath ? (
               <>
                 <button
@@ -240,12 +346,12 @@ export function App() {
                     <code>{filePath}</code>
                   </div>
                   <div style={{ flex: 1, minHeight: 0 }}>
-                    <FileViewer path={filePath} />
+                    <FileViewer path={filePath} directory={directory} />
                   </div>
                 </div>
               ) : tab === "chat" ? (
                 selected ? (
-                  <ChatPanel sessionID={selected} files={files} />
+                  <ChatPanel sessionID={selected} files={files} directory={directory} />
                 ) : (
                   <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--inactive)" }}>
                     选择或新建一个会话
@@ -253,11 +359,11 @@ export function App() {
                 )
               ) : tab === "traj" ? (
                 <div style={{ flex: 1, minHeight: 0 }}>
-                  <Trajectory sessionID={selected} />
+                  <Trajectory sessionID={selected} directory={directory} />
                 </div>
               ) : (
                 <div style={{ flex: 1, minHeight: 0 }}>
-                  <DiffView sessionID={selected} />
+                  <DiffView sessionID={selected} directory={directory} />
                 </div>
               )}
             </div>
