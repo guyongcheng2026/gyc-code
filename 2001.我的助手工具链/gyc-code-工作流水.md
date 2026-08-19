@@ -889,3 +889,6 @@
 
 - [OK] 2026-08-19 [4ec942a] feat: web 界面对标 DSH Desktop 三轮完整对齐（渲染/交互/视图/性能）
   - [FILES] 22: bun.lock, docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, package.json, src/webapp/package.json, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.test.tsx ...
+
+- [OK] 2026-08-19 [5e28970] feat: web 对标 DSH Desktop 完整对齐（渲染/交互/视图/工作区）+ katex/shiki 接入
+  - [FILES] 10: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileViewer.tsx, src/webapp/src/app/TerminalPanel.tsx ...
