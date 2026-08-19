@@ -23,6 +23,7 @@ export function TerminalPanel({ directory }: { directory?: string }) {
   const [error, setError] = useState<string | null>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
+  const autoStarted = useRef(false)
   const { theme } = useTheme()
 
   const addTerminal = async () => {
@@ -36,6 +37,14 @@ export function TerminalPanel({ directory }: { directory?: string }) {
       setError(err instanceof Error ? err.message : String(err))
     }
   }
+
+  // 默认展开：挂载即自动创建首个终端（仅一次；切换工作区不重复建）
+  useEffect(() => {
+    if (autoStarted.current) return
+    autoStarted.current = true
+    void addTerminal()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 激活终端 → 建立连接 + 挂载 xterm + fit + 通知服务端尺寸
   useEffect(() => {
