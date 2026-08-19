@@ -892,3 +892,6 @@
 
 - [OK] 2026-08-19 [5e28970] feat: web 对标 DSH Desktop 完整对齐（渲染/交互/视图/工作区）+ katex/shiki 接入
   - [FILES] 10: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/DiffView.tsx, src/webapp/src/app/FileViewer.tsx, src/webapp/src/app/TerminalPanel.tsx ...
+
+- [OK] 2026-08-19 [213f145] chore: webapp 内嵌清单重新生成 + core/tui 既有修复入库（数据库维护同步IO/复制选择默认值/CtrlC防护间隔/淡入帧率）
+  - [FILES] 9: src/core/database/database.ts, src/core/flag/flag.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/tui/component/prompt/autocomplete.tsx, src/tui/component/prompt/move.tsx, src/tui/component/prompt/workspace.tsx ...
