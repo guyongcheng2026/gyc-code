@@ -1,11 +1,17 @@
 import { useCallback } from "react"
 import { sdk } from "./sdk"
+import { v2 } from "./v2"
 
 export type PromptFile = { url: string; filename?: string; mime?: string }
 export type PromptPart =
   | { type: "text"; text: string }
   | { type: "file"; url: string; filename?: string; mime: string }
 export type SendModel = { providerID: string; modelID: string }
+// 投递方式（对齐服务端 SessionInput.Delivery）：
+// - undefined：空闲发送（v1 promptAsync）
+// - "queue"：运行中排队（下一轮唤醒）
+// - "steer"：运行中插话（当前轮次 next-step 窗口接纳）
+export type Delivery = "queue" | "steer"
 
 export function buildPromptParts(text: string, files: PromptFile[] = []): PromptPart[] {
   const parts: PromptPart[] = files.map((file) => ({
@@ -34,5 +40,22 @@ export function useSendPrompt(sessionID: string | null, directory?: string) {
     },
     [sessionID, directory],
   )
-  return { send }
+
+  // 运行中投递：queue（排队到下一轮）或 steer（插入当前轮次），走 v2 session prompt。
+  const deliver = useCallback(
+    async (text: string, delivery: Delivery, files: PromptFile[] = []) => {
+      if (!sessionID) throw new Error("未选择会话")
+      await v2(directory).v2.session.prompt({
+        sessionID,
+        prompt: {
+          text,
+          files: files.map((file) => ({ uri: file.url, name: file.filename })),
+        },
+        delivery,
+      })
+    },
+    [sessionID, directory],
+  )
+
+  return { send, deliver }
 }

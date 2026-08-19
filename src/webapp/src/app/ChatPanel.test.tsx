@@ -30,7 +30,7 @@ vi.mock("../client/useChatSession", () => ({
 describe("ChatPanel", () => {
   it("sends prompt on submit", () => {
     render(<ChatPanel sessionID="s1" />)
-    const input = screen.getByPlaceholderText("描述任务，或输入 / 查看命令…")
+    const input = screen.getByPlaceholderText("描述任务，/ 命令，@ 引用文件…")
     fireEvent.change(input, { target: { value: "你好" } })
     fireEvent.keyDown(input, { key: "Enter" })
     expect(promptAsync).toHaveBeenCalledWith({

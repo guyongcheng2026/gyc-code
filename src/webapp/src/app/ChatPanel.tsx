@@ -14,6 +14,7 @@ import { QuestionCard } from "./QuestionCard"
 import { StatusBar } from "./StatusBar"
 import { ModelPicker } from "./ModelPicker"
 import { ModeSwitcher, type ModeID } from "./ModeSwitcher"
+import { TodoPanel } from "./TodoPanel"
 
 const MODE_ORDER: ModeID[] = ["build", "plan", "compose"]
 
@@ -24,9 +25,9 @@ const LOCAL_COMMANDS = [
   { name: "branch", description: "分支当前会话并切换到新分支" },
 ]
 
-export function ChatPanel({ sessionID }: { sessionID: string }) {
+export function ChatPanel({ sessionID, files }: { sessionID: string; files?: string[] }) {
   const { messages, busy } = useChatSession(sessionID)
-  const { send } = useSendPrompt(sessionID)
+  const { send, deliver } = useSendPrompt(sessionID)
   const { queue, resolve } = usePermissions(sessionID)
   const { requests, reply, reject } = useQuestions(sessionID)
   const { command, abort, fork, summarize, compact, switchAgent, switchModel, background } = useSessionActions()
@@ -45,6 +46,10 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
   }
 
   const allCommands = useMemo(() => [...LOCAL_COMMANDS, ...commands], [commands])
+
+  // composer 接管：待审批 / 待提问取队首（对齐 DSH「每次只有一个请求拥有编辑器」）
+  const pendingPermission = queue[0]
+  const pendingQuestion = requests[0]
 
   // 是否有运行中的子代理（task 工具）：有则显示「后台化」按钮（对齐 mini 子代理面板）。
   const runningSubagent = messages.some((m) =>
@@ -221,13 +226,7 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
 
       {/* 消息区（Virtuoso 自行滚动，保证 followOutput 生效） */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "12px 24px" }}>
-        {queue.map((p) => (
-          <PermissionCard key={p.id} item={p} onResolve={resolve} />
-        ))}
-        {requests.map((r) => (
-          <QuestionCard key={r.id} request={r} onReply={reply} onReject={reject} />
-        ))}
-        <MessageList messages={messages} />
+        <MessageList messages={messages} busy={busy} />
       </div>
       {sendError ? <div style={{ padding: "0 24px", color: "var(--error)", fontSize: 13 }}>{sendError}</div> : null}
       {notice ? (
@@ -248,13 +247,33 @@ export function ChatPanel({ sessionID }: { sessionID: string }) {
 
       {/* 输入区 + footer（模式 + 模型，与 TUI 位置一致：输入框下方左侧） */}
       <div style={{ padding: "8px 24px 10px" }}>
-        <PromptInput
-          disabled={busy}
-          commands={allCommands}
-          onSubmit={(text, files) => send(text, info?.model, files).catch(err)}
-          onCommand={onCommand}
-          onTabCycle={cycleMode}
-        />
+        {/* 计划条（对齐 DSH TodoDock：输入区上方，空列表自我隐藏） */}
+        <TodoPanel todos={info?.todos ?? []} />
+        {/* composer 接管（对齐 DSH ApprovalPanel）：待审批 > 待提问 优先，逐个接管输入区 */}
+        {pendingPermission ? (
+          <div className="approval-panel">
+            <div className="approval-banner">等待审批</div>
+            <PermissionCard item={pendingPermission} onResolve={resolve} />
+          </div>
+        ) : pendingQuestion ? (
+          <div className="approval-panel">
+            <div className="approval-banner approval-banner-question">等待回答</div>
+            <QuestionCard request={pendingQuestion} onReply={reply} onReject={reject} />
+          </div>
+        ) : (
+          <PromptInput
+            disabled={!sessionID}
+            busy={busy}
+            commands={allCommands}
+            files={files}
+            onSubmit={(text, files, delivery) =>
+              delivery
+                ? deliver(text, delivery, files).catch(err)
+                : send(text, info?.model, files).catch(err)}
+            onCommand={onCommand}
+            onTabCycle={cycleMode}
+          />
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "6px 4px 0" }}>
           <ModeSwitcher current={currentAgent} disabled={busy} onSelect={setMode} />
           <ModelPicker

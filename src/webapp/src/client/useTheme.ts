@@ -1,22 +1,31 @@
 import { useCallback, useEffect, useState } from "react"
-import type { ThemeName } from "../theme"
 
 const KEY = "gyc-web-theme"
 
-function applyTheme(theme: ThemeName) {
+// 三态主题（对齐 DSH ThemeRuntime）：light / dark / system（跟随 prefers-color-scheme 并实时监听变化）。
+export type ThemePref = "light" | "dark" | "system"
+export type ResolvedTheme = "light" | "dark"
+
+function systemTheme(): ResolvedTheme {
+  return typeof matchMedia !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light"
+}
+
+function applyTheme(theme: ResolvedTheme) {
   document.documentElement.dataset.theme = theme
 }
 
-function readSaved(): ThemeName {
+function readSaved(): ThemePref {
   try {
     const saved = typeof localStorage !== "undefined" ? localStorage.getItem(KEY) : null
-    return saved === "dark" || saved === "light" ? saved : "light"
+    return saved === "dark" || saved === "light" || saved === "system" ? saved : "light"
   } catch {
     return "light"
   }
 }
 
-function persist(theme: ThemeName) {
+function persist(theme: ThemePref) {
   try {
     localStorage.setItem(KEY, theme)
   } catch {
@@ -24,21 +33,33 @@ function persist(theme: ThemeName) {
   }
 }
 
-// 主题管理：默认亮色，localStorage 持久化，通过根元素 data-theme 切换 CSS 变量。
 export function useTheme() {
-  const [theme, setTheme] = useState<ThemeName>(readSaved)
+  const [pref, setPref] = useState<ThemePref>(readSaved)
+  const [theme, setTheme] = useState<ResolvedTheme>(() => (readSaved() === "dark" ? "dark" : systemTheme()))
 
+  // 应用解析后的主题；system 模式下监听系统配色变化
   useEffect(() => {
-    applyTheme(theme)
-  }, [theme])
+    const resolved = pref === "system" ? systemTheme() : pref
+    setTheme(resolved)
+    applyTheme(resolved)
+    if (pref !== "system") return
+    const mq = matchMedia("(prefers-color-scheme: dark)")
+    const onChange = () => {
+      const next = systemTheme()
+      setTheme(next)
+      applyTheme(next)
+    }
+    mq.addEventListener("change", onChange)
+    return () => mq.removeEventListener("change", onChange)
+  }, [pref])
 
-  const toggle = useCallback(() => {
-    setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light"
+  const cycle = useCallback(() => {
+    setPref((prev) => {
+      const next = prev === "light" ? "dark" : prev === "dark" ? "system" : "light"
       persist(next)
       return next
     })
   }, [])
 
-  return { theme, setTheme, toggle }
+  return { pref, theme, setPref, cycle }
 }
