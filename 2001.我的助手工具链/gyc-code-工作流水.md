@@ -895,3 +895,6 @@
 
 - [OK] 2026-08-19 [213f145] chore: webapp 内嵌清单重新生成 + core/tui 既有修复入库（数据库维护同步IO/复制选择默认值/CtrlC防护间隔/淡入帧率）
   - [FILES] 9: src/core/database/database.ts, src/core/flag/flag.ts, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/tui/component/prompt/autocomplete.tsx, src/tui/component/prompt/move.tsx, src/tui/component/prompt/workspace.tsx ...
+
+- [OK] 2026-08-19 [ab63be6] fix: 修复 App.tsx 工作区标签正则缺闭合斜杠致 rolldown 构建失败 + 重新生成 webapp 清单
+  - [FILES] 2: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.tsx
