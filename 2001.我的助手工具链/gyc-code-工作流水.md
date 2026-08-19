@@ -898,3 +898,6 @@
 
 - [OK] 2026-08-19 [ab63be6] fix: 修复 App.tsx 工作区标签正则缺闭合斜杠致 rolldown 构建失败 + 重新生成 webapp 清单
   - [FILES] 2: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/App.tsx
+
+- [OK] 2026-08-19 [5ed5c57] feat: web 终端面板默认自动创建首个终端会话
+  - [FILES] 2: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/TerminalPanel.tsx
