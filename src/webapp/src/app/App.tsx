@@ -44,7 +44,7 @@ function WorkspaceMenu({
 }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState("")
-  const label = (directory ?? current ?? "默认目录").split(/[\\/]).pop() || "默认目录"
+  const label = (directory ?? current ?? "默认目录").replace(/\\/g, "/").split("/").pop() || "默认目录"
   return (
     <div style={{ position: "relative", marginRight: 8 }}>
       <button
