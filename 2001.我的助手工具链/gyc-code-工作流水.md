@@ -907,3 +907,6 @@
 
 - [OK] 2026-08-20 [044802e] 修复 gyc web 空白页：重建 web UI 清单并同步 index.js hash
   - [FILES] 1: src/gyccode/server/generated/opencode-web-ui.gen.ts
+
+- [OK] 2026-08-20 [27a0caa] web 对齐 DSH 第五轮：修复命令选择与消息发送；新增 QueueDock 与设置中心
+  - [FILES] 17: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/tool/json-schema.ts, src/llm/tool.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx ...
