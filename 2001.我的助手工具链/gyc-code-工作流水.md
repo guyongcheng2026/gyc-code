@@ -910,3 +910,6 @@
 
 - [OK] 2026-08-20 [27a0caa] web 对齐 DSH 第五轮：修复命令选择与消息发送；新增 QueueDock 与设置中心
   - [FILES] 17: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/tool/json-schema.ts, src/llm/tool.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/ChatPanel.tsx ...
+
+- [OK] 2026-08-20 [a50b3f0] web 对齐 DSH 第六轮：会话树渲染 + 后台任务中心（/experimental/jobs + JobsPanel）
+  - [FILES] 10: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/routes/instance/httpapi/groups/experimental.ts, src/gyccode/server/routes/instance/httpapi/handlers/experimental.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/JobsPanel.tsx ...
