@@ -14,6 +14,9 @@ import { DiffView } from "./DiffView"
 import { Trajectory } from "./Trajectory"
 import { TerminalPanel } from "./TerminalPanel"
 import { SettingsModal } from "./SettingsModal"
+import { JobsPanel } from "./JobsPanel"
+import { useJobs } from "../client/useJobs"
+import { v2 } from "../client/v2"
 
 type MainTab = "chat" | "diff" | "traj"
 
@@ -130,6 +133,7 @@ function WorkspaceMenu({
 export function App() {
   const { directory, select, recent, location } = useWorkspace()
   const { sessions, reload, remove } = useSessions(directory)
+  const { jobs, reload: reloadJobs } = useJobs(directory)
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState<MainTab>("chat")
   const [filePath, setFilePath] = useState<string | null>(null)
@@ -261,6 +265,18 @@ export function App() {
               }}
             />
           </div>
+          <JobsPanel
+            jobs={jobs}
+            onSelect={(id) => {
+              setSelected(id)
+              setTab("chat")
+              setFilePath(null)
+              window.location.hash = id
+            }}
+            onCancel={(id) => {
+              void v2(directory).v2.session.abort({ sessionID: id }).then(() => reloadJobs())
+            }}
+          />
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 6px" }}>
             <div style={{ fontSize: 11, color: "var(--inactive)", padding: "6px 8px", letterSpacing: "0.05em" }}>
               项目

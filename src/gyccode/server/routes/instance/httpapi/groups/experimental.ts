@@ -1,4 +1,5 @@
 import { AccountID, OrgID } from "@/account/schema"
+import { BackgroundJob } from "@/background/job"
 import { MCP } from "@/mcp"
 
 import { Session } from "@/session/session"
@@ -48,6 +49,17 @@ export const ConsoleSwitchPayload = Schema.Struct({
 })
 
 const ToolIDs = Schema.Array(Schema.String).annotate({ identifier: "ToolIDs" })
+const JobInfo = Schema.Struct({
+  id: Schema.String,
+  type: Schema.String,
+  title: Schema.optional(Schema.String),
+  status: Schema.Literal("running", "completed", "error", "cancelled"),
+  started_at: Schema.Number,
+  completed_at: Schema.optional(Schema.Number),
+  output: Schema.optional(Schema.String),
+  error: Schema.optional(Schema.String),
+  metadata: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+}).annotate({ identifier: "JobInfo" })
 const ToolListItem = Schema.Struct({
   id: Schema.String,
   description: Schema.String,
@@ -98,6 +110,7 @@ export const ExperimentalPaths = {
   worktreeReset: "/experimental/worktree/reset",
   session: "/experimental/session",
   sessionBackground: "/experimental/session/:sessionID/background",
+  jobs: "/experimental/jobs",
   resource: "/experimental/resource",
 } as const
 
@@ -243,6 +256,18 @@ export const ExperimentalApi = HttpApi.make("experimental")
             summary: "Background subagents",
             description:
               "Detach any synchronous subagents currently blocking the session and continue them in the background.",
+          }),
+        ),
+
+        HttpApiEndpoint.get("jobs", ExperimentalPaths.jobs, {
+          query: WorkspaceRoutingQuery,
+          success: described(Schema.Array(JobInfo), "List of background jobs"),
+        }).annotateMerge(
+          OpenApi.annotations({
+            identifier: "experimental.jobs.list",
+            summary: "List background jobs",
+            description:
+              "Get all background jobs (background subagent tasks) with their current status, timestamps and output.",
           }),
         ),
         HttpApiEndpoint.get("resource", ExperimentalPaths.resource, {

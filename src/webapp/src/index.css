@@ -1084,3 +1084,96 @@ body {
   white-space: nowrap;
   color: var(--text);
 }
+
+/* ---------- 会话树（对齐 DSH 多级会话树） ---------- */
+.sidebar-item-child {
+  border-left: 2px solid var(--border-subtle);
+  border-radius: 0 6px 6px 0;
+}
+
+
+/* ???????JobsPanel??? DSH Jobs ??? */
+.jobs-panel {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 4px 6px;
+}
+.jobs-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  cursor: pointer;
+  user-select: none;
+}
+.jobs-title {
+  font-size: 11px;
+  color: var(--inactive);
+  letter-spacing: 0.05em;
+  flex: 1;
+}
+.jobs-badge {
+  background: var(--brand);
+  color: #fff;
+  border-radius: 9px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 2px 6px;
+}
+.jobs-caret {
+  font-size: 10px;
+  color: var(--inactive);
+}
+.jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.jobs-empty {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--inactive);
+}
+.jobs-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--inactive);
+}
+.jobs-item:hover {
+  background: var(--panel-bg-hover);
+  color: var(--text);
+}
+.jobs-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.jobs-item-title {
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+.jobs-item-meta {
+  font-size: 10px;
+  color: var(--inactive);
+}
+.jobs-cancel {
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--error);
+  flex-shrink: 0;
+}
+.session-dot-error {
+  background: var(--error);
+}
+.session-dot-cancelled {
+  background: var(--inactive);
+}

@@ -3,7 +3,7 @@ import { sdk } from "./sdk"
 import { v2 } from "./v2"
 import { unwrapList } from "./useCommands"
 
-export type SessionItem = { id: string; title?: string | null; time?: { created: number } }
+export type SessionItem = { id: string; title?: string | null; time?: { created: number }; parentID?: string }
 
 export function useSessions(directory?: string) {
   const [sessions, setSessions] = useState<SessionItem[]>([])
