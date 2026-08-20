@@ -2,6 +2,7 @@ import { useCallback, useEffect, useReducer, useRef } from "react"
 import { chatReducer, initialChatState, type ChatMessage, type ChatPart } from "../state/chatReducer"
 import { useEvents, type AnyEvent } from "./useEvents"
 import { sdk } from "./sdk"
+import { unwrapList } from "./useCommands"
 
 type Hydrated = { info: { id: string; role: string; sessionID?: string; error?: unknown }; parts: ChatPart[] }
 
@@ -23,7 +24,7 @@ export function useChatSession(sessionID: string | null, directory?: string) {
   const hydrate = useCallback(
     async (id: string) => {
       const res = await sdk(directory).session.messages({ path: { id } })
-      const list = (res.data as Hydrated[] | undefined) ?? []
+      const list = unwrapList<Hydrated>(res.data)
       const messages: ChatMessage[] = list.map(({ info, parts }) => ({
         id: info.id,
         role: info.role === "user" ? "user" : "assistant",

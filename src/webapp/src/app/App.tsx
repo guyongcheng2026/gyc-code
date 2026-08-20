@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSessions } from "../client/useSessions"
 import { useFileTree } from "../client/useFileTree"
 import { useTheme } from "../client/useTheme"
@@ -13,6 +13,7 @@ import { FileViewer } from "./FileViewer"
 import { DiffView } from "./DiffView"
 import { Trajectory } from "./Trajectory"
 import { TerminalPanel } from "./TerminalPanel"
+import { SettingsModal } from "./SettingsModal"
 
 type MainTab = "chat" | "diff" | "traj"
 
@@ -132,7 +133,8 @@ export function App() {
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState<MainTab>("chat")
   const [filePath, setFilePath] = useState<string | null>(null)
-  const [showTerminal, setShowTerminal] = useState(true)
+  const [showTerminal, setShowTerminal] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [busyMap, setBusyMap] = useState<Record<string, boolean>>({})
   // 待交互状态（对齐 DSH pendingInteraction）：琥珀点 = 等待审批/等待回答
@@ -235,7 +237,7 @@ export function App() {
           </div>
           <div style={{ borderBottom: "1px solid var(--border-subtle)", maxHeight: "40%", overflowY: "auto", padding: "4px 6px", display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", padding: "6px 2px", gap: 6 }}>
-              <div style={{ fontSize: 11, color: "var(--inactive)", letterSpacing: "0.05em", flex: 1 }}>线程</div>
+              <div style={{ fontSize: 11, color: "var(--inactive)", letterSpacing: "0.05em", flex: 1 }}>会话</div>
               <input
                 className="session-search"
                 placeholder="搜索会话…"
@@ -327,6 +329,9 @@ export function App() {
             <button className="btn btn-ghost" onClick={() => setShowTerminal((v) => !v)}>
               {showTerminal ? "收起终端" : "展开终端"}
             </button>
+            <button className="btn btn-ghost" onClick={() => setSettingsOpen(true)} title="设置">
+              ⚙
+            </button>
           </div>
 
           {/* 居中内容（结果区居中，max-width） */}
@@ -370,6 +375,8 @@ export function App() {
           </div>
         </section>
       </div>
+
+      {settingsOpen ? <SettingsModal directory={directory} onClose={() => setSettingsOpen(false)} /> : null}
 
       {/* 底部终端 */}
       {showTerminal ? (

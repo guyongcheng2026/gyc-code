@@ -1046,3 +1046,41 @@ body {
 }
 
 
+
+/* ---------- QueueDock（运行中投递队列，对齐 DSH QueueDock） ---------- */
+.queue-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-bg);
+  font-size: 12px;
+}
+.queue-badge {
+  flex: none;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+}
+.queue-badge-queue {
+  background: var(--inactive);
+}
+.queue-badge-steer {
+  background: var(--brand);
+}
+.queue-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}

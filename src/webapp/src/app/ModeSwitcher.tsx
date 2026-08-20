@@ -1,8 +1,8 @@
-// gyc 三种模式（复刻 TUI：plan / build / compose，默认 build）
+// gyc 三种模式（复刻 TUI：plan / build / compose，默认 build；显示顺序 plan → build → compose）
 export const MODES = [
-  { id: "build", label: "构建", description: "默认模式：按权限配置执行工具" },
-  { id: "plan", label: "计划", description: "计划模式：禁用所有编辑工具" },
-  { id: "compose", label: "编排", description: "编排模式：调用内置 compose 技能编排工作流" },
+  { id: "plan", label: "plan", description: "计划模式：禁用所有编辑工具" },
+  { id: "build", label: "build", description: "默认模式：按权限配置执行工具" },
+  { id: "compose", label: "compose", description: "编排模式：调用内置 compose 技能编排工作流" },
 ] as const
 
 export type ModeID = (typeof MODES)[number]["id"]

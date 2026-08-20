@@ -7,6 +7,7 @@ import { useSessionActions } from "../client/useSessionActions"
 import { useCommands } from "../client/useCommands"
 import { useSessionInfo } from "../client/useSessionInfo"
 import { useModels } from "../client/useModels"
+import { sdk } from "../client/sdk"
 import { MessageList } from "./MessageList"
 import { PromptInput } from "./PromptInput"
 import { PermissionCard } from "./PermissionCard"
@@ -15,15 +16,36 @@ import { StatusBar } from "./StatusBar"
 import { ModelPicker } from "./ModelPicker"
 import { ModeSwitcher, type ModeID } from "./ModeSwitcher"
 import { TodoPanel } from "./TodoPanel"
+import { QueueDock } from "./QueueDock"
+import { useQueue } from "../client/useQueue"
 
-const MODE_ORDER: ModeID[] = ["build", "plan", "compose"]
+const MODE_ORDER: ModeID[] = ["plan", "build", "compose"]
 
-// 本地斜杠命令（与 CLI/TUI 三端一致；服务端 command.list 之外的客户端命令）。
+// 本地核心命令（对照 Claude Code / gyc TUI 对齐；服务端 command.list 之外的客户端命令）。
 const LOCAL_COMMANDS = [
+  { name: "new", description: "新建会话并切换" },
+  { name: "clear", description: "清空上下文（新建会话），同 /new" },
+  { name: "init", description: "为当前仓库生成/更新 AGENTS.md" },
+  { name: "review", description: "对当前改动发起代码审查" },
+  { name: "compact", description: "压缩会话上下文（保留摘要）" },
+  { name: "summary", description: "生成会话摘要" },
   { name: "context", description: "显示当前会话上下文用量（消息数/模型/Token）" },
+  { name: "status", description: "显示会话状态（模式/模型/耗时/待办）" },
+  { name: "cost", description: "显示当前会话费用与 Token 消耗" },
   { name: "copy", description: "复制最近助手回复到剪贴板" },
   { name: "branch", description: "分支当前会话并切换到新分支" },
+  { name: "help", description: "显示可用命令帮助" },
 ]
+
+const HELP_TEXT = [
+  "常用命令：",
+  "  /new /clear   新建会话      /init    生成 AGENTS.md",
+  "  /review       代码审查      /compact 压缩上下文",
+  "  /summary      会话摘要      /context 上下文用量",
+  "  /status       会话状态      /cost    费用统计",
+  "  /copy         复制回复      /branch  分支会话",
+  "其他命令由服务端动态提供；模型/模式用输入框下方控件切换。",
+].join("\n")
 
 export function ChatPanel({ sessionID, files, directory }: { sessionID: string; files?: string[]; directory?: string }) {
   const { messages, busy } = useChatSession(sessionID, directory)
@@ -34,6 +56,7 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   const { commands } = useCommands(directory)
   const { info, refresh: refreshInfo } = useSessionInfo(sessionID, directory)
   const { models, loading: modelsLoading } = useModels()
+  const { queue: queuedPrompts } = useQueue(sessionID, directory)
   const [sendError, setSendError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -45,7 +68,11 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
     noticeTimer.current = window.setTimeout(() => setNotice(null), 8000)
   }
 
-  const allCommands = useMemo(() => [...LOCAL_COMMANDS, ...commands], [commands])
+  // 本地命令优先；服务端命令与本地重名时去重（本地实现覆盖服务端同名项）
+  const allCommands = useMemo(() => {
+    const localNames = new Set(LOCAL_COMMANDS.map((c) => c.name))
+    return [...LOCAL_COMMANDS, ...commands.filter((c) => !localNames.has(c.name))]
+  }, [commands])
 
   // composer 接管：待审批 / 待提问取队首（对齐 DSH「每次只有一个请求拥有编辑器」）
   const pendingPermission = queue[0]
@@ -88,6 +115,68 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   }
 
   const onCommand = async (name: string, _args: string) => {
+    if (name === "new" || name === "clear") {
+      try {
+        const res = await sdk(directory).session.create({ body: {} })
+        const created = (res.data as { id: string } | undefined)?.id
+        if (created) {
+          showNotice("已新建会话并切换。")
+          window.location.hash = `#${created}`
+        }
+      } catch (e) {
+        err(e)
+      }
+      return
+    }
+    if (name === "compact") {
+      const [providerID, modelID] = currentModel.split("/")
+      if (!providerID || !modelID) {
+        showNotice("尚未选择模型，无法压缩会话。")
+        return
+      }
+      compact(sessionID, { providerID, modelID }).catch(err)
+      showNotice("压缩已发起，结果经消息流返回。")
+      return
+    }
+    if (name === "summary") {
+      const [providerID, modelID] = currentModel.split("/")
+      if (!providerID || !modelID) {
+        showNotice("尚未选择模型，无法生成摘要。")
+        return
+      }
+      summarize(sessionID, { providerID, modelID }).catch(err)
+      showNotice("摘要已发起，结果经消息流返回。")
+      return
+    }
+    if (name === "status") {
+      showNotice(
+        [
+          `状态:   ${info?.status ?? "idle"}`,
+          `模式:   ${currentAgent}`,
+          ...(currentModel ? [`模型:   ${currentModel}${currentVariant && currentVariant !== "default" ? ` (${currentVariant})` : ""}`] : []),
+          `消息:   ${messages.length} 条`,
+          ...(info?.todos.length ? [`待办:   ${info.todos.filter((x) => !x.done).length}/${info.todos.length}`] : []),
+        ].join("\n"),
+      )
+      return
+    }
+    if (name === "cost") {
+      const t = info?.tokens
+      const cost = info?.cost
+      showNotice(
+        [
+          ...(cost !== undefined ? [`费用:   $${cost.toFixed(4)}`] : ["费用:   暂无数据"]),
+          ...(t
+            ? [`Token:  输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning}`, `缓存:   读 ${t.cache.read} / 写 ${t.cache.write}`]
+            : ["Token:  暂无数据"]),
+        ].join("\n"),
+      )
+      return
+    }
+    if (name === "help") {
+      showNotice(HELP_TEXT)
+      return
+    }
     if (name === "context") {
       const userCount = messages.filter((m) => m.role === "user").length
       const assistantCount = messages.filter((m) => m.role === "assistant").length
@@ -248,6 +337,8 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
       {/* 输入区 + footer（模式 + 模型，与 TUI 位置一致：输入框下方左侧） */}
       <div style={{ padding: "8px 24px 10px" }}>
         {/* 计划条（对齐 DSH TodoDock：输入区上方，空列表自我隐藏） */}
+        {/* 运行中投递队列（对齐 DSH QueueDock：busy 态排队/插话气泡） */}
+        <QueueDock items={queuedPrompts} />
         <TodoPanel todos={info?.todos ?? []} />
         {/* composer 接管（对齐 DSH ApprovalPanel）：待审批 > 待提问 优先，逐个接管输入区 */}
         {pendingPermission ? (

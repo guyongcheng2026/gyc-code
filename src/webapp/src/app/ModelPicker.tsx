@@ -24,11 +24,21 @@ export function ModelPicker({
     return models.filter((m) => m.label.toLowerCase().includes(q) || m.modelName.toLowerCase().includes(q))
   }, [models, query])
 
+  // 优先显示模型全名（如 "NVIDIA Nemotron …"），找不到时回退 provider/model 标识
+  const displayName = models.find((m) => m.label === current)?.modelName ?? current
+
   return (
     <div style={{ position: "relative" }}>
-      <button className="btn btn-ghost" onClick={() => setOpen((v) => !v)} style={{ fontSize: 12, maxWidth: 220 }}>
-        <span style={{ color: "var(--inactive)" }}>模型 </span>
-        <span style={{ fontWeight: 600 }}>{loading ? "加载中…" : current || "未选择"}</span>
+      <button
+        className="btn btn-ghost"
+        onClick={() => setOpen((v) => !v)}
+        style={{ fontSize: 12, maxWidth: 340, overflow: "hidden" }}
+        title={loading ? "加载中" : current || "未选择模型"}
+      >
+        <span style={{ color: "var(--inactive)", flex: "none" }}>模型 </span>
+        <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {loading ? "加载中…" : displayName || "未选择"}
+        </span>
       </button>
       {open ? (
         <div

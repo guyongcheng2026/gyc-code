@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { sdk } from "./sdk"
+import { v2 } from "./v2"
+import { unwrapList } from "./useCommands"
 
 export type SessionItem = { id: string; title?: string | null; time?: { created: number } }
 
@@ -13,7 +15,7 @@ export function useSessions(directory?: string) {
     setError(null)
     try {
       const res = await sdk(directory).session.list()
-      setSessions((res.data as SessionItem[]) ?? [])
+      setSessions(unwrapList<SessionItem>(res.data))
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -21,10 +23,14 @@ export function useSessions(directory?: string) {
     }
   }, [directory])
 
-  // 删除历史会话
+  // 删除历史会话：v1 失败（路由/形状不匹配）时回退 v2 端点
   const remove = useCallback(
     async (id: string) => {
-      await sdk(directory).session.delete({ path: { id } })
+      try {
+        await sdk(directory).session.delete({ path: { id } })
+      } catch {
+        await v2(directory).v2.session.delete({ sessionID: id })
+      }
       await reload()
     },
     [reload, directory],

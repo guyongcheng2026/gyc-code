@@ -114,3 +114,41 @@ DSH UI 包为编译产物（lib/*.js 无源码），功能基准取自各包 `RE
 - directory 全链路下发：useSessions/useFileTree/useEvents/ChatPanel（内部 7 个 hook）/DiffView/Trajectory/FileViewer/TerminalPanel
 - `useSessions.ts` 补 directory 参数（此前唯一缺失的 hook）
 
+
+---
+
+# 第五轮（2026-08-20 真实可用性修复 + QueueDock + 设置中心）
+
+## 一、真实可用性修复（谷总实测反馈）
+
+1. **命令选择失效**：`PromptInput.tsx` 三处根因修复——
+   - `currentCmd` 取错 token（`value.split` 而非 `value.slice(1).split`，命令名落在 parts[1]），导致过滤永远基于第二个词
+   - 过滤条件 `currentCmd.length < c.name.length` 在完整命令名时把命令从菜单剔除，且 Enter 只回填不执行
+   - 键盘导航更新 `atIdx`（@ 文件菜单用）而非 `selected`（斜杠菜单高亮），上下键高亮不动
+   - 修复后：完整命令名 Enter 直接执行；部分输入 Enter 回填；↑↓ 正确驱动高亮
+2. **消息发送后无反应**：DeepSeek 报 `Invalid schema for function 'actor': ... got 'type: null'`——
+   - 根因：`ToolJsonSchema.fromSchema`（session 工具路径）对顶层 Union（anyOf 全 object 变体）不补 `type: "object"`；deepseek 走 `@ai-sdk/openai-compatible` 直接透传原始 schema，API 400
+   - 修复：`json-schema.ts` normalize 顶层 anyOf 全 object 时补 `type: "object"`（防递归：`schema.type === undefined` 守卫）；同步在 `llm/tool.ts` toJsonSchema 加同规则（双路径覆盖）
+   - 验证：`ToolJsonSchema.fromSchema(Parameters)` 顶层输出 `{ type: "object", anyOf: [object, object] }`；实测发消息返回 reasoning+text 正常，无 APIError
+
+## 二、本轮新增对齐项
+
+| 项 | DSH 基准 | 落地 |
+|---|---|---|
+| QueueDock（P1） | busy 态排队/插话气泡（Enter=queue、Ctrl+Enter=steer） | `client/useQueue.ts`（监听 session.next.prompt.admitted 入队 / prompted 出队，兼容 .1 后缀）+ `app/QueueDock.tsx`（排队/插话徽标 + 文本）+ ChatPanel 输入区上方挂载 + CSS |
+| 设置中心（P1） | settings 通用/模型 域 | `app/SettingsModal.tsx`：模型页（provider 分组 + 搜索 + 变体，数据复用 useModels）+ 通用页（工作区目录/主题/关于）；App 顶栏 ⚙ 打开 |
+
+## 三、验证
+
+- webapp vitest 8 文件 14 用例全绿（含 App/ChatPanel 挂载编译）
+- 重建 dist + 重启服务，页面 200；新入口资源正常返回
+
+## 四、剩余未对齐（后续批次）
+
+- 消息反馈（👍👎）：需后端 message-feedback 接口（暂缺）
+- 三栏布局 + 会话树搜索/分组/归档/重命名（P2）
+- 原生目录选择器（OS 弹窗，Electron 主进程能力；web 端可用 input webkitdirectory 兜底）
+- 交付物可点击文件引用（从工具输出结构化提取）
+- TTFT/吞吐统计（需服务端步边界 timing 投影）
+- 目标条 GoalBar（需 goal 会话投影）
+- 后台任务列表 jobs（服务端已有 BackgroundJob，可接线事件）

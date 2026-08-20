@@ -231,8 +231,22 @@ export const toDefinitions = (tools: Tools): ReadonlyArray<ToolDefinitionClass> 
 
 const toJsonSchema = (schema: Schema.Top): JsonSchema.JsonSchema => {
   const document = Schema.toJsonSchemaDocument(schema)
-  if (Object.keys(document.definitions).length === 0) return document.schema
-  return { ...document.schema, $defs: document.definitions }
+  const base = Object.keys(document.definitions).length === 0 ? document.schema : { ...document.schema, $defs: document.definitions }
+  // openai-compatible 类 provider（deepseek 等）直接透传 inputSchema，顶层
+  // Union 缺 type 会被拒绝（要求 type: "object"，报 "got 'type: null'"）。
+  // 顶层 anyOf 全部为 object 变体时补 type: "object"，兼容各协议。
+  if (
+    typeof base === "object" &&
+    base !== null &&
+    !Array.isArray(base) &&
+    base.type === undefined &&
+    Array.isArray(base.anyOf) &&
+    base.anyOf.length > 0 &&
+    base.anyOf.every((variant) => typeof variant === "object" && variant !== null && !Array.isArray(variant) && variant.type === "object")
+  ) {
+    return { ...base, type: "object" }
+  }
+  return base
 }
 
 const project = (

@@ -63,11 +63,9 @@ export function PromptInput({
 
   // ---------- 斜杠命令过滤 ----------
   const isSlash = value.startsWith("/") && !value.startsWith("/ ")
-  const parts = isSlash ? value.split(/\s+/) : []
-  const currentCmd = parts[1] ?? ""
-  const filtered = isSlash
-    ? commands.filter((c) => c.name.startsWith(currentCmd) && currentCmd.length < c.name.length)
-    : []
+  const parts = isSlash ? value.slice(1).split(/\s+/) : []
+  const currentCmd = parts[0] ?? ""
+  const filtered = isSlash ? commands.filter((c) => c.name.startsWith(currentCmd)) : []
 
   // ---------- @ 文件触发（光标前缀检测） ----------
   const atMenu = useMemo(() => {
@@ -114,28 +112,43 @@ export function PromptInput({
   }
 
   const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 菜单导航（斜杠命令或 @ 文件）
-    const menuLen = filtered.length > 0 ? filtered.length : (atMenu?.items.length ?? 0)
-    if (menuLen > 0) {
+    // 菜单导航：斜杠命令用 selected（SlashMenu 高亮），@ 文件用 atIdx
+    if (filtered.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault()
-        setAtIdx((s) => (s + 1) % menuLen)
+        setSelected((s) => (s + 1) % filtered.length)
         return
       }
       if (e.key === "ArrowUp") {
         e.preventDefault()
-        setAtIdx((s) => (s - 1 + menuLen) % menuLen)
+        setSelected((s) => (s - 1 + filtered.length) % filtered.length)
+        return
+      }
+    } else if (atMenu && atMenu.items.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setAtIdx((s) => (s + 1) % atMenu.items.length)
+        return
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setAtIdx((s) => (s - 1 + atMenu.items.length) % atMenu.items.length)
         return
       }
     }
     if (e.key === "Enter" && !e.shiftKey) {
       if (filtered.length > 0) {
         e.preventDefault()
-        const cmd = filtered[selected]
+        const cmd = filtered[selected] ?? filtered[0]
         if (cmd) {
-          setValue(`/${cmd.name} `)
-          setSelected(0)
-          setMenuOpen(true)
+          if (currentCmd === cmd.name) {
+            // 命令名已完整输入：直接执行，避免“选择后还需再按一次 Enter”
+            submit()
+          } else {
+            setValue(`/${cmd.name} `)
+            setSelected(0)
+            setMenuOpen(true)
+          }
         }
         return
       }
@@ -151,7 +164,7 @@ export function PromptInput({
     } else if (e.key === "Tab") {
       e.preventDefault()
       if (filtered.length > 0) {
-        const cmd = filtered[selected]
+        const cmd = filtered[selected] ?? filtered[0]
         if (cmd) {
           setValue(`/${cmd.name} `)
           setSelected(0)
