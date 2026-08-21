@@ -10,6 +10,8 @@ import { Effect } from "effect"
 import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { readStdin } from "../../../core/util/read-stdin"
+import { displayWidth } from "../../../core/util/display-width"
+import { readFileSync } from "node:fs"
 import { Filesystem } from "@/util/filesystem"
 import { createGyccodeClient, type CommandV2Info, type GyccodeClient } from "@gyccode/protocol/v2"
 import fuzzysort from "fuzzysort"
@@ -49,6 +51,37 @@ function parseModelInput(value: string | undefined): { providerID: string; model
   if (!value) return undefined
   const [providerID, ...rest] = value.split("/")
   return { providerID, modelID: rest.join("/") }
+}
+
+// 状态行模型标签：短模型名 + 推理档位（如 deepseek-v4-flash high）。
+function shortModelLabel(id: string, variant: string | undefined): string {
+  const short = id.includes("/") ? id.slice(id.lastIndexOf("/") + 1) : id
+  const v = variant && variant !== "default" ? variant : undefined
+  return v ? `${short} ${v}` : short
+}
+
+// 从本地模型目录缓存读取默认推理档位（effort 列表第一档，如 deepseek-v4-flash → high）。
+// 缓存缺失/过期/格式变化时静默返回 undefined，不阻塞启动。
+function defaultEffortFromLocalCache(modelID: string): string | undefined {
+  try {
+    const home = process.env.USERPROFILE ?? process.env.HOME ?? ""
+    const cacheFile = path.join(home, ".cache", "gyccode", "models.json")
+    const catalog = JSON.parse(readFileSync(cacheFile, "utf8")) as Record<
+      string,
+      { models?: Record<string, { reasoning_options?: Array<{ type?: string; values?: Array<string | null> }> }> }
+    >
+    const [provider, ...rest] = modelID.split("/")
+    const short = rest.join("/") || modelID
+    for (const key of [provider, short]) {
+      const effort = catalog[key]?.models?.[short]?.reasoning_options?.find((o) => o.type === "effort")
+      const values = effort?.values?.filter((v): v is string => typeof v === "string") ?? []
+      const first = values.includes("high") ? "high" : values[0]
+      if (first) return first
+    }
+  } catch {
+    // 读取失败不影响启动。
+  }
+  return undefined
 }
 
 function localFetchFn() {
@@ -199,13 +232,13 @@ async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, inpu
   await completed
 }
 
-// 渲染启动欢迎界面：复刻 OpenAI Codex 的圆角边框盒子布局。
-// ┌ 顶部标题行：>_ GYC CODE (版本)          ┐
-// │ model:     <model>      /model to change │
-// │ directory: <dir>                        │
-// └ 底部圆角边框                             ┘
+// 渲染启动欢迎界面：对齐 codex cli 的提示行布局——
+//   › Ask gyc to do anything
+//   （空行）
+//     短模型名 档位 · 目录（dim 灰）
 async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliInput) {
-  let modelLabel = input.model ?? "default"
+  let modelID = input.model ?? "default"
+  let modelVariant = input.variant
   try {
     const [cfg, session] = await Promise.all([
       sdk.config.get(),
@@ -214,58 +247,42 @@ async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliIn
     // 会话显式模型优先；否则回退到配置默认模型（实际生效的模型）。
     const data = session?.data
     if (data?.model) {
-      modelLabel = data.model.id.includes("/")
-        ? data.model.id
-        : `${data.model.providerID}/${data.model.id}${data.model.variant && data.model.variant !== "default" ? ` (${data.model.variant})` : ""}`
+      modelID = data.model.id
+      modelVariant = data.model.variant
     } else if (cfg.data?.model) {
-      modelLabel = cfg.data.model
+      modelID = cfg.data.model
+    }
+    // 无显式档位时从本地模型目录缓存读取默认档位（effort 列表第一档，如 deepseek-v4-flash → high）。
+    if (!modelVariant || modelVariant === "default") {
+      modelVariant = defaultEffortFromLocalCache(modelID)
     }
   } catch {
     // 读取失败不影响启动，使用默认值。
   }
-  statusModel = modelLabel
+  statusModel = shortModelLabel(modelID, modelVariant)
 
   const dir = input.directory ?? process.cwd()
-  // 归一化 home 目录为 ~，对齐 Codex 的 directory 展示。
+  // 归一化 home 目录为 ~，对齐 directory 展示。
   const homedir = (await import("os")).homedir()
   const displayDir = dir === homedir ? "~" : dir.startsWith(homedir + "\\") ? "~" + dir.slice(homedir.length) : dir
 
   const CYAN = "\x1b[96m"
   const DIM = "\x1b[90m"
-  const BOLD = "\x1b[1m"
   const RESET = "\x1b[0m"
 
-  // 内容行（不含左右边框和边距）。宽度以最长行动态计算，避免 model 行溢出。
-  const rows = [
-    ` ${CYAN}>_${RESET} ${BOLD}GYC CODE${RESET} ${DIM}(${InstallationVersion})${RESET}`,
-    " ",
-    ` ${DIM}model:${RESET}     ${modelLabel}   ${DIM}/model to change${RESET}`,
-    ` ${DIM}directory:${RESET} ${displayDir}`,
+  const lines = [
+    `${CYAN}›${RESET} Ask gyc to do anything`,
+    "",
+    `  ${DIM}${statusModel} · ${displayDir}${RESET}`,
   ]
-  const inner = Math.max(...rows.map((row) => row.replace(/\x1b\[[0-9;]*m/g, "").length))
-  const content = (text: string) => {
-    const visible = text.replace(/\x1b\[[0-9;]*m/g, "").length
-    return "│ " + text + " ".repeat(inner - visible) + " │"
-  }
-
-  const box: string[] = []
-  box.push("╭" + "─".repeat(inner + 4) + "╮")
-  for (const row of rows) box.push(content(row))
-  box.push("╰" + "─".repeat(inner + 4) + "╯")
-
-  const lines: string[] = []
-  lines.push(...box)
-  lines.push("")
   process.stdout.write(lines.join("\n") + "\n")
 }
 
-// 渲染底部状态行（Codex 风格）：model · directory，dim 灰色。
-// 本地渲染（模型标签取 statusModel 缓存，启动/切换模型时更新），零网络往返。
 async function renderStatusLine(_sdk: GyccodeClient, _sessionID: string, input: CliInput) {
   const dir = input.directory ?? process.cwd()
   const homedir = (await import("os")).homedir()
   const displayDir = dir === homedir ? "~" : dir.startsWith(homedir + "\\") ? "~" + dir.slice(homedir.length) : dir
-  process.stdout.write(`\n\x1b[90m${statusModel} · ${displayDir}\x1b[0m\n`)
+  process.stdout.write(`\n  \x1b[90m${statusModel} · ${displayDir}\x1b[0m\n`)
 }
 
 // 通用 CLI 列表选择器（Codex/Claude Code 风格）：
@@ -488,7 +505,7 @@ async function runSlashCommand(
             UI.error(formatRunError(result.error))
           } else {
             process.stdout.write(`已切换到模型: ${parsed.providerID}/${parsed.modelID}\n`)
-            statusModel = `${parsed.providerID}/${parsed.modelID}`
+            statusModel = shortModelLabel(`${parsed.providerID}/${parsed.modelID}`, input.variant)
           }
         } catch (e) {
           UI.error(formatRunError(e))
@@ -1161,10 +1178,10 @@ async function interactiveLoop(input: CliInput) {
       const viewportHeight = () => Math.min(MENU_HEIGHT, menu.length)
 
       const render = () => {
-        // 输入行：回到行首清行重绘（Codex 风格：无提示符前缀）。
-        const prefix = palette ? DIM_MENU + "命令" + RESET + " " : ""
+        // 输入行：回到行首清行重绘（› 提示符，输入跟随，光标按显示宽度移动）。
+        const prefix = "\x1b[96m›\x1b[0m "
         process.stdout.write("\r\x1b[K" + prefix + buffer)
-        const back = buffer.length - cursor
+        const back = displayWidth(buffer.slice(cursor))
         if (back > 0) process.stdout.write("\x1b[" + back + "D")
         // 菜单：固定高度滚动窗口（menu.slice(offset, offset+MENU_HEIGHT)），
         // 选中项始终落在窗口内（moveTo 已保证），彻底消除"所见与所选错位"。
