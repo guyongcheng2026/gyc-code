@@ -919,3 +919,6 @@
 
 - [OK] 2026-08-21 [6eb049f] 修复：gyc web 左侧后台任务面板中文文案损坏为问号（??????）
   - [FILES] 4: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/JobsPanel.tsx, src/webapp/src/client/useJobs.ts, src/webapp/src/index.css
+
+- [OK] 2026-08-21 [55d62d7] 收尾：18 个 TS 类型修复文件提交（spinner 参数、类型收窄、CronScheduler 泛型化等）；行尾符统一 LF
+  - [FILES] 18: src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/plug.ts, src/gyccode/cli/cmd/providers.ts, src/gyccode/cli/effect/prompt.ts, src/gyccode/hook/types.ts ...
