@@ -922,3 +922,6 @@
 
 - [OK] 2026-08-21 [55d62d7] 收尾：18 个 TS 类型修复文件提交（spinner 参数、类型收窄、CronScheduler 泛型化等）；行尾符统一 LF
   - [FILES] 18: src/gyccode/cli/cmd/account.ts, src/gyccode/cli/cmd/default.ts, src/gyccode/cli/cmd/plug.ts, src/gyccode/cli/cmd/providers.ts, src/gyccode/cli/effect/prompt.ts, src/gyccode/hook/types.ts ...
+
+- [OK] 2026-08-21 [8d1c1e0] 修复：gyc web 发送失败错误提示友好化（[object Object] 显示为可读文本；Failed to fetch 给出可操作指引）
+  - [FILES] 3: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx
