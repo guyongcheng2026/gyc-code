@@ -87,7 +87,13 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   const currentModel = info?.model ? `${info.model.providerID}/${info.model.modelID}` : ""
   const currentVariant = info?.model?.variant
 
-  const err = (e: unknown) => setSendError(e instanceof Error ? e.message : String(e))
+  const err = (e: unknown) => {
+    const message = e instanceof Error ? e.message : String(e)
+    const friendly = /failed to fetch|network error|networkerror|load failed/i.test(message)
+      ? "无法连接 gyc 服务：请确认 gyc web 仍在运行；若页面用 localhost 打开，请改用 http://127.0.0.1:4096"
+      : message
+    setSendError(friendly)
+  }
 
   const setMode = (mode: ModeID) => switchAgent(sessionID, mode).then(() => refreshInfo()).catch(err)
 

@@ -3,6 +3,18 @@ import { Virtuoso } from "react-virtuoso"
 import type { ChatMessage } from "../state/chatReducer"
 import { PartView } from "./PartView"
 
+// 消息错误可能是字符串或 NamedError 对象，统一提取可读文本（避免显示 [object Object]）。
+function errorText(error: unknown): string {
+  if (typeof error === "string" && error) return error
+  if (error && typeof error === "object") {
+    const obj = error as { data?: { message?: unknown }; message?: unknown; name?: unknown }
+    if (typeof obj.data?.message === "string" && obj.data.message) return obj.data.message
+    if (typeof obj.message === "string" && obj.message) return obj.message
+    if (typeof obj.name === "string" && obj.name) return obj.name
+  }
+  return "未知错误"
+}
+
 /**
  * 轮次操作行（对齐 DSH 已定稿内容的 IconActions）：
  * assistant 消息尾部 hover 显示复制操作。
@@ -61,7 +73,7 @@ export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy:
                 />
               )) ?? ""}
             </div>
-            {m.error ? <div style={{ color: "var(--error)", marginTop: 4 }}>错误: {String(m.error)}</div> : null}
+            {m.error ? <div style={{ color: "var(--error)", marginTop: 4 }}>错误: {errorText(m.error)}</div> : null}
             {m.role === "assistant" && assistantText && !isTail ? <MessageActions text={assistantText} /> : null}
           </div>
         )
