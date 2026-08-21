@@ -925,3 +925,6 @@
 
 - [OK] 2026-08-21 [8d1c1e0] 修复：gyc web 发送失败错误提示友好化（[object Object] 显示为可读文本；Failed to fetch 给出可操作指引）
   - [FILES] 3: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/ChatPanel.tsx, src/webapp/src/app/MessageList.tsx
+
+- [OK] 2026-08-21 [896ba10] 修复：gyc 默认 REPL 欢迎界面对齐 codex cli（› 提示符、短模型名+档位状态行、光标按显示宽度移动）
+  - [FILES] 1: src/gyccode/cli/cmd/default.ts
