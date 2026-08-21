@@ -17,7 +17,7 @@ export type JobItem = {
 
 const POLL_MS = 3000
 
-// ????????? DSH Jobs ?????? /experimental/jobs????????????
+// 后台任务（对齐 DSH Jobs）：轮询 /experimental/jobs 拉取后台子代理任务，并监听会话事件刷新。
 export function useJobs(directory?: string) {
   const [jobs, setJobs] = useState<JobItem[]>([])
   const timer = useRef<number | undefined>(undefined)

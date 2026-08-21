@@ -1092,7 +1092,7 @@ body {
 }
 
 
-/* ???????JobsPanel??? DSH Jobs ??? */
+/* 后台任务面板（对齐 DSH Jobs） */
 .jobs-panel {
   border-bottom: 1px solid var(--border-subtle);
   padding: 4px 6px;
