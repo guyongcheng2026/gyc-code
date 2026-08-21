@@ -913,3 +913,6 @@
 
 - [OK] 2026-08-20 [a50b3f0] web 对齐 DSH 第六轮：会话树渲染 + 后台任务中心（/experimental/jobs + JobsPanel）
   - [FILES] 10: docs/GAP-ANALYSIS-2026-08-19-web-vs-dsh.md, src/gyccode/server/generated/opencode-web-ui.gen.ts, src/gyccode/server/routes/instance/httpapi/groups/experimental.ts, src/gyccode/server/routes/instance/httpapi/handlers/experimental.ts, src/webapp/src/app/App.tsx, src/webapp/src/app/JobsPanel.tsx ...
+
+- [OK] 2026-08-21 [6943753] TS 类型错误修复 + P1 任务进展：修复 spinner.stop 参数、agent.ts、mcp.ts、upgrade.ts、uninstall.ts、session-status-event.ts；P1-Task 1 协议层封装已实现；build 通过，534 tests pass
+  - [FILES] 13: fix-schema.cjs, fix_status.cjs, fix_status_simple.py, src/gyccode/cli/cmd/agent.ts, src/gyccode/cli/cmd/mcp.ts, src/gyccode/cli/cmd/uninstall.ts ...
