@@ -916,3 +916,6 @@
 
 - [OK] 2026-08-21 [6943753] TS 类型错误修复 + P1 任务进展：修复 spinner.stop 参数、agent.ts、mcp.ts、upgrade.ts、uninstall.ts、session-status-event.ts；P1-Task 1 协议层封装已实现；build 通过，534 tests pass
   - [FILES] 13: fix-schema.cjs, fix_status.cjs, fix_status_simple.py, src/gyccode/cli/cmd/agent.ts, src/gyccode/cli/cmd/mcp.ts, src/gyccode/cli/cmd/uninstall.ts ...
+
+- [OK] 2026-08-21 [6eb049f] 修复：gyc web 左侧后台任务面板中文文案损坏为问号（??????）
+  - [FILES] 4: src/gyccode/server/generated/opencode-web-ui.gen.ts, src/webapp/src/app/JobsPanel.tsx, src/webapp/src/client/useJobs.ts, src/webapp/src/index.css
