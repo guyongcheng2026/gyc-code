@@ -7,7 +7,7 @@ import { LSP } from "@/lsp/lsp"
 export const DiagnosticRecord = Schema.Struct({
   file: Schema.String,
   timestamp: Schema.Number,
-  severity: Schema.Literal("error", "warning", "info", "hint"),
+  severity: Schema.Literals(["error", "warning", "info", "hint"]),
   count: Schema.Number,
   source: Schema.optional(Schema.String),
 })

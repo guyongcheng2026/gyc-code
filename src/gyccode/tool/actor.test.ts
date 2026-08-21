@@ -76,7 +76,7 @@ describe("actor shell 脚本解析", () => {
   test("引号内空白与转义双引号", () => {
     const result = parseActorScript('actor run general "desc \\"quoted\\" end" "line1\\nline2"')
     expect(result.ok).toBe(true)
-    if (result.ok) {
+    if (result.ok && result.op.action === "run") {
       expect(result.op.description).toBe('desc "quoted" end')
       expect(result.op.prompt).toBe("line1\\nline2")
     }

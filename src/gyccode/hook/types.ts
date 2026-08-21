@@ -1,6 +1,6 @@
 ﻿import { Schema } from "effect"
 
-export const HookEvent = Schema.Literals([
+export const HOOK_EVENTS = [
   "PreToolUse",
   "PostToolUse",
   "PreCompact",
@@ -10,7 +10,8 @@ export const HookEvent = Schema.Literals([
   "PreMessage",
   "PostMessage",
   "Notification",
-])
+] as const
+export const HookEvent = Schema.Literals(HOOK_EVENTS)
 export type HookEvent = typeof HookEvent.Type
 
 export class HookConfig extends Schema.Class<HookConfig>("HookConfig")({

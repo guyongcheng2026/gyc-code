@@ -32,8 +32,8 @@ interface NotebookContent {
   cells: NotebookCell[]
 }
 
-const EditMode = Schema.Literal("replace", "insert", "delete")
-const CellType = Schema.Literal("code", "markdown")
+const EditMode = Schema.Literals(["replace", "insert", "delete"])
+const CellType = Schema.Literals(["code", "markdown"])
 
 export const Parameters = Schema.Struct({
   notebook_path: Schema.String.annotate({
@@ -231,7 +231,7 @@ export const NotebookEditTool = Tool.define(
           }
 
           const updatedContent = JSON.stringify(notebook, null, 1)
-          yield* fs.writeFile(filepath, updatedContent)
+          yield* fs.writeFileString(filepath, updatedContent)
           // 写入后失效缓存，确保后续读取看到新内容
           readCache.invalidate(filepath)
 

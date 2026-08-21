@@ -9,7 +9,7 @@ export const Parameters = Schema.Struct({
   }),
 })
 
-export const McpAuthTool = Tool.define(
+export const McpAuthTool = Tool.define<typeof Parameters, Record<string, unknown>, MCP.Service>(
   "mcp_authenticate",
   Effect.gen(function* () {
     const mcp = yield* MCP.Service

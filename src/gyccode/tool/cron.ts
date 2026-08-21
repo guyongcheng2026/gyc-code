@@ -196,7 +196,7 @@ export interface CronSchedulerInterface {
   readonly markFired: (id: string) => Effect.Effect<void>
 }
 
-export class CronSchedulerService extends Context.Service<CronSchedulerService>()("@gyccode/CronScheduler") {}
+export class CronSchedulerService extends Context.Service<CronSchedulerService, CronSchedulerInterface>()("@gyccode/CronScheduler") {}
 
 const layer = Layer.effect(
   CronSchedulerService,
@@ -224,7 +224,7 @@ const layer = Layer.effect(
       recurring: boolean
       durable: boolean
       sessionID: string
-    }): Effect.Effect<CronTask> {
+    }) {
       const expr = parseCronExpression(input.cron)
       const nextRun = nextCronRunMs(expr, Date.now())
       if (nextRun === null) {
@@ -259,7 +259,7 @@ const layer = Layer.effect(
       return task
     })
 
-    const list = Effect.fn("CronScheduler.list")(function* (): Effect.Effect<CronTask[]> {
+    const list = Effect.fn("CronScheduler.list")(function* () {
       const durable = yield* readDurable()
       // 过滤过期任务（超过 DEFAULT_MAX_AGE_DAYS 天）
       const maxAge = DEFAULT_MAX_AGE_DAYS * 24 * 60 * 60 * 1000
@@ -271,7 +271,7 @@ const layer = Layer.effect(
       return [...valid, ...Array.from(sessionTasks.values())]
     })
 
-    const remove = Effect.fn("CronScheduler.remove")(function* (id: string): Effect.Effect<void> {
+    const remove = Effect.fn("CronScheduler.remove")(function* (id: string) {
       if (sessionTasks.delete(id)) return
       const durable = yield* readDurable()
       const filtered = durable.filter((t) => t.id !== id)
@@ -280,7 +280,7 @@ const layer = Layer.effect(
       }
     })
 
-    const markFired = Effect.fn("CronScheduler.markFired")(function* (id: string): Effect.Effect<void> {
+    const markFired = Effect.fn("CronScheduler.markFired")(function* (id: string) {
       const session = sessionTasks.get(id)
       if (session) {
         const next = session.recurring ? nextCronRunMs(parseCronExpression(session.cron), Date.now()) : null
@@ -339,7 +339,7 @@ function parseBoolean(v: unknown): boolean {
   return false
 }
 
-export const ScheduleCronTool = Tool.define(
+export const ScheduleCronTool = Tool.define<typeof Parameters, Record<string, unknown>, CronSchedulerService>(
   "schedule_cron",
   Effect.gen(function* () {
     const scheduler = yield* CronSchedulerService
@@ -396,7 +396,7 @@ const DeleteParameters = Schema.Struct({
   id: Schema.String.annotate({ description: "The ID of the cron task to delete" }),
 })
 
-export const CronDeleteTool = Tool.define(
+export const CronDeleteTool = Tool.define<typeof DeleteParameters, Record<string, unknown>, CronSchedulerService>(
   "cron_delete",
   Effect.gen(function* () {
     const scheduler = yield* CronSchedulerService
@@ -424,7 +424,7 @@ export const CronDeleteTool = Tool.define(
 
 const ListParameters = Schema.Struct({})
 
-export const CronListTool = Tool.define(
+export const CronListTool = Tool.define<typeof ListParameters, Record<string, unknown>, CronSchedulerService>(
   "cron_list",
   Effect.gen(function* () {
     const scheduler = yield* CronSchedulerService

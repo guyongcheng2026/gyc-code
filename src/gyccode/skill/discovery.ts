@@ -1,3 +1,4 @@
+import * as nodePath from "node:path"
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { httpClient, path } from "@gyccode/core/effect/app-node-platform"
 import { NodePath } from "@effect/platform-node"
@@ -31,8 +32,8 @@ function isSafeRelativePath(value: string) {
     !value.includes("\0") &&
     !value.includes("?") &&
     !value.includes("#") &&
-    !path.posix.isAbsolute(value) &&
-    !path.win32.isAbsolute(value) &&
+    !nodePath.posix.isAbsolute(value) &&
+    !nodePath.win32.isAbsolute(value) &&
     segments.every((segment) => segment !== "" && segment !== "." && segment !== "..")
   )
 }

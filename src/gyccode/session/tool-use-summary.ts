@@ -12,7 +12,7 @@ export const ToolUseRecord = Schema.Struct({
   timestamp: Schema.Number,
   duration: Schema.optional(Schema.Number),
   success: Schema.Boolean,
-  args: Schema.optional(Schema.UnknownRecord),
+  args: Schema.optional(Schema.Unknown),
 })
 export type ToolUseRecord = Schema.Schema.Type<typeof ToolUseRecord>
 
@@ -141,5 +141,3 @@ export const node = LayerNode.make({
   layer,
   deps: [EventV2Bridge.node, Session.node],
 })
-
-export * as ToolUseSummary from "./tool-use-summary"

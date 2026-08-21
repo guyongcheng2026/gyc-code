@@ -3,6 +3,7 @@ import DESCRIPTION from "./actor.txt"
 import { BackgroundJob } from "@/background/job"
 import { TaskTool, type TaskPromptOps } from "./task"
 import { Effect, Schema } from "effect"
+import { SessionID } from "@/session/schema"
 
 const id = "actor"
 
@@ -389,9 +390,9 @@ export const ActorTool = Tool.define(
                       ),
                     )
 
-              const actorId = typeof result.metadata.jobId === "string" ? result.metadata.jobId : undefined
-              const sessionMeta = result.metadata as { sessionId?: string }
-              const resolvedActorId = actorId ?? sessionMeta.sessionId
+              const meta = result.metadata as { jobId?: string; sessionId?: string }
+              const actorId = typeof meta.jobId === "string" ? meta.jobId : undefined
+              const resolvedActorId = actorId ?? meta.sessionId
               const metadata: Metadata = {
                 actorId: resolvedActorId,
                 actorAction: op.action,
@@ -472,8 +473,8 @@ export const ActorTool = Tool.define(
 
             // op.action === "cancel"
             const ops = ctx.extra?.promptOps as TaskPromptOps | undefined
-            if (ops) yield* ops.cancel(op.actor_id).pipe(Effect.catch(() => Effect.void))
-            yield* background.cancel(op.actor_id)
+            if (ops) yield* ops.cancel(op.actor_id as SessionID).pipe(Effect.catch(() => Effect.void))
+            yield* background.cancel(op.actor_id as SessionID)
             const metadata: Metadata = { actorId: op.actor_id, actorAction: "cancel" }
             return {
               title: `actor cancel ${op.actor_id}`,

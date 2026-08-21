@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs"
 import { readFile, rm, writeFile } from "node:fs/promises"
 import os from "node:os"
 import path from "node:path"
-import { spawn } from "node:child_process"
+import { spawn, type SpawnOptions } from "node:child_process"
 import type { Stream } from "node:stream"
 import { resolveZedDbPath, resolveZedSelection } from "./editor-zed"
 
@@ -36,9 +36,9 @@ export async function openEditor(input: { value: string; renderer: CliRenderer; 
       // 不再启用 shell：args 数组原生传参，含空格的 tmp 路径不会被拆断
       const parts = [...editor.matchAll(/"([^"]*)"|(\S+)/g)].map((m) => m[1] ?? m[2]) as string[]
       const args = [...parts.slice(1), file]
-      const spawnOpts = {
+      const spawnOpts: SpawnOptions = {
         cwd: input.cwd && existsSync(input.cwd) ? input.cwd : process.cwd(),
-        stdio: [input.stdin ?? "inherit", "inherit", "inherit"] as const,
+        stdio: [input.stdin ?? "inherit", "inherit", "inherit"],
       }
       const child = spawn(parts[0]!, args, spawnOpts)
       const settle = (c: ReturnType<typeof spawn>) => {

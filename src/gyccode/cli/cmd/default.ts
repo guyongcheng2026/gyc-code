@@ -1096,9 +1096,9 @@ async function interactiveLoop(input: CliInput) {
     for (const [name, info] of dynamicCommands) {
       if (seen.has(name)) continue
       seen.add(name)
-      if (info.source === "skill") continue
+      if ((info as { source?: string }).source === "skill") continue
       entries.push({
-        label: "/" + name + (info.source === "mcp" ? ":mcp" : ""),
+        label: "/" + name + ((info as { source?: string }).source === "mcp" ? ":mcp" : ""),
         fill: "/" + name,
         desc: info.description ?? "",
         aliases: "",

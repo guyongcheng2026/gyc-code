@@ -7,6 +7,7 @@ import { useTheme } from "../context/theme"
 import { errorMessage } from "../util/error"
 
 export type DialogSkillProps = {
+  agent?: string
   onSelect: (skill: string) => void
 }
 

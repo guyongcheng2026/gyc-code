@@ -6,7 +6,7 @@ import { useToast } from "../ui/toast"
 import { useClipboard } from "../context/clipboard"
 import { useBindings } from "../keymap"
 import { HookRegistry } from "../../gyccode/hook/registry"
-import { HookEvent } from "../../gyccode/hook/types"
+import { HookEvent, HOOK_EVENTS } from "../../gyccode/hook/types"
 
 const EVENT_LABELS: Record<string, string> = {
   PreToolUse: "工具执行前",
@@ -33,7 +33,7 @@ export function DialogHooks() {
     return instance
   })
 
-  const events = createMemo(() => HookEvent.values as readonly string[])
+  const events = createMemo(() => HOOK_EVENTS)
 
   const hooksByEvent = createMemo(() => {
     const reg = registry()

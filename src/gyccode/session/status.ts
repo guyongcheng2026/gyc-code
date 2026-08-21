@@ -6,7 +6,7 @@ import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionStatusEvent } from "@gyccode/schema/session-status-event"
 
 export const Info = SessionStatusEvent.Info
-export type Info = SessionStatusEvent.Info
+export type Info = { type: string; [key: string]: unknown }
 
 export const Event = SessionStatusEvent
 
