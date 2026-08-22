@@ -1,0 +1,8 @@
+{
+  "name": "@gyccode/ui",
+  "exports": {
+    "./package.json": "./package.json",
+    "./audio/*": "./assets/audio/*"
+  },
+  "type": "module"
+}

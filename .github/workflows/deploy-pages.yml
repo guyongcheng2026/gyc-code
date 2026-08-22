@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # 1. 构建插件市场（npm pack + index.json）
+      - name: Build marketplace
+        run: bun scripts/build-marketplace.mjs
+
+      # 2. 同步模型镜像（184 供应商 / 6000+ 模型，6MB 不入库，CI 实时生成）
+      - name: Sync models mirror
+        run: bun scripts/sync-models.mjs
+
+      # 3. 组装 Pages 站点：仅部署产物（index.json + pkg/ + models/），插件源码不入站
+      - name: Assemble site
+        run: |
+          mkdir -p site/pkg site/models
+          cp marketplace/index.json site/
+          cp -r marketplace/pkg/* site/pkg/
+          cp models-mirror/api.json site/models/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+      - uses: actions/deploy-pages@v4

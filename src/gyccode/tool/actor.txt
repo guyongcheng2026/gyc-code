@@ -1,0 +1,88 @@
+Launch a new actor (subagent) to handle complex, multi-step tasks autonomously.
+
+JSON calls wrap the action payload inside an `operation` object; `action` is the discriminator field.
+
+Examples:
+{"operation":{"action":"run","subagent_type":"explore","description":"Find error recovery","prompt":"<full task>"}}
+{"operation":{"action":"run","subagent_type":"explore","description":"Investigate T4","prompt":"<full task>","task_id":"T4"}}
+{"operation":{"action":"spawn","subagent_type":"general","description":"Long-running search","prompt":"<full task>"}}
+{"operation":{"action":"status","actor_id":"<existing>"}}
+{"operation":{"action":"wait","actor_id":"<existing>"}}
+{"operation":{"action":"cancel","actor_id":"<existing>"}}
+
+## Operations (the `operation.action` field selects one)
+
+- run:    spawn a subagent and BLOCK until completion; result returned inline.
+          required: subagent_type, description, prompt
+          optional: actor_id (resume a prior actor), timeout_ms, command, task_id
+- spawn:  spawn a subagent and return actor_id IMMEDIATELY (background).
+          Requires GYCCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true.
+          required: subagent_type, description, prompt
+          optional: actor_id, command, task_id
+- status: poll actor state without blocking. required: actor_id.
+          Returns: { status: "running"|"completed"|"error"|"cancelled"|"unknown", actor_id, ... }
+- wait:   block until actor completes (success/failure/cancelled) or timeout (default 10 min).
+          required: actor_id. optional: timeout_ms.
+          Returns: { status, actor_id, result?, error? }
+- cancel: stop a running actor (graceful). required: actor_id. Idempotent.
+- send:   NOT supported in gyc-code. Use `run`/`spawn` instead.
+
+## When to use actor
+
+- **Parallelize**: spawn multiple independent searches/analyses concurrently; `wait` on each.
+- **Isolate heavy lifting**: delegate 10+ file reads to a subagent; you get only the synthesis.
+- **Specialized search**: use `explore` for read-only code discovery (finding definitions, callers).
+- **Custom review**: `general` subagent verifies implementation against spec without bias.
+- **Working on a tracked task**: when you spawn a subagent to do work for one of your active
+  tasks (T1, T2, ...), pass `task_id` so the association is recorded with the result metadata.
+  Pass ONLY a task ID from this session; never invent one. If you haven't created the task yet,
+  create it first, or omit `task_id` and run ad-hoc.
+- **Don't spawn for**: trivial single-file lookups, answers already in your context, or decisions on partial outputs.
+
+## Writing the prompt
+
+You are the subagent's only briefing — it hasn't seen this conversation.
+- Explain what you're trying to accomplish and why.
+- Say what you've already learned or ruled out.
+- Give enough context for judgment calls, not just narrow steps.
+- If you need short output, say so ("report in under 200 words").
+- For investigation: hand over the question; prescribed steps become dead weight.
+
+## Actor ID vs Task ID
+
+`actor_id` identifies a subagent session (resumable across turns). Task IDs (T1, T2, ...) come
+from the task tracker — only pass a `task_id` you actually obtained this session. `task_id` is a
+metadata binding only: it does not change execution. Leave it off for ad-hoc work.
+
+## Usage notes
+
+- **Resume the same subagent**: pass `actor_id` to `run`/`spawn` and the call resumes that
+  subagent's session (continues with its prior messages and tool outputs). Without `actor_id`,
+  a fresh subagent is created.
+- **`run` vs `spawn` result delivery**: `run` blocks and returns the result inline. `spawn`
+  returns the actor_id immediately; when the background actor finishes, its result appears as a
+  notification in this conversation. Use `wait` to block on the actor_id explicitly.
+- **Model override**: per-call `model` is accepted for compatibility but ignored — the subagent
+  runs on its agent-configured model (or the parent's).
+- Trust the subagent's outputs generally, but the subagent doesn't see your full context; brief it accordingly.
+- Nested spawning is limited by "subagent_depth" (default 1) — subagents cannot spawn further subagents by default.
+
+## Examples
+
+<example>
+user: "Find all places where parser.ts handles error recovery"
+assistant: I'll spawn an explore subagent to scan parser-related files.
+[actor({"operation":{"action":"run","subagent_type":"explore","description":"Find error recovery in parser","prompt":"Search src/parser.ts and adjacent files for error-recovery patterns. Return: each location's file:line + a one-sentence description of how it recovers. If you find catch blocks, panic-mode synchronization, or recovery sentinels, list them all."}})]
+</example>
+
+<example>
+user: "Verify the type checker is correct against spec.md §3"
+assistant: I'll spawn a general subagent to do an independent review.
+[actor({"operation":{"action":"run","subagent_type":"general","description":"Type checker spec review","prompt":"Read docs/spec.md §3 (Type System), then read src/types.ts and tests/types.test.ts. Report: (1) any §3 requirement not implemented; (2) any test that fails to cover a §3 requirement. Don't fix anything — just report findings."}})]
+</example>
+
+<example>
+user: "investigate T4's failing tests in the type checker"
+assistant: T4 is an active task in my tracker. I'll spawn an explore subagent bound to T4 so the association is recorded.
+[actor({"operation":{"action":"run","subagent_type":"explore","description":"Investigate T4 type checker failures","prompt":"Run `bun test src/types.test.ts` and report each failing case. For each failure: file:line of the assertion, the expected vs actual values, and the most likely root-cause hypothesis based on reading src/types.ts. Don't fix anything.","task_id":"T4"}})]
+</example>

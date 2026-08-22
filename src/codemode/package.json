@@ -1,0 +1,7 @@
+{
+  "name": "@gyccode/codemode",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "type": "module"
+}

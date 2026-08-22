@@ -1,0 +1,8 @@
+{
+  "name": "@gyccode/schema",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./*.ts"
+  },
+  "type": "module"
+}

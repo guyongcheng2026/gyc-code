@@ -1,0 +1,11 @@
+Edits a Jupyter notebook cell (.ipynb files only).
+
+Usage:
+- Use this tool to edit, insert, or delete cells in a Jupyter notebook.
+- The notebook_path must be an absolute path to a .ipynb file.
+- cell_id specifies which cell to edit. When inserting, the new cell is placed after the cell with this ID (or at the beginning if not specified).
+- new_source is the new content for the cell.
+- cell_type can be "code" or "markdown". Required when edit_mode=insert.
+- edit_mode can be "replace" (default), "insert", or "delete".
+- You MUST read the notebook file first before editing it.
+- For editing other file types, use the edit or write tool instead.

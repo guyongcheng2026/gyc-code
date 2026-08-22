@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "opencode-web-ui.gen.ts": ["./src/gyccode/server/generated/opencode-web-ui.gen.ts"],
+      "@/*": [
+        "./src/gyccode/*"
+      ],
+      "@test/*": [
+        "./src/gyccode/test/*"
+      ]
+    },
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": [
+      "@types/bun",
+      "vite/client"
+    ],
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "lib": [
+      "ESNext",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "customConditions": [
+      "browser"
+    ],
+    "skipLibCheck": true
+  },
+  "include": [
+    "./src/**/*.ts",
+    "./src/**/*.tsx"
+  ],
+  "exclude": ["./src/webapp/**"]
+}

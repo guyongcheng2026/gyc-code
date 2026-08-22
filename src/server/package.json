@@ -1,0 +1,7 @@
+{
+  "name": "@gyccode/server",
+  "exports": {
+    "./*": "./*.ts"
+  },
+  "type": "module"
+}

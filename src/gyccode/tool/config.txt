@@ -1,0 +1,17 @@
+﻿# 读取或修改 gyc 配置
+
+读取或修改 gyc 的配置项（如 model、shell、language、snapshot 等）。
+
+- 不带 value 调用时读取当前配置值。
+- 带 value 时写入配置（作用于全局配置）。
+- 支持的值类型：字符串、布尔、数字。
+
+常用配置项：
+- model: 默认模型，格式 provider/model
+- shell: 默认 shell
+- language: 回复语言，如 zh-CN
+- snapshot: 是否启用文件快照（布尔）
+- logLevel: 日志级别（DEBUG/INFO/WARN/ERROR）
+- default_agent: 默认 agent
+- autoupdate: 是否自动更新
+- username: 显示用户名

@@ -1,0 +1,99 @@
+#!/usr/bin/env node
+// gyc - gyc-code CLI launcher
+// Prefers the prebuilt dist bundle (fastest); falls back to TS source via Bun.
+// 统一运行时策略：所有命令（含 TUI/--mini）都走 Node 目标 dist。
+// TUI 的 OpenTUI 原生渲染经 koffi（opentui.dll）在 Node 下可用，worker 经
+// node:worker_threads 运行，故无需再为 TUI 切到 Bun 运行时（Bun 常驻内存
+// 回收不稳定，实测 TUI 私有内存可达 1.6GB；Node 常驻更省更稳）。
+// 注意：不要在此处对 stdout/stderr 调用 setEncoding，也不要用 cmd.exe /c chcp
+// 包裹子进程——前者破坏 OpenTUI 输出路径，后者破坏 Ctrl+C 信号传递；
+// 控制台 UTF-8 由进程内 win32EnableUtf8Console()（kernel32 代码页 65001）解决。
+
+const { existsSync, readFileSync } = require("fs")
+const path = require("path")
+const { pathToFileURL } = require("url")
+
+const here = __dirname
+const distEntry = path.join(here, "..", "dist", "index.js")
+const srcEntry = path.join(here, "..", "src", "gyccode", "index.ts")
+const preload = path.join(here, "..", "scripts", "bun-solid-preload.ts")
+
+// 读取 build.mjs 写入的运行时标记："node" / "bun"；缺失时视为 node（build.mjs 默认）。
+function readRuntimeMarker(distDir) {
+  try {
+    return readFileSync(path.join(distDir, "RUNTIME"), "utf8").trim()
+  } catch {
+    return undefined
+  }
+}
+
+function findNode() {
+  const candidates = [
+    process.env.GYC_NODE,
+    "C:\\Program Files\\nodejs\\node.exe",
+    path.join(process.env.ProgramFiles || "C:\\Program Files", "nodejs", "node.exe"),
+  ].filter(Boolean)
+  return candidates.find((c) => existsSync(c)) || "node"
+}
+
+function findBun() {
+  const candidates = [
+    process.env.GYC_BUN,
+    "C:\\Program Files\\nodejs\\bun.exe",
+    path.join(process.env.USERPROFILE || "", ".bun", "bin", "bun.exe"),
+  ].filter(Boolean)
+  return candidates.find((c) => existsSync(c)) || "bun"
+}
+
+function spawnBun(bun, args) {
+  const { spawnSync } = require("child_process")
+  const result = spawnSync(bun, args, { stdio: "inherit" })
+  if (result.error) {
+    console.error("Failed to launch gyc:", result.error.message)
+    process.exit(1)
+  }
+  process.exit(result.status ?? 0)
+}
+
+async function main() {
+  if (typeof Bun === "undefined") {
+    // Node runtime: run the Node-target dist bundle directly (opencode2-style,
+    // no Bun spawn).
+    if (existsSync(distEntry)) {
+      // bun 目标产物需 Bun 运行（本机无此场景，防御性处理）。
+      if (readRuntimeMarker(path.dirname(distEntry)) === "bun") {
+        spawnBun(findBun(), [distEntry, ...process.argv.slice(2)])
+        return
+      }
+      await import(pathToFileURL(distEntry).href)
+      return
+    }
+    // No dist build yet: fall back to spawning Bun on TS source (dev only).
+    spawnBun(findBun(), ["--smol", "run", "--preload", preload, "--conditions=browser", srcEntry, ...process.argv.slice(2)])
+    return
+  }
+
+  if (existsSync(distEntry)) {
+    // dist 默认是 Node 目标产物（含 node:sqlite，Bun 1.x 不支持）→ 交由 Node 子进程直跑；
+    // 仅当构建标记为 bun 目标时才进程内 import（冷启动最快）。
+    if (readRuntimeMarker(path.dirname(distEntry)) === "bun") {
+      await import(distEntry)
+      return
+    }
+    // TUI/--mini 也统一走 Node 目标 dist：OpenTUI 经 koffi 支持 Node，
+    // 不再依赖 dist-bun（Bun 目标）以避免 Bun 常驻内存回收不稳定的问题。
+    spawnBun(findNode(), [distEntry, ...process.argv.slice(2)])
+    return
+  }
+  spawnBun(process.execPath, [
+    "--smol",
+    "run",
+    "--preload",
+    preload,
+    "--conditions=browser",
+    srcEntry,
+    ...process.argv.slice(2),
+  ])
+}
+
+main()

@@ -1,0 +1,173 @@
+import type { AssistantMessage, Message, Part } from "@gyccode/protocol/v2"
+import type { TuiPlugin, TuiPluginApi } from "@gyccode/protocol/plugin/tui"
+import type { BuiltinTuiPlugin } from "../builtins"
+import { Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js"
+import { completedTPS, formatTPS, streamingTPS } from "./tps"
+import { Token } from "@/util/token"
+import * as Model from "../../util/model"
+import { DialogContextInfo } from "../../component/dialog-context-info"
+import { computeChRate, estimateMessage, hasTokenUsage, persistedTokens } from "./context-metrics"
+
+const id = "internal:sidebar-context"
+const REFRESH_MS = 5000
+
+const money = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+})
+
+export function View(props: { api: TuiPluginApi; session_id: string }) {
+  const theme = () => props.api.theme.current
+  const msg = createMemo(() => props.api.state.session.messages(props.session_id))
+  const cost = createMemo(() => msg().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0))
+
+  const [tick, setTick] = createSignal(Date.now())
+
+  const lastAssistant = createMemo(() =>
+    msg().findLast((item): item is AssistantMessage => item.role === "assistant"),
+  )
+
+  const isStreaming = createMemo(() => {
+    const m = lastAssistant()
+    return m !== undefined && !m.time.completed
+  })
+
+  const session = createMemo(() => props.api.state.session.get(props.session_id))
+  const isCompacting = createMemo(() => session()?.time.compacting !== undefined)
+  const isBusy = createMemo(() => {
+    if (isCompacting()) return true
+    const last = msg().at(-1)
+    if (!last) return false
+    if (last.role === "user") return true
+    return last.time.completed === undefined
+  })
+
+  createEffect(() => {
+    if (!isStreaming() && !isBusy()) return
+    const handle = setInterval(() => setTick(Date.now()), REFRESH_MS)
+    onCleanup(() => clearInterval(handle))
+  })
+
+  const tps = createMemo<number | null>(() => {
+    const m = lastAssistant()
+    if (!m) return null
+
+    if (isStreaming()) {
+      tick() // reactivity dep so the readout updates between deltas
+      const parts = props.api.state.part(m.id)
+      const combined = parts
+        .filter((p) => p.type === "text" || p.type === "reasoning")
+        .map((p) => p.text)
+        .join("")
+      return streamingTPS(combined, m.time.created, Date.now())
+    }
+
+    const idleTarget = msg().findLast(
+      (item): item is AssistantMessage =>
+        item.role === "assistant" &&
+        item.time.completed !== undefined &&
+        item.tokens.output + item.tokens.reasoning > 0,
+    )
+    if (!idleTarget || idleTarget.time.completed === undefined) return null
+    return completedTPS(
+      idleTarget.tokens.output,
+      idleTarget.tokens.reasoning,
+      idleTarget.time.created,
+      idleTarget.time.completed,
+    )
+  })
+
+  const tpsLabel = createMemo(() => formatTPS(tps()))
+
+  const chRate = createMemo(() => computeChRate(msg()))
+
+  const state = createMemo(() => {
+    const msgs = msg()
+    // Full-session token usage: persisted counters for completed assistant
+    // messages, plus live estimation for in-flight messages when busy.
+    // This is the true context-window occupancy, not just the last message.
+    let tokens = persistedTokens(msgs)
+    if (isBusy()) {
+      tick() // 忙碌态由 2s 节流驱动实时估算
+      // Only in-flight messages are tokenized; completed assistant messages
+      // reuse their exact persisted counters, so the 2s refresh never re-runs
+      // the tokenizer over the whole (potentially large) conversation.
+      for (const message of msgs) {
+        if (!(message.role === "assistant" && message.time.completed)) {
+          tokens += estimateMessage(message, (id) => props.api.state.part(id))
+        }
+      }
+    }
+    // Anchor for the context window lookup: the last assistant message with
+    // any real token usage (not just output — high-reasoning models like
+    // DeepSeek v4 can have output=0 while reasoning>0).
+    const last = msgs.findLast((item): item is AssistantMessage => item.role === "assistant" && hasTokenUsage(item))
+    const model = last
+      ? props.api.state.provider.find((item) => item.id === last.providerID)?.models[last.modelID]
+      : undefined
+    const win = last ? Model.contextWindow(props.api.state.config, last.providerID, last.modelID, model) : undefined
+    return {
+      tokens,
+      percent: win ? Math.round((tokens / win.effective) * 100) : null,
+      limit: win,
+      compacting: isCompacting(),
+    }
+  })
+
+  const contextColor = createMemo(() => {
+    const pct = state().percent
+    if (pct === null) return theme().textMuted
+    if (pct >= 95) return theme().error
+    if (pct >= 80) return theme().warning
+    return theme().textMuted
+  })
+
+  return (
+    <box onMouseDown={() => props.api.ui.dialog.replace(() => <DialogContextInfo />)}>
+      <text fg={theme().text}>
+        <b>Context</b>
+      </text>
+      <Show when={state().compacting}>
+        <text fg={theme().warning}>compacting…</text>
+      </Show>
+      <text fg={contextColor()}>{state().tokens.toLocaleString()} tokens</text>
+      <Show when={state().percent !== null}>
+        {(pct) => <text fg={contextColor()}>{pct()}% used</text>}
+      </Show>
+      <Show when={chRate()}>
+        {(r) => (
+          <text fg={r().actual >= r().theory - 5 ? theme().textMuted : theme().warning}>
+            CH {r().actual.toFixed(1)}%
+          </text>
+        )}
+      </Show>
+      <Show when={state().limit}>
+        {(win) => (
+          <text fg={theme().textMuted}>
+            {`limit ${Token.format(win().effective)}${win().source === "config" ? ` of ${Token.format(win().hard)}` : ""}`}
+          </text>
+        )}
+      </Show>
+      <Show when={tpsLabel()}>{(label) => <text fg={theme().textMuted}>{label()}</text>}</Show>
+      <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+    </box>
+  )
+}
+
+const tui: TuiPlugin = async (api) => {
+  api.slots.register({
+    order: 100,
+    slots: {
+      sidebar_content(_ctx, props) {
+        return <View api={api} session_id={props.session_id} />
+      },
+    },
+  })
+}
+
+const plugin: BuiltinTuiPlugin = {
+  id,
+  tui,
+}
+
+export default plugin
