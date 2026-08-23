@@ -1,9 +1,3 @@
-# Obsidian generated
-.obsidian/workspace.json
-.obsidian/workspace-mobile.json
-.obsidian/cache/
-.obsidian/plugins/*/data.json
-
 # OS files
 Thumbs.db
 .DS_Store
@@ -13,7 +7,7 @@ Desktop.ini
 *.exe
 *.log
 
-# gyc: 构建产物与依赖不入库（2026-08-23 opentui 升级时补齐）
+# 构建产物与依赖不入库
 node_modules/
 dist/
 src/webapp/dist/
