@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gyc-cli data dir maintenance script
+// gyc-code data dir maintenance script
 //
 // Usage (from repo root):
 //   bun scripts/maintain-data.mjs                    # dry-run: report storage usage (modifies nothing)
@@ -145,7 +145,7 @@ function pruneEvents(db, cutoff, apply) {
 }
 
 async function main() {
-  console.log(`gyc-cli data dir: ${DATA_DIR}`)
+  console.log(`gyc-code data dir: ${DATA_DIR}`)
   console.log(`mode: ${DRY ? "dry-run (read-only report)" : "clean"}`)
   console.log("")
 

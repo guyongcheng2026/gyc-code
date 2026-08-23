@@ -11,7 +11,7 @@ const W = {
   dir:  "2001.\u6211\u7684\u52a9\u624b\u5de5\u5177\u94fe",            // 2001.我的助手工具链
   file: "gyc-code-\u5de5\u4f5c\u6d41\u6c34.md",                  // gyc-code-工作流水.md
   about: "\u6bcf\u6b21 `git commit` \u540e\u7531 `.githooks/post-commit` \u81ea\u52a8\u8ffd\u52a0",
-  repo: "\u4ed3\u5e93\uff1a\u672c\u5730 `C:\\Users\\\u8c37\u52c7\u6210\\gyc-cli` / \u7528\u6237 `guyongcheng2026/gyc-code`\uff08gh-proxy\uff09",
+  repo: "\u4ed3\u5e93\uff1a\u672c\u5730 `C:\\gyc-code` / \u7528\u6237 `guyongcheng2026/gyc-code`\uff08gh-proxy\uff09",
   title: "# gyc-code \u5de5\u4f5c\u6d41\u6c34\uff08\u81ea\u52a8\u540c\u6b65\uff09",
   h2: "## \u63d0\u4ea4\u8bf0",
 }
