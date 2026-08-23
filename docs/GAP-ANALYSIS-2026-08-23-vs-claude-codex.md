@@ -171,6 +171,100 @@
 
 ---
 
+
+---
+
+## 九、产品形态与商业化（谷总追加任务）
+
+### 9.1 CLI 二进制客户端
+- 现状：bin/gyc 为 Node launcher，构建产物 dist/（ESM bundle + 内嵌 webapp + compose bundle），运行时依赖 Node/Bun 与 node_modules（provider SDK、node-pty、koffi 外部化）。
+- 差距：
+  - P1 无单文件原生二进制：未使用 bun --compile / pkg 打包，对外分发需用户自装 Node。
+  - P1 安装/分发渠道单一：已有 Installation（npm/github/choco）与 gyc upgrade，但无原生安装包（msi/exe/dmg）。
+  - P2 多平台构建矩阵（win/mac/linux）未建立。
+
+### 9.2 VSCode 插件
+- 现状：无 VSCode 扩展目录；仅有内置 LSP（vscode-eslint 依赖下载）。
+- 差距：
+  - P1 新建插件：命令面板提交任务到本地/云端 Agent、侧边栏查看执行日志与会话、diff 视图。
+  - P1 后端复用现有 v2 server API（src/server 已含 HTTP + SSE），工作量可控。
+  - P2 云端 Agent 对接（与商业化后端联动）。
+
+### 9.3 本地/项目级/全局配置分离
+- 现状：全局（xdg config）已覆盖、项目 .gyccode/ 已覆盖、GYCCODE_CONFIG / GYCCODE_CONFIG_DIR 覆盖已覆盖、AGENTS.md（全局+项目+@include）已覆盖；v1/v2 config 双栈并存。
+- 差距：
+  - P1 三端配置合并顺序与优先级未文档化，v1/v2 config 并存易分裂。
+  - P2 项目配置脚手架（gyc init 生成 .gyccode/config.json + AGENTS.md）。
+  - P2 TUI/Web 配置编辑界面（TUI /config 命令缺失）。
+
+### 9.4 版本自动更新检查
+- 现状：gyc upgrade 命令已覆盖；TUI worker 启动时自动检查（src/gyccode/cli/tui/worker.ts:85）已覆盖。
+- 差距：
+  - P1 无更新提醒 UI：TUI/CLI 启动无版本提示 badge，Web 无。
+  - P1 无更新渠道策略（stable/beta、跳过版本、自动升级开关）。
+  - P2 检查频控与匿名上报策略未定义。
+
+### 9.5 商业化后端最小版本（P1，内测后期上线）
+| 子项 | 现状 | 差距 |
+|------|------|------|
+| 用户账号/登录鉴权 | server 仅单密码 Basic Auth（GYCCODE_SERVER_USERNAME/PASSWORD）；account.ts 是第三方 AI 服务账号体系 | P1 引入第三方 Auth（已有 @openauthjs/openauth 可复用），用户注册/登录/JWT |
+| 额度/积分系统 | 无 quota/credit 表 | P1 免费额度 + 订阅额度 + 单任务扣减 |
+| 用量日志 | message.tokens 已持久化，CLI stats 可统计 | P1 新增任务级 usage_log（token/耗时/模型/失败原因），三端统一上报 |
+| 简易管理面板 | webapp 无 admin 视图 | P1 用量仪表盘 + 成本监控，扩展 server /admin 路由组 |
+| 订阅状态管理 | 无 | P1 仅状态标记（active/trial/cancelled/expired），支付对接延后 |
+
+**商业化落地建议**
+- 复用 v2 server（src/server）扩展 /admin 路由组；鉴权升级多用户 JWT。
+- usage_log 与现有 message.tokens 打通，避免双写。
+- 管理面板放 webapp 新路由 admin/，沿用现有组件风格。
+
+---
+
+
+---
+
+## 十、评测与质量（P1）
+
+**现状**
+- benchmark.test.ts 仅有基础冒烟（验证 compose 技能系统存在性）。
+- 无 SWE-Bench 接入、无企业垂直测试集、无失败样本库、无反馈表单。
+
+**差距**
+- P1 接入 SWE-Bench：harness 需支持「任务 = 代码修改 + 测试验证」模式（可复用 compose verify 技能），输出 JSON 报告（pass@1 / 耗时 / token 消耗）。
+- P1 自建企业 Java/Spring/Vue 垂直用例集：与 ECP / HR 项目联动，形成任务题库（任务描述 + 基线 + 验证脚本 + 参考实现）。
+- P1 错误案例收集 / 失败样本库：运行时捕获（会话失败事件 + tool error + 权限拒绝）落库，定期回归迭代优化。
+- P1 内测反馈表单：Web 表单或第三方问卷，关联会话 ID，回流失败样本库。
+
+---
+
+## 十一、资质与文档（P2）
+
+**现状**
+- README 基础介绍已覆盖；docs/ 有内部工作与评估文档；LICENSE 为 MIT。
+
+**差距**
+- P2 软著申请材料：源代码文档（前 60 页 / 后 30 页格式）、软件说明书、申请表。
+- P2 用户文档：CLI 命令手册（可由 --help 自动生成）、插件使用文档、编排模式说明（plan / build / compose + workflow）。
+- P2 合规文档：隐私政策、用户协议、AI 生成内容免责声明。
+- P2 公开材料：README 完善、GitHub 公开文档、演示案例仓库（demo 项目 + 演示录屏）。
+
+---
+
+## 十二、暂不纳入 MVP（延后迭代）
+
+- Web 端完整控制台（当前 webapp 定位为会话 UI，不做完整控制台）。
+- 团队空间（协作、共享会话、成员管理）。
+- 多租户系统（租户隔离、租户管理）。
+- JetBrains 全系列插件（VSCode 插件为 P1 优先，JetBrains 延后）。
+- Docker 私有化企业部署包（镜像编排、一键部署）、等保适配与完整审计日志——注：等保三级（身份鉴别 / 访问控制 / 安全审计 / 入侵防范 / 数据完整性 / 保密性 / 备份恢复）为合规硬性要求，基础版需先行满足最小合规（登录审计、权限留痕），企业版再补完整留存、防篡改与日志导出。
+- 完整企业工单、客户管理系统（先以最小管理面板承载用量统计与成本监控）。
+
+> 该边界与 9.5 商业化后端「单用户 + 管理面板」最小版本呼应，避免过早引入多租户复杂度。
+
+## 结论（更新）
+
+gyc 基础能力已对标 60%～70%；真正的差异化空间集中在「可编排的工作流引擎 + 自动闭环（反思 / 断点 / 调试循环）」三件套。安全侧需先解决 Web 端高危拦截缺失与 OS 沙箱问题，满足等保 3 级要求。产品形态侧，CLI 原生二进制与 VSCode 插件是「对外可触达」的必需项；商业化后端（账号/额度/用量日志/管理面板/订阅标记）当前接近 0，需在 P1 内测后期前立项补齐。
+
 ## 结论
 
 gyc 基础能力已对标 60%～70%；真正的差异化空间集中在「可编排的工作流引擎 + 自动闭环（反思 / 断点 / 调试循环）」三件套。安全侧需先解决 Web 端高危拦截缺失与 OS 沙箱问题，满足等保 3 级要求后再谈对外售卖。
