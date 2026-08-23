@@ -754,15 +754,30 @@ const layer: Layer.Layer<
       })
       const msgs = yield* messages({ sessionID: input.sessionID })
 
+      // messages() 返回顺序依赖分页实现（单页为最新在前），这里显式按时间正序排序，
+      // 保证：① slice 尾部 = 最新 N 条；② 下方 break 在正序下成立；③ 复制顺序与
+      // 父消息引用（parentID）一致。
+      const sortedMsgs = [...msgs].sort(
+        (a, b) => (a.info.time?.created ?? 0) - (b.info.time?.created ?? 0),
+      )
+
+      // 注意：MessageID 是时间有序的（MessageID.ascending()），但字符串比较不可靠（
+      // 前缀长度/随机段不同会导致字典序与时间序不一致），因此 fork 点必须按消息的
+      // time.created 比较，而不是 msg.info.id >= messageID。
+      const forkTime = input.messageID
+        ? sortedMsgs.find((m) => m.info.id === input.messageID)?.info.time?.created
+        : undefined
+
       // Keep only the last N messages to preserve cache prefix alignment
-      const recentMsgs = msgs.length > FORK_CACHE_KEEP_RECENT
-        ? msgs.slice(msgs.length - FORK_CACHE_KEEP_RECENT)
-        : msgs
+      const recentMsgs = sortedMsgs.length > FORK_CACHE_KEEP_RECENT
+        ? sortedMsgs.slice(sortedMsgs.length - FORK_CACHE_KEEP_RECENT)
+        : sortedMsgs
 
       const idMap = new Map<string, MessageID>()
 
       for (const msg of recentMsgs) {
-        if (input.messageID && msg.info.id >= input.messageID) break
+        // 复制截至 fork 点（不含 fork 点本身）的消息
+        if (forkTime !== undefined && (msg.info.time?.created ?? 0) >= forkTime) break
         const newID = MessageID.ascending()
         idMap.set(msg.info.id, newID)
 
