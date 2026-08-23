@@ -224,13 +224,18 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         const provider = sync.data.provider[0]
         if (!provider) return undefined
         const defaultModel = sync.data.provider_default[provider.id]
-        const firstModel = Object.values(provider.models)[0]
-        const model = defaultModel ?? firstModel?.id
-        if (!model) return undefined
-        return {
-          providerID: provider.id,
-          modelID: model,
+        if (defaultModel && isModelValid({ providerID: provider.id, modelID: defaultModel })) {
+          return { providerID: provider.id, modelID: defaultModel }
         }
+        const models = Object.values(provider.models)
+        if (!models.length) return undefined
+        // 计费安全护栏：回退到提供商首个模型时优先免费模型（cost 全 0），
+        // 避免默认模型失效后静默滑向付费模型产生意外扣费。
+        const freeModel = models.find(
+          (model) => model.status !== "deprecated" && model.cost?.input === 0 && model.cost?.output === 0,
+        )
+        const fallback = freeModel ?? models[0]
+        return { providerID: provider.id, modelID: fallback.id }
       })
 
       const currentModel = createMemo(() => {

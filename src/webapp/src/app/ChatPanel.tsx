@@ -108,7 +108,15 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
     const [providerID, modelID] = label.split("/")
     if (providerID && modelID)
       switchModel(sessionID, providerID, modelID)
-        .then(() => refreshInfo())
+        .then(() => {
+          // 显式刷新会话信息以确保模型状态持久化
+          refreshInfo()
+          // 额外确保 currentModel 重新计算
+          setCurrentModel(prev => {
+            const [pid, mid] = label.split("/")
+            return pid && mid ? `${pid}/${mid}` : ""
+          })
+        })
         .catch(err)
   }
 

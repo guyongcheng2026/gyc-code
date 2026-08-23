@@ -21,3 +21,8 @@ src/webapp/node_modules/
 services/account/*.db
 .temp-*
 models-mirror/
+
+# 工具记忆/计划目录不入库
+.codebuddy/
+.hermes/
+.workbuddy/

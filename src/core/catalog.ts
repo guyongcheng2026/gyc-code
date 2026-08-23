@@ -222,12 +222,15 @@ const layer = Layer.effect(
             }
           }
 
+          const available = yield* result.model.available()
+          // 计费安全护栏：无配置默认模型时优先免费模型（cost 全 0），
+          // 避免兜底选中付费模型产生意外扣费。
+          const free = available.filter(
+            (model) => model.cost.length === 0 || model.cost.every((cost) => cost.input === 0 && cost.output === 0),
+          )
+          const pool = free.length > 0 ? free : available
           return Option.getOrUndefined(
-            pipe(
-              yield* result.model.available(),
-              Array.sortWith((item) => item.time.released, Order.flip(Order.Number)),
-              Array.head,
-            ),
+            pipe(pool, Array.sortWith((item) => item.time.released, Order.flip(Order.Number)), Array.head),
           )
         }),
 

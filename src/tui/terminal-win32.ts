@@ -46,6 +46,26 @@ export function win32EnableUtf8Console() {
 }
 
 /**
+ * 低频率轮询重断言控制台输出/输入代码页为 UTF-8（65001）。
+ *
+ * 与 win32InstallCtrlCGuard 同理：控制台代码页是控制台全局状态，运行期间
+ * 被子进程/外部程序（工具执行 chcp、GBK 原生程序等）复位后，TUI 的 UTF-8
+ * 输出会重新变成乱码——表现为"运行一段时间后突然乱码"。轮询幂等且开销极小
+ * （仅 kernel32 的 Get/Set 调用，无 IO），作为 TUI 渲染期间的后备保障。
+ */
+export function win32InstallUtf8ConsoleGuard(intervalMs = 3000): () => void {
+  if (process.platform !== "win32") return () => {}
+  if (!process.stdout.isTTY) return () => {}
+  if (!load()) return () => {}
+  win32EnableUtf8Console()
+  const interval = setInterval(() => {
+    win32EnableUtf8Console()
+  }, intervalMs)
+  interval.unref?.()
+  return () => clearInterval(interval)
+}
+
+/**
  * Clear ENABLE_PROCESSED_INPUT on the console stdin handle.
  */
 export function win32DisableProcessedInput() {

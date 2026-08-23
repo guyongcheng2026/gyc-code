@@ -97,7 +97,12 @@ import type { EventSource } from "./context/sdk"
 import { DialogVariant } from "./component/dialog-variant"
 import { createTuiAttention } from "./attention"
 import * as TuiAudio from "./audio"
-import { watchTerminalClose, win32DisableProcessedInput, win32FlushInputBuffer } from "./terminal-win32"
+import {
+  watchTerminalClose,
+  win32DisableProcessedInput,
+  win32FlushInputBuffer,
+  win32InstallUtf8ConsoleGuard,
+} from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
 import { cliErrorMessage, errorFormat } from "./util/error"
 
@@ -238,6 +243,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           }),
       )
       win32DisableProcessedInput()
+      const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
+      yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
       const keymap = createDefaultOpenTuiKeymap(renderer)
       yield* Effect.acquireRelease(
         Effect.sync(() => registerGyccodeKeymap(keymap, renderer, input.config)),
