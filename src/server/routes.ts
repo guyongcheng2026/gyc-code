@@ -9,6 +9,7 @@ import { PtyTicket } from "@gyccode/core/pty/ticket"
 import { SessionV2 } from "@gyccode/core/session"
 import { SessionExecution } from "@gyccode/core/session/execution"
 import { LocationServiceMap } from "@gyccode/core/location-service-map"
+import { WorkflowV2 } from "@gyccode/core/workflow"
 import { SessionExecutionLocal } from "@gyccode/core/session/execution/local"
 import { ToolOutputStore } from "@gyccode/core/tool-output-store"
 import { HttpRouter, HttpServer } from "effect/unstable/http"
@@ -35,6 +36,7 @@ const applicationServices = LayerNode.group([
   Credential.node,
   PtyEnvironment.node,
   LocationServiceMap.node,
+  WorkflowV2.node,
 ])
 
 export function createRoutes(password?: string) {

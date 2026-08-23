@@ -84,6 +84,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   plug: pluginLoader,
   memory: { load: () => import("./cli/cmd/memory"), name: "MemoryCommand" },
   db: { load: () => import("./cli/cmd/db"), name: "DbCommand" },
+  workflow: { load: () => import("./cli/cmd/workflow"), name: "WorkflowCommand" },
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.

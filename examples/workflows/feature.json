@@ -1,0 +1,40 @@
+{
+  "name": "feature",
+  "description": "标准功能开发流程：需求分析 → 编码实现 → 测试验证 → 文档更新",
+  "version": "1.0.0",
+  "steps": [
+    {
+      "id": "plan",
+      "name": "需求分析",
+      "description": "分析需求并输出实现方案",
+      "prompt": "请分析本次需求，输出实现方案，包含：影响面、改动文件清单、潜在风险点。方案要具体可执行，改动保持最小化。",
+      "agent": "plan",
+      "retry": 1
+    },
+    {
+      "id": "implement",
+      "name": "编码实现",
+      "description": "按方案实现代码",
+      "prompt": "请按方案实现需求，严格遵循项目编码规范，只改必要位置，不引入无关改动。",
+      "agent": "build",
+      "retry": 2,
+      "onFailure": "stop"
+    },
+    {
+      "id": "verify",
+      "name": "测试验证",
+      "description": "运行测试并输出验证结论",
+      "prompt": "请运行相关测试与构建，确认功能符合预期。",
+      "verify": "运行测试后输出：通过用例数、失败项清单、以及失败时的修复建议。",
+      "retry": 1,
+      "onFailure": "implement"
+    },
+    {
+      "id": "docs",
+      "name": "文档更新",
+      "description": "同步更新相关文档",
+      "prompt": "请根据最终实现同步更新相关文档，保持文档与代码一致。",
+      "agent": "build"
+    }
+  ]
+}
