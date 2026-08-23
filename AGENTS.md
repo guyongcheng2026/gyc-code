@@ -1,6 +1,6 @@
 # gyc-code 项目架构审查任务
 
-gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\Users\谷勇成\gyc-cli。
+gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\gyc-code。
 1291 个 TS/TSX 文件，约 19.5 万行。
 
 ## 审查目标（四大对标基准）
@@ -47,6 +47,6 @@ gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\Users\谷勇
 
 ## 工作流同步约定（每次代码改动完成后必须执行）
 1. **GitHub**：提交 commit 后 `.githooks/post-commit` 自动 `git push origin HEAD`（origin 走 gh-proxy：`https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git`），无需手动 push。
-2. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit + push vault 仓库（gitee `wwkceldn/gu-yongchengs-knowledge-base`）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
+2. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit（vault 的 post-commit 钩子自动推送 Gitee 与 GitHub mydoc）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
 3. 若人工编写了**详细工作记录笔记**，同样写入该 Obsidian 目录（文件名前缀 `gyc-code-`），并提交推送 vault。
 4. 运行钩子相关脚本时从仓库根目录执行：`node scripts/worklog-sync.mjs`；路径中的中文一律用 `\uXXXX` 转义，保持源码 ASCII。
