@@ -175,10 +175,10 @@ export function DialogCost() {
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.textMuted}>按 enter 复制详细信息</text>
         <text onMouseUp={copy}>
-          <span fg={theme.text}>
+          <span style={{ fg: theme.text }}>
             <b>copy</b>
           </span>{" "}
-          <span fg={theme.textMuted}>enter</span>
+          <span style={{ fg: theme.textMuted }}>enter</span>
         </text>
       </box>
     </box>

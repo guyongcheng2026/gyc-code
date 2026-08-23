@@ -204,6 +204,7 @@ export function Session() {
   const event = useEvent()
   const project = useProject()
   const paths = useTuiPaths()
+  const terminalEnvironment = useTuiTerminalEnvironment()
   const tuiConfig = useTuiConfig()
   const kv = useKV()
   const { theme } = useTheme()
@@ -1177,7 +1178,7 @@ export function Session() {
           placeholder: "输入要加入会话工作范围的目录绝对路径",
         })
         if (!value || !value.trim()) return
-        const directory = normalizePath(value.trim())
+        const directory = normalizePath(value.trim(), terminalEnvironment.platform)
         sendPrompt(`请将目录 ${directory} 加入本会话的工作范围：后续任务可读写其中的文件。若目录不存在请告知。`)
       },
     },

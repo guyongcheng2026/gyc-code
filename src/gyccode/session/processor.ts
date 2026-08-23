@@ -659,7 +659,12 @@ const layer = Layer.effect(
         // 终态限流（额度耗尽，fatal 快速失败）：把原始 429 文案替换为带升级/重置
         // 信息的友好消息，确保放弃重试后用户可见失败原因与出路
         const limit = SessionRetry.actionFor(error, input.model.providerID)
-        if (limit && typeof error.data?.message === "string") error.data.message = limit.message
+        // error.data 为多形态联合（含无 message 字段的 {} 成员），读写都需先收窄；
+        // 此分支已确认 message 存在且为 string，断言安全。
+        const errorData = error.data as { message?: string } | undefined
+        if (limit && typeof errorData?.message === "string") {
+          errorData.message = limit.message
+        }
         yield* events.publish(Session.Event.Error, {
           sessionID: ctx.assistantMessage.sessionID,
           error: ctx.assistantMessage.error,

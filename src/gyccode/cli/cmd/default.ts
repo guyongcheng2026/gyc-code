@@ -1,4 +1,4 @@
-﻿// 纯 CLI 默认入口（gyc / gyc "消息"）。
+// 纯 CLI 默认入口（gyc / gyc "消息"）。
 //
 // 三种形态：
 //   1. 传消息或 stdin 管道 → 非交互单轮（复用 RunCommand.handler，行为与 `gyc run` 完全一致）。
@@ -314,6 +314,10 @@ function selectFromList(title: string, items: ListChoice[]): Promise<string | un
       input.removeAllListeners("data")
       input.setRawMode(false)
       input.pause()
+      // 清除整个列表区域：render() 后光标停在标题行行首，\x1b[J 从光标清到屏幕
+      // 末尾，标题/条目/提示行一并消失，后续输出（已切换到模型/已取消）正好
+      // 出现在列表原位置——否则选择完成后列表仍残留在终端上。
+      process.stdout.write("\r\x1b[J")
       resolve(value)
     }
     input.setRawMode(true)
@@ -506,6 +510,10 @@ async function runSlashCommand(
           } else {
             process.stdout.write(`已切换到模型: ${parsed.providerID}/${parsed.modelID}\n`)
             statusModel = shortModelLabel(`${parsed.providerID}/${parsed.modelID}`, input.variant)
+            // 同步本地输入态：后续轮次 runTurn 会回放 input.model，若不同步，
+            // 服务端 createUserMessage 的解析链（payload.model ?? agent.model ?? 会话模型）
+            // 会继续命中配置文件里的 agent 默认模型——切换看似成功、实际不生效。
+            input.model = `${parsed.providerID}/${parsed.modelID}`
           }
         } catch (e) {
           UI.error(formatRunError(e))
@@ -526,6 +534,8 @@ async function runSlashCommand(
           UI.error(formatRunError(result.error))
         } else {
           process.stdout.write(`已切换到模型: ${parsed.providerID}/${parsed.modelID}\n`)
+          // 同步本地输入态（原因同无参分支）：保证后续轮次回放切换后的模型。
+          input.model = `${parsed.providerID}/${parsed.modelID}`
         }
       } catch (e) {
         UI.error(formatRunError(e))
@@ -555,6 +565,8 @@ async function runSlashCommand(
             UI.error(formatRunError(result.error))
           } else {
             process.stdout.write(`已切换变体: ${variant ?? "默认"}\n`)
+            // 同步本地输入态：后续轮次 runTurn 回放 input.variant，保持与会话一致。
+            input.variant = variant
           }
         }
         if (!args.trim()) {
@@ -1178,11 +1190,15 @@ async function interactiveLoop(input: CliInput) {
       const viewportHeight = () => Math.min(MENU_HEIGHT, menu.length)
 
       const render = () => {
-        // 输入行：回到行首清行重绘（› 提示符，输入跟随，光标按显示宽度移动）。
-        const prefix = "\x1b[96m›\x1b[0m "
-        process.stdout.write("\r\x1b[K" + prefix + buffer)
-        const back = displayWidth(buffer.slice(cursor))
-        if (back > 0) process.stdout.write("\x1b[" + back + "D")
+        // 输入行：回到行首清行重绘。提示符用 ASCII "> "——'›' 属 East Asian
+        // Ambiguous 宽度符（中文终端按 2 列渲染、string-width 计 1 列），会造成
+        // 光标列计算系统性偏移。整行写完后用 CHA（\x1b[<col>G）把硬件光标显式
+        // 定位到目标列：对齐 pi agent 的原则——不依赖终端随写入的自然推进
+        // （conhost 对双宽字符的推进有 quirk），由我们按显示宽度计算绝对列。
+        const prefixWidth = displayWidth("> ")
+        process.stdout.write("\r\x1b[K" + "\x1b[96m>\x1b[0m " + buffer)
+        const col = prefixWidth + displayWidth(buffer.slice(0, cursor)) + 1
+        process.stdout.write("\x1b[" + col + "G")
         // 菜单：固定高度滚动窗口（menu.slice(offset, offset+MENU_HEIGHT)），
         // 选中项始终落在窗口内（moveTo 已保证），彻底消除"所见与所选错位"。
         const visible = (!menuHidden && menu.length > 0) || (palette && menu.length > 0)
@@ -1295,8 +1311,15 @@ async function interactiveLoop(input: CliInput) {
               render()
             }
           } else if (ch === 13 || ch === 10) {
-            // 刷新解码器（处理可能残留的不完整 UTF-8 序列）
-            buffer += flushDecoder()
+            // 刷新解码器（处理可能残留的不完整 UTF-8 序列）：
+            // 残留字符按光标位置插入（而非追加末尾），保持 cursor 与 buffer 同步。
+            {
+              const tail = flushDecoder()
+              if (tail) {
+                buffer = buffer.slice(0, cursor) + tail + buffer.slice(cursor)
+                cursor += tail.length
+              }
+            }
             if (palette) {
               const entry = menu[selected]
               finish(entry ? entry.fill : buffer)
@@ -1322,8 +1345,14 @@ async function interactiveLoop(input: CliInput) {
               }
             }
           } else if (ch === 127 || ch === 8) {
-            // 退格：先刷新解码器，再删除一个字符
-            buffer += flushDecoder()
+            // 退格：先刷新解码器（残留按光标位置插入），再删除光标前一个字符
+            {
+              const tail = flushDecoder()
+              if (tail) {
+                buffer = buffer.slice(0, cursor) + tail + buffer.slice(cursor)
+                cursor += tail.length
+              }
+            }
             if (cursor > 0) {
               buffer = buffer.slice(0, cursor - 1) + buffer.slice(cursor)
               cursor--

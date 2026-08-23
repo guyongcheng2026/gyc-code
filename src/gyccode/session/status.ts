@@ -1,12 +1,15 @@
 ﻿import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { InstanceState } from "@/effect/instance-state"
 import { SessionID } from "./schema"
-import { Effect, Layer, Context } from "effect"
+import { Effect, Layer, Context, Schema } from "effect"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionStatusEvent } from "@gyccode/schema/session-status-event"
 
 export const Info = SessionStatusEvent.Info
-export type Info = { type: string; [key: string]: unknown }
+// 与 schema 对齐的判别联合（idle/busy/retry）：此前本地松散类型
+// { type: string } 遮蔽了 schema 的严格形状，导致事件发布与 /session
+// status 端点返回双双类型不匹配。
+export type Info = Schema.Schema.Type<typeof SessionStatusEvent.Info>
 
 export const Event = SessionStatusEvent
 

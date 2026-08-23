@@ -74,10 +74,10 @@ export function DialogConfig() {
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.textMuted}>配置文件路径见 /debug 或 ~/.gyccode/config.json</text>
         <text onMouseUp={copy}>
-          <span fg={theme.text}>
+          <span style={{ fg: theme.text }}>
             <b>copy</b>
           </span>{" "}
-          <span fg={theme.textMuted}>enter</span>
+          <span style={{ fg: theme.textMuted }}>enter</span>
         </text>
       </box>
     </box>

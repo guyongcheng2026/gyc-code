@@ -1955,7 +1955,9 @@ const layer = Layer.effect(
       for (const task of tasks) {
         if (task.nextRun > now) continue
         yield* Effect.gen(function* () {
-          const info = yield* sessions.get(task.sessionID).pipe(Effect.ignore)
+          // CronTask.sessionID 持久化为普通 string，此处按会话层契约打品牌。
+          const sessionID = SessionID.make(task.sessionID)
+          const info = yield* sessions.get(sessionID).pipe(Effect.ignore)
           if (info === undefined) {
             // 会话已不存在：任务失效，直接清理，避免每轮重复失败
             yield* cronScheduler.remove(task.id).pipe(Effect.ignore)
@@ -1963,7 +1965,7 @@ const layer = Layer.effect(
             return
           }
           yield* prompt({
-            sessionID: task.sessionID,
+            sessionID,
             parts: [{ type: "text", text: `[定时任务 ${task.id}] ${task.prompt}` }],
           }).pipe(Effect.ignore)
           yield* cronScheduler.markFired(task.id).pipe(Effect.ignore)

@@ -29,7 +29,21 @@ const ADAPTER_FN = `function koffiFfiAdapter(koffi) {
       // OpenTUI 传入的是 normalizeNodeDefinition 后的定义（字段为 arguments/return）
       var ret = mapType(def.return);
       var args = (def.arguments ?? []).map(mapType);
-      try { functions[name] = lib.func(name, ret, args); }
+      try {
+        const rawFn = lib.func(name, ret, args);
+        if (ret === "uint64_t" || ret === "int64_t" || ret === "size_t") {
+          // koffi 对可安全表示的 64 位整数返回 Number，而 OpenTUI 按 node:ffi
+          // 语义期望 BigInt（如选区 packedInfo >> 32n、unpackValue 位运算）。
+          // 归一化为 BigInt；消费端（unpackValue/toSafeByteCount）两种类型都兼容。
+          // 注意 const：闭包捕获必须按迭代绑定，var 会共享最后一个符号。
+          functions[name] = function () {
+            const r = rawFn.apply(null, arguments);
+            return r === null || r === undefined ? r : BigInt(r);
+          };
+        } else {
+          functions[name] = rawFn;
+        }
+      }
       catch (e) { functions[name] = function () { throw new Error("node-ffi-koffi: symbol not exported: " + name + " (" + e.message + ")"); }; }
     }
     var registered = new Set();

@@ -53,7 +53,12 @@ const JobInfo = Schema.Struct({
   id: Schema.String,
   type: Schema.String,
   title: Schema.optional(Schema.String),
-  status: Schema.Literal("running", "completed", "error", "cancelled"),
+  status: Schema.Union([
+    Schema.Literal("running"),
+    Schema.Literal("completed"),
+    Schema.Literal("error"),
+    Schema.Literal("cancelled"),
+  ]),
   started_at: Schema.Number,
   completed_at: Schema.optional(Schema.Number),
   output: Schema.optional(Schema.String),

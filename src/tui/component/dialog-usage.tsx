@@ -85,7 +85,7 @@ export function DialogUsage() {
               </text>
               <text fg={theme.text} wrapMode="word">
                 <b>{provider.name}</b>{" "}
-                <span fg={theme.textMuted}>
+                <span style={{ fg: theme.textMuted }}>
                   {provider.modelCount} 个模型{provider.hasCost ? "" : "（免费）"}
                 </span>
               </text>
