@@ -12,3 +12,12 @@ Desktop.ini
 # Temp / installer
 *.exe
 *.log
+
+# gyc: 构建产物与依赖不入库（2026-08-23 opentui 升级时补齐）
+node_modules/
+dist/
+src/webapp/dist/
+src/webapp/node_modules/
+services/account/*.db
+.temp-*
+models-mirror/

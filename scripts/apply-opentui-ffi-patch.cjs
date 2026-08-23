@@ -11,8 +11,27 @@ const fs = require("fs");
 const path = require("path");
 
 const coreDir = path.join(__dirname, "..", "node_modules", "@opentui", "core");
-const chunkFile = path.join(coreDir, "chunk-node-q0cwyvm9.js");
 const MARK = "koffiFfiAdapter";
+
+// chunk 文件名随版本变化（0.4.5=q0cwyvm9、0.5.6=2h23nsbj）：动态探测含
+// loadBackend 且引用 node:ffi 的 node 端 chunk，避免升级后文件名失配被跳过。
+function findFfiChunk() {
+  let candidates = [];
+  try {
+    candidates = fs.readdirSync(coreDir).filter((f) => /^chunk-node-.*\.js$/.test(f));
+  } catch {
+    return null;
+  }
+  for (const name of candidates) {
+    const p = path.join(coreDir, name);
+    try {
+      const src = fs.readFileSync(p, "utf8");
+      if (src.includes("node:ffi") && src.includes("var backend = loadBackend();")) return p;
+    } catch {}
+  }
+  return null;
+}
+const chunkFile = findFfiChunk();
 
 // ---- 适配函数（内联注入 chunk 顶层）----
 const ADAPTER_FN = `function koffiFfiAdapter(koffi) {
@@ -123,8 +142,8 @@ const TO2 = `  try {
     }
   }`;
 
-if (!fs.existsSync(chunkFile)) {
-  console.error("[gyc-patch] 未找到 chunk-node-q0cwyvm9.js，跳过（@opentui/core 版本可能变化）");
+if (!chunkFile || !fs.existsSync(chunkFile)) {
+  console.error("[gyc-patch] 未找到含 node:ffi 的 chunk-node-*.js，跳过（@opentui/core 版本可能变化）");
   process.exit(0);
 }
 
