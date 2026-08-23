@@ -79,6 +79,55 @@ describe("stream-cli 交互分支（权限/问答）", () => {
     expect(replies).toEqual([{ requestID: "p1", reply: "reject" }])
   })
 
+  // 对齐上游 opencode v1.18.20：run 模式需应答子代理触发的权限请求
+  const SUBAGENT_PERMISSION: PermissionAsk = {
+    id: "p2",
+    sessionID: "sub-1",
+    permission: "write",
+    patterns: ["src/**"],
+  }
+
+  it("permission.asked 子代理（交互模式）：应答并标记 subagent", async () => {
+    const replies: unknown[] = []
+    let seenSubagent = false
+    await streamLoop({
+      client: makeClient((input) => replies.push(input)),
+      events: eventsOf([
+        { type: "permission.asked", properties: SUBAGENT_PERMISSION },
+        IDLE,
+      ]),
+      sessionID: "s1",
+      format: "default",
+      thinking: false,
+      auto: false,
+      interactive: {
+        askPermission: async (permission) => {
+          seenSubagent = permission.subagent === true
+          return "once" as const
+        },
+        askQuestion: async () => [] as Array<Array<string>>,
+      },
+    })
+    expect(seenSubagent).toBe(true)
+    expect(replies).toEqual([{ requestID: "p2", reply: "once" }])
+  })
+
+  it("permission.asked 子代理（非交互）：自动拒绝而非挂起", async () => {
+    const replies: unknown[] = []
+    await streamLoop({
+      client: makeClient((input) => replies.push(input)),
+      events: eventsOf([
+        { type: "permission.asked", properties: SUBAGENT_PERMISSION },
+        IDLE,
+      ]),
+      sessionID: "s1",
+      format: "default",
+      thinking: false,
+      auto: false,
+    })
+    expect(replies).toEqual([{ requestID: "p2", reply: "reject" }])
+  })
+
   it("question.asked 交互模式：有答案则 reply", async () => {
     const calls: Array<{ kind: string; input: unknown }> = []
     await streamLoop({

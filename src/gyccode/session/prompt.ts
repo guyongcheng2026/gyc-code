@@ -1349,7 +1349,10 @@ const layer = Layer.effect(
 
           if (
             lastAssistant?.finish &&
-            !["tool-calls"].includes(lastAssistant.finish) &&
+            // unknown 对齐上游 opencode v1.18.21：provider 返回未识别 finish
+            // reason 时继续响应而非提前停止（OpenAI Responses 协议缺 reason 时
+            // 即产出 unknown）；与下方 finished 判定及 TUI 前端的豁免保持一致。
+            !["tool-calls", "unknown"].includes(lastAssistant.finish) &&
             !hasToolCalls &&
             lastUser.id < lastAssistant.id
           ) {

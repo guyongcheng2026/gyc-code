@@ -14,6 +14,19 @@ test("stream idle timeout errors are retryable", () => {
   expect(retryable(error, "opencode")).toBeDefined()
 })
 
+// 对齐上游 opencode v1.18.20：network_error / network-error 变体（含
+// finish_reason: network_error 形态的响应体）必须可重试，此前仅匹配带空格形态。
+test("network error variants (underscore/hyphen/finish_reason) are retryable", () => {
+  for (const message of [
+    "provider stream aborted: network_error",
+    "upstream responded with network-error",
+    'response ended with "finish_reason": "network_error"',
+  ]) {
+    const error = { name: "UnknownError", data: { message } }
+    expect(retryable(error, "opencode")).toBeDefined()
+  }
+})
+
 test("RETRY_TOTAL_CAP_MS bounds silent retry windows to ~2 minutes", () => {
   expect(RETRY_TOTAL_CAP_MS).toBe(120_000)
   // 60s header timeout x 5 retries would otherwise stall the run loop ~6min

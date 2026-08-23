@@ -125,7 +125,7 @@ function createStreamInteractive(): NonNullable<Parameters<typeof streamLoop>[0]
       UI.println(
         UI.Style.TEXT_WARNING_BOLD + "!",
         UI.Style.TEXT_NORMAL +
-          `permission requested: ${permission.permission} (${permission.patterns.join(", ")})`,
+          `permission requested: ${permission.permission} (${permission.patterns.join(", ")})${permission.subagent ? " [subagent]" : ""}`,
       )
       UI.println("  [y] 允许一次  [a] 始终允许  [n/Enter] 拒绝")
       for (;;) {

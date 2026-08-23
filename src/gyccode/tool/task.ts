@@ -334,7 +334,29 @@ export const TaskTool = Tool.define(
               background.waitForPromotion(nextSession.id),
             )
             if (result?.metadata?.background === true) return backgroundResult()
-            if (result?.status === "error") return yield* Effect.fail(new Error(result.error ?? "Task failed"))
+            if (!result || result.status === "error") {
+              // 对齐上游 opencode v1.18.20：子代理失败/无结果不吞成空结果或裸
+              // 错误，而是 surface 携带可恢复 task_id 的结构化 task_error——模型
+              // 据此可再次调用本工具并传 task_id 续跑同一子代理会话。
+              // （!result：promotion 竞态等场景下的"无最终输出"同样按失败呈现，
+              // 避免 completed 分支返回空字符串误导模型。）
+              const reason = result?.error ?? "Task failed (no final output)"
+              return {
+                title: params.description,
+                metadata,
+                output: renderOutput({
+                  sessionID: nextSession.id,
+                  state: "error",
+                  summary: `Subagent task failed: ${params.description}`,
+                  text: [
+                    reason,
+                    "",
+                    `task_id: ${nextSession.id}`,
+                    `To resume this subagent session, call this tool again with task_id "${nextSession.id}" and the follow-up prompt.`,
+                  ].join("\n"),
+                }),
+              }
+            }
             if (result?.status === "cancelled") return yield* Effect.fail(new Error("Task cancelled"))
             return {
               title: params.description,

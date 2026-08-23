@@ -65,6 +65,8 @@ export type PermissionAsk = {
   sessionID: string
   permission: string
   patterns: Array<string>
+  /** 请求来自子代理会话（对齐上游 opencode v1.18.20：run 模式需应答子代理权限） */
+  subagent?: boolean
 }
 
 export type QuestionAsk = {
@@ -244,7 +246,10 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
 
     if (event.type === "permission.asked") {
       const permission = event.properties
-      if (permission.sessionID !== sessionID) continue
+      // 对齐上游 opencode v1.18.20：子代理会话触发的权限请求同样需要应答，
+      // 否则会永久挂起（此前仅应答父会话，非本 sessionID 一律 continue 跳过）。
+      const isSubagent = permission.sessionID !== sessionID
+      const ask: PermissionAsk = { ...permission, subagent: isSubagent }
 
       if (auto) {
         await client.permission.reply({
@@ -252,7 +257,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
           reply: "once",
         })
       } else if (interactive) {
-        const reply = await interactive.askPermission(permission)
+        const reply = await interactive.askPermission(ask)
         await client.permission.reply({
           requestID: permission.id,
           reply,
@@ -261,7 +266,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
         UI.println(
           UI.Style.TEXT_WARNING_BOLD + "!",
           UI.Style.TEXT_NORMAL +
-            `permission requested: ${permission.permission} (${permission.patterns.join(", ")}); auto-rejecting`,
+            `permission requested: ${permission.permission} (${permission.patterns.join(", ")})${isSubagent ? " [subagent]" : ""}; auto-rejecting`,
         )
         await client.permission.reply({
           requestID: permission.id,
