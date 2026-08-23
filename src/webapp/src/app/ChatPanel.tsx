@@ -105,17 +105,15 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   }
 
   const onModelSelect = (label: string) => {
-    const [providerID, modelID] = label.split("/")
+    // 用结构化字段定位模型（label 是 `${providerID}/${modelID}` 的展示键，providerID 可能含 "/"，不能靠 split 拆解）
+    const m = models.find((x) => x.label === label)
+    const providerID = m?.providerID
+    const modelID = m?.modelID
     if (providerID && modelID)
       switchModel(sessionID, providerID, modelID)
         .then(() => {
-          // 显式刷新会话信息以确保模型状态持久化
+          // currentModel 派生自 info?.model，refreshInfo 重新拉取后会自动更新
           refreshInfo()
-          // 额外确保 currentModel 重新计算
-          setCurrentModel(prev => {
-            const [pid, mid] = label.split("/")
-            return pid && mid ? `${pid}/${mid}` : ""
-          })
         })
         .catch(err)
   }
@@ -269,7 +267,7 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
         }}
       >
         <span style={{ fontSize: 12, color: "var(--inactive)", fontWeight: 600, marginRight: "auto" }}>
-          {info?.title ?? "会话"}
+          {info?.title?.trim() || "会话"}
         </span>
         {busy ? (
           <button

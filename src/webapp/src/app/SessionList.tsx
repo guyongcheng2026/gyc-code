@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { SessionItem } from "../client/useSessions"
 
 function relativeTime(created?: number): string {
@@ -89,7 +90,7 @@ export function SessionList({
     )
   }
 
-  const renderTree = (node: SessionItem, depth: number) => {
+  const renderTree = (node: SessionItem, depth: number): ReactNode[] => {
     const kids = childrenOf.get(node.id) ?? []
     return [renderItem(node, depth), ...kids.map((k) => renderTree(k, depth + 1))]
   }

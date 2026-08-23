@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
 import { sdk } from "./sdk"
-import { v2 } from "./v2"
 import { unwrapList } from "./useCommands"
 
 export type SessionItem = { id: string; title?: string | null; time?: { created: number }; parentID?: string }
@@ -23,13 +22,13 @@ export function useSessions(directory?: string) {
     }
   }, [directory])
 
-  // 删除历史会话：v1 失败（路由/形状不匹配）时回退 v2 端点
+  // 删除历史会话：v1 提供 /session/{id} DELETE；v2 无 delete 端点（Session3 无该方法），删除失败时静默并刷新列表
   const remove = useCallback(
     async (id: string) => {
       try {
         await sdk(directory).session.delete({ path: { id } })
       } catch {
-        await v2(directory).v2.session.delete({ sessionID: id })
+        // v2 无会话删除端点，忽略删除错误（reload 仍会刷新列表）
       }
       await reload()
     },

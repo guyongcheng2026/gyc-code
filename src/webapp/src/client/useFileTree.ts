@@ -31,12 +31,13 @@ export function useFileTree(directory?: string) {
 
   const toggle = useCallback(async (node: TreeNode) => {
     dispatch({ type: "toggle", path: node.path })
-    if (node.type === "directory" && !state.children[node.path]) {
-      const res = await sdk(directory).file.list({ query: { path: node.path } })
-      const nodes = ((res.data as FileNode[]) ?? []).map(toTreeNode)
-      dispatch({ type: "setChildren", path: node.path, nodes: sortTree(nodes) })
-    }
-  }, [directory, state.children])
+    // 使用最新 state 判断是否已加载子节点
+    // 注意：这里需要读取最新的 state，通过 reducer 的异步特性处理
+    // 简化：直接尝试加载，reducer 会去重
+    const res = await sdk(directory).file.list({ query: { path: node.path } })
+    const nodes = ((res.data as FileNode[]) ?? []).map(toTreeNode)
+    dispatch({ type: "setChildren", path: node.path, nodes: sortTree(nodes) })
+  }, [directory])
 
   useEffect(() => {
     void loadRoot().catch(() => {})

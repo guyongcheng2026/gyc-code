@@ -37,6 +37,29 @@ const MessageActions = memo(function MessageActions({ text }: { text: string }) 
 })
 
 export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
+  // 空态引导：新会话 / 标签页切回时避免整块空白（对齐 codex web / Claude Code 空会话提示）
+  if (messages.length === 0 && !busy) {
+    return (
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--inactive)",
+          textAlign: "center",
+          padding: 24,
+          lineHeight: 1.8,
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: "var(--fg)", marginBottom: 6 }}>开始新的会话</div>
+          <div style={{ fontSize: 13 }}>输入消息开始与 gyc 对话；输入 / 查看可用命令。</div>
+        </div>
+      </div>
+    )
+  }
   return (
     <Virtuoso
       style={{ flex: 1, minHeight: 0 }}

@@ -144,7 +144,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 function durationOf(st?: ToolState): string {
   if (!st?.time) return ""
-  const end = st.time.end ?? Date.now()
+  // time 是 {start} 或 {start,end} 联合类型：end 仅在有 end 时存在
+  const end = (st.time as { end?: number }).end ?? Date.now()
   const ms = Math.max(0, end - st.time.start)
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
 }

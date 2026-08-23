@@ -98,13 +98,14 @@ export function Trajectory({ sessionID, directory }: { sessionID: string | null;
           itemContent={(i, e) => (
             <EventRow e={e} index={events.length - 1 - i} selected={e.id === selectedID} onSelect={() => setSelectedID(e.id)} />
           )}
-          footer={() =>
-            hasMore ? (
-              <button className="btn btn-ghost traj-load-earlier" disabled={loading} onClick={() => void loadEarlier()}>
-                {loading ? "加载中…" : "加载更早"}
-              </button>
-            ) : null
-          }
+          components={{
+            Footer: () =>
+              hasMore ? (
+                <button className="btn btn-ghost traj-load-earlier" disabled={loading} onClick={() => void loadEarlier()}>
+                  {loading ? "加载中…" : "加载更早"}
+                </button>
+              ) : null,
+          }}
         />
       </div>
       {selected ? (

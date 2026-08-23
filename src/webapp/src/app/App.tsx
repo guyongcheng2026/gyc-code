@@ -16,7 +16,6 @@ import { TerminalPanel } from "./TerminalPanel"
 import { SettingsModal } from "./SettingsModal"
 import { JobsPanel } from "./JobsPanel"
 import { useJobs } from "../client/useJobs"
-import { v2 } from "../client/v2"
 
 type MainTab = "chat" | "diff" | "traj"
 
@@ -274,7 +273,8 @@ export function App() {
               window.location.hash = id
             }}
             onCancel={(id) => {
-              void v2(directory).v2.session.abort({ sessionID: id }).then(() => reloadJobs())
+              // v2 Session3 无 abort 方法，改用 v1 会话中止端点
+              void sdk(directory).session.abort({ path: { id } }).then(() => reloadJobs())
             }}
           />
           <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "4px 6px" }}>
@@ -397,7 +397,7 @@ export function App() {
       {/* 底部终端 */}
       {showTerminal ? (
         <div style={{ height: 220, borderTop: "1px solid var(--border-subtle)" }}>
-          <TerminalPanel />
+          <TerminalPanel directory={directory} />
         </div>
       ) : null}
     </main>

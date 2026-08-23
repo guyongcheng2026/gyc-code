@@ -41,7 +41,7 @@ export const PartView = memo(function PartView({
     case "tool":
       return <ToolBlocks part={part} />
     case "reasoning":
-      return <ThinkRow text={part.text ?? ""} streaming={streaming} />
+      return <ThinkRow text={part.text ?? ""} streaming={streaming ?? false} />
     case "step-start":
       return <div className="step-row">── 开始一步 ──</div>
     case "step-finish":
