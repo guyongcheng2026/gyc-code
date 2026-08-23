@@ -232,7 +232,7 @@ async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, inpu
   await completed
 }
 
-// 渲染启动欢迎界面：对齐 codex cli 的提示行布局——
+// 渲染启动欢迎界面：对齐主流 AI CLI 的提示行布局——
 //   › Ask gyc to do anything
 //   （空行）
 //     短模型名 档位 · 目录（dim 灰）
@@ -285,7 +285,7 @@ async function renderStatusLine(_sdk: GyccodeClient, _sessionID: string, input: 
   process.stdout.write(`\n  \x1b[90m${statusModel} · ${displayDir}\x1b[0m\n`)
 }
 
-// 通用 CLI 列表选择器（Codex/Claude Code 风格）：
+// 通用 CLI 列表选择器（主流 AI CLI 风格）：
 // 显示标题 + 编号列表，↑/↓ 或 输入编号 选择，回车确认，Esc/Ctrl-C 取消。
 // 返回选中项的 value；取消返回 undefined。
 type ListChoice = { label: string; value: string }
@@ -394,7 +394,7 @@ async function runSlashCommand(
       return "continue"
     case "clear":
     case "new": {
-      // 开启全新会话：创建新会话并重建 sessionID（模拟 Claude Code 的 /clear）。
+      // 开启全新会话：创建新会话并重建 sessionID（模拟主流 AI CLI 的 /clear）。
       const created = await sdk.session.create({
         title: undefined,
         agent: input.agent,
@@ -467,7 +467,7 @@ async function runSlashCommand(
     case "model":
     case "models": {
       if (!args.trim()) {
-        // 无参数：弹出可用模型列表供选择（Claude Code /model 交互）。
+        // 无参数：弹出可用模型列表供选择（对齐主流 AI CLI 的 /model 交互）。
         try {
           const [cfg, session] = await Promise.all([
             sdk.config.get(),
@@ -1193,7 +1193,7 @@ async function interactiveLoop(input: CliInput) {
         // 输入行：回到行首清行重绘。提示符用 ASCII "> "——'›' 属 East Asian
         // Ambiguous 宽度符（中文终端按 2 列渲染、string-width 计 1 列），会造成
         // 光标列计算系统性偏移。整行写完后用 CHA（\x1b[<col>G）把硬件光标显式
-        // 定位到目标列：对齐 pi agent 的原则——不依赖终端随写入的自然推进
+        // 定位到目标列：对齐主流 AI 代理的原则——不依赖终端随写入的自然推进
         // （conhost 对双宽字符的推进有 quirk），由我们按显示宽度计算绝对列。
         const prefixWidth = displayWidth("> ")
         process.stdout.write("\r\x1b[K" + "\x1b[96m>\x1b[0m " + buffer)
@@ -1408,7 +1408,7 @@ async function interactiveLoop(input: CliInput) {
   })
   try {
     for (;;) {
-      // Codex 风格输入：无提示符前缀，带实时斜杠命令菜单。
+      // 极简输入：无提示符前缀，带实时斜杠命令菜单。
       const line = await promptWithMenu()
       const text = line.trim()
       if (!text) continue
@@ -1436,7 +1436,7 @@ async function interactiveLoop(input: CliInput) {
       if (text.startsWith("/")) {
         const [command, ...rest] = text.slice(1).split(" ")
         // 命令前缀自动补全：若输入是某个斜杠命令的前缀（且非精确命中），
-        // 自动补全为完整命令（Codex 风格：输入 /mo → 执行 /model）。
+        // 自动补全为完整命令（输入 /mo → 执行 /model）。
         const full = "/" + command
         if (!commandCandidates().includes(full)) {
           const matches = commandCandidates().filter((cmd) => cmd.startsWith(full))
@@ -1453,7 +1453,7 @@ async function interactiveLoop(input: CliInput) {
         if (outcome === "exit") break
         continue
       }
-      // Codex 风格：提交后以 › 回显用户消息（dim 灰）。
+      // 极简风格：提交后以 › 回显用户消息（dim 灰）。
       process.stdout.write("\x1b[90m› " + text + "\x1b[0m\n")
       await runTurn(sdk, currentSessionId, text, input, subagents)
       await renderStatusLine(sdk, currentSessionId, input)

@@ -31,8 +31,12 @@ export const Flag = {
   },
   GYCCODE_DISABLE_MOUSE: truthy("GYCCODE_DISABLE_MOUSE"),
   GYCCODE_FAKE_VCS: process.env["GYCCODE_FAKE_VCS"],
-  GYCCODE_SERVER_PASSWORD: process.env["GYCCODE_SERVER_PASSWORD"],
-  GYCCODE_SERVER_USERNAME: process.env["GYCCODE_SERVER_USERNAME"],
+  get GYCCODE_SERVER_PASSWORD() {
+    return process.env["GYCCODE_SERVER_PASSWORD"]
+  },
+  get GYCCODE_SERVER_USERNAME() {
+    return process.env["GYCCODE_SERVER_USERNAME"]
+  },
   GYCCODE_DISABLE_FFF: fff === undefined ? process.platform === "win32" : truthy("GYCCODE_DISABLE_FFF"),
 
   // Experimental

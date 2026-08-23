@@ -238,7 +238,7 @@ const layer = Layer.effect(
           .install(dir, {
             add: [
               {
-                name: "@gyccode/plugin",
+                name: "@opencode-ai/plugin",
                 version: InstallationLocal ? undefined : InstallationVersion,
               },
             ],
