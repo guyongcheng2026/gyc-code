@@ -1,4 +1,7 @@
 import { memo, useEffect, useState, type ReactNode } from "react"
+// 数据安全：LLM 产出的 markdown 经 KaTeX/shiki 生成 HTML 后必须净化再注入 DOM（防 XSS）
+import DOMPurify from "dompurify"
+const sanitizeHtml = (dirty: string) => DOMPurify.sanitize(dirty, { USE_PROFILES: { html: true, svg: true, mathml: true } })
 import { highlightCode, supportedLang } from "./highlight"
 import "katex/dist/katex.min.css"
 
@@ -43,7 +46,7 @@ const MathTex = memo(function MathTex({ tex, display }: { tex: string; display: 
   return (
     <span
       className={display ? "md-math-block" : "md-math-inline"}
-      dangerouslySetInnerHTML={{ __html: html }}
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   )
 })
@@ -200,7 +203,7 @@ export const CodeBlock = memo(function CodeBlock({ code, lang }: { code: string;
         </button>
       </div>
       {html ? (
-        <div className="md-codeblock-pre md-codeblock-hl" dangerouslySetInnerHTML={{ __html: html }} />
+        <div className="md-codeblock-pre md-codeblock-hl" dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }} />
       ) : (
         <pre className="md-codeblock-pre">
           {shown.map((line, idx) => (

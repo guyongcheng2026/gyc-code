@@ -21,7 +21,7 @@ import { useQueue } from "../client/useQueue"
 
 const MODE_ORDER: ModeID[] = ["plan", "build", "compose"]
 
-// 本地核心命令（对照 Claude Code / gyc TUI 对齐；服务端 command.list 之外的客户端命令）。
+// 本地核心命令（对齐 gyc TUI；服务端 command.list 之外的客户端命令）。
 const LOCAL_COMMANDS = [
   { name: "new", description: "新建会话并切换" },
   { name: "clear", description: "清空上下文（新建会话），同 /new" },

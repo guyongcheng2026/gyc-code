@@ -1033,10 +1033,13 @@ export const ConfigProvidersResult = Schema.Struct({
 export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
 
 export function toPublicInfo(provider: Info): Info {
+  // 数据安全：剥离配置注入的明文 API Key 等敏感字段，禁止经 HTTP 对外返回
+  const safe = { ...provider } as Partial<Info> & Record<string, unknown>
+  delete safe["key"]
   return JSON.parse(
     JSON.stringify(
       {
-        ...provider,
+        ...safe,
         models: Object.fromEntries(Object.entries(provider.models).filter(([, model]) => Schema.is(Model)(model))),
       },
       (_, value) => {

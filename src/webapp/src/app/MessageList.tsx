@@ -1,4 +1,4 @@
-﻿import { memo } from "react"
+import { memo } from "react"
 import { Virtuoso } from "react-virtuoso"
 import type { ChatMessage } from "../state/chatReducer"
 import { PartView } from "./PartView"
@@ -37,7 +37,7 @@ const MessageActions = memo(function MessageActions({ text }: { text: string }) 
 })
 
 export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
-  // 空态引导：新会话 / 标签页切回时避免整块空白（对齐 codex web / Claude Code 空会话提示）
+  // 空态引导：新会话 / 标签页切回时避免整块空白（对齐 gyc TUI 空会话提示）
   if (messages.length === 0 && !busy) {
     return (
       <div

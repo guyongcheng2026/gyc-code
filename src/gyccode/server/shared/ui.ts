@@ -80,7 +80,11 @@ function notFound() {
 
 function embeddedUIResponse(file: string, body: Uint8Array) {
   const mime = FSUtil.mimeType(file)
-  const headers = new Headers({ "content-type": mime })
+  const headers = new Headers({
+    "content-type": mime,
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "same-origin",
+  })
   if (mime.startsWith("text/html")) {
     headers.set("content-security-policy", cspForHtml(new TextDecoder().decode(body)))
   }
@@ -118,6 +122,8 @@ export function serveUIEffect(
       }),
     )
     const headers = proxyResponseHeaders(response.headers)
+    headers.set("x-content-type-options", "nosniff")
+    headers.set("referrer-policy", "same-origin")
 
     if (response.headers["content-type"]?.includes("text/html")) {
       const body = yield* response.text

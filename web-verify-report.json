@@ -1,0 +1,163 @@
+{
+  "generatedAt": "2026-08-24T03:51:02.862Z",
+  "baseUrl": "http://127.0.0.1:4100",
+  "pid": 7292,
+  "summary": {
+    "pass": 10,
+    "warn": 0,
+    "fail": 0,
+    "skip": 1
+  },
+  "dimensions": [
+    {
+      "id": "functional",
+      "name": "功能性（页面+API+会话增删查）",
+      "status": "pass",
+      "details": [
+        "页面 GET / → 200，含 #root 挂载点",
+        "GET /provider → 200，6 个供应商",
+        "创建会话成功 id=ses_fce1bcf28ffe0K5AmkKYK4ozFn",
+        "回读会话一致",
+        "删除会话生效且列表已不含该会话"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "stability",
+      "name": "稳定性（10s 采样，非 24h 全程）",
+      "status": "pass",
+      "details": [
+        "soak 10s：请求 21 次，失败 0 次（失败率 0.0%）",
+        "API p95 延迟 79ms",
+        "进程存活检查：异常重启 0 次",
+        "注：24h 连续运行需以计划任务周期执行本脚本留存报告判定，本项为短窗采样。"
+      ],
+      "metrics": {
+        "requests": 21,
+        "failures": 0,
+        "crashCount": 0,
+        "p95Ms": 79
+      }
+    },
+    {
+      "id": "reliability",
+      "name": "可靠性（持久化链路+心跳+SSE）",
+      "status": "pass",
+      "details": [
+        "全局事件流 GET /event 握手成功（SSE）",
+        "心跳探测 5 次，失败 0 次"
+      ],
+      "metrics": {
+        "heartbeatFailures": 0,
+        "sseHandshake": true
+      }
+    },
+    {
+      "id": "security",
+      "name": "安全性（安全响应头+XSS 面+密钥泄漏+依赖审计）",
+      "status": "pass",
+      "details": [
+        "CSP 已设置：default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsa...",
+        "X-Content-Type-Options: nosniff 已设置",
+        "Referrer-Policy: same-origin",
+        "/provider 响应未携带明文密钥 ✓",
+        "前端源码未发现 dangerouslySetInnerHTML/innerHTML/document.write/eval 直用",
+        "依赖审计：仓库为 bun.lock（npm audit 不适用），标记 SKIP——建议 CI 中以 bun 兼容审计工具补充"
+      ],
+      "metrics": {
+        "csp": true,
+        "nosniff": true,
+        "referrerPolicy": true,
+        "keyLeak": false,
+        "xssSurfaceHits": 0
+      }
+    },
+    {
+      "id": "compliance",
+      "name": "合规性（违禁品牌词=0）",
+      "status": "pass",
+      "details": [
+        "扫描 70 个自有源文件，违禁品牌词命中 0 处"
+      ],
+      "metrics": {
+        "hits": 0
+      }
+    },
+    {
+      "id": "branding",
+      "name": "品牌化（标题/favicon）",
+      "status": "pass",
+      "details": [
+        "src/webapp/index.html title=\"gyc web\" 含 gyc 品牌 ✓",
+        "src/webapp/dist/index.html title=\"gyc web\" 含 gyc 品牌 ✓",
+        "favicon GET /favicon.svg → 200 ✓"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "selfdev",
+      "name": "纯自主研发（第三方 UI 依赖许可审计）",
+      "status": "pass",
+      "details": [
+        "webapp 直接外部依赖 13 个，许可白名单覆盖 12 个，自有包 1 个",
+        "全部第三方依赖均为 MIT/Apache 系许可 ✓"
+      ],
+      "metrics": {
+        "externals": 13,
+        "unknown": 0
+      }
+    },
+    {
+      "id": "resources",
+      "name": "资源消耗（CPU 按核心数归一 / 内存）",
+      "status": "pass",
+      "details": [
+        "平均 CPU 0.2%（自启动累计口径，阈值 <30%）✓",
+        "负载峰值 CPU 14.4%（阈值 <80%）✓",
+        "常驻工作集内存 361 MB"
+      ],
+      "metrics": {
+        "avgCpuPct": 0.17,
+        "loadPeakCpuPct": 14.35,
+        "workingSetMB": 361
+      }
+    },
+    {
+      "id": "disknoise",
+      "name": "磁盘发热/噪音（I/O 平均速率代理指标）",
+      "status": "pass",
+      "details": [
+        "进程启动以来累计 I/O 26.6 MB",
+        "平均 I/O 4441 B/s（存活 6270s，阈值 <1 MB/s） ✓",
+        "负载期峰值 I/O 0 B/s（压测自致，仅参考）",
+        "CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"
+      ],
+      "metrics": {
+        "totalIoMB": 26.6,
+        "avgIoBps": 4441,
+        "loadPeakIoBps": 0,
+        "cpuTempC": null
+      }
+    },
+    {
+      "id": "cache",
+      "name": "缓存命中率（镜像新鲜度近似）",
+      "status": "pass",
+      "details": [
+        "模型镜像 api.json 距上次同步 0.1 天（阈值 <7 天）✓",
+        "GET /provider 延迟 68ms（<100ms 判定为本地供给）✓",
+        "注：真实命中率需服务端埋点统计，此处为镜像新鲜度+本地供给近似。"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "latency",
+      "name": "LLM 延时（请求→首条回复）",
+      "status": "skip",
+      "details": [
+        "未启用 --llm，跳过真实 LLM 往返（避免消耗配额）。启用后测量 prompt admit→首条 assistant 消息时延。"
+      ],
+      "metrics": {}
+    }
+  ]
+}

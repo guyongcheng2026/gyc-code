@@ -14,7 +14,7 @@ export default {
   "assets/go-rLFTqkRN.js": "src/webapp/dist/assets/go-rLFTqkRN.js",
   "assets/html-CVO8wu9Q.js": "src/webapp/dist/assets/html-CVO8wu9Q.js",
   "assets/index-BUA3k2n-.css": "src/webapp/dist/assets/index-BUA3k2n-.css",
-  "assets/index-CaiNkiaO.js": "src/webapp/dist/assets/index-CaiNkiaO.js",
+  "assets/index-BZOzONyR.js": "src/webapp/dist/assets/index-BZOzONyR.js",
   "assets/java-BtIQNnN0.js": "src/webapp/dist/assets/java-BtIQNnN0.js",
   "assets/java-DxlWrXwe.js": "src/webapp/dist/assets/java-DxlWrXwe.js",
   "assets/javascript-BzbQS41l.js": "src/webapp/dist/assets/javascript-BzbQS41l.js",
@@ -87,7 +87,7 @@ export default {
   "assets/python-gzcpVVnB.js": "src/webapp/dist/assets/python-gzcpVVnB.js",
   "assets/rust-Cfkwpbl8.js": "src/webapp/dist/assets/rust-Cfkwpbl8.js",
   "assets/setup-CJ4XsiPy.css": "src/webapp/dist/assets/setup-CJ4XsiPy.css",
-  "assets/setup-XghBCBQE.js": "src/webapp/dist/assets/setup-XghBCBQE.js",
+  "assets/setup-rrdHijLM.js": "src/webapp/dist/assets/setup-rrdHijLM.js",
   "assets/shellscript-BiGZg9Om.js": "src/webapp/dist/assets/shellscript-BiGZg9Om.js",
   "assets/shellscript-CqHdAlCp.js": "src/webapp/dist/assets/shellscript-CqHdAlCp.js",
   "assets/sql-BsFa4tDR.js": "src/webapp/dist/assets/sql-BsFa4tDR.js",
@@ -96,5 +96,6 @@ export default {
   "assets/typescript-bsJCZSQ-.js": "src/webapp/dist/assets/typescript-bsJCZSQ-.js",
   "assets/xml-bCxBCBTM.js": "src/webapp/dist/assets/xml-bCxBCBTM.js",
   "assets/yaml-rwi0_p6S.js": "src/webapp/dist/assets/yaml-rwi0_p6S.js",
+  "favicon.svg": "src/webapp/dist/favicon.svg",
   "index.html": "src/webapp/dist/index.html"
 } as Record<string, string>

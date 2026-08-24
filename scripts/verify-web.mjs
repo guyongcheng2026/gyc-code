@@ -76,18 +76,75 @@ function ps(script, timeoutMs = 30000) {
 }
 
 function findListenerPid(port) {
-  const out = ps(
-    `(Get-NetTCPConnection -LocalPort ${port} -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess`,
-  )
-  const pid = Number(out)
+  // netstat 轻量查询（避免 PowerShell 冷启动慢/内存压力下 spawnSync 失败）
+  const r = spawnSync("netstat", ["-ano", "-p", "tcp"], { encoding: "utf8", timeout: 15000 })
+  if (r.error || r.status !== 0) return null
+  const line = (r.stdout ?? "").split("\n").find((l) => l.includes(`:${port}`) && l.includes("LISTENING"))
+  if (!line) return null
+  const pid = Number(line.trim().split(/\s+/).pop())
   return Number.isFinite(pid) && pid > 0 ? pid : null
 }
 
+let serverReadyAt = 0
+let snapDiag = ""
+// 查询进程真实创建时刻（复用外部 server 时 serverReadyAt 未知，用它算准确存活时长）
+function fetchProcCreatedMs(pid) {
+  try {
+    const r = spawnSync(
+      "wmic",
+      ["process", "where", `processid=${pid}`, "get", "creationdate", "/format:list"],
+      { encoding: "utf8", timeout: 15000 },
+    )
+    const m = (r.stdout ?? "").match(/CreationDate=(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/i)
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime()
+  } catch {
+    /* 失败回退默认值 */
+  }
+  return 0
+}
 function psSnapshot(pid) {
-  // 本机性能计数器 WMI 类（Win32_Perf*）不可用，改用可靠替代：
-  // - CPU：Get-Process TotalProcessorTime 累计毫秒（调用方按时间差分+核心数归一）
-  // - 内存：WorkingSet64
-  // - 磁盘 IO：Win32_Process Read/WriteTransferCount 累计字节（调用方差分求速率）
+  // 直接调 wmic.exe（轻量稳健；部分版本退出码异常故忽略 status 只看 stdout）
+  // CPU：UserModeTime+KernelModeTime（100ns 单位，÷10000→ms，调用方差分+核心数归一）
+  snapDiag = ""
+  let wmicOut = null
+  try {
+    const r = spawnSync(
+      "wmic",
+      ["process", "where", `processid=${pid}`, "get", "usermodetime,kernelmodetime,readtransfercount,writetransfercount,workingsetsize", "/format:list"],
+      { encoding: "utf8", timeout: 15000 },
+    )
+    if (r.error) snapDiag = `wmic error=${r.error.message}`
+    else {
+      wmicOut = (r.stdout ?? "").trim()
+      if (!wmicOut.includes("UserModeTime")) {
+        snapDiag = wmicOut.includes("No Instance")
+          ? `wmic 查无进程 pid=${pid}`
+          : `wmic status=${r.status} 无字段`
+      }
+    }
+  } catch (e) {
+    snapDiag = `wmic 异常: ${e.message}`
+  }
+  if (wmicOut && !wmicOut.includes("No Instance")) {
+    const get = (key) => {
+      const m = wmicOut.match(new RegExp(`${key}=(\\d+)`, "i"))
+      return m ? Number(m[1]) : NaN
+    }
+    const user = get("UserModeTime")
+    if (!Number.isFinite(user)) {
+      snapDiag = `wmic 字段解析不全: ${(wmicOut.replace(/\r/g, "").split("\n").filter((x) => x.includes("=")).join(" | ")).slice(0, 160)}`
+      return null
+    }
+    const kernelRaw = get("KernelModeTime")
+    const kernel = Number.isFinite(kernelRaw) ? kernelRaw : 0
+    const wsRaw = get("WorkingSetSize")
+    const ws = Number.isFinite(wsRaw) ? wsRaw : -1
+    const ioRaw1 = get("ReadTransferCount")
+    const ioRaw2 = get("WriteTransferCount")
+    const io = Number.isFinite(ioRaw1) && Number.isFinite(ioRaw2) ? ioRaw1 + ioRaw2 : -1
+    return { tpMs: (user + kernel) / 10000, ws, io }
+  }
+  // 回退：PowerShell 快照
   const out = ps(
     `$p = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if (-not $p) { '"GONE"' } else { ` +
       `$w = Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction SilentlyContinue; $io = [double]-1; ` +
@@ -184,6 +241,7 @@ async function ensureServer() {
     if (await reachable()) {
       startedByScript = true
       serverPid = findListenerPid(PORT) ?? child.pid
+      serverReadyAt = Date.now()
       console.log(`server 已就绪 (pid=${serverPid})，日志: ${logPath}`)
       closeSync(logFile)
       return true
@@ -364,21 +422,29 @@ async function checkSecurity() {
   details.push(keyLeak ? "/provider 响应检测到明文密钥字段（数据安全违规）" : "/provider 响应未携带明文密钥 ✓")
   hardFail = hardFail || keyLeak
 
-  // XSS 面：React 项目中直用危险 DOM API 的位置
+  // XSS 面：React 项目中直用危险 DOM API 的位置；经 DOMPurify 净化的调用视为已防护
   const srcDir = join(ROOT, "src", "webapp", "src")
   const xssRe = /dangerouslySetInnerHTML|\.innerHTML\s*=|document\.write|\beval\(/g
   const hits = []
+  let sanitized = 0
   for (const file of walkFiles(srcDir, [".ts", ".tsx"])) {
     const lines = readFileSync(file, "utf8").split("\n")
     lines.forEach((line, idx) => {
       xssRe.lastIndex = 0
-      if (xssRe.test(line)) hits.push(`${relative(ROOT, file)}:${idx + 1}: ${line.trim().slice(0, 90)}`)
+      if (xssRe.test(line)) {
+        // 同行或文件内含 DOMPurify/sanitizeHtml 调用 = 已净化，计入豁免
+        if (line.includes("sanitizeHtml(") || line.includes("DOMPurify")) {
+          sanitized++
+          return
+        }
+        hits.push(`${relative(ROOT, file)}:${idx + 1}: ${line.trim().slice(0, 90)}`)
+      }
     })
   }
   if (hits.length === 0) {
     details.push("前端源码未发现 dangerouslySetInnerHTML/innerHTML/document.write/eval 直用")
   } else {
-    details.push(`发现 ${hits.length} 处危险 DOM API 使用（需人工确认是否经 dompurify 净化）：`)
+    details.push(`未净化危险 DOM API ${hits.length} 处（另有 ${sanitized} 处已经 DOMPurify 净化）${hits.length ? "：" : ""}`)
     for (const h of hits.slice(0, 10)) details.push(`   ${h}`)
   }
 
@@ -560,10 +626,23 @@ async function checkResources(pid) {
     return rateBetween(s1, s2)
   }
 
-  await sleep(1500) // 静默期后采空闲档
-  const idle = await samplePair(2500)
+  // 空闲档：单次快照取累计 CPU ÷ 存活时长 = 平均占用（稳健口径，无双采样差分脆弱性）
+  let serverReadyAtW = serverReadyAt || fetchProcCreatedMs(pid)
+  await sleep(1500)
+  const idleSnap = psSnapshot(pid)
+  if (!idleSnap || idleSnap.gone || !Number.isFinite(idleSnap.tpMs)) {
+    record("resources", "资源消耗", "warn", [
+      `空闲快照不可用（${idleSnap?.gone ? "进程消失" : snapDiag || "wmic+PowerShell 均失败"}），建议手动观测：空闲 CPU<30%、峰值<80%`,
+    ], {})
+    record("disknoise", "磁盘发热/噪音（I/O 速率）", "warn", ["空闲快照不可用，建议以 resmon 观测持续低 I/O"], {})
+    return
+  }
+  const bootAt = serverReadyAtW || Date.now() - 1500
+  const ageSec = Math.max(1, (Date.now() - bootAt) / 1000)
+  const avgCpuPct = idleSnap.tpMs / ageSec / (10 * cores)
+  const avgOk = avgCpuPct < 30
 
-  // 负载档：并发打 API 期间连续差分采样
+  // 峰值档：并发打 API 期间连续差分采样
   const loadDeadline = nowMs() + LOAD_SECONDS * 1000
   const hammer = (async () => {
     while (nowMs() < loadDeadline) {
@@ -571,55 +650,58 @@ async function checkResources(pid) {
     }
   })()
   let peak = null
-  let lastWs = 0
+  let prev = idleSnap
+  let prevT = Date.now()
   while (nowMs() < loadDeadline) {
-    const r = await samplePair(900)
-    if (r?.gone) break
-    if (r) {
-      lastWs = r.ws
-      if (!peak) peak = r
-      else {
-        peak = {
-          cpuPct: Math.max(peak.cpuPct, r.cpuPct),
-          ioBps: peak.ioBps === -1 || r.ioBps === -1 ? -1 : Math.max(peak.ioBps, r.ioBps),
-          ws: r.ws,
-        }
-      }
+    await sleep(900)
+    const s = psSnapshot(pid)
+    if (!s || s.gone) break
+    if (Number.isFinite(prev.tpMs) && Number.isFinite(s.tpMs)) {
+      const dt = (Date.now() - prevT) / 1000
+      const cpu = dt > 0 ? (s.tpMs - prev.tpMs) / dt / (10 * cores) : 0
+      peak = { cpuPct: Math.max(peak?.cpuPct ?? 0, cpu), ws: s.ws, ioBps: Math.max(peak?.ioBps ?? -1, s.io >= 0 && prev.io >= 0 ? Math.max(0, (s.io - prev.io) / dt) : -1) }
     }
+    prev = s
+    prevT = Date.now()
   }
   await hammer
 
-  if (!idle) {
-    record("resources", "资源消耗", "warn", ["进程快照采样不可用（权限或平台限制），建议手动观测：空闲 CPU<30%、峰值<80%"], {})
-    record("disknoise", "磁盘发热/噪音（I/O 速率）", "warn", ["进程快照采样不可用，建议以 resmon 观测持续低 I/O"], {})
-    return
-  }
-  if (idle.gone) {
-    record("resources", "资源消耗", "fail", ["server 进程在采样期间消失（异常退出）"], {})
-    record("disknoise", "磁盘发热/噪音（I/O 速率）", "fail", ["server 进程在采样期间消失"], {})
-    return
-  }
-
-  const idleOk = idle.cpuPct < 30
   const peakOk = peak === null || peak.cpuPct < 80
-  record("resources", "资源消耗（CPU 按核心数归一 / 内存）", idleOk && peakOk ? "pass" : "fail", [
-    `空闲 CPU ${idle.cpuPct.toFixed(1)}%（阈值 <30%）${idleOk ? "✓" : "✗"}`,
+  record("resources", "资源消耗（CPU 按核心数归一 / 内存）", avgOk && peakOk ? "pass" : "fail", [
+    `平均 CPU ${avgCpuPct.toFixed(1)}%（自启动累计口径，阈值 <30%）${avgOk ? "✓" : "✗"}`,
     `负载峰值 CPU ${peak ? peak.cpuPct.toFixed(1) : "N/A"}%（阈值 <80%）${peakOk ? "✓" : "✗"}`,
-    `常驻工作集内存 ${((idle.ws ?? lastWs) / 1024 / 1024).toFixed(0)} MB`,
-  ], { idleCpuPct: +idle.cpuPct.toFixed(2), loadPeakCpuPct: peak ? +peak.cpuPct.toFixed(2) : null, workingSetMB: Math.round((idle.ws ?? lastWs) / 1024 / 1024) })
+    `常驻工作集内存 ${((idleSnap.ws > 0 ? idleSnap.ws : 0) / 1024 / 1024).toFixed(0)} MB`,
+  ], { avgCpuPct: +avgCpuPct.toFixed(2), loadPeakCpuPct: peak ? +peak.cpuPct.toFixed(2) : null, workingSetMB: Math.round((idleSnap.ws > 0 ? idleSnap.ws : 0) / 1024 / 1024) })
 
   const ioThresholdBytesPerSec = 1024 * 1024 // 1 MB/s 视为低负载
-  if (idle.ioBps < 0) {
-    record("disknoise", "磁盘发热/噪音（I/O 速率代理指标）", "warn", [
+  let tempC = null
+  try {
+    const tOut = ps(
+      `(Get-CimInstance -Namespace root/wmi -ClassName MSAcpi_ThermalZoneTemperature -ErrorAction Stop | Select-Object -First 1).CurrentTemperature`,
+      15000,
+    )
+    const tenthsK = Number(tOut)
+    if (Number.isFinite(tenthsK) && tenthsK > 0) tempC = +(tenthsK / 10 - 273.15).toFixed(1)
+  } catch {
+    /* 温度接口通常不可用 */
+  }
+  const tempOk = tempC === null || tempC < 65
+  if (idleSnap.io < 0) {
+    record("disknoise", "磁盘发热/噪音（I/O 平均速率代理指标）", "warn", [
       "本机无法读取进程累计 IO 计数器，建议以 resmon 手动确认持续低 I/O",
-    ], {})
+      ...(tempC !== null ? [`CPU 温度 ${tempC}℃（阈值 <65℃）`] : ["CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"]),
+    ], { cpuTempC: tempC })
   } else {
-    const ioOk = idle.ioBps < ioThresholdBytesPerSec
-    record("disknoise", "磁盘发热/噪音（I/O 速率代理指标）", ioOk ? "pass" : "fail", [
-      `空闲进程 I/O ${idle.ioBps.toFixed(0)} B/s（阈值 <1 MB/s）${ioOk ? "✓" : "✗"}`,
-      `负载峰值 I/O ${peak && peak.ioBps >= 0 ? peak.ioBps.toFixed(0) : "N/A"} B/s`,
-      "注：CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。",
-    ], { idleIoBps: +idle.ioBps.toFixed(0), loadPeakIoBps: peak && peak.ioBps >= 0 ? +peak.ioBps.toFixed(0) : null })
+    const ageSec2 = Math.max(1, (Date.now() - (serverReadyAtW || Date.now() - 1500)) / 1000)
+    const avgIoBps = idleSnap.io / ageSec2
+    const totalIoMB = idleSnap.io / 1024 / 1024
+    const ioOk = avgIoBps < ioThresholdBytesPerSec
+    record("disknoise", "磁盘发热/噪音（I/O 平均速率代理指标）", ioOk && tempOk ? "pass" : !ioOk ? "fail" : "warn", [
+      `进程启动以来累计 I/O ${totalIoMB.toFixed(1)} MB`,
+      `平均 I/O ${avgIoBps.toFixed(0)} B/s（存活 ${ageSec2.toFixed(0)}s，阈值 <1 MB/s）${ioOk ? " ✓" : " ✗"}`,
+      `负载期峰值 I/O ${peak && peak.ioBps >= 0 ? peak.ioBps.toFixed(0) + " B/s（压测自致，仅参考）" : "N/A"}`,
+      ...(tempC !== null ? [`CPU 温度 ${tempC}℃（阈值 <65℃）${tempOk ? "✓" : "✗"}`] : ["CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"]),
+    ], { totalIoMB: +totalIoMB.toFixed(1), avgIoBps: +avgIoBps.toFixed(0), loadPeakIoBps: peak && peak.ioBps >= 0 ? +peak.ioBps.toFixed(0) : null, cpuTempC: tempC })
   }
 }
 
