@@ -100,6 +100,7 @@ import * as TuiAudio from "./audio"
 import {
   watchTerminalClose,
   win32DisableProcessedInput,
+  win32EnableUtf8Console,
   win32FlushInputBuffer,
   win32InstallUtf8ConsoleGuard,
 } from "./terminal-win32"
@@ -219,6 +220,12 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
   const exit = { epilogue: undefined as string | undefined, reason: undefined as unknown }
   const result = yield* Effect.scoped(
     Effect.gen(function* () {
+      // 在创建渲染器前立即切换控制台代码页为 UTF-8（65001），
+      // 防止首帧渲染（spinner、中文文本）出现乱码。
+      // 之后再安装守护定时器，防止运行期间被子进程/外部程序复位。
+      win32EnableUtf8Console()
+      win32DisableProcessedInput()
+      const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
       const renderer = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: () =>
@@ -242,8 +249,6 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             destroyRenderer(renderer)
           }),
       )
-      win32DisableProcessedInput()
-      const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
       yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
       const keymap = createDefaultOpenTuiKeymap(renderer)
       yield* Effect.acquireRelease(

@@ -50,26 +50,54 @@ export function win32EnableUtf8Console() {
 }
 
 /**
+ * 读取当前控制台输出代码页（仅 Windows）。
+ *
+ * 用于验收/诊断：直接调用 kernel32 GetConsoleOutputCP，比 spawnSync("chcp.com")
+ * 更可靠（后者在 bun 下不返回 stdout，且会引入额外子进程复位代码页的副作用）。
+ * 无控制台或 kernel32 不可用时返回 -1。
+ */
+export function win32GetConsoleCodePage(): number {
+  if (process.platform !== "win32") return -1
+  if (!isConsoleAttached()) return -1
+  if (!load()) return -1
+  return k32!.GetConsoleOutputCP()
+}
+
+/**
  * 低频率轮询重断言控制台输出/输入代码页为 UTF-8（65001）。
  *
  * 与 win32InstallCtrlCGuard 同理：控制台代码页是控制台全局状态，运行期间
  * 被子进程/外部程序（工具执行 chcp、GBK 原生程序等）复位后，TUI 的 UTF-8
  * 输出会重新变成乱码——表现为"运行一段时间后突然乱码"。轮询幂等且开销极小
  * （仅 kernel32 的 Get/Set 调用，无 IO），作为 TUI 渲染期间的后备保障。
+ *
+ * 修复要点：
+ * 1. 移除 unref()，确保定时器在事件循环繁忙时也能准时触发
+ * 2. 包装回调捕获异常，防止单次失败导致定时器永久停止
+ * 3. 缩短默认间隔至 200ms，更快恢复被子进程篡改的代码页
+ * 4. 每次回调前重新 load()，应对 kernel32 句柄失效场景
  */
 let utf8GuardTimer: ReturnType<typeof setInterval> | undefined
 let utf8GuardRefs = 0
 
-export function win32InstallUtf8ConsoleGuard(intervalMs = 1000): () => void {
+export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
   if (process.platform !== "win32") return () => {}
   if (!isConsoleAttached()) return () => {}
-  if (!load()) return () => {}
+  // 不在这里提前 load()，改为在每次回调中重试，避免句柄失效导致后续无效
   if (!utf8GuardTimer) {
     win32EnableUtf8Console()
     const interval = setInterval(() => {
-      win32EnableUtf8Console()
+      try {
+        // 每次回调都尝试重新加载 kernel32，应对句柄失效
+        if (load()) {
+          win32EnableUtf8Console()
+        }
+      } catch {
+        // 静默吞掉异常，保证定时器持续运行
+      }
     }, intervalMs)
-    interval.unref?.()
+    // 故意不调用 unref()：让定时器持有进程，确保回调必定执行；
+    // 退出时由 Effect finalizer 调用返回的清理函数 clearInterval 释放。
     utf8GuardTimer = interval
   }
   utf8GuardRefs += 1
@@ -169,8 +197,14 @@ export function win32InstallCtrlCGuard() {
   // Ensure it's cleared immediately too (covers any earlier mode changes).
   later()
 
-  const interval = setInterval(enforce, 2000)
-  interval.unref()
+  const interval = setInterval(() => {
+    try {
+      if (load()) enforce()
+    } catch {
+      // 静默吞掉异常，保证定时器持续运行
+    }
+  }, 2000)
+  // 故意不调用 unref()：同 win32InstallUtf8ConsoleGuard，由 finalizer 清理。
 
   let done = false
   unhook = () => {
@@ -220,10 +254,14 @@ export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () =
     process.on("SIGHUP", onClose)
     return () => process.off("SIGHUP", onClose)
   }
-  if (!load()) return () => {}
+  // 不提前 load()，改为在回调中重试
   const timer = setInterval(() => {
-    if (!win32HasConsole()) onClose()
+    try {
+      if (load() && !win32HasConsole()) onClose()
+    } catch {
+      // 静默吞掉异常，保证定时器持续运行
+    }
   }, intervalMs)
-  timer.unref?.()
+  // 故意不调用 unref()：由调用者的 finalizer 清理。
   return () => clearInterval(timer)
 }
