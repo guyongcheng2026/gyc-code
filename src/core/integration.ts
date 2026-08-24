@@ -337,6 +337,7 @@ export const locationLayer = Layer.effect(
           label: result.label ?? implementation?.label?.(exit.value),
           value: exit.value,
         })
+        invalidateListCache()
         yield* events.publish(Event.ConnectionUpdated, { integrationID: result.integrationID })
         yield* events.publish(Event.Updated, {})
       }
@@ -363,6 +364,14 @@ export const locationLayer = Layer.effect(
 
     yield* scrub().pipe(Effect.repeat(Schedule.spaced(scrubInterval)), Effect.forkIn(scope))
 
+    // 连接性投影缓存：GET /provider 热路径每次都会经 list() 触发 credentials 全表查询
+    // + DPAPI 解密。读多写少，缓存 5 秒；本进程凭据写入点主动失效，TTL 兜底跨实例写入。
+    const LIST_CACHE_TTL_MS = 5000
+    let listCache: { at: number; value: Info[] } | undefined
+    const invalidateListCache = () => {
+      listCache = undefined
+    }
+
     return Service.of({
       transform: state.transform,
       reload: state.reload,
@@ -372,10 +381,17 @@ export const locationLayer = Layer.effect(
         return project(entry, resolveConnections(entry, yield* credentials.list(id)))
       }),
       list: Effect.fn("Integration.list")(function* () {
+        // GET /provider 热路径：每次请求都会经此触发 credentials 全表查询 + DPAPI 解密。
+        // 连接性投影读多写少，缓存 5 秒；本进程凭据写入点主动失效，TTL 兜底跨实例写入。
+        if (listCache && (yield* Clock.currentTimeMillis) - listCache.at < LIST_CACHE_TTL_MS) {
+          return listCache.value
+        }
         const saved = Map.groupBy(yield* credentials.all(), (credential) => credential.integrationID)
-        return Array.from(state.get().integrations.values(), (entry) =>
+        const value = Array.from(state.get().integrations.values(), (entry) =>
           project(entry, resolveConnections(entry, saved.get(entry.ref.id) ?? [])),
         ).toSorted((a, b) => a.name.localeCompare(b.name))
+        listCache = { at: yield* Clock.currentTimeMillis, value }
+        return value
       }),
       connection: {
         active: Effect.fn("Integration.connection.active")(function* (id) {
@@ -399,6 +415,7 @@ export const locationLayer = Layer.effect(
           if (credential.value.expires > now + Duration.toMillis(Duration.minutes(5))) return credential.value
           const value = yield* authorize(implementation.refresh(credential.value))
           yield* credentials.update(credential.id, { value })
+          invalidateListCache()
           return value
         }),
         key: Effect.fn("Integration.connection.key")(function* (input) {
@@ -412,6 +429,7 @@ export const locationLayer = Layer.effect(
             label: input.label,
             value: Credential.Key.make({ type: "key", key: input.key }),
           })
+          invalidateListCache()
           yield* events.publish(Event.ConnectionUpdated, { integrationID: input.integrationID })
           yield* events.publish(Event.Updated, {})
         }),
@@ -458,6 +476,7 @@ export const locationLayer = Layer.effect(
         update: Effect.fn("Integration.connection.update")(function* (credentialID, updates) {
           const credential = yield* credentials.get(credentialID)
           yield* credentials.update(credentialID, updates)
+          invalidateListCache()
           if (credential) {
             yield* events.publish(Event.ConnectionUpdated, { integrationID: credential.integrationID })
           }
@@ -466,6 +485,7 @@ export const locationLayer = Layer.effect(
         remove: Effect.fn("Integration.connection.remove")(function* (credentialID) {
           const credential = yield* credentials.get(credentialID)
           yield* credentials.remove(credentialID)
+          invalidateListCache()
           if (credential) {
             yield* events.publish(Event.ConnectionUpdated, { integrationID: credential.integrationID })
           }
