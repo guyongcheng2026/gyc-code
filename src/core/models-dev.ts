@@ -239,20 +239,38 @@ const layer = Layer.effect(
 
     const get = (): Effect.Effect<Record<string, Provider>> => cachedGet
 
+    // 失败退避：网络不可达时每次启动都会空转 10s 超时 + 重试。用失败标记文件
+    // 跨进程记录，30 分钟内跳过自动刷新（force=true 的手动刷新不受限）。
+    const failureMarker = `${filepath}.failed`
+    const backoffMs = Duration.toMillis(Duration.minutes(30))
+    const recentlyFailed = Effect.fnUntraced(function* () {
+      const stat = yield* fs.stat(failureMarker).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      if (!stat) return false
+      const mtime = Option.getOrElse(stat.mtime, () => new Date(0)).getTime()
+      return Date.now() - mtime < backoffMs
+    })
+
     const refresh = Effect.fn("ModelsDev.refresh")(function* (force = false) {
       if (!force && (yield* fresh())) return
+      if (!force && (yield* recentlyFailed())) return
       yield* Effect.scoped(
         Effect.gen(function* () {
           yield* Flock.effect(lockKey)
           // Re-check under the lock: another process may have refreshed between
           // our outer check and lock acquisition.
-          if (!force && (yield* fresh())) return
+          if (!force && ((yield* fresh()) || (yield* recentlyFailed()))) return
           yield* fetchAndWrite()
           yield* invalidate
           yield* events.publish(Event.Refreshed, {})
+          yield* fs.remove(failureMarker, { force: true }).pipe(Effect.ignore)
         }),
       ).pipe(
-        Effect.tapCause((cause) => Effect.logError("Failed to fetch models.dev", { cause: cause })),
+        Effect.tapCause((cause) =>
+          Effect.gen(function* () {
+            yield* Effect.logError("Failed to fetch models.dev", { cause: cause })
+            yield* fs.writeFileString(failureMarker, String(Date.now())).pipe(Effect.ignore)
+          }),
+        ),
         Effect.ignore,
       )
     })

@@ -190,15 +190,17 @@ const layer = Layer.effect(
 
       const cwd = path.dirname(dotgit)
       const git = run(cwd, proc)
-      const topLevel = yield* git(["rev-parse", "--show-toplevel"])
-      const gitDir = yield* git(["rev-parse", "--git-dir"])
-      const commonDir = yield* git(["rev-parse", "--git-common-dir"])
-      if (gitDir.exitCode !== 0 || commonDir.exitCode !== 0) return undefined
+      // 三个路径合并为单次 git 进程调用：Windows 上 git.exe 冷启动可达秒级
+      // （实测本机 rev-parse 单次 ~1.2s），串行 3 次会显著拖慢实例启动。
+      // 输出按参数顺序每行一个路径；相对路径（如 ".git"）用 resolvePath 归一。
+      const result = yield* git(["rev-parse", "--show-toplevel", "--git-dir", "--git-common-dir"])
+      const [topLevelText, gitDirText, commonDirText] = result.text.split(/\r?\n/)
+      if (result.exitCode !== 0 || !gitDirText || !commonDirText) return undefined
 
       return new Repository({
-        worktree: AbsolutePath.make(topLevel.exitCode === 0 ? resolvePath(cwd, topLevel.text) : cwd),
-        gitDirectory: AbsolutePath.make(resolvePath(cwd, gitDir.text)),
-        commonDirectory: AbsolutePath.make(resolvePath(cwd, commonDir.text)),
+        worktree: AbsolutePath.make(topLevelText ? resolvePath(cwd, topLevelText) : cwd),
+        gitDirectory: AbsolutePath.make(resolvePath(cwd, gitDirText)),
+        commonDirectory: AbsolutePath.make(resolvePath(cwd, commonDirText)),
       })
     })
 

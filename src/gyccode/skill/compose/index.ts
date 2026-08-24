@@ -3,8 +3,9 @@ import { pathToFileURL } from "url"
 import { Effect } from "effect"
 import matter from "gray-matter"
 import { Global } from "@gyccode/core/global"
+import { Hash } from "@gyccode/core/util/hash"
 import { FSUtil } from "@gyccode/core/fs-util"
-import { InstallationLocal, InstallationVersion } from "@gyccode/core/installation/version"
+import { InstallationVersion } from "@gyccode/core/installation/version"
 import { ConfigMarkdown } from "@/config/markdown"
 import { COMPOSE_BUNDLE } from "./bundle.gen"
 
@@ -16,7 +17,8 @@ import { COMPOSE_BUNDLE } from "./bundle.gen"
 // real files (SKILL.md + companion scripts).
 //
 // 提取目录按安装版本号版本化：升级后自动重新提取最新技能；
-// 本地开发（local channel）每次启动强制重提取，保证改动即时生效。
+// marker 记录 bundle 内容指纹：bundle 有改动（含本地开发修改）才重新提取，
+// 未变更的启动零磁盘写入。
 
 export function composeRoot(): string {
   return path.join(Global.Path.data, "compose", InstallationVersion)
@@ -59,7 +61,19 @@ export const extractComposeSkills = Effect.fn("Skill.compose.extract")(function*
   const root = composeRoot()
   const marker = path.join(root, ".extracted")
 
-  if (!InstallationLocal && (yield* fsys.existsSafe(marker))) return
+  // 内容指纹：bundle 变化（含版本升级、本地开发改动）才重新解压。
+  // 此前 local 渠道每次启动都全量重写全部文件，白耗磁盘 IO 并拖慢每次启动。
+  let fingerprint = InstallationVersion
+  for (const [skillName, files] of Object.entries(COMPOSE_BUNDLE)) {
+    fingerprint += `\0${skillName}`
+    for (const [relPath, content] of Object.entries(files)) {
+      fingerprint += `\0${relPath}\0${Hash.fast(content)}`
+    }
+  }
+  if (yield* fsys.existsSafe(marker)) {
+    const existing = yield* fsys.readFileStringSafe(marker).pipe(Effect.orElseSucceed(() => undefined))
+    if (existing === fingerprint) return
+  }
 
   for (const [skillName, files] of Object.entries(COMPOSE_BUNDLE)) {
     const skillDir = path.join(root, "skills", skillName)
@@ -67,7 +81,7 @@ export const extractComposeSkills = Effect.fn("Skill.compose.extract")(function*
       yield* fsys.writeWithDirs(path.join(skillDir, relPath), content)
     }
   }
-  yield* fsys.writeWithDirs(marker, InstallationVersion)
+  yield* fsys.writeWithDirs(marker, fingerprint)
 })
 
 /** `<compose_skills>` block listing compose-only skills, for prompt injection. */

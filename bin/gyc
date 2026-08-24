@@ -18,6 +18,22 @@ const distEntry = path.join(here, "..", "dist", "index.js")
 const srcEntry = path.join(here, "..", "src", "gyccode", "index.ts")
 const preload = path.join(here, "..", "scripts", "bun-solid-preload.ts")
 
+// V8 代码缓存：把 dist bundle 的解析/编译结果持久化，下次启动免重复编译。
+// 实测 ~15MB bundle 每次启动省 50-100ms；仅 Node ≥22.5 支持，失败静默跳过。
+// 同时写入 NODE_COMPILE_CACHE 环境变量，覆盖经 spawnBun 派生 Node 子进程的场景。
+try {
+  if (existsSync(distEntry)) {
+    const cacheDir = process.env.GYC_COMPILE_CACHE_DIR || path.join(require("os").tmpdir(), "gyc-compile-cache")
+    if (typeof Bun === "undefined") {
+      const { enableCompileCache } = require("node:module")
+      if (typeof enableCompileCache === "function") enableCompileCache(cacheDir)
+    }
+    if (!process.env.NODE_COMPILE_CACHE) process.env.NODE_COMPILE_CACHE = cacheDir
+  }
+} catch {
+  // 旧版 Node 无此 API：忽略即可
+}
+
 // 读取 build.mjs 写入的运行时标记："node" / "bun"；缺失时视为 node（build.mjs 默认）。
 function readRuntimeMarker(distDir) {
   try {
