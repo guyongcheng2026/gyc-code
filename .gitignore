@@ -20,3 +20,5 @@ models-mirror/
 .codebuddy/
 .hermes/
 .workbuddy/
+# 稳定性监控运行产物
+stability-*

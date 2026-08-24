@@ -9,6 +9,10 @@ let k32: Win32Kernel | undefined
 
 const CP_UTF8 = 65001
 
+function isConsoleAttached(): boolean {
+  return process.stdout.isTTY || process.stderr.isTTY
+}
+
 function load() {
   if (process.platform !== "win32") return false
   try {
@@ -33,7 +37,7 @@ function load() {
  */
 export function win32EnableUtf8Console() {
   if (process.platform !== "win32") return false
-  if (!process.stdout.isTTY) return false
+  if (!isConsoleAttached()) return false
   if (!load()) return false
   let changed = false
   if (k32!.GetConsoleOutputCP() !== CP_UTF8) {
@@ -53,16 +57,32 @@ export function win32EnableUtf8Console() {
  * 输出会重新变成乱码——表现为"运行一段时间后突然乱码"。轮询幂等且开销极小
  * （仅 kernel32 的 Get/Set 调用，无 IO），作为 TUI 渲染期间的后备保障。
  */
-export function win32InstallUtf8ConsoleGuard(intervalMs = 3000): () => void {
+let utf8GuardTimer: ReturnType<typeof setInterval> | undefined
+let utf8GuardRefs = 0
+
+export function win32InstallUtf8ConsoleGuard(intervalMs = 1000): () => void {
   if (process.platform !== "win32") return () => {}
-  if (!process.stdout.isTTY) return () => {}
+  if (!isConsoleAttached()) return () => {}
   if (!load()) return () => {}
-  win32EnableUtf8Console()
-  const interval = setInterval(() => {
+  if (!utf8GuardTimer) {
     win32EnableUtf8Console()
-  }, intervalMs)
-  interval.unref?.()
-  return () => clearInterval(interval)
+    const interval = setInterval(() => {
+      win32EnableUtf8Console()
+    }, intervalMs)
+    interval.unref?.()
+    utf8GuardTimer = interval
+  }
+  utf8GuardRefs += 1
+  let stopped = false
+  return () => {
+    if (stopped) return
+    stopped = true
+    utf8GuardRefs -= 1
+    if (utf8GuardRefs === 0 && utf8GuardTimer) {
+      clearInterval(utf8GuardTimer)
+      utf8GuardTimer = undefined
+    }
+  }
 }
 
 /**
