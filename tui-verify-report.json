@@ -1,0 +1,238 @@
+{
+  "generatedAt": "2026-08-24T03:12:01.355Z",
+  "baseUrl": "http://127.0.0.1:4200",
+  "pid": 2672,
+  "summary": {
+    "pass": 11,
+    "warn": 0,
+    "fail": 0,
+    "skip": 2
+  },
+  "dimensions": [
+    {
+      "id": "compliance",
+      "name": "合规性（品牌展示违禁=0；互操作引用豁免透明化）",
+      "status": "pass",
+      "details": [
+        "扫描 256 个 TUI 相关自有源文件",
+        "品牌展示类违禁命中 0 处 ✓",
+        "互操作引用豁免 57 处（逐条理由见下方与报告 JSON）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:31: \"anthropic\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:70: \"anthropic\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:29: \"openai\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:71: \"openai\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:71: \"chatgpt\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\dialog-provider.tsx:30: \"copilot\" — 供应商连接对话框：第三方服务的连接 ID 与认证说明（功能必需，用户须辨识所连服务）",
+        "   [豁免] src\\tui\\component\\prompt\\index.tsx:1585: \"gemini\" — 错误消息内容匹配（gemini 限流提示的识别规则）",
+        "   [豁免] src\\tui\\component\\prompt\\index.tsx:1586: \"gemini\" — 错误消息内容匹配（gemini 限流提示的识别规则）",
+        "   [豁免] src\\tui\\context\\editor.ts:117: \"claude\" — claude-code IDE 协议兼容：env 常量/认证头（协议互操作，改名即断连）",
+        "   [豁免] src\\tui\\context\\editor.ts:395: \"claude\" — claude-code IDE 协议兼容：env 常量/认证头（协议互操作，改名即断连）",
+        "   [豁免] src\\tui\\context\\thinking.ts:8: \"openai\" — 注释说明 OpenAI Responses API 推理摘要格式（格式解析文档）",
+        "   [豁免] src\\tui\\editor.ts:77: \"claude\" — claude-code IDE 端点发现（~/.claude/ide）：协议互操作路径",
+        "   [豁免] src\\tui\\feature-plugins\\sidebar\\footer.tsx:58: \"claude\" — 可接入服务商列举文案（功能说明，非品牌冒用）",
+        "   [豁免] src\\tui\\feature-plugins\\sidebar\\footer.tsx:58: \"gemini\" — 可接入服务商列举文案（功能说明，非品牌冒用）",
+        "   [豁免] src\\tui\\feature-plugins\\sidebar\\instructions.test.tsx:10: \"claude\" — 测试夹具：CLAUDE.md/.cursorrules 指令文件名缩写规则",
+        "   [豁免] src\\tui\\feature-plugins\\sidebar\\instructions.test.tsx:24: \"claude\" — 测试夹具：CLAUDE.md/.cursorrules 指令文件名缩写规则",
+        "   [豁免] src\\tui\\feature-plugins\\sidebar\\instructions.test.tsx:28: \"claude\" — 测试夹具：CLAUDE.md/.cursorrules 指令文件名缩写规则",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"anthropic\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"anthropic\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"claude\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"claude\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"codex\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"codex\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"openai\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"openai\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"chatgpt\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"chatgpt\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"copilot\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"copilot\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"windsurf\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"windsurf\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"gemini\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"gemini\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"mimo\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"mimo\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:44: \"hermes\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.test.ts:52: \"hermes\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"anthropic\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"claude\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"codex\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"openai\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:94: \"openai\" — 第三方依赖包名 @ai-sdk/openai-compatible（开源合规条款明示豁免）",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"chatgpt\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"copilot\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"windsurf\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"gemini\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"mimo\" — 第三方包名",
+        "   [豁免] src\\tui\\util\\custom-provider.ts:1: \"hermes\" — 第三方包名",
+        "   [豁免] src\\gyccode\\cli\\cmd\\github.handler.ts:232: \"anthropic\" — GitHub Copilot 认证流程与供应商优先级表（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\github.handler.ts:233: \"openai\" — GitHub Copilot 认证流程与供应商优先级表（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\github.handler.ts:171: \"copilot\" — GitHub Copilot 认证流程与供应商优先级表（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\github.handler.ts:172: \"copilot\" — GitHub Copilot 认证流程与供应商优先级表（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\providers.ts:375: \"anthropic\" — 供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\providers.ts:372: \"openai\" — 供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\providers.ts:399: \"openai\" — 供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\providers.ts:399: \"chatgpt\" — 供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）",
+        "   [豁免] src\\gyccode\\cli\\cmd\\providers.ts:373: \"copilot\" — 供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）"
+      ],
+      "metrics": {
+        "violations": 0,
+        "exempted": 57
+      }
+    },
+    {
+      "id": "branding",
+      "name": "品牌化（字标/终端标题/CLI 文案；favicon 不适用于终端程序）",
+      "status": "pass",
+      "details": [
+        "字标 logo.ts 存在且为块字符 ASCII 字标（GYC CODE）✓",
+        "终端标题使用 GycCode 品牌（app.tsx setTerminalTitle）✓",
+        "CLI --help 界面脚本名为 gyc ✓"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "selfdev",
+      "name": "纯自主研发（TUI 第三方依赖许可审计）",
+      "status": "pass",
+      "details": [
+        "TUI/UI 直接第三方依赖 15 个：宽松许可（MIT/Apache/ISC/BSD）12 个，自有包 3 个",
+        "许可清单：@opentui/solid(MIT), @opentui/keymap(MIT), effect(MIT), @opentui/core(MIT), solid-js(MIT), open(MIT), strip-ansi(MIT), remeda(MIT), fuzzysort(MIT), opentui-spinner(MIT), diff(BSD-3-Clause), koffi(MIT)",
+        "全部第三方依赖均为宽松许可（无专有、无 copyleft 传染）✓"
+      ],
+      "metrics": {
+        "externals": 15,
+        "unknown": 0
+      }
+    },
+    {
+      "id": "functional",
+      "name": "功能性（CLI 启动+双入口+API+会话增删查）",
+      "status": "pass",
+      "details": [
+        "gyc --version → 0.0.1（冷启动正常）",
+        "TUI 双入口就绪：dist/index.js ✓，worker dist/cli/tui/worker.js ✓",
+        "GET /provider → 200，6 个供应商",
+        "创建会话成功 id=ses_fce4041f0ffem45rvZWPTl07hS",
+        "回读会话一致",
+        "删除会话生效且列表已不含该会话"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "stability",
+      "name": "稳定性（12s 采样，非 24h 全程）",
+      "status": "pass",
+      "details": [
+        "soak 12s：请求 30 次，失败 0 次（失败率 0.0%）",
+        "API p95 延迟 7ms",
+        "进程存活检查：异常重启 0 次",
+        "注：1h/4h/8h/24h 连续运行需 pm2 常驻 + 计划任务周期执行本脚本留存报告判定；本项为短窗采样。"
+      ],
+      "metrics": {
+        "requests": 30,
+        "failures": 0,
+        "crashCount": 0,
+        "p95Ms": 7
+      }
+    },
+    {
+      "id": "reliability",
+      "name": "可靠性（事件流+心跳，持久化项见下）",
+      "status": "pass",
+      "details": [
+        "全局事件流 GET /event 握手成功（SSE，TUI 事件订阅同源）",
+        "心跳探测 5 次，失败 0 次"
+      ],
+      "metrics": {
+        "heartbeatFailures": 0,
+        "sseHandshake": true
+      }
+    },
+    {
+      "id": "security",
+      "name": "安全性（依赖审计+危险 API 面；CSP/XSS 不适用）",
+      "status": "pass",
+      "details": [
+        "CSP/XSS 响应头：不适用——TUI 为终端程序，无 HTTP 页面渲染面；安全面改为依赖审计+源码危险 API 扫描",
+        "src/tui + src/ui 未发现 eval/new Function/拼接 exec 直用",
+        "依赖审计：仓库为 bun.lock（npm audit 不适用），标记说明——建议 CI 中以 bun 兼容审计工具补充"
+      ],
+      "metrics": {
+        "dangerousApiHits": 0
+      }
+    },
+    {
+      "id": "persistence",
+      "name": "可靠性-持久化（会话跨重启）",
+      "status": "pass",
+      "details": [
+        "重启后会话 ses_fce400a50ffeLROidlA4VYdWOl 完整恢复（SQLite 持久化 ✓）"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "skillinit",
+      "name": "功能性-技能加载（TUI 面板数据源）",
+      "status": "skip",
+      "details": [
+        "headless serve 不物化 Skill 层（架构上由 TUI worker/会话触发），无法在无终端环境实测；佐证：① 技能单测全绿（compose-review.test.ts 20 项）② 真实 TUI 会话日志多次记录 init count=33"
+      ],
+      "metrics": {
+        "skillCount": 0
+      }
+    },
+    {
+      "id": "resources",
+      "name": "资源消耗（CPU 按核心数归一 / 内存）",
+      "status": "pass",
+      "details": [
+        "平均 CPU 5.3%（自启动累计口径，阈值 <30%）✓",
+        "负载峰值 CPU 17.4%（阈值 <80%）✓",
+        "常驻工作集内存 220 MB"
+      ],
+      "metrics": {
+        "avgCpuPct": 5.26,
+        "loadPeakCpuPct": 17.39,
+        "workingSetMB": 220
+      }
+    },
+    {
+      "id": "disknoise",
+      "name": "磁盘发热/噪音（I/O 平均速率代理指标）",
+      "status": "pass",
+      "details": [
+        "进程启动以来累计 I/O 19.0 MB",
+        "平均 I/O 408228 B/s（存活 49s，阈值 <1 MB/s） ✓",
+        "负载期峰值 I/O 0 B/s（压测自致，仅参考）",
+        "CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"
+      ],
+      "metrics": {
+        "totalIoMB": 19,
+        "avgIoBps": 408228,
+        "loadPeakIoBps": 0,
+        "cpuTempC": null
+      }
+    },
+    {
+      "id": "cache",
+      "name": "缓存命中率（镜像新鲜度近似）",
+      "status": "pass",
+      "details": [
+        "模型镜像 api.json 距上次同步 0.1 天（阈值 <7 天）✓",
+        "GET /provider 延迟 4ms（<100ms 判定为本地供给）✓",
+        "注：真实命中率需服务端埋点统计，此处为镜像新鲜度+本地供给近似。"
+      ],
+      "metrics": {}
+    },
+    {
+      "id": "latency",
+      "name": "LLM 延时（请求→首条回复）",
+      "status": "skip",
+      "details": [
+        "未启用 --llm，跳过真实 LLM 往返（避免消耗配额）。启用后测量 prompt 提交→首条 assistant 消息时延。"
+      ],
+      "metrics": {}
+    }
+  ]
+}
