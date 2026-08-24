@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-24T03:51:02.862Z",
+  "generatedAt": "2026-08-24T14:23:22.585Z",
   "baseUrl": "http://127.0.0.1:4100",
-  "pid": 7292,
+  "pid": 9364,
   "summary": {
     "pass": 10,
     "warn": 0,
@@ -16,7 +16,7 @@
       "details": [
         "页面 GET / → 200，含 #root 挂载点",
         "GET /provider → 200，6 个供应商",
-        "创建会话成功 id=ses_fce1bcf28ffe0K5AmkKYK4ozFn",
+        "创建会话成功 id=ses_fcbd9c11bffein7ibH9q9X6lRH",
         "回读会话一致",
         "删除会话生效且列表已不含该会话"
       ],
@@ -24,19 +24,19 @@
     },
     {
       "id": "stability",
-      "name": "稳定性（10s 采样，非 24h 全程）",
+      "name": "稳定性（20s 采样，非 24h 全程）",
       "status": "pass",
       "details": [
-        "soak 10s：请求 21 次，失败 0 次（失败率 0.0%）",
-        "API p95 延迟 79ms",
+        "soak 20s：请求 40 次，失败 0 次（失败率 0.0%）",
+        "API p95 延迟 99ms",
         "进程存活检查：异常重启 0 次",
         "注：24h 连续运行需以计划任务周期执行本脚本留存报告判定，本项为短窗采样。"
       ],
       "metrics": {
-        "requests": 21,
+        "requests": 40,
         "failures": 0,
         "crashCount": 0,
-        "p95Ms": 79
+        "p95Ms": 99
       }
     },
     {
@@ -112,14 +112,14 @@
       "name": "资源消耗（CPU 按核心数归一 / 内存）",
       "status": "pass",
       "details": [
-        "平均 CPU 0.2%（自启动累计口径，阈值 <30%）✓",
-        "负载峰值 CPU 14.4%（阈值 <80%）✓",
-        "常驻工作集内存 361 MB"
+        "平均 CPU 8.5%（自启动累计口径，阈值 <30%）✓",
+        "负载峰值 CPU 11.7%（阈值 <80%）✓",
+        "常驻工作集内存 387 MB"
       ],
       "metrics": {
-        "avgCpuPct": 0.17,
-        "loadPeakCpuPct": 14.35,
-        "workingSetMB": 361
+        "avgCpuPct": 8.46,
+        "loadPeakCpuPct": 11.72,
+        "workingSetMB": 387
       }
     },
     {
@@ -127,28 +127,39 @@
       "name": "磁盘发热/噪音（I/O 平均速率代理指标）",
       "status": "pass",
       "details": [
-        "进程启动以来累计 I/O 26.6 MB",
-        "平均 I/O 4441 B/s（存活 6270s，阈值 <1 MB/s） ✓",
+        "进程启动以来累计 I/O 17.9 MB",
+        "平均 I/O 382150 B/s（存活 49s，阈值 <1 MB/s） ✓",
         "负载期峰值 I/O 0 B/s（压测自致，仅参考）",
         "CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"
       ],
       "metrics": {
-        "totalIoMB": 26.6,
-        "avgIoBps": 4441,
+        "totalIoMB": 17.9,
+        "avgIoBps": 382150,
         "loadPeakIoBps": 0,
         "cpuTempC": null
       }
     },
     {
       "id": "cache",
-      "name": "缓存命中率（镜像新鲜度近似）",
+      "name": "缓存命中率（ETag/304 条件请求，≥99%）",
       "status": "pass",
       "details": [
-        "模型镜像 api.json 距上次同步 0.1 天（阈值 <7 天）✓",
-        "GET /provider 延迟 68ms（<100ms 判定为本地供给）✓",
-        "注：真实命中率需服务端埋点统计，此处为镜像新鲜度+本地供给近似。"
+        "模型镜像 api.json 距上次同步 0.5 天（<7 天新鲜）✓",
+        "首查 200 且返回 etag=\"p-WW9QkdVjV2l… + cache-control ✓",
+        "突发 60 次（max-age 内）：本地命中 60/60，实际网络请求 0 次 ✓",
+        "过期条件请求 8 轮：304 命中 8/8 ✓",
+        "负向校验（伪造 If-None-Match）→ 200 ✓",
+        "缓存命中率 68/68 = 100%（本地零请求 + 304 口径；阈值 ≥99%） ✓"
       ],
-      "metrics": {}
+      "metrics": {
+        "samples": 68,
+        "hits": 68,
+        "hitRatePct": 100,
+        "thresholdPct": 99,
+        "localHits": 60,
+        "notModifiedHits": 8,
+        "correctnessOk": true
+      }
     },
     {
       "id": "latency",

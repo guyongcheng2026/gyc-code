@@ -4,12 +4,17 @@ import { ModelsDev } from "@gyccode/core/models-dev"
 import { Provider } from "@/provider/provider"
 
 import { mapValues } from "remeda"
+import { createHash } from "node:crypto"
 import { Effect, Schema } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { HttpApiBuilder } from "effect/unstable/httpapi"
 import { InstanceHttpApi } from "../api"
 import { ProviderAuthApiError } from "../groups/provider"
 import { ProviderV2 } from "@gyccode/core/provider"
+
+// GET /provider 条件请求缓存头：max-age 内客户端零请求（本地副本），
+// 内容未变时条件请求零传输（304 空体）。private 限定单用户本机语义。
+const PROVIDER_CACHE_CONTROL = "private, max-age=5"
 
 function mapProviderAuthError<A, R>(self: Effect.Effect<A, ProviderAuth.Error, R>) {
   return self.pipe(
@@ -37,7 +42,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
     const provider = yield* Provider.Service
     const svc = yield* ProviderAuth.Service
 
-    const list = Effect.fn("ProviderHttpApi.list")(function* () {
+    const list = Effect.fn("ProviderHttpApi.list")(function* (ctx: { request: HttpServerRequest.HttpServerRequest }) {
       const config = yield* cfg.get()
       const all = yield* ModelsDev.Service.use((s) => s.get())
       const disabled = new Set(config.disabled_providers ?? [])
@@ -51,11 +56,25 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
         mapValues(filtered, (item) => Provider.fromModelsDevProvider(item)),
         connected,
       )
-      return {
+      // 条件请求缓存：目录响应体 ~450KB 且低频变更。ETag + Cache-Control 使
+      // 客户端 max-age 内零请求、内容未变时零传输（304）。location/workspace
+      // query 影响实例上下文 → 响应体不同 → ETag 天然区分，无需特判。
+      const result = {
         all: Object.values(providers).map(Provider.toPublicInfo),
         default: Provider.defaultModelIDs(providers),
         connected: Object.keys(connected),
       }
+      const etag = `"p-${createHash("sha1").update(JSON.stringify(result)).digest("base64url").slice(0, 24)}"`
+      if ((ctx.request.headers["if-none-match"] ?? "").trim() === etag) {
+        let notModified = HttpServerResponse.empty({ status: 304 })
+        notModified = HttpServerResponse.setHeader(notModified, "etag", etag)
+        notModified = HttpServerResponse.setHeader(notModified, "cache-control", PROVIDER_CACHE_CONTROL)
+        return notModified
+      }
+      let withHeaders = HttpServerResponse.jsonUnsafe(result)
+      withHeaders = HttpServerResponse.setHeader(withHeaders, "etag", etag)
+      withHeaders = HttpServerResponse.setHeader(withHeaders, "cache-control", PROVIDER_CACHE_CONTROL)
+      return withHeaders
     })
 
     const auth = Effect.fn("ProviderHttpApi.auth")(function* () {
@@ -105,7 +124,7 @@ export const providerHandlers = HttpApiBuilder.group(InstanceHttpApi, "provider"
     })
 
     return handlers
-      .handle("list", list)
+      .handleRaw("list", list)
       .handle("auth", auth)
       .handleRaw("authorize", authorizeRaw)
       .handle("callback", callback)

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-08-24T10:01:15.805Z",
+  "generatedAt": "2026-08-24T13:28:53.340Z",
   "baseUrl": "http://127.0.0.1:4200",
-  "pid": 8904,
+  "pid": 7968,
   "summary": {
-    "pass": 12,
+    "pass": 11,
     "warn": 0,
     "fail": 0,
-    "skip": 1
+    "skip": 2
   },
   "dimensions": [
     {
@@ -113,7 +113,7 @@
         "gyc --version → 0.0.1（冷启动正常）",
         "TUI 双入口就绪：dist/index.js ✓，worker dist/cli/tui/worker.js ✓",
         "GET /provider → 200，6 个供应商",
-        "创建会话成功 id=ses_fccc96c2cffeZYAsBSTnmtECzV",
+        "创建会话成功 id=ses_fcc0c5216ffeYfL8BvE62W7FMQ",
         "回读会话一致",
         "删除会话生效且列表已不含该会话"
       ],
@@ -125,7 +125,7 @@
       "status": "pass",
       "details": [
         "soak 20s：请求 49 次，失败 0 次（失败率 0.0%）",
-        "API p95 延迟 8ms",
+        "API p95 延迟 7ms",
         "进程存活检查：异常重启 0 次",
         "注：1h/4h/8h/24h 连续运行需 pm2 常驻 + 计划任务周期执行本脚本留存报告判定；本项为短窗采样。"
       ],
@@ -133,7 +133,7 @@
         "requests": 49,
         "failures": 0,
         "crashCount": 0,
-        "p95Ms": 8
+        "p95Ms": 7
       }
     },
     {
@@ -167,19 +167,19 @@
       "name": "可靠性-持久化（会话跨重启）",
       "status": "pass",
       "details": [
-        "重启后会话 ses_fccc91531ffeDFNMBkOWYgFiG6 完整恢复（SQLite 持久化 ✓）"
+        "重启后会话 ses_fcc0bfb0cffe1WZDPkTa8LdQ2a 完整恢复（SQLite 持久化 ✓）"
       ],
       "metrics": {}
     },
     {
       "id": "skillinit",
       "name": "功能性-技能加载（TUI 面板数据源）",
-      "status": "pass",
+      "status": "skip",
       "details": [
-        "技能初始化 count=33（实例 boot 完成后日志确认）"
+        "headless serve 不物化 Skill 层（架构上由 TUI worker/会话触发），无法在无终端环境实测；佐证：① 技能单测全绿（compose-review.test.ts 20 项）② 真实 TUI 会话日志多次记录 init count=33"
       ],
       "metrics": {
-        "skillCount": 33
+        "skillCount": 0
       }
     },
     {
@@ -187,14 +187,14 @@
       "name": "资源消耗（CPU 按核心数归一 / 内存）",
       "status": "pass",
       "details": [
-        "平均 CPU 23.7%（自启动累计口径，阈值 <30%）✓",
-        "负载峰值 CPU 18.6%（阈值 <80%）✓",
-        "常驻工作集内存 207 MB"
+        "平均 CPU 4.8%（自启动累计口径，阈值 <30%）✓",
+        "负载峰值 CPU 22.7%（阈值 <80%）✓",
+        "常驻工作集内存 209 MB"
       ],
       "metrics": {
-        "avgCpuPct": 23.67,
-        "loadPeakCpuPct": 18.62,
-        "workingSetMB": 207
+        "avgCpuPct": 4.76,
+        "loadPeakCpuPct": 22.73,
+        "workingSetMB": 209
       }
     },
     {
@@ -202,33 +202,40 @@
       "name": "磁盘发热/噪音（I/O 平均速率代理指标）",
       "status": "pass",
       "details": [
-        "进程启动以来累计 I/O 14.1 MB",
-        "平均 I/O 643931 B/s（存活 23s，阈值 <1 MB/s） ✓",
-        "负载期峰值 I/O 2410136 B/s（压测自致，仅参考）",
+        "进程启动以来累计 I/O 13.7 MB",
+        "平均 I/O 284445 B/s（存活 51s，阈值 <1 MB/s） ✓",
+        "负载期峰值 I/O 2273996 B/s（压测自致，仅参考）",
         "CPU 温度无标准读取接口，属人工项——长期运行请以硬件监控复核 <65℃。"
       ],
       "metrics": {
-        "totalIoMB": 14.1,
-        "avgIoBps": 643931,
-        "loadPeakIoBps": 2410136,
+        "totalIoMB": 13.7,
+        "avgIoBps": 284445,
+        "loadPeakIoBps": 2273996,
         "cpuTempC": null
       }
     },
     {
       "id": "cache",
-      "name": "缓存命中率（本地供给实测，≥99%）",
+      "name": "缓存命中率（ETag/304 条件请求，≥99%）",
       "status": "pass",
       "details": [
-        "模型镜像 api.json 距上次同步 0.4 天（<7 天新鲜）✓",
-        "缓存命中率实测 99/100 = 99%（命中口径：响应 <100ms 本地供给；阈值 ≥99%） ✓",
-        "未命中样本延迟(ms)：166"
+        "模型镜像 api.json 距上次同步 0.5 天（<7 天新鲜）✓",
+        "首查 200 且返回 etag=\"p-WW9QkdVjV2l… + cache-control ✓",
+        "突发 60 次（max-age 内）：本地命中 60/60，实际网络请求 0 次 ✓",
+        "过期条件请求 8 轮：304 命中 8/8 ✓",
+        "负向校验（伪造 If-None-Match）→ 200 ✓",
+        "缓存命中率 68/68 = 100%（本地零请求 + 304 口径；阈值 ≥99%） ✓"
       ],
       "metrics": {
-        "samples": 100,
-        "hits": 99,
-        "hitRatePct": 99,
+        "samples": 68,
+        "hits": 68,
+        "hitRatePct": 100,
         "thresholdPct": 99,
-        "mirrorAgeDays": 0.4
+        "localHits": 60,
+        "notModifiedHits": 8,
+        "networkCallsTotal": 8,
+        "correctnessOk": true,
+        "mirrorAgeDays": 0.5
       }
     },
     {

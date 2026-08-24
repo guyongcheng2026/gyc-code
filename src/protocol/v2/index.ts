@@ -5,6 +5,7 @@ export * from "./gen/types.gen.js"
 import { createClient } from "./gen/client/client.gen.js"
 import { GyccodeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "./error-interceptor.js"
+import { wrapConditionalGet } from "../conditional-cache.js"
 export { GyccodeClient }
 
 function pick(value: string | null, fallback: string | undefined, encode?: (input: string) => string) {
@@ -54,6 +55,11 @@ export function createGyccodeClient(config: Record<string, any>) {
       ...config,
       fetch: customFetch,
     }
+  }
+  // 条件 GET 缓存：仅对带 etag 头的 /api/provider 响应激活，无 etag 的响应（含测试 mock）原样透传
+  config = {
+    ...config,
+    fetch: wrapConditionalGet(config.fetch),
   }
   if (config?.directory) {
     config.headers = {

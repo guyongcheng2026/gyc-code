@@ -195,8 +195,10 @@ let startedByScript = false
 
 async function reachable() {
   // 任意 HTTP 响应（含 4xx/5xx）都证明端口有服务存活；
-  // 仅网络层异常才判定为不可达。
-  for (const path of ["/provider", "/"]) {
+  // 仅网络层异常才判定为不可达。只探 /（健康页）：/provider 冷加载可达数十秒，
+  // 短超时 abort 会污染 keep-alive 连接，导致本进程后续请求被服务端以
+  // 499（client abort 映射）秒拒。
+  for (const path of ["/"]) {
     try {
       await fetch(BASE + path, { headers: AUTH_HEADERS, signal: AbortSignal.timeout(4000) })
       return true
@@ -705,26 +707,108 @@ async function checkResources(pid) {
   }
 }
 
-// 10/11. LLM 延时（可选）+ 缓存命中率（近似）
+// 10/11. LLM 延时（可选）+ 缓存命中率（ETag/304 条件请求口径，与 verify-tui 一致）
+const WEB_CACHE_BURST = 60
+const WEB_CACHE_CONDITIONAL_ROUNDS = 8
+const WEB_CACHE_MAX_AGE_MS = 5000
+const WEB_CACHE_RATE_THRESHOLD_PCT = 99
+
 async function checkLatencyAndCache() {
-  // 缓存命中率：本地镜像新鲜度 + provider 接口本地供给延迟（近似指标）
-  const mirrorFile = join(ROOT, "models-mirror", "api.json")
   const details = []
-  let cacheStatus = "warn"
+  const mirrorFile = join(ROOT, "models-mirror", "api.json")
   if (existsSync(mirrorFile)) {
     const ageDays = (Date.now() - statSync(mirrorFile).mtimeMs) / 86400000
-    const fresh = ageDays < 7
-    const t = await req("GET", "/provider", { timeoutMs: 8000 }).catch(() => null)
-    const fastLocal = t?.latency != null && t.latency < 100
-    cacheStatus = fresh && fastLocal ? "pass" : "warn"
-    details.push(`模型镜像 api.json 距上次同步 ${ageDays.toFixed(1)} 天（阈值 <7 天）${fresh ? "✓" : "✗"}`)
-    details.push(`GET /provider 延迟 ${t?.latency ?? "N/A"}ms（<100ms 判定为本地供给）${fastLocal ? "✓" : "✗"}`)
-    details.push("注：真实命中率需服务端埋点统计，此处为镜像新鲜度+本地供给近似。")
-  } else {
-    details.push("models-mirror/api.json 不存在，模型镜像未建立")
-    cacheStatus = "fail"
+    details.push(`模型镜像 api.json 距上次同步 ${ageDays.toFixed(1)} 天${ageDays < 7 ? "（<7 天新鲜）✓" : "（≥7 天，建议同步）⚠"}`)
   }
-  record("cache", "缓存命中率（镜像新鲜度近似）", cacheStatus, details, {})
+
+  // 预热：拿首查 etag（带重试，容忍实例冷加载）
+  let warm = null
+  for (let i = 0; i < 6 && !warm?.ok; i++) {
+    if (i > 0) await sleep(3000)
+    warm = await req("GET", "/provider", { timeoutMs: 60000 }).catch(() => null)
+  }
+  const firstEtag = warm?.headers?.get?.("etag") ?? null
+  const correctnessOk = warm?.ok === true && !!firstEtag && (warm.headers.get("cache-control") ?? "").includes("max-age=5")
+  details.push(
+    correctnessOk
+      ? `首查 ${warm.status} 且返回 etag=${firstEtag.slice(0, 14)}… + cache-control ✓`
+      : `首查未返回 etag/cache-control（${warm ? warm.status : "ERR"}）✗`,
+  )
+
+  // 客户端缓存模拟（复刻 src/protocol/conditional-cache.ts 语义）
+  let etag = firstEtag
+  let cachedAt = Date.now()
+  let networkCalls = 0
+  let localHits = 0
+  let notModifiedHits = 0
+  const misses = []
+
+  async function clientRead() {
+    const now = Date.now()
+    if (etag && now - cachedAt < WEB_CACHE_MAX_AGE_MS) {
+      localHits++
+      return { hit: true, status: 200 }
+    }
+    networkCalls++
+    try {
+      const t = await req("GET", "/provider", { timeoutMs: 20000, headers: etag ? { "if-none-match": etag } : {} })
+      if (t.status === 304 && etag) {
+        notModifiedHits++
+        cachedAt = Date.now()
+        return { hit: true, status: 304 }
+      }
+      if (t.ok) {
+        const newEtag = t.headers?.get?.("etag") ?? null
+        if (newEtag) {
+          etag = newEtag
+          cachedAt = Date.now()
+        }
+        return { hit: false, status: t.status }
+      }
+      misses.push(t.status)
+      return { hit: false, status: t.status }
+    } catch {
+      misses.push(-1)
+      return { hit: false, status: -1 }
+    }
+  }
+
+  for (let i = 0; i < WEB_CACHE_BURST; i++) {
+    await clientRead()
+    await sleep(10)
+  }
+  const burstOk = localHits === WEB_CACHE_BURST && networkCalls === 0
+  details.push(`突发 ${WEB_CACHE_BURST} 次（max-age 内）：本地命中 ${localHits}/${WEB_CACHE_BURST}，实际网络请求 ${networkCalls} 次${burstOk ? " ✓" : " ✗"}`)
+
+  for (let r = 0; r < WEB_CACHE_CONDITIONAL_ROUNDS; r++) {
+    await sleep(WEB_CACHE_MAX_AGE_MS + 300)
+    const res = await clientRead()
+    if (!res.hit || res.status !== 304) misses.push(`round${r}:${res.status}`)
+  }
+  const conditionalOk = notModifiedHits === WEB_CACHE_CONDITIONAL_ROUNDS
+  details.push(`过期条件请求 ${WEB_CACHE_CONDITIONAL_ROUNDS} 轮：304 命中 ${notModifiedHits}/${WEB_CACHE_CONDITIONAL_ROUNDS}${conditionalOk ? " ✓" : " ✗"}`)
+
+  const bogus = await req("GET", "/provider", { timeoutMs: 20000, headers: { "if-none-match": '"bogus-etag"' } }).catch(() => null)
+  const bogusOk = bogus?.status === 200
+  details.push(`负向校验（伪造 If-None-Match）→ ${bogus?.status ?? "ERR"}${bogusOk ? " ✓" : " ✗"}`)
+
+  const totalReads = WEB_CACHE_BURST + WEB_CACHE_CONDITIONAL_ROUNDS
+  const totalHits = localHits + notModifiedHits
+  const hitRatePct = +((totalHits / totalReads) * 100).toFixed(1)
+  const cacheStatus =
+    correctnessOk && burstOk && conditionalOk && bogusOk && hitRatePct >= WEB_CACHE_RATE_THRESHOLD_PCT ? "pass" : "fail"
+  details.push(
+    `缓存命中率 ${totalHits}/${totalReads} = ${hitRatePct}%（本地零请求 + 304 口径；阈值 ≥${WEB_CACHE_RATE_THRESHOLD_PCT}%）${cacheStatus === "pass" ? " ✓" : " ✗"}`,
+  )
+  record("cache", `缓存命中率（ETag/304 条件请求，≥${WEB_CACHE_RATE_THRESHOLD_PCT}%）`, cacheStatus, details, {
+    samples: totalReads,
+    hits: totalHits,
+    hitRatePct,
+    thresholdPct: WEB_CACHE_RATE_THRESHOLD_PCT,
+    localHits,
+    notModifiedHits,
+    correctnessOk,
+  })
 
   if (!RUN_LLM) {
     record("latency", "LLM 延时（请求→首条回复）", "skip", ["未启用 --llm，跳过真实 LLM 往返（避免消耗配额）。启用后测量 prompt admit→首条 assistant 消息时延。"], {})
@@ -799,15 +883,16 @@ async function main() {
     if (!up) {
       for (const [, name] of MATRIX_NAMES) record("offline", name, "fail", ["server 不可达，所有维度无法验证"])
     } else {
-      // 预热：/provider 首次触发 models-dev 目录懒加载，冷启动可能超时；
-      // 就绪判定要求连续成功，避免把预热期失败计入稳定性采样。
+      // 预热门：timeout 必须足够长（实例冷加载可达数十秒）。短超时 abort 会污染
+      // keep-alive 连接，导致后续请求被服务端以 499（client abort 映射）拒绝——
+      // 宁可慢等，不可中止。
       let warm = false
-      for (let i = 0; i < 30 && !warm; i++) {
-        const r = await req("GET", "/provider", { timeoutMs: 10000 }).catch(() => null)
+      for (let i = 0; i < 20 && !warm; i++) {
+        const r = await req("GET", "/provider", { timeoutMs: 60000 }).catch(() => null)
         if (r?.ok) warm = true
         else await sleep(2000)
       }
-      if (!warm) console.log("警告：/provider 预热未就绪（60s），相关维度将如实记录")
+      if (!warm) console.log("警告：/provider 预热未就绪，相关维度将如实记录")
       await checkFunctional()
       await checkStability(findListenerPid(PORT))
       await checkReliability()

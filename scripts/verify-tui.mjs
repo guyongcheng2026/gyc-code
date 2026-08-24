@@ -185,7 +185,9 @@ let serverPid = null
 let startedByScript = false
 
 async function reachable() {
-  for (const path of ["/provider", "/"]) {
+  // 只探 /（健康页）：/provider 冷加载可达数十秒，短超时 abort 会污染 keep-alive
+  // 连接，导致本进程后续请求被服务端以 499（client abort 映射）秒拒。
+  for (const path of ["/"]) {
     try {
       await fetch(BASE + path, { headers: AUTH_HEADERS, signal: AbortSignal.timeout(4000) })
       return true
@@ -214,7 +216,8 @@ async function waitReady(port, child, deadlineMs = 90_000) {
   while (nowMs() < deadline) {
     await sleep(1000)
     if (child.exitCode !== null) return false
-    for (const path of ["/provider", "/"]) {
+    // 只探 /（健康页），避免 /provider 冷加载 abort 污染连接池（见 reachable 注释）
+    for (const path of ["/"]) {
       try {
         await fetch(base + path, { headers: AUTH_HEADERS, signal: AbortSignal.timeout(3000) })
         return true
@@ -783,10 +786,13 @@ async function checkResources(pid) {
   }
 }
 // 10/11. LLM 延时（可选）+ 缓存命中率
-// 缓存命中率实测口径：预热后连续采样 GET /provider，单次响应 <100ms 计为命中（本地缓存供给），
-// 命中率 = 命中数 / 总样本数，阈值 ≥99%（2026-08-24 谷总调整，原 ≥90%）。
-const CACHE_SAMPLES = 100
-const CACHE_HIT_LATENCY_MS = 100
+// 缓存命中率实测口径（ETag/304 条件请求，2026-08-24 三端改造后）：
+// 服务端 GET /provider 返回 etag + cache-control: private, max-age=5；
+// 客户端 max-age 内零网络请求（本地副本），过期后带 If-None-Match 发条件请求，
+// 内容未变时服务端 304 空体。命中率 = (本地零请求命中 + 304) / 总读取 ≥99%。
+const CACHE_BURST = 60
+const CACHE_CONDITIONAL_ROUNDS = 8
+const CACHE_MAX_AGE_MS = 5000
 const CACHE_RATE_THRESHOLD_PCT = 99
 
 async function checkLatencyAndCache() {
@@ -798,41 +804,105 @@ async function checkLatencyAndCache() {
     details.push(`模型镜像 api.json 距上次同步 ${mirrorAgeDays.toFixed(1)} 天${mirrorAgeDays < 7 ? "（<7 天新鲜）✓" : "（≥7 天，建议同步镜像）⚠"}`)
   }
 
-  // 预热：连续请求排除冷启动 JIT 与首查竞态对命中率分母的污染。
-  // /provider 的 Schema 编码路径需约 20 次调用才进入稳态（实测 p50 63ms→62ms 不变，
-  // 但长尾毛刺显著减少）；TUI 生产形态为长驻进程，稳态口径更贴近真实表现。
-  for (let i = 0; i < 20; i++) {
-    await req("GET", "/provider", { timeoutMs: 30000 }).catch(() => {})
-    await sleep(30)
+  // 预热一次：排除实例冷加载与首查竞态（冷加载可达 5-7s+，低内存下更久，带重试）
+  let warm = null
+  for (let i = 0; i < 6 && !warm?.ok; i++) {
+    if (i > 0) await sleep(3000)
+    warm = await req("GET", "/provider", { timeoutMs: 60000 }).catch(() => null)
   }
-  let hits = 0
-  let missLatencies = []
-  for (let i = 0; i < CACHE_SAMPLES; i++) {
-    let hit = false
-    try {
-      const t = await req("GET", "/provider", { timeoutMs: 8000 })
-      if (t.ok && t.latency != null && t.latency < CACHE_HIT_LATENCY_MS) hit = true
-      else missLatencies.push(t.latency ?? -1)
-    } catch {
-      missLatencies.push(-1)
+  const firstEtag = warm?.headers?.get?.("etag") ?? null
+  let correctnessOk = warm?.ok === true && !!firstEtag && (warm.headers.get("cache-control") ?? "").includes("max-age=5")
+  details.push(
+    correctnessOk
+      ? `首查 ${warm.status} 且返回 etag=${firstEtag.slice(0, 14)}… + cache-control ✓`
+      : `首查未返回 etag/cache-control（${warm ? warm.status : "ERR"}）✗`,
+  )
+
+  // 客户端缓存模拟（复刻 src/protocol/conditional-cache.ts 语义）
+  let etag = firstEtag
+  let cachedBody = warm?.text ?? null
+  let cachedAt = Date.now()
+  let networkCalls = 0
+  let localHits = 0
+  let notModifiedHits = 0
+  let misses = []
+
+  async function clientRead() {
+    const now = Date.now()
+    if (etag && cachedBody !== null && now - cachedAt < CACHE_MAX_AGE_MS) {
+      localHits++
+      return { hit: true, status: 200 }
     }
-    if (hit) hits++
+    networkCalls++
+    const headers = etag ? { "if-none-match": etag } : {}
+    try {
+      const t = await req("GET", "/provider", { timeoutMs: 20000, headers })
+      if (t.status === 304 && etag) {
+        notModifiedHits++
+        cachedAt = Date.now()
+        return { hit: true, status: 304 }
+      }
+      if (t.ok) {
+        const newEtag = t.headers?.get?.("etag") ?? null
+        if (newEtag) {
+          etag = newEtag
+          cachedBody = t.text
+          cachedAt = Date.now()
+        }
+        return { hit: false, status: t.status }
+      }
+      misses.push(t.status)
+      return { hit: false, status: t.status }
+    } catch {
+      misses.push(-1)
+      return { hit: false, status: -1 }
+    }
+  }
+
+  // 阶段一：max-age 内突发读取 → 应全部本地命中、零网络
+  for (let i = 0; i < CACHE_BURST; i++) {
+    await clientRead()
     await sleep(10)
   }
-  const hitRatePct = +((hits / CACHE_SAMPLES) * 100).toFixed(1)
-  const rateOk = hitRatePct >= CACHE_RATE_THRESHOLD_PCT
-  details.push(
-    `缓存命中率实测 ${hits}/${CACHE_SAMPLES} = ${hitRatePct}%` +
-      `（命中口径：响应 <${CACHE_HIT_LATENCY_MS}ms 本地供给；阈值 ≥${CACHE_RATE_THRESHOLD_PCT}%）${rateOk ? " ✓" : " ✗"}`,
-  )
-  if (missLatencies.length) {
-    details.push(`未命中样本延迟(ms)：${missLatencies.slice(0, 8).join(", ")}${missLatencies.length > 8 ? ` 等 ${missLatencies.length} 个` : ""}`)
+  const burstNetworkCalls = networkCalls
+  // 预热已写入客户端缓存，突发阶段应全程零网络
+  const burstOk = localHits === CACHE_BURST && burstNetworkCalls === 0
+  details.push(`突发 ${CACHE_BURST} 次（max-age 内）：本地命中 ${localHits}/${CACHE_BURST}，实际网络请求 ${burstNetworkCalls} 次${burstOk ? " ✓" : " ✗"}`)
+
+  // 阶段二：过期后条件请求 → 应 304 空体（内容未变）
+  for (let r = 0; r < CACHE_CONDITIONAL_ROUNDS; r++) {
+    await sleep(CACHE_MAX_AGE_MS + 300)
+    const res = await clientRead()
+    if (!res.hit || res.status !== 304) misses.push(`round${r}:${res.status}`)
   }
-  record("cache", `缓存命中率（本地供给实测，≥${CACHE_RATE_THRESHOLD_PCT}%）`, rateOk ? "pass" : "fail", details, {
-    samples: CACHE_SAMPLES,
-    hits,
+  const conditionalOk = notModifiedHits === CACHE_CONDITIONAL_ROUNDS
+  details.push(`过期条件请求 ${CACHE_CONDITIONAL_ROUNDS} 轮：304 命中 ${notModifiedHits}/${CACHE_CONDITIONAL_ROUNDS}${conditionalOk ? " ✓" : " ✗"}`)
+
+  // 负向正确性：伪造 etag 必须得到 200（防「永远 304」假阳性）
+  const bogus = await req("GET", "/provider", { timeoutMs: 20000, headers: { "if-none-match": '"bogus-etag"' } }).catch(() => null)
+  const bogusOk = bogus?.status === 200
+  details.push(`负向校验（伪造 If-None-Match）→ ${bogus?.status ?? "ERR"}${bogusOk ? " ✓" : " ✗"}`)
+
+  const totalReads = CACHE_BURST + CACHE_CONDITIONAL_ROUNDS
+  const totalHits = localHits + notModifiedHits
+  const hitRatePct = +((totalHits / totalReads) * 100).toFixed(1)
+  const rateOk =
+    correctnessOk && burstOk && conditionalOk && bogusOk && hitRatePct >= CACHE_RATE_THRESHOLD_PCT
+  details.push(
+    `缓存命中率 ${totalHits}/${totalReads} = ${hitRatePct}%（本地零请求 + 304 口径；阈值 ≥${CACHE_RATE_THRESHOLD_PCT}%）${rateOk ? " ✓" : " ✗"}`,
+  )
+  if (misses.length) {
+    details.push(`未命中明细：${misses.slice(0, 6).join(", ")}${misses.length > 6 ? ` 等 ${misses.length} 个` : ""}`)
+  }
+  record("cache", `缓存命中率（ETag/304 条件请求，≥${CACHE_RATE_THRESHOLD_PCT}%）`, rateOk ? "pass" : "fail", details, {
+    samples: totalReads,
+    hits: totalHits,
     hitRatePct,
     thresholdPct: CACHE_RATE_THRESHOLD_PCT,
+    localHits,
+    notModifiedHits,
+    networkCallsTotal: networkCalls,
+    correctnessOk,
     mirrorAgeDays: mirrorAgeDays === null ? null : +mirrorAgeDays.toFixed(1),
   })
 
