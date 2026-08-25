@@ -30,6 +30,7 @@ import { useExit } from "./exit"
 import { useArgs } from "./args"
 import { batch, createSignal, onMount } from "solid-js"
 import path from "path"
+import { tuiTiming } from "../util/timing"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
 
@@ -609,6 +610,7 @@ export const {
 
     async function bootstrap(input: { fatal?: boolean } = {}) {
       const fatal = input.fatal ?? true
+      tuiTiming("bootstrap start (blocking APIs issued)")
       const workspace = project.workspace.current()
       const projectPromise = project.sync()
       const sessionListPromise = projectPromise.then(() => listSessions())
@@ -674,6 +676,7 @@ export const {
           })
         })
         .then(() => {
+          tuiTiming("bootstrap blocking phase done (mode bar can render)")
           if (store.status !== "complete") setStore("status", "partial")
           // non-blocking
           void Promise.all([

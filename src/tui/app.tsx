@@ -11,6 +11,7 @@ import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
+import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
   Switch,
@@ -241,6 +242,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               consoleOptions: {
                 keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
               },
+            }).then((r) => {
+              tuiTiming("opentui renderer created")
+              return r
             }),
           catch: (error) => (error instanceof Error ? error : new Error(String(error))),
         }),
@@ -394,6 +398,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             </ExitProvider>
           )
         }, renderer)
+        tuiTiming("solid tree rendered (first mount)")
       })
       yield* Deferred.await(shutdown)
       return { epilogue: exit.epilogue, reason: exit.reason }

@@ -13,6 +13,7 @@ import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecy
 import { Global } from "@gyccode/core/global"
 import { appendFile, mkdir } from "node:fs/promises"
 import path from "node:path"
+import { tuiTiming } from "@gyccode/tui/util/timing"
 
 Heap.start()
 
@@ -53,6 +54,10 @@ let server: Awaited<ReturnType<typeof Server.listen>> | undefined
 
 export const rpc = {
   async fetch(input: { url: string; method: string; headers: Record<string, string>; body?: string }) {
+    if (firstFetch) {
+      firstFetch = false
+      tuiTiming("worker first fetch (instance cold path)")
+    }
     const headers = { ...input.headers }
     const auth = ServerAuth.header()
     if (auth && !headers["authorization"] && !headers["Authorization"]) {
@@ -101,4 +106,17 @@ export const rpc = {
   },
 }
 
+tuiTiming("worker module evaluated")
+
+let firstFetch = true
+
 Rpc.listen(rpc)
+tuiTiming("worker rpc listening")
+
+// 预热 instance：不等首个 API 进来就开始 config/provider/agent 初始化。
+// InstanceStore.load 对同 directory 幂等（并发调用复用同一 Deferred），
+// 因此这里与后续 rpc.fetch 触发的 load 天然去重。预热与主线程的渲染器
+// 初始化并行执行，缩短首屏模式栏（plan/build/compose）出现时间。
+void InstanceRuntime.load({ directory: process.cwd() })
+  .then(() => tuiTiming("instance warm (APIs ready)"))
+  .catch(() => {})

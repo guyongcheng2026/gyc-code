@@ -28,6 +28,7 @@
     "./plugin/command-shim": "./plugin/command-shim.ts",
     "./parsers-config": "./parsers-config.ts",
     "./util/error": "./util/error.ts",
+    "./util/timing": "./util/timing.ts",
     "./util/locale": "./util/locale.ts",
     "./util/persistence": "./util/persistence.ts",
     "./util/record": "./util/record.ts",

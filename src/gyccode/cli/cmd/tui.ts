@@ -12,9 +12,8 @@ import { Filesystem } from "@/util/filesystem"
 import type { GlobalEvent } from "@gyccode/protocol/v2"
 import type { EventSource } from "@gyccode/tui/context/sdk"
 import { writeHeapSnapshot } from "v8"
-import { ServerAuth } from "@/server/auth"
-import { validateSession } from "../tui/validate-session"
 import { win32InstallCtrlCGuard } from "@gyccode/tui/terminal-win32"
+import { tuiTiming } from "@gyccode/tui/util/timing"
 import { Worker } from "node:worker_threads"
 
 declare global {
@@ -123,9 +122,9 @@ export const TuiThreadCommand = cmd({
         default: false,
       }),
   handler: async (args) => {
+    tuiTiming("cmd.tui handler enter")
     const unguard = win32InstallCtrlCGuard()
     try {
-      const { TuiConfig } = await import("@/config/tui")
       if (args.fork && !args.continue && !args.session) {
         UI.error("--fork requires --continue or --session")
         process.exitCode = 1
@@ -144,13 +143,16 @@ export const TuiThreadCommand = cmd({
       }
       const cwd = Filesystem.resolve(process.cwd())
 
-      // TUI 整体由 Node 运行（OpenTUI 经 koffi 支持 Node），worker 经
-      // node:worker_threads 运行服务端（Rpc 已双通道兼容，无需 Bun Web Worker）。
+      // TUI 渲染在 Node 主线程（OpenTUI 的 koffi 支持 Node），server 在
+      // node:worker_threads 里运行，Rpc 做双通道桥接（替代 Bun Web Worker）。
+      // 尽早创建 worker：其模块图求值（effect/server 全家桶，实测 ~2.6s）
+      // 与主进程的 TuiConfig/网络选项准备并行，是启动耗时的大头。
       const worker = new Worker(file, {
         env: Object.fromEntries(
           Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
         ),
       })
+      tuiTiming("worker created")
       const client = Rpc.client<typeof rpc>(worker)
       const reload = () => {
         client.call("reload", undefined).catch(() => {})
@@ -167,12 +169,18 @@ export const TuiThreadCommand = cmd({
       }
 
       const prompt = await input(args.prompt)
+      tuiTiming("prompt resolved")
+      // worker 启动期间已完成部分模块加载，此时再取 TUI 配置
+      const { TuiConfig } = await import("@/config/tui")
       const config = await TuiConfig.get()
+      tuiTiming("tui config loaded")
 
       const network = resolveNetworkOptionsNoConfig(args)
       const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
 
-      const headers = external ? ServerAuth.headers() : undefined
+      // 懒加载：ServerAuth 仅 --port/--hostname/--mdns 对外暴露时需要，
+      // 默认 internal RPC 传输不引入 server/auth 模块图。
+      const headers = external ? (await import("@/server/auth")).ServerAuth.headers() : undefined
 
       const transport = external
         ? {
@@ -188,13 +196,20 @@ export const TuiThreadCommand = cmd({
           }
 
       try {
-        await validateSession({
-          url: transport.url,
-          sessionID: args.session,
-          directory: cwd,
-          fetch: transport.fetch,
-          headers,
-        })
+        // 仅 --session 时才需要校验（validateSession 内部对无 sessionID 直接返回）。
+        // 懒加载：避免把 @gyccode/protocol/v2 client 全量拉进默认 `gyc tui`
+        // 的启动关键路径（主进程模块图实测可省数百毫秒）。
+        if (args.session) {
+          const { validateSession } = await import("../tui/validate-session")
+          await validateSession({
+            url: transport.url,
+            sessionID: args.session,
+            directory: cwd,
+            fetch: transport.fetch,
+            headers,
+          })
+        }
+        tuiTiming("validateSession done")
       } catch (error) {
         UI.error(errorMessage(error))
         process.exitCode = 1
@@ -209,6 +224,7 @@ export const TuiThreadCommand = cmd({
         const { Effect } = await import("effect")
         const { run } = await import("../tui/layer")
         const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
+        tuiTiming("effect/layer/plugin-host imported")
         await Effect.runPromise(
           run({
             url: transport.url,
