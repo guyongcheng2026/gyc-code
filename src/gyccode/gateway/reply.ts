@@ -6,7 +6,6 @@
 //    完成后把输出截断回传微信；互斥锁防并发；/status 报告网关状态。
 import { generateText } from "ai"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
-import { spawn } from "node:child_process"
 import { readFileSync, existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -105,37 +104,41 @@ async function runTask(description: string): Promise<string> {
   taskRunning = true
   const started = Date.now()
   try {
-    const output = await new Promise<string>((resolve, reject) => {
-      // stdin 必须置为 ignore：gyc run 会读 stdin，默认 pipe 永不闭合将致其永久阻塞
-      const child = spawn(
+    // Bun 原生 spawn：node:child_process 兼容层在长驻进程下 close 事件不可靠（曾致永久挂起）
+    const proc = Bun.spawn(
+      [
         process.execPath,
-        [
-          "--preload",
-          "./scripts/bun-solid-preload.ts",
-          "--conditions=browser",
-          "./src/gyccode/index.ts",
-          "run",
-          description,
-          "--yolo",
-        ],
-        {
-          cwd: process.cwd() || "C:\\gyc-code",
-          windowsHide: true,
-          timeout: TASK_TIMEOUT_MS,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      )
-      let stdout = ""
-      let stderr = ""
-      child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString("utf-8")))
-      child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString("utf-8")))
-      child.on("error", reject)
-      child.on("close", (code) => {
-        const tail = stdout.trim() || stderr.trim() || "(无输出)"
-        resolve(`任务退出码 ${code}，耗时 ${Math.round((Date.now() - started) / 1000)}s：\n${tail}`)
-      })
-    })
-    return truncate(output)
+        "--preload",
+        "./scripts/bun-solid-preload.ts",
+        "--conditions=browser",
+        "./src/gyccode/index.ts",
+        "run",
+        description,
+        "--yolo",
+      ],
+      {
+        cwd: process.cwd() || "C:\\gyc-code",
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+      },
+    )
+    const timer = setTimeout(() => {
+      try {
+        proc.kill()
+      } catch {
+        // 进程已退出
+      }
+    }, TASK_TIMEOUT_MS)
+    timer.unref?.()
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout as ReadableStream).text(),
+      new Response(proc.stderr as ReadableStream).text(),
+      proc.exited,
+    ]).finally(() => clearTimeout(timer))
+    const elapsed = Math.round((Date.now() - started) / 1000)
+    const body = stdout.trim() || stderr.trim() || "(无输出)"
+    return truncate(`任务${exitCode === 0 ? "完成" : `退出码 ${exitCode}`}，耗时 ${elapsed}s：\n${body}`)
   } finally {
     taskRunning = false
   }
