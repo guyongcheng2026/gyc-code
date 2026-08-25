@@ -114,14 +114,18 @@ async function recordHeartbeat(): Promise<string | null> {
   return stale
 }
 
-function heartbeatPidAlive(pid: number): boolean {
-  // ESRCH＝进程已不存在；其余异常（如 EPERM）视为存活处理
+/** 进程探活：ESRCH＝进程已不存在；其余异常（如 EPERM）视为存活处理。 */
+export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
   } catch {
     return false
   }
+}
+
+function heartbeatPidAlive(pid: number): boolean {
+  return isPidAlive(pid)
 }
 
 export class WeixinAdapter implements GatewayAdapter {
