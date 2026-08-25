@@ -9,7 +9,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 import type { GatewayAdapter, GatewayMessage, GatewaySendResult } from "./adapter"
-import { classifyIlinkResponse, GatewayError } from "./errors"
+import { classifyIlinkResponse, GatewayError, GatewayErrorKind } from "./errors"
 
 const ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
 const CHANNEL_VERSION = "2.2.0"
@@ -30,6 +30,46 @@ interface WeixinConfig {
   accountId: string
   baseUrl: string
   homeChannel?: string
+}
+
+interface IlinkBaseResponse {
+  ret?: number
+  errcode?: number
+  errmsg?: string
+}
+
+interface IlinkSendResponse extends IlinkBaseResponse {
+  message_id?: string
+}
+
+interface IlinkPollResponse extends IlinkBaseResponse {
+  get_updates_buf?: string
+  msgs?: Array<IlinkMessage>
+}
+
+interface IlinkMessage {
+  from_user_id?: string
+  sender_id?: string
+  context_token?: string
+  item_list?: Array<IlinkItem>
+}
+
+interface IlinkItem {
+  type?: number
+  text_item?: { text?: string }
+}
+
+interface IlinkSendRequest {
+  msg: {
+    from_user_id: string
+    to_user_id: string
+    client_id: string
+    message_type: number
+    message_state: number
+    item_list: Array<{ type: number; text_item: { text: string } }>
+    context_token?: string
+  }
+  base_info: { channel_version: string }
 }
 
 const configError = () =>
@@ -93,7 +133,7 @@ function buildHeaders(token: string, body: string): Record<string, string> {
   }
 }
 
-async function apiPost(config: WeixinConfig, endpoint: string, payload: unknown, timeoutMs: number): Promise<Record<string, unknown>> {
+async function apiPost(config: WeixinConfig, endpoint: string, payload: unknown, timeoutMs: number): Promise<IlinkBaseResponse> {
   const body = JSON.stringify({ ...(payload as object), base_info: { channel_version: CHANNEL_VERSION } })
   const response = await fetch(`${config.baseUrl}/${endpoint}`, {
     method: "POST",
@@ -105,7 +145,7 @@ async function apiPost(config: WeixinConfig, endpoint: string, payload: unknown,
   })
   const raw = await response.text()
   if (!response.ok) throw new GatewayError("network", `${endpoint} HTTP ${response.status}: ${raw.slice(0, 200)}`)
-  return JSON.parse(raw) as Record<string, unknown>
+  return JSON.parse(raw) as IlinkBaseResponse
 }
 
 /** 按 hermes 实证语义切分超长文本（微信单条上限 2000 字符）。 */
@@ -124,12 +164,12 @@ export function splitWeixinText(text: string, limit = MAX_MESSAGE_LENGTH): strin
 /** 心跳与陈旧进程检测：同一 bot token 不应被两个进程并发使用（hermes 孤儿网关教训）。 */
 export async function recordHeartbeat(): Promise<string | null> {
   const previous = await readJson<{ pid: number; ts: number }>("heartbeat.json")
-  const stale = previous && previous.pid !== process.pid && heartbeatPidAlive(previous.pid) ? `PID ${previous.pid}` : null
+  const stale = previous && previous.pid !== process.pid && isPidAlive(previous.pid) ? `PID ${previous.pid}` : null
   await writeJson("heartbeat.json", { pid: process.pid, ts: Date.now() })
   return stale
 }
 
-/** 进程探活：ESRCH＝进程已不存在；其余异常（如 EPERM）视为存活处理。 */
+/** 进程探活：ESRCH=进程已不存在；其余异常（如 EPERM）视为存活处理。 */
 export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
@@ -137,10 +177,6 @@ export function isPidAlive(pid: number): boolean {
   } catch {
     return false
   }
-}
-
-function heartbeatPidAlive(pid: number): boolean {
-  return isPidAlive(pid)
 }
 
 export class WeixinAdapter implements GatewayAdapter {
@@ -173,17 +209,20 @@ export class WeixinAdapter implements GatewayAdapter {
     let lastError: GatewayError | undefined
     let lastMessageId = ""
     for (const chunk of splitWeixinText(text)) {
-      const message: Record<string, unknown> = {
-        from_user_id: "",
-        to_user_id: chatId,
-        client_id: crypto.randomUUID(),
-        message_type: MSG_TYPE_BOT,
-        message_state: MSG_STATE_FINISH,
-        item_list: [{ type: ITEM_TEXT, text_item: { text: chunk } }],
+      const message: IlinkSendRequest = {
+        msg: {
+          from_user_id: "",
+          to_user_id: chatId,
+          client_id: crypto.randomUUID(),
+          message_type: MSG_TYPE_BOT,
+          message_state: MSG_STATE_FINISH,
+          item_list: [{ type: ITEM_TEXT, text_item: { text: chunk } }],
+        },
+        base_info: { channel_version: CHANNEL_VERSION },
       }
       const ctxToken = await this.contextToken(chatId)
-      if (ctxToken) message.context_token = ctxToken
-      const response = await apiPost(config, ENDPOINT_SEND, { msg: message }, SEND_TIMEOUT_MS).catch(
+      if (ctxToken) message.msg.context_token = ctxToken
+      const response = await apiPost(config, ENDPOINT_SEND, message, SEND_TIMEOUT_MS).catch(
         (cause: GatewayError) => cause,
       )
       if (response instanceof GatewayError) {
@@ -199,22 +238,22 @@ export class WeixinAdapter implements GatewayAdapter {
         lastError = failure
         break
       }
-      lastMessageId = String(response.message_id ?? "")
+      lastMessageId = String((response as IlinkSendResponse).message_id ?? "")
     }
     if (lastError) return { ok: false, error: lastError.message, kind: lastError.kind }
     const stale = await recordHeartbeat().catch(() => null)
-    if (stale) console.warn(`[gyc] 注意：检测到另一存活进程 ${stale} 亦在使用本 bot 凭证，存在消息竞争风险`)
+    if (stale) console.warn(`[gyc] 注意：检测到另一存活进程 ${stale} 亦在使用 bot 凭证，存在消息竞争风险`)
     return { ok: true, messageId: lastMessageId || `gyc-weixin-${Date.now().toString(16)}` }
   }
 
   async poll(onMessage: (message: GatewayMessage) => Promise<void>, abort: AbortSignal): Promise<void> {
-    if (!this.config) throw new GatewayError("unknown", configError().message)
+    if (!this.config) throw new GatewayError("unknown", "配置缺失")
     this.running = true
     // 游标按账号归属校验：换号后沿用旧游标会触发服务端 -14 会话超时
     const stored = await readJson<{ accountId?: string; buf?: string }>("sync-buf.json")
-    let syncBuf = stored?.accountId === this.config.accountId ? (stored.buf ?? "") : ""
+    let syncBuf = stored?.accountId === this.config!.accountId ? (stored.buf ?? "") : ""
     while (this.running && !abort.aborted) {
-      const response = await apiPost(this.config, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
+      const response = await apiPost(this.config!, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
         (cause: GatewayError) => cause,
       )
       if (response instanceof GatewayError) {
@@ -237,7 +276,7 @@ export class WeixinAdapter implements GatewayAdapter {
       const nextBuf = String(response.get_updates_buf ?? "")
       if (nextBuf && nextBuf !== syncBuf) {
         syncBuf = nextBuf
-        await writeJson("sync-buf.json", { accountId: this.config.accountId, buf: syncBuf }).catch(() => undefined)
+        await writeJson("sync-buf.json", { accountId: this.config!.accountId, buf: syncBuf }).catch(() => undefined)
       }
       for (const raw of (response.msgs as Array<Record<string, unknown>> | undefined) ?? []) {
         const senderId = String(raw.from_user_id ?? raw.sender_id ?? "")

@@ -18,7 +18,7 @@ export interface GatewaySendResult {
   ok: boolean
   messageId?: string
   error?: string
-  kind?: string
+  kind?: GatewayErrorKind
 }
 
 /** 平台适配器契约：weixin 为首个实现，后续可挂 telegram 等。 */

@@ -36,9 +36,16 @@ const consumeFrames = (route: string) => (state: FrameBufferState, chunk: Uint8A
   Effect.gen(function* () {
     let cursor = appendChunk(state, chunk)
     const out: object[] = []
+    const MAX_FRAME_LENGTH = 16 * 1024 * 1024 // 16MB 单帧上限，防止恶意/损坏流撑爆内存
     while (cursor.buffer.length - cursor.offset >= 4) {
       const view = cursor.buffer.subarray(cursor.offset)
       const totalLength = new DataView(view.buffer, view.byteOffset, view.byteLength).getUint32(0, false)
+      if (totalLength > MAX_FRAME_LENGTH) {
+        return yield* ProviderShared.eventError(
+          route,
+          `Bedrock event-stream frame length ${totalLength} exceeds maximum ${MAX_FRAME_LENGTH}`,
+        )
+      }
       if (view.length < totalLength) break
 
       const decoded = yield* Effect.try({

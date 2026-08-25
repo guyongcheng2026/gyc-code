@@ -21,21 +21,25 @@ function parseTarget(raw: string | undefined): { platform: string; chatId?: stri
 }
 
 async function readStdin(): Promise<string> {
-  const chunks: string[] = []
-  for await (const chunk of process.stdin) chunks.push(String(chunk))
-  return chunks.join("")
+  try {
+    const chunks: string[] = []
+    for await (const chunk of process.stdin) chunks.push(String(chunk))
+    return chunks.join("")
+  } catch (cause) {
+    throw new Error(`读取标准输入失败: ${String(cause)}`)
+  }
 }
 
 async function deliver(platform: string, chatId: string, text: string): Promise<GatewaySendResult> {
   if (platform !== "weixin") return { ok: false, error: `暂不支持平台 ${platform}（当前已实现 weixin）`, kind: "unknown" }
   try {
+    const config = resolveWeixinConfig()
     const adapter = new WeixinAdapter()
     await adapter.connect()
-    resolveWeixinConfig()
     return await adapter.sendText(chatId, text)
   } catch (cause) {
     if (cause instanceof GatewayError) return { ok: false, error: cause.message, kind: cause.kind }
-    return { ok: false, error: String(cause), kind: "unknown" }
+    return { ok: false, error: String(cause), kind: "unknown" as const }
   }
 }
 

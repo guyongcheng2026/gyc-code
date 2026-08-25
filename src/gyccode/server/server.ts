@@ -147,7 +147,12 @@ function tcpAddress(state: ListenerState) {
 
 function makeURL(hostname: string, port: number) {
   const result = new URL("http://localhost")
-  result.hostname = hostname
+  // IPv6 字面量必须用方括号包裹（WHATWG URL 标准），如 [::1]
+  if (hostname.includes(":") && !hostname.startsWith("[")) {
+    result.hostname = `[${hostname}]`
+  } else {
+    result.hostname = hostname
+  }
   result.port = String(port)
   return result
 }

@@ -1,4 +1,6 @@
+import { Buffer } from "node:buffer"
 import { Cause, Context, Effect, Layer, Random } from "effect"
+import { Stream } from "effect"
 import {
   FetchHttpClient,
   Headers,
@@ -279,7 +281,16 @@ const statusError =
   (response: HttpClientResponse.HttpClientResponse) =>
     Effect.gen(function* () {
       if (response.status < 400) return response
-      const body = yield* response.text.pipe(Effect.catch(() => Effect.void))
+      // 限制错误响应体读取大小（最多 BODY_LIMIT 字节），避免超大错误页撑爆内存
+      const limitedStream = response.stream.pipe(
+        Stream.takeWhile((_, i) => i < BODY_LIMIT, true), // 简化：取前 N 个 chunk
+        Stream.mapChunks((chunk) => chunk.slice(0, Math.max(0, BODY_LIMIT - chunk.length))),
+      )
+      const bodyBytes = yield* Stream.runCollect(limitedStream).pipe(
+        Effect.map((chunks) => new Uint8Array(Buffer.concat(chunks.toArray()))),
+        Effect.catch(() => Effect.succeed(new Uint8Array(0))),
+      )
+      const body = new TextDecoder().decode(bodyBytes)
       const headers = normalizedHeaders(response.headers)
       const retryAfter = retryAfterMs(headers)
       const rateLimit = rateLimitDetails(headers, retryAfter)
@@ -309,6 +320,7 @@ const toHttpError = (redactedNames: ReadonlyArray<string | RegExp>) => (error: u
     readonly message: string
     readonly kind?: string | undefined
     readonly request?: HttpClientRequest.HttpClientRequest | undefined
+    readonly retryable?: boolean
   }) =>
     new LLMError({
       module: "RequestExecutor",
@@ -322,7 +334,17 @@ const toHttpError = (redactedNames: ReadonlyArray<string | RegExp>) => (error: u
     })
 
   if (Cause.isTimeoutError(error)) {
-    return transportError({ message: error.message, kind: "Timeout" })
+    // 超时错误应可重试，使用 ProviderInternalReason（retryable=true）语义替代
+    return new LLMError({
+      module: "RequestExecutor",
+      method: "execute",
+      reason: new ProviderInternalReason({
+        message: error.message,
+        status: 408, // Request Timeout
+        retryAfterMs: undefined,
+        http: error.request ? new HttpContext({ request: requestDetails(error.request, redactedNames) }) : undefined,
+      }),
+    })
   }
   if (!HttpClientError.isHttpClientError(error)) {
     return transportError({ message: "HTTP transport failed" })

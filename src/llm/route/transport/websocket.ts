@@ -59,45 +59,52 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
       }),
     )
   }
-  return Effect.callback<void, LLMError>((resume, signal) => {
-    const cleanup = () => {
-      ws.removeEventListener("open", onOpen)
-      ws.removeEventListener("error", onError)
-      ws.removeEventListener("close", onClose)
-      signal.removeEventListener("abort", onAbort)
-    }
-    const onAbort = () => {
-      cleanup()
-      if (ws.readyState !== globalThis.WebSocket.CLOSED && ws.readyState !== globalThis.WebSocket.CLOSING)
-        ws.close(1000)
-    }
-    const onOpen = () => {
-      cleanup()
-      resume(Effect.void)
-    }
-    const onError = (event: Event) => {
-      cleanup()
-      resume(
-        Effect.fail(
-          transportError("open", `Failed to open WebSocket: ${eventMessage(event)}`, { url: input.url, kind: "open" }),
-        ),
-      )
-    }
-    const onClose = (event: CloseEvent) => {
-      cleanup()
-      resume(
-        Effect.fail(
-          transportError("open", `WebSocket closed before opening with code ${event.code}`, {
-            url: input.url,
-            kind: "open",
-          }),
-        ),
-      )
-    }
-    ws.addEventListener("open", onOpen, { once: true })
-    ws.addEventListener("error", onError, { once: true })
-    ws.addEventListener("close", onClose, { once: true })
-    signal.addEventListener("abort", onAbort, { once: true })
+  return Effect.gen(function* () {
+    yield* Effect.race(
+      Effect.callback<void, LLMError>((resume, signal) => {
+        const cleanup = () => {
+          ws.removeEventListener("open", onOpen)
+          ws.removeEventListener("error", onError)
+          ws.removeEventListener("close", onClose)
+          signal.removeEventListener("abort", onAbort)
+        }
+        const onAbort = () => {
+          cleanup()
+          if (ws.readyState !== globalThis.WebSocket.CLOSED && ws.readyState !== globalThis.WebSocket.CLOSING)
+            ws.close(1000)
+        }
+        const onOpen = () => {
+          cleanup()
+          resume(Effect.void)
+        }
+        const onError = (event: Event) => {
+          cleanup()
+          resume(
+            Effect.fail(
+              transportError("open", `Failed to open WebSocket: ${eventMessage(event)}`, { url: input.url, kind: "open" }),
+            ),
+          )
+        }
+        const onClose = (event: CloseEvent) => {
+          cleanup()
+          resume(
+            Effect.fail(
+              transportError("open", `WebSocket closed before opening with code ${event.code}`, {
+                url: input.url,
+                kind: "open",
+              }),
+            ),
+          )
+        }
+        ws.addEventListener("open", onOpen, { once: true })
+        ws.addEventListener("error", onError, { once: true })
+        ws.addEventListener("close", onClose, { once: true })
+        signal.addEventListener("abort", onAbort, { once: true })
+      }),
+      Effect.sleep("10 seconds").pipe(Effect.flatMap(() => Effect.fail(
+        transportError("open", "WebSocket connection timeout", { url: input.url, kind: "timeout" }),
+      ))),
+    )
   })
 }
 
@@ -144,15 +151,15 @@ export const fromWebSocket = (
     const messages = yield* Queue.bounded<string | Uint8Array, LLMError | Cause.Done<void>>(128)
 
     const onMessage = (event: MessageEvent) => {
-      if (typeof event.data === "string") return Queue.offerUnsafe(messages, event.data)
-      const binary = binaryMessage(event.data)
-      if (binary) return Queue.offerUnsafe(messages, binary)
-      Queue.failCauseUnsafe(
-        messages,
-        Cause.fail(
-          transportError("message", "Unsupported WebSocket message payload", { url: input.url, kind: "message" }),
-        ),
-      )
+      const offer = typeof event.data === "string"
+        ? Queue.offer(messages, event.data)
+        : binaryMessage(event.data)
+          ? Queue.offer(messages, binaryMessage(event.data)!)
+          : Queue.failCause(messages, Cause.fail(
+              transportError("message", "Unsupported WebSocket message payload", { url: input.url, kind: "message" })
+            ))
+      // 若队列满则记录告警并丢弃（避免静默丢失导致下游无感知）
+      Effect.runFork(Effect.tapError(offer, () => Effect.logWarning("WebSocket message queue full, dropping message")))
     }
     const onError = (event: Event) => {
       Queue.failCauseUnsafe(
@@ -163,7 +170,8 @@ export const fromWebSocket = (
       )
     }
     const onClose = (event: CloseEvent) => {
-      if (event.code === 1000 || event.code === 1005) return Queue.endUnsafe(messages)
+      // 仅 1000 (Normal Closure) 视为干净关闭；1005 (No Status Received) 属异常关闭，需报错
+      if (event.code === 1000) return Queue.endUnsafe(messages)
       Queue.failCauseUnsafe(
         messages,
         Cause.fail(

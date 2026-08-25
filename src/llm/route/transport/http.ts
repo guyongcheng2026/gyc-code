@@ -6,6 +6,7 @@ import { Framing, type Framing as FramingDef } from "../framing"
 import type { Transport, TransportPrepareInput } from "./index"
 import * as ProviderShared from "../../protocols/shared"
 import { mergeJsonRecords, type LLMRequest } from "../../schema"
+import { TransportReason, LLMError } from "../../schema/errors"
 
 export type JsonRequestInput<Body> = TransportPrepareInput<Body>
 
@@ -136,13 +137,36 @@ export const httpJson = <Body, Frame>(input: HttpJsonInput<Body, Frame>): HttpJs
           Effect.map((response) =>
             prepared.framing.frame(
               response.stream.pipe(
-                Stream.mapError((error) =>
-                  ProviderShared.eventError(
+                Stream.mapError((error) => {
+                  // 区分传输层错误（可重试）与提供商输出错误（不可重试）
+                  const errorMessage = ProviderShared.errorText(error)
+                  // 网络级错误：连接中断、超时、DNS 失败等
+                  const isTransportError = errorMessage.includes("ECONNRESET") ||
+                    errorMessage.includes("ETIMEDOUT") ||
+                    errorMessage.includes("ENOTFOUND") ||
+                    errorMessage.includes("socket hang up") ||
+                    errorMessage.includes("fetch failed") ||
+                    errorMessage.includes("network") ||
+                    errorMessage.includes("timeout") ||
+                    errorMessage.includes("aborted")
+                  if (isTransportError) {
+                    return new LLMError({
+                      module: "HttpTransport",
+                      method: "frames",
+                      reason: new TransportReason({
+                        message: `Stream transport error: ${errorMessage}`,
+                        kind: "stream",
+                        url: prepared.request.url,
+                      }),
+                    })
+                  }
+                  // 提供商输出错误（SSE 解析失败、JSON 解码失败等）不可重试
+                  return ProviderShared.eventError(
                     `${request.model.provider}/${request.model.route.id}`,
                     `Failed to read ${request.model.provider}/${request.model.route.id} stream`,
-                    ProviderShared.errorText(error),
-                  ),
-                ),
+                    errorMessage,
+                  )
+                }),
               ),
             ),
           ),
