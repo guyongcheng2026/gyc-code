@@ -71,6 +71,21 @@ function spawnBun(bun, args) {
   process.exit(result.status ?? 0)
 }
 
+// V8 heap governance flags:
+// --max-old-space-size turns native V8 OOM aborts into catchable JS RangeErrors
+// (handled by TUI uncaughtException fallback -> graceful terminal restore);
+// --expose-gc lets the TUI memory guard run staged GC before degrading.
+// Size: 60% of physical memory, clamped to [1024, 4096] MB.
+// Override with GYC_MAX_OLD_SPACE (MB).
+function nodeHeapFlags() {
+  const os = require("os")
+  const explicit = Number(process.env.GYC_MAX_OLD_SPACE)
+  const mb = Number.isFinite(explicit) && explicit > 0
+    ? Math.round(explicit)
+    : Math.min(Math.max(Math.round((os.totalmem() / 1024 / 1024) * 0.6), 1024), 4096)
+  return ["--expose-gc", `--max-old-space-size=${mb}`]
+}
+
 async function main() {
   if (typeof Bun === "undefined") {
     // Node runtime: run the Node-target dist bundle directly (opencode2-style,
@@ -80,6 +95,16 @@ async function main() {
       if (readRuntimeMarker(path.dirname(distEntry)) === "bun") {
         spawnBun(findBun(), [distEntry, ...process.argv.slice(2)])
         return
+      }
+      // Re-exec under heap flags when missing: in-process import cannot add
+      // V8 flags after boot, and without them OOM is a native abort instead
+      // of a catchable RangeError.
+      if (!process.execArgv.includes("--expose-gc")) {
+        const { spawnSync } = require("child_process")
+        const result = spawnSync(process.execPath, [...nodeHeapFlags(), distEntry, ...process.argv.slice(2)], {
+          stdio: "inherit",
+        })
+        process.exit(result.status ?? 0)
       }
       await import(pathToFileURL(distEntry).href)
       return
@@ -98,7 +123,7 @@ async function main() {
     }
     // TUI/--mini 也统一走 Node 目标 dist：OpenTUI 经 koffi 支持 Node，
     // 不再依赖 dist-bun（Bun 目标）以避免 Bun 常驻内存回收不稳定的问题。
-    spawnBun(findNode(), [distEntry, ...process.argv.slice(2)])
+    spawnBun(findNode(), [...nodeHeapFlags(), distEntry, ...process.argv.slice(2)])
     return
   }
   spawnBun(process.execPath, [

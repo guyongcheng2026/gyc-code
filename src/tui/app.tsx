@@ -106,7 +106,8 @@ import {
   win32InstallUtf8ConsoleGuard,
 } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
-import { appendFile, mkdir } from "node:fs/promises"
+import { appendFile, mkdir, readdir, rm } from "node:fs/promises"
+import { writeHeapSnapshot } from "node:v8"
 import { join } from "node:path"
 import os from "node:os"
 import { cliErrorMessage, errorFormat } from "./util/error"
@@ -358,30 +359,85 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         }),
         (cleanup) => Effect.sync(cleanup),
       )
-      // 内存压力监控：低内存机器（如 3.9GB）下 gyc TUI 常驻约 800MB，长跑易触发
-      // V8 OOM 崩溃。超过物理内存 0.4 记录 WARN 供诊断；超过 0.5 主动销毁渲染器
-      // 优雅退出（恢复终端），避免原生 OOM 崩溃导致残留 ANSI 乱码。
+      // 内存压力监控（三级）：低内存机器（如 3.9GB）下 gyc TUI 常驻约 800MB，
+      // 长跑易触发 V8 堆 OOM。>0.4 WARN+主动 GC；>0.45 critical+堆快照+GC；
+      // >0.5 销毁渲染器优雅退出（恢复终端），避免原生 OOM 崩溃残留 ANSI 乱码。
+      // bin/gyc 以 --expose-gc --max-old-space-size 启动：堆超限变为可捕获的
+      // RangeError，走 uncaughtException 兜底而非原生 abort。
       yield* Effect.acquireRelease(
         Effect.sync(() => {
           let warnOnce = false
+          let criticalOnce = false
+          let lastSample = 0
+          // 主动 GC：bin/gyc 以 --expose-gc 启动 Node 时可用；未暴露时静默跳过
+          const runGc = () => {
+            try {
+              ;(globalThis as { gc?: () => void }).gc?.()
+            } catch {}
+          }
+          // critical 级堆快照：受 GYCCODE_AUTO_HEAP_SNAPSHOT 开关控制，
+          // 仅保留最新 2 份，防止长跑反复触发写满磁盘
+          const writeTuiMemorySnapshot = (rssMB: number) => {
+            if (!Flag.GYCCODE_AUTO_HEAP_SNAPSHOT) return
+            try {
+              const file = join(
+                global.log,
+                `tui-memory-${process.pid}-${new Date().toISOString().replace(/[:.]/g, "")}.heapsnapshot`,
+              )
+              void Promise.resolve()
+                .then(() => writeHeapSnapshot(file))
+                .then(() =>
+                  readdir(global.log).then((names) => {
+                    const mine = names
+                      .filter((n) => n.startsWith(`tui-memory-${process.pid}-`) && n.endsWith(".heapsnapshot"))
+                      .sort()
+                    for (const name of mine.slice(0, Math.max(0, mine.length - 2))) {
+                      void rm(join(global.log, name), { force: true }).catch(() => {})
+                    }
+                  }),
+                )
+                .catch(() => {})
+            } catch {}
+          }
           const meter = setInterval(() => {
             try {
               const rss = process.memoryUsage().rss
               const total = os.totalmem()
+              const rssMB = Math.round(rss / 1024 / 1024)
+              const totalMB = Math.round(total / 1024 / 1024)
+              // 心跳采样：每 10 分钟一条 Info，供长跑内存趋势分析
+              if (Date.now() - lastSample > 600_000) {
+                lastSample = Date.now()
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB\n`,
+                ).catch(() => {})
+              }
               if (rss > total * 0.5) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${Math.round(rss / 1024 / 1024)}MB total=${Math.round(total / 1024 / 1024)}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB\n`,
                 ).catch(() => {})
                 try {
                   destroyRenderer(renderer)
                 } catch {}
+              } else if (rss > total * 0.45 && !criticalOnce) {
+                // 二级降载：写堆快照留证 + 主动 GC，尽量避免走到 fatal 退出
+                criticalOnce = true
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-critical rss=${rssMB}MB total=${totalMB}MB\n`,
+                ).catch(() => {})
+                writeTuiMemorySnapshot(rssMB)
+                runGc()
               } else if (rss > total * 0.4 && !warnOnce) {
+                // 一级预警：记录 + 主动 GC 尝试回落
                 warnOnce = true
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${Math.round(rss / 1024 / 1024)}MB total=${Math.round(total / 1024 / 1024)}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${rssMB}MB total=${totalMB}MB\n`,
                 ).catch(() => {})
+                runGc()
               }
             } catch {}
           }, 30_000)

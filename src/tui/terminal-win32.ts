@@ -35,18 +35,22 @@ function load() {
  * 退出时不恢复原代码页：恢复会重新引入乱码（同一控制台后续运行的
  * bun/node/git 均输出 UTF-8）。
  */
-export function win32EnableUtf8Console() {
+export function win32EnableUtf8Console(): boolean {
   if (process.platform !== "win32") return false
   if (!isConsoleAttached()) return false
   if (!load()) return false
-  let changed = false
-  if (k32!.GetConsoleOutputCP() !== CP_UTF8) {
-    changed = k32!.SetConsoleOutputCP(CP_UTF8) !== 0
+  // 始终显式强制设置为 UTF-8（65001），无论当前状态如何。
+  // 这样可防止控制台状态在两次 guard interval 间持久化腐化，
+  // 尤其是OpenTUI 渲染层长时间运行后的状态异常问题。
+  k32!.SetConsoleOutputCP(CP_UTF8)
+  k32!.SetConsoleCP(CP_UTF8)
+  // 读回校验：确认输出代码页确实切到 65001。返回 false 表示设置未生效
+  // （句柄失效/被外部程序持续篡改），供守护计数诊断。
+  try {
+    return k32!.GetConsoleOutputCP() === CP_UTF8
+  } catch {
+    return false
   }
-  if (k32!.GetConsoleCP() !== CP_UTF8) {
-    changed = k32!.SetConsoleCP(CP_UTF8) !== 0 || changed
-  }
-  return changed
 }
 
 /**
@@ -79,6 +83,14 @@ export function win32GetConsoleCodePage(): number {
  */
 let utf8GuardTimer: ReturnType<typeof setInterval> | undefined
 let utf8GuardRefs = 0
+// 守护回调中"设置后读回校验失败"的累计次数：持续增长说明有外部程序
+// 在反复复位代码页（如 GBK 原生工具），供诊断定位乱码来源。
+let utf8GuardMismatchCount = 0
+
+/** UTF-8 代码页守护的读回失败累计次数（仅诊断用）。 */
+export function utf8GuardMismatches(): number {
+  return utf8GuardMismatchCount
+}
 
 export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
   if (process.platform !== "win32") return () => {}
@@ -88,9 +100,9 @@ export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
     win32EnableUtf8Console()
     const interval = setInterval(() => {
       try {
-        // 每次回调都尝试重新加载 kernel32，应对句柄失效
+        // 每次回调都尝试重新加载kernel32，应对句柄失效
         if (load()) {
-          win32EnableUtf8Console()
+          if (!win32EnableUtf8Console()) utf8GuardMismatchCount += 1
         }
       } catch {
         // 静默吞掉异常，保证定时器持续运行
