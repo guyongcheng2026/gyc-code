@@ -15,6 +15,8 @@ import { writeHeapSnapshot } from "v8"
 import { win32InstallCtrlCGuard } from "@gyccode/tui/terminal-win32"
 import { tuiTiming } from "@gyccode/tui/util/timing"
 import { Worker } from "node:worker_threads"
+import { appendFile, mkdir } from "node:fs/promises"
+import { Global } from "@gyccode/core/global"
 
 declare global {
   const GYCCODE_WORKER_PATH: string
@@ -168,6 +170,22 @@ export const TuiThreadCommand = cmd({
         worker.terminate()
       }
 
+      // worker 异常退出：记录到主进程日志（不在此处恢复终端——worker 'error' 事件
+      // 未监听时天然传播为主进程 uncaughtException，由 app.tsx 的崩溃兜底统一恢复终端）。
+      worker.on("exit", (code) => {
+        if (code === 0 || stopped) return
+        void mkdir(Global.Path.log, { recursive: true })
+          .then(() =>
+            appendFile(
+              path.join(Global.Path.log, "gyccode.log"),
+              `timestamp=${new Date().toISOString()} level=Error run=main worker-exit code=${code}\n`,
+            ),
+          )
+          .catch(() => {})
+        // worker 意外退出且非正常停止：手动触发主进程 uncaughtException，
+        // 让 app.tsx 的崩溃兜底统一恢复终端并退出，避免 TUI 卡死。
+        process.emit("uncaughtException", new Error(`gyc TUI worker exited unexpectedly (code=${code})`))
+      })
       const prompt = await input(args.prompt)
       tuiTiming("prompt resolved")
       // 骨架屏并行化：config 获取（模块加载 + 读取解析，实测 ~1.2s）提前 fire

@@ -106,6 +106,9 @@ import {
   win32InstallUtf8ConsoleGuard,
 } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
+import { appendFile, mkdir } from "node:fs/promises"
+import { join } from "node:path"
+import os from "node:os"
 import { cliErrorMessage, errorFormat } from "./util/error"
 
 registerGyccodeSpinner()
@@ -312,6 +315,80 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           }),
       )
       renderer.once("destroy", () => Deferred.doneUnsafe(shutdown, Effect.void))
+      // 主进程崩溃兜底：任何未捕获异常/未处理拒绝，先恢复终端再退出，避免
+      // OpenTUI 残留 alternate screen 与 ANSI 序列导致回到 shell 后乱码；同时写
+      // 主进程错误日志（worker 已有日志，主进程此前是诊断黑洞）。
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const writeMainCrash = (kind: string, error: unknown) => {
+            const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error)
+            const rssMB = Math.round(process.memoryUsage().rss / 1024 / 1024)
+            void mkdir(global.log, { recursive: true })
+              .then(() =>
+                appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Error run=main ${kind} message=${detail} rss=${rssMB}MB\n`,
+                ),
+              )
+              .catch(() => {})
+          }
+          const restoreTerminalAndExit = (code: number) => {
+            try {
+              win32FlushInputBuffer()
+            } catch {}
+            try {
+              destroyRenderer(renderer)
+            } catch {}
+            process.exit(code)
+          }
+          const onUncaughtException = (error: Error) => {
+            writeMainCrash("uncaughtException", error)
+            restoreTerminalAndExit(1)
+          }
+          const onUnhandledRejection = (reason: unknown) => {
+            writeMainCrash("unhandledRejection", reason)
+            restoreTerminalAndExit(1)
+          }
+          process.on("uncaughtException", onUncaughtException)
+          process.on("unhandledRejection", onUnhandledRejection)
+          return () => {
+            process.off("uncaughtException", onUncaughtException)
+            process.off("unhandledRejection", onUnhandledRejection)
+          }
+        }),
+        (cleanup) => Effect.sync(cleanup),
+      )
+      // 内存压力监控：低内存机器（如 3.9GB）下 gyc TUI 常驻约 800MB，长跑易触发
+      // V8 OOM 崩溃。超过物理内存 0.4 记录 WARN 供诊断；超过 0.5 主动销毁渲染器
+      // 优雅退出（恢复终端），避免原生 OOM 崩溃导致残留 ANSI 乱码。
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          let warnOnce = false
+          const meter = setInterval(() => {
+            try {
+              const rss = process.memoryUsage().rss
+              const total = os.totalmem()
+              if (rss > total * 0.5) {
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${Math.round(rss / 1024 / 1024)}MB total=${Math.round(total / 1024 / 1024)}MB\n`,
+                ).catch(() => {})
+                try {
+                  destroyRenderer(renderer)
+                } catch {}
+              } else if (rss > total * 0.4 && !warnOnce) {
+                warnOnce = true
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${Math.round(rss / 1024 / 1024)}MB total=${Math.round(total / 1024 / 1024)}MB\n`,
+                ).catch(() => {})
+              }
+            } catch {}
+          }, 30_000)
+          return () => clearInterval(meter)
+        }),
+        (cleanup) => Effect.sync(cleanup),
+      )
       const pluginRuntime = createPluginRuntime()
 
       // config 就绪 fiber：切换完整应用树 + 运行时补启鼠标 + 注册 keymap 绑定。
