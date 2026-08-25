@@ -178,7 +178,15 @@ export class Replier {
 
     // 指令路由：任务执行 / 状态查询
     const runMatch = /^\/run\s+([\s\S]+)$/i.exec(text) ?? /^任务[:：]\s*([\s\S]+)$/.exec(text)
-    if (runMatch) return runTask(runMatch[1].trim())
+    if (runMatch) {
+      try {
+        console.log(`[gyc gateway] 任务开始：${runMatch[1].slice(0, 60)}`)
+        return await runTask(runMatch[1].trim())
+      } catch (cause) {
+        console.warn(`[gyc gateway] 任务异常：${String(cause).slice(0, 200)}`)
+        return `任务执行失败：${String(cause).slice(0, 200)}`
+      }
+    }
 
     let model = resolveTuiModel() ?? fallbackModel()
     if (!model.apiKey) model = fallbackModel()
@@ -190,9 +198,15 @@ export class Replier {
     turns.push({ role: "user", content: text })
     this.remember(chatId, turns)
 
-    const answer = await this.chat(model, turns.slice())
-    turns.push({ role: "assistant", content: answer })
-    this.remember(chatId, turns)
-    return truncate(answer)
+    try {
+      const answer = await this.chat(model, turns.slice())
+      turns.push({ role: "assistant", content: answer })
+      this.remember(chatId, turns)
+      return truncate(answer)
+    } catch (cause) {
+      // LLM 瞬时故障（网络抖动、上游非 JSON 响应等）转为友好文案，绝不抛出
+      this.history.delete(chatId)
+      return `应答模型暂时不可用（${model.providerID}/${model.modelID}），请稍后重试。原因：${String(cause).slice(0, 120)}`
+    }
   }
 }

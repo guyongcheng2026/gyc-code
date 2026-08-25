@@ -288,7 +288,12 @@ export class WeixinAdapter implements GatewayAdapter {
           .filter(Boolean)
           .join("\n")
         if (!text || !senderId) continue
-        await onMessage({ from: senderId, text, timestamp: Date.now() })
+        try {
+          await onMessage({ from: senderId, text, timestamp: Date.now() })
+        } catch (cause) {
+          // 回调故障只记录不传播：守护的存活高于单条消息的处理成败
+          console.warn(`[gyc gateway] onMessage 回调异常: ${String(cause).slice(0, 200)}`)
+        }
       }
     }
   }

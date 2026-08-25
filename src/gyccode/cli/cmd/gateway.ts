@@ -117,9 +117,17 @@ export const GatewayCommand = effectCmd({
       adapter
         .poll(async (message) => {
           process.stdout.write(`[gyc gateway] 收到来信 ${message.from.slice(0, 12)}…：${message.text.slice(0, 40)}${EOL}`)
-          const answer = await replier.reply(message.from, message.text)
-          await adapter.sendText(message.from, answer)
-          process.stdout.write(`[gyc gateway] 已回复：${answer.slice(0, 40)}${EOL}`)
+          try {
+            const answer = await replier.reply(message.from, message.text)
+            await adapter.sendText(message.from, answer)
+            process.stdout.write(`[gyc gateway] 已回复：${answer.slice(0, 40)}${EOL}`)
+          } catch (cause) {
+            // 单条消息的任何故障（LLM 抖动、发送失败、任务异常）绝不向上传播杀死守护
+            process.stdout.write(`[gyc gateway] 消息处理失败：${String(cause).slice(0, 200)}${EOL}`)
+            await adapter
+              .sendText(message.from, `处理该消息时出错，请稍后重试。原因：${String(cause).slice(0, 120)}`)
+              .catch(() => undefined)
+          }
         }, controller.signal)
         .catch((cause: unknown) => ({ error: String(cause) })),
     )
