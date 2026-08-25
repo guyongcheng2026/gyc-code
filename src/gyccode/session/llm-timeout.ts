@@ -1,4 +1,4 @@
-﻿import { Duration, Effect, Stream } from "effect"
+import { Duration, Effect, Stream } from "effect"
 
 /**
  * Idle timeout for LLM streaming responses.
@@ -29,8 +29,9 @@ export const LLM_FIRST_TOKEN_TIMEOUT_MS = 180_000 // 首个事件超时：连接
  * queued channels interpret that as load and reply slowly or reset, which is
  * the #1 cause of the idle-timeout errors seen in logs. Extra streams queue
  * for a permit instead of hammering the provider.
+ * （低内存机器默认 3，降低并发流内存压力；单会话用户可经 llm.max_concurrent_streams 调高）
  */
-export const LLM_MAX_CONCURRENT_STREAMS = 6
+export const LLM_MAX_CONCURRENT_STREAMS = 3
 
 /**
  * Resolve the effective stream idle timeout from config, falling back to the
