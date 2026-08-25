@@ -8,7 +8,7 @@ import { EOL } from "node:os"
 import process from "node:process"
 import { Effect } from "effect"
 import { effectCmd, fail } from "../effect-cmd"
-import { isPidAlive, resolveWeixinConfig, WeixinAdapter } from "@/gateway/weixin"
+import { isPidAlive, recordHeartbeat, resolveWeixinConfig, WeixinAdapter } from "@/gateway/weixin"
 import { Replier } from "@/gateway/reply"
 
 interface GatewayArgs {
@@ -75,6 +75,8 @@ export const GatewayCommand = effectCmd({
 
     const adapter = new WeixinAdapter()
     yield* Effect.promise(() => adapter.connect())
+    // 启动即登记心跳：后续实例的 detectGycHeartbeat 依此拦截，防多守护并存
+    yield* Effect.promise(() => recordHeartbeat())
     const replier = new Replier()
     const controller = new AbortController()
     const onSignal = () => {

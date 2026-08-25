@@ -89,6 +89,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   workflow: { load: () => import("./cli/cmd/workflow"), name: "WorkflowCommand" },
   send: { load: () => import("./cli/cmd/send"), name: "SendCommand" },
   gateway: { load: () => import("./cli/cmd/gateway"), name: "GatewayCommand" },
+  pair: { load: () => import("./cli/cmd/pair"), name: "PairCommand" },
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.

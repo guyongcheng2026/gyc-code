@@ -9,6 +9,7 @@ import { MCP } from "../mcp"
 import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
+import PROMPT_SKILL_CREATE from "./template/skill-create.txt"
 import { LegacyEvent } from "@gyccode/schema/legacy-event"
 
 type State = {
@@ -46,6 +47,7 @@ export function hints(template: string) {
 export const Default = {
   INIT: "init",
   REVIEW: "review",
+  SKILL_CREATE: "skill-create",
 } as const
 
 export interface Interface {
@@ -85,6 +87,16 @@ const layer = Layer.effect(
         },
         subtask: true,
         hints: hints(PROMPT_REVIEW),
+      }
+
+      commands[Default.SKILL_CREATE] = {
+        name: Default.SKILL_CREATE,
+        description: "创建可复用技能：引导生成 .gyccode/skills/<name>/SKILL.md（声明 --global 时写入全局技能目录）",
+        source: "command",
+        get template() {
+          return PROMPT_SKILL_CREATE
+        },
+        hints: hints(PROMPT_SKILL_CREATE),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

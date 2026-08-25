@@ -4,6 +4,7 @@
 // - 发送必须携带 context_token（用户向 bot 发消息后由服务端下发），过期报 ret=-2 "prepare failed"
 // - 收信走 getupdates 长轮询，游标 get_updates_buf 断点续传；消息顶层 context_token 即新凭证
 import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
@@ -34,16 +35,30 @@ interface WeixinConfig {
 const configError = () =>
   new GatewayError("unknown", "请在 ~/.gyc/.env 配置 GYC_WEIXIN_TOKEN 与 GYC_WEIXIN_ACCOUNT_ID 后重试")
 
-/** 从环境变量解析配置（~/.gyc/.env 由 CLI 入口预加载）。缺失即抛 GatewayError。 */
+/**
+ * 凭据直读 ~/.gyc/.env 文件本体，环境变量仅作回落。
+ * 根因防护：宿主 harness 会向子进程注入陈旧的环境快照（曾致新凭据被旧值遮蔽、
+ * 守护持续 -14 session timeout），故文件优先级必须高于继承环境。
+ */
 export function resolveWeixinConfig(): WeixinConfig {
-  const token = process.env.GYC_WEIXIN_TOKEN ?? ""
-  const accountId = process.env.GYC_WEIXIN_ACCOUNT_ID ?? ""
+  const fileEnv: Record<string, string> = {}
+  try {
+    for (const line of readFileSync(join(homedir(), ".gyc", ".env"), "utf-8").split(/\r?\n/)) {
+      const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line)
+      if (match) fileEnv[match[1]] = match[2].trim()
+    }
+  } catch {
+    // 文件缺失时回落纯环境变量
+  }
+  const pick = (key: string) => fileEnv[key] ?? process.env[key] ?? ""
+  const token = pick("GYC_WEIXIN_TOKEN")
+  const accountId = pick("GYC_WEIXIN_ACCOUNT_ID")
   if (!token || !accountId) throw configError()
   return {
     token,
     accountId,
-    baseUrl: (process.env.GYC_WEIXIN_BASE_URL || ILINK_BASE_URL).replace(/\/+$/, ""),
-    homeChannel: process.env.GYC_WEIXIN_HOME_CHANNEL || undefined,
+    baseUrl: (pick("GYC_WEIXIN_BASE_URL") || ILINK_BASE_URL).replace(/\/+$/, ""),
+    homeChannel: pick("GYC_WEIXIN_HOME_CHANNEL") || undefined,
   }
 }
 
@@ -107,7 +122,7 @@ export function splitWeixinText(text: string, limit = MAX_MESSAGE_LENGTH): strin
 }
 
 /** 心跳与陈旧进程检测：同一 bot token 不应被两个进程并发使用（hermes 孤儿网关教训）。 */
-async function recordHeartbeat(): Promise<string | null> {
+export async function recordHeartbeat(): Promise<string | null> {
   const previous = await readJson<{ pid: number; ts: number }>("heartbeat.json")
   const stale = previous && previous.pid !== process.pid && heartbeatPidAlive(previous.pid) ? `PID ${previous.pid}` : null
   await writeJson("heartbeat.json", { pid: process.pid, ts: Date.now() })
@@ -195,7 +210,9 @@ export class WeixinAdapter implements GatewayAdapter {
   async poll(onMessage: (message: GatewayMessage) => Promise<void>, abort: AbortSignal): Promise<void> {
     if (!this.config) throw new GatewayError("unknown", configError().message)
     this.running = true
-    let syncBuf = ((await readJson<{ buf?: string }>("sync-buf.json"))?.buf) ?? ""
+    // 游标按账号归属校验：换号后沿用旧游标会触发服务端 -14 会话超时
+    const stored = await readJson<{ accountId?: string; buf?: string }>("sync-buf.json")
+    let syncBuf = stored?.accountId === this.config.accountId ? (stored.buf ?? "") : ""
     while (this.running && !abort.aborted) {
       const response = await apiPost(this.config, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
         (cause: GatewayError) => cause,
@@ -210,11 +227,17 @@ export class WeixinAdapter implements GatewayAdapter {
         response.errcode as number | undefined,
         String(response.errmsg ?? ""),
       )
-      if (failure?.kind === "session_expired") throw failure
+      if (failure) {
+        // 诊断可见性：原始响应落日志，杜绝静默失败
+        console.warn(`[gyc gateway] getupdates 异常响应: ${JSON.stringify(response).slice(0, 300)}`)
+        if (failure.kind === "session_expired") throw failure
+        await sleep(2_000)
+        continue
+      }
       const nextBuf = String(response.get_updates_buf ?? "")
       if (nextBuf && nextBuf !== syncBuf) {
         syncBuf = nextBuf
-        await writeJson("sync-buf.json", { buf: syncBuf }).catch(() => undefined)
+        await writeJson("sync-buf.json", { accountId: this.config.accountId, buf: syncBuf }).catch(() => undefined)
       }
       for (const raw of (response.msgs as Array<Record<string, unknown>> | undefined) ?? []) {
         const senderId = String(raw.from_user_id ?? raw.sender_id ?? "")

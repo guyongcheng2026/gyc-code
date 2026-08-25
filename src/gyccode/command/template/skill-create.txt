@@ -1,0 +1,37 @@
+Create a new GycCode skill so future sessions can discover and reuse this capability.
+
+User request (skill name and/or purpose):
+$ARGUMENTS
+
+## Procedure
+
+1. Derive the skill name: lowercase kebab-case (`[a-z0-9-]`), short and descriptive. If the user gave a name, normalize it; otherwise pick one from the stated purpose and state your choice explicitly.
+2. Decide the target location:
+   - Default: project-local `.gyccode/skills/<name>/SKILL.md`
+   - Use the global config directory (`~/.config/gyccode/skills/<name>/SKILL.md`) only when the user explicitly asks for a global/personal skill or the capability is clearly project-independent.
+3. Write `SKILL.md` with YAML frontmatter containing exactly two fields:
+
+   ```yaml
+   ---
+   name: <name>
+   description: <one sentence: what it does and when to use it>
+   ---
+   ```
+
+4. Body sections, in order:
+   - **When to use** — trigger conditions, matched against the current task.
+   - **Steps** — numbered, executable, with exact commands and paths.
+   - **Examples** — at least one concrete input/output pair.
+   - **Boundaries** — prerequisites, what it must not do, failure modes.
+5. Keep the body under ~80 lines. A skill is an instruction for an agent, not documentation: every line should change agent behavior. When in doubt, omit.
+6. Check the existing skill directories first (`.gyccode/skills/`, global skills). If a similar skill exists, prefer improving it in place over creating a near-duplicate; say so if you take that path.
+
+## Rules
+
+- Never store secrets, tokens, or API keys inside a skill.
+- Reference helper scripts by relative path from the skill's base directory; create them only when inline steps are impractical.
+- Do not modify any file outside the new skill directory.
+
+## Finish
+
+Report: created file path, chosen name, and one line on how it becomes available (discovered on the next session start; invocable via the skill tool / available-skills list).
