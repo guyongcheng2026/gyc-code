@@ -87,6 +87,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   memory: { load: () => import("./cli/cmd/memory"), name: "MemoryCommand" },
   db: { load: () => import("./cli/cmd/db"), name: "DbCommand" },
   workflow: { load: () => import("./cli/cmd/workflow"), name: "WorkflowCommand" },
+  send: { load: () => import("./cli/cmd/send"), name: "SendCommand" },
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.
