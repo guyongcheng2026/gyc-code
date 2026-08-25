@@ -175,13 +175,32 @@ const appBindingCommands = [
 export type TuiInput = {
   url: string
   args: Args
-  config: TuiConfig.Resolved
+  /** 配置以 Promise 注入：首帧骨架屏不等配置，就绪后由 <Show> 切换完整应用树 */
+  config: Promise<TuiConfig.Resolved>
   onSnapshot?: () => Promise<string[]>
   directory?: string
   fetch?: typeof fetch
   headers?: RequestInit["headers"]
   events?: EventSource
   pluginHost: TuiPluginHost
+}
+
+// 骨架启动屏：零 Provider 依赖（此阶段 config/theme/KV 均未就绪），
+// 仅覆盖 TuiConfig 获取窗口，配置到达后由 <Show> 卸载、完整树接管。
+const BOOT_SPIN = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+
+function BootSplash() {
+  const [frame, setFrame] = createSignal(0)
+  const timer = setInterval(() => setFrame((f) => (f + 1) % BOOT_SPIN.length), 120).unref()
+  onCleanup(() => clearInterval(timer))
+  return (
+    <box position="absolute" zIndex={5000} left={0} top={0} right={0} bottom={0} justifyContent="center" alignItems="center">
+      <box flexDirection="row" gap={1}>
+        <text>{BOOT_SPIN[frame()]}</text>
+        <text>gyc 正在启动…</text>
+      </box>
+    </box>
+  )
 }
 
 function errorMessage(error: unknown) {
@@ -227,6 +246,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32EnableUtf8Console()
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
+      // 骨架屏并行化：config 由调用方以 Promise 注入（与 worker/effect 模块加载
+      // 并行获取）。首帧只渲染零 config 依赖的骨架层，配置到达后 <Show> 切换
+      // 完整应用树——TuiConfig.get() 实测约 1.2s，不再挡住首帧。
+      const [config, setConfig] = createSignal<TuiConfig.Resolved | undefined>(undefined)
       const renderer = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: () =>
@@ -238,7 +261,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               useKittyKeyboard: {},
               autoFocus: false,
               openConsoleOnError: false,
-              useMouse: !Flag.GYCCODE_DISABLE_MOUSE && input.config.mouse,
+              // 骨架期先关闭；配置到达后经 renderer.useMouse setter 运行时补启
+              useMouse: false,
               consoleOptions: {
                 keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
               },
@@ -255,9 +279,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       )
       yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
       const keymap = createDefaultOpenTuiKeymap(renderer)
-      yield* Effect.acquireRelease(
-        Effect.sync(() => registerGyccodeKeymap(keymap, renderer, input.config)),
-        (unregister) => Effect.sync(unregister),
+      // keymap 绑定中 leader/输入层需要 config，注册延迟到 config 就绪 fiber；
+      // 卸载仍由 scope finalizer 保证。
+      let keymapOff: (() => void) | undefined
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          keymapOff?.()
+        }),
       )
       yield* Effect.addFinalizer(() =>
         Effect.promise(async () => {
@@ -285,6 +313,36 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       )
       renderer.once("destroy", () => Deferred.doneUnsafe(shutdown, Effect.void))
       const pluginRuntime = createPluginRuntime()
+
+      // config 就绪 fiber：切换完整应用树 + 运行时补启鼠标 + 注册 keymap 绑定。
+      // 配置读取失败（理论罕见：TuiConfig.get 内部已兜底降级）或应用阶段出错
+      // 都走退出报错路径——fork fiber 的 defect 不会自动传播，必须显式兜底，
+      // 与旧版"get() throw → handler 报错退出"语义对齐。
+      yield* Effect.forkScoped(
+        Effect.tryPromise(async () => {
+          let resolved: TuiConfig.Resolved
+          try {
+            resolved = await input.config
+          } catch (error) {
+            if (!renderer.isDestroyed) {
+              exit.reason = error
+              destroyRenderer(renderer)
+            }
+            return
+          }
+          try {
+            if (renderer.isDestroyed) return
+            tuiTiming("tui config arrived (post-first-frame)")
+            setConfig(resolved)
+            if (!Flag.GYCCODE_DISABLE_MOUSE && resolved.mouse) renderer.useMouse = true
+            keymapOff = registerGyccodeKeymap(keymap, renderer, resolved)
+          } catch (error) {
+            console.error("Failed to apply TUI config after splash", error)
+            exit.reason = error
+            if (!renderer.isDestroyed) destroyRenderer(renderer)
+          }
+        }),
+      )
 
       yield* Effect.tryPromise(async () => {
         // 固定 dark 模式立即渲染，避免等待终端主题探测导致启动闪烁；手动切换由 theme_mode_lock 记住并优先。
@@ -327,69 +385,73 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                           skipInitialLoading: Boolean(process.env.GYCCODE_FAST_BOOT),
                         }}
                       >
-                        <ClipboardProvider>
-                          <GyccodeKeymapProvider keymap={keymap}>
-                            <ArgsProvider {...input.args}>
-                              <KVProvider>
-                                <ToastProvider>
-                                  <RouteProvider
-                                    initialRoute={
-                                      input.args.continue
-                                        ? {
-                                            type: "session",
-                                            sessionID: "dummy",
-                                          }
-                                        : undefined
-                                    }
-                                  >
-                                    <TuiConfigProvider config={input.config}>
-                                      <PluginRuntimeProvider value={pluginRuntime}>
-                                        <SDKProvider
-                                          url={input.url}
-                                          directory={input.directory}
-                                          fetch={input.fetch}
-                                          headers={input.headers}
-                                          events={input.events}
-                                        >
-                                          <PermissionProvider>
-                                            <ProjectProvider>
-                                              <SyncProvider>
-                                                <DataProvider>
-                                                  <ThemeProvider mode={mode}>
-                                                    <LocalProvider>
-                                                      <PromptStashProvider>
-                                                        <DialogProvider>
-                                                          <FrecencyProvider>
-                                                            <PromptHistoryProvider>
-                                                              <PromptRefProvider>
-                                                                <EditorContextProvider>
-                                                                  <LocationProvider>
-                                                                    <App
-                                                                      onSnapshot={input.onSnapshot}
-                                                                      pluginHost={input.pluginHost}
-                                                                    />
-                                                                  </LocationProvider>
-                                                                </EditorContextProvider>
-                                                              </PromptRefProvider>
-                                                            </PromptHistoryProvider>
-                                                          </FrecencyProvider>
-                                                        </DialogProvider>
-                                                      </PromptStashProvider>
-                                                    </LocalProvider>
-                                                  </ThemeProvider>
-                                                </DataProvider>
-                                              </SyncProvider>
-                                            </ProjectProvider>
-                                          </PermissionProvider>
-                                        </SDKProvider>
-                                      </PluginRuntimeProvider>
-                                    </TuiConfigProvider>
-                                  </RouteProvider>
-                                </ToastProvider>
-                              </KVProvider>
-                            </ArgsProvider>
-                          </GyccodeKeymapProvider>
-                        </ClipboardProvider>
+                        <Show when={config()} keyed fallback={<BootSplash />}>
+                          {(c) => (
+                            <ClipboardProvider>
+                              <GyccodeKeymapProvider keymap={keymap}>
+                                <ArgsProvider {...input.args}>
+                                  <KVProvider>
+                                    <ToastProvider>
+                                      <RouteProvider
+                                        initialRoute={
+                                          input.args.continue
+                                            ? {
+                                                type: "session",
+                                                sessionID: "dummy",
+                                              }
+                                            : undefined
+                                        }
+                                      >
+                                        <TuiConfigProvider config={c}>
+                                          <PluginRuntimeProvider value={pluginRuntime}>
+                                            <SDKProvider
+                                              url={input.url}
+                                              directory={input.directory}
+                                              fetch={input.fetch}
+                                              headers={input.headers}
+                                              events={input.events}
+                                            >
+                                              <PermissionProvider>
+                                                <ProjectProvider>
+                                                  <SyncProvider>
+                                                    <DataProvider>
+                                                      <ThemeProvider mode={mode}>
+                                                        <LocalProvider>
+                                                          <PromptStashProvider>
+                                                            <DialogProvider>
+                                                              <FrecencyProvider>
+                                                                <PromptHistoryProvider>
+                                                                  <PromptRefProvider>
+                                                                    <EditorContextProvider>
+                                                                      <LocationProvider>
+                                                                        <App
+                                                                          onSnapshot={input.onSnapshot}
+                                                                          pluginHost={input.pluginHost}
+                                                                        />
+                                                                      </LocationProvider>
+                                                                    </EditorContextProvider>
+                                                                  </PromptRefProvider>
+                                                                </PromptHistoryProvider>
+                                                              </FrecencyProvider>
+                                                            </DialogProvider>
+                                                          </PromptStashProvider>
+                                                        </LocalProvider>
+                                                      </ThemeProvider>
+                                                    </DataProvider>
+                                                  </SyncProvider>
+                                                </ProjectProvider>
+                                              </PermissionProvider>
+                                            </SDKProvider>
+                                          </PluginRuntimeProvider>
+                                        </TuiConfigProvider>
+                                      </RouteProvider>
+                                    </ToastProvider>
+                                  </KVProvider>
+                                </ArgsProvider>
+                              </GyccodeKeymapProvider>
+                            </ClipboardProvider>
+                          )}
+                        </Show>
                       </TuiStartupProvider>
                     </TuiTerminalEnvironmentProvider>
                   </TuiPathsProvider>

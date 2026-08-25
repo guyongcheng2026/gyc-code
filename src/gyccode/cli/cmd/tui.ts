@@ -170,11 +170,10 @@ export const TuiThreadCommand = cmd({
 
       const prompt = await input(args.prompt)
       tuiTiming("prompt resolved")
-      // worker 启动期间已完成部分模块加载，此时再取 TUI 配置
-      const { TuiConfig } = await import("@/config/tui")
-      const config = await TuiConfig.get()
-      tuiTiming("tui config loaded")
-
+      // 骨架屏并行化：config 获取（模块加载 + 读取解析，实测 ~1.2s）提前 fire
+      // 但不 await——与 worker 模块求值、effect/layer 加载并行；Promise 注入
+      // TUI 后由首帧骨架屏过渡，配置到达再切换完整树。
+      const configPromise = import("@/config/tui").then((m) => m.TuiConfig.get())
       const network = resolveNetworkOptionsNoConfig(args)
       const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
 
@@ -233,7 +232,7 @@ export const TuiThreadCommand = cmd({
               const server = await client.call("snapshot", undefined)
               return [tui, server]
             },
-            config,
+            config: configPromise,
             pluginHost: createLegacyTuiPluginHost(),
             directory: cwd,
             fetch: transport.fetch,
