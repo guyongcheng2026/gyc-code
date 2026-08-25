@@ -55,11 +55,23 @@ let server: Listener | undefined
 // 懒加载模块缓存：按需动态 import，避免 worker 启动即加载 server/instance/effect
 // 全家桶，显著降低常驻内存（低内存机器实测 worker+主进程可省数百 MB）。
 // 一旦加载即缓存，后续同步返回，不重复开销。
+const LAZY_MODULES: Record<string, () => Promise<unknown>> = {
+  '@/project/instance-runtime': () => import('@/project/instance-runtime'),
+  '@/server/server': () => import('@/server/server'),
+  '@/server/auth': () => import('@/server/auth'),
+  '@/cli/upgrade': () => import('@/cli/upgrade'),
+  '@/effect/app-runtime': () => import('@/effect/app-runtime'),
+  '@/config/config': () => import('@/config/config'),
+  '@/server/global-lifecycle': () => import('@/server/global-lifecycle'),
+}
+
 const modCache = new Map<string, Promise<unknown>>()
 function importMod<T>(spec: string): Promise<T> {
+  const loader = LAZY_MODULES[spec]
+  if (!loader) return Promise.reject(new Error(`Unknown lazy module: ${spec}`))
   let p = modCache.get(spec)
   if (!p) {
-    p = import(spec).then(
+    p = loader().then(
       (m) => m as T,
       (error) => {
         modCache.delete(spec)
