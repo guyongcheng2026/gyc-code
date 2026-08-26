@@ -116,7 +116,11 @@ export function createSolidTransformPlugin(input: CreateSolidTransformPluginOpti
         const path = sourcePath(args.path)
         const code = readFileSync(path, "utf-8")
         const runtime = getSolidTransformRuntime()
-        const moduleName = input.moduleName ?? runtime.moduleName ?? "@opentui/solid"
+        // S1 JSX 分流：fallback 渲染器的 Solid 组件（src/tui/fallback 下）绑定
+        // 自研 reconciler 的 jsx-runtime（#fallback-solid 别名，见 package.json
+        // imports + tsconfig paths）；其余文件维持 @opentui/solid 不变。
+        const inFallback = /[/\\]src[/\\]tui[/\\]fallback[/\\]/.test(path)
+        const moduleName = input.moduleName ?? runtime.moduleName ?? (inFallback ? "#fallback-solid" : "@opentui/solid")
         const resolvePath = input.resolvePath ?? runtime.resolvePath
         const plugins = resolvePath
           ? [

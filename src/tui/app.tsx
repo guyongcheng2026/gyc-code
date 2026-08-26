@@ -252,8 +252,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
       // S0 显式 fallback 通道（R1：默认 auto 不走此分支）：GYC_TUI_BACKEND=fallback
-      // 跳过 opentui 创建，直接进入自研渲染后端安全模式。S0 预览形态为
-      // 消息流+单行输入；完整组件桥接（Solid reconciler 替代）属 S1 范畴。
+      // 跳过 opentui 创建，运行自研渲染后端。S1 起升级为 Solid 组件树会话视图
+      // （runFallbackApp）；崩溃降级路径仍走 DemoApp 安全模式。
       if (isExplicitFallback()) {
         yield* Effect.promise(async () => {
           void mkdir(global.log, { recursive: true })
@@ -264,10 +264,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               ),
             )
             .catch(() => {})
-          const { runFallbackSafeMode } = await import("./fallback/safe-mode")
-          await runFallbackSafeMode({
-            error: new Error("GYC_TUI_BACKEND=fallback：自研渲染后端 S0 预览（消息流 + 单行输入）"),
-          })
+          const { runFallbackApp } = await import("./fallback/run-app")
+          await runFallbackApp()
         })
         return { epilogue: exit.epilogue, reason: exit.reason }
       }

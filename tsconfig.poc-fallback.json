@@ -7,7 +7,11 @@
     "noEmit": true,
     "skipLibCheck": true,
     "types": ["bun"],
-    "jsx": "preserve"
+    "jsx": "preserve",
+    "paths": {
+      "#fallback-solid": ["./src/tui/fallback/solid/index.ts"],
+      "#fallback-solid/*": ["./src/tui/fallback/solid/*"]
+    }
   },
   "files": [
     "src/tui/fallback/screen.ts",
@@ -28,6 +32,15 @@
     "src/tui/fallback/renderer-backend.ts",
     "src/tui/fallback/renderer-backend-adapters.ts",
     "src/tui/fallback/renderer-backend.test.ts",
+    "src/tui/fallback/solid/nodes.ts",
+    "src/tui/fallback/solid/paint.ts",
+    "src/tui/fallback/solid/renderer.ts",
+    "src/tui/fallback/solid/jsx-runtime.ts",
+    "src/tui/fallback/solid/components.tsx",
+    "src/tui/fallback/solid/index.ts",
+    "src/tui/fallback/solid/solid.test.tsx",
+    "src/tui/fallback/app.tsx",
+    "src/tui/fallback/run-app.ts",
     "scripts/tui-fallback-demo.ts",
     "scripts/tui-fallback-bench.ts"
   ]
