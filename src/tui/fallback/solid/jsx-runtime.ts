@@ -81,6 +81,8 @@ export interface TextareaProps extends LayoutProps {
 	/** 光标位置（逻辑行/列） */
 	cursorRow?: number
 	cursorCol?: number
+	/** 光标可见性（闪烁的"灭"相位传 false） */
+	cursorVisible?: boolean
 	/** 元素挂载回调（renderer 的 ref 特判） */
 	ref?: (node: FallbackNode) => void
 }

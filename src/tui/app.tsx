@@ -252,8 +252,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
       // S0 显式 fallback 通道（R1：默认 auto 不走此分支）：GYC_TUI_BACKEND=fallback
-      // 跳过 opentui 创建，运行自研渲染后端。S1 起升级为 Solid 组件树会话视图
-      // （runFallbackApp）；崩溃降级路径仍走 DemoApp 安全模式。
+      // 跳过 opentui 创建，运行自研渲染后端。S1 起为 Solid 组件树会话视图，
+      // transport 齐备时接线真实会话引擎（ChatBridge）；崩溃降级走 DemoApp。
       if (isExplicitFallback()) {
         yield* Effect.promise(async () => {
           void mkdir(global.log, { recursive: true })
@@ -265,7 +265,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             )
             .catch(() => {})
           const { runFallbackApp } = await import("./fallback/run-app")
-          await runFallbackApp()
+          await runFallbackApp({
+            transport:
+              input.events && input.fetch
+                ? { url: input.url, fetch: input.fetch, headers: input.headers, events: input.events }
+                : undefined,
+            directory: input.directory,
+          })
         })
         return { epilogue: exit.epilogue, reason: exit.reason }
       }

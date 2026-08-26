@@ -139,6 +139,7 @@ export class FallbackRenderer {
 	private scheduled = false
 	private started = false
 	private offResize: (() => void) | undefined
+	private resizeRepaint: (() => void) | undefined
 
 	constructor(private readonly backend: TerminalBackend) {
 		this.screen = new Screen(backend.getWidth(), backend.getHeight())
@@ -156,6 +157,17 @@ export class FallbackRenderer {
 	/** 订阅终端 resize 事件（对外暴露，供抽象层使用）。 */
 	onResize(cb: () => void): () => void {
 		return this.backend.onResize(cb)
+	}
+
+	/**
+	 * 注册 resize 重绘钩子（S1 slice 2：消除旧布局闪帧）。
+	 *
+	 * 无钩子时 handleResize 直接输出 resize 后的旧内容（布局未更新，可感知
+	 * 闪帧）；有钩子时先执行钩子（消费者重布局重写 Screen 内容），再全量
+	 * 输出——始终输出新布局，无双帧。
+	 */
+	setResizeRepaint(cb: () => void): void {
+		this.resizeRepaint = cb
 	}
 
 	getWidth(): number {
@@ -206,6 +218,13 @@ export class FallbackRenderer {
 		if (!this.started) return
 		this.screen.resize(this.backend.getWidth(), this.backend.getHeight())
 		this.prevScreen = undefined
+		if (this.resizeRepaint) {
+			// 有消费者钩子：先重布局重写内容，再输出（无闪帧）
+			this.screen.clear()
+			try {
+				this.resizeRepaint()
+			} catch {}
+		}
 		this.flushFull()
 	}
 

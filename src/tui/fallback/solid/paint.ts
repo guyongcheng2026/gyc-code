@@ -287,6 +287,8 @@ function paintTextarea(el: ElementNode, screen: Screen, clip: LayoutRect): void 
 	const rows = wrapTextareaLines(lines, rect.width)
 	const cursorRow = typeof el.props.cursorRow === "number" ? el.props.cursorRow : 0
 	const cursorCol = typeof el.props.cursorCol === "number" ? el.props.cursorCol : 0
+	// 光标可见性（S1 slice 2：闪烁支持——visible=false 时跳过反白光标块）
+	const cursorVisible = el.props.cursorVisible !== false
 	const style = styleOf(el)
 	// 光标可见性滚动：光标强制保持在视口内（贴底收敛）
 	const cursorPos = cursorDisplayPos(rows, cursorRow, cursorCol)
@@ -296,15 +298,17 @@ function paintTextarea(el: ElementNode, screen: Screen, clip: LayoutRect): void 
 		if (y < innerClip.y || y >= innerClip.y + innerClip.height) return
 		screen.writeText(rect.x, y, clipLine(row.text, rect.width), style ?? {})
 	})
-	// 光标反白
-	const cursorY = rect.y + cursorPos.dispRow - scrollOffset
-	if (cursorY >= innerClip.y && cursorY < innerClip.y + innerClip.height) {
-		const cursorLine = rows[cursorPos.dispRow]?.text ?? ""
-		const prefix = cursorLine.slice(0, cursorPos.dispCol)
-		const x = rect.x + textDisplayWidth(prefix)
-		const ch = cursorLine.slice(cursorPos.dispCol, cursorPos.dispCol + 1) || " "
-		if (x < innerClip.x + innerClip.width) {
-			screen.writeText(x, cursorY, ch, { ...(style ?? {}), reverse: true })
+	// 光标反白（cursorVisible=false 时隐藏——闪烁的"灭"相位）
+	if (cursorVisible) {
+		const cursorY = rect.y + cursorPos.dispRow - scrollOffset
+		if (cursorY >= innerClip.y && cursorY < innerClip.y + innerClip.height) {
+			const cursorLine = rows[cursorPos.dispRow]?.text ?? ""
+			const prefix = cursorLine.slice(0, cursorPos.dispCol)
+			const x = rect.x + textDisplayWidth(prefix)
+			const ch = cursorLine.slice(cursorPos.dispCol, cursorPos.dispCol + 1) || " "
+			if (x < innerClip.x + innerClip.width) {
+				screen.writeText(x, cursorY, ch, { ...(style ?? {}), reverse: true })
+			}
 		}
 	}
 }

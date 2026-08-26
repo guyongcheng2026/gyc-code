@@ -98,7 +98,8 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 
 /**
  * 挂载 Solid 组件树到 fallback 渲染器。返回 dispose（卸载并停用全局绑定）。
- * 期间树变更自动微任务重绘；resize 触发全量重布局。
+ * 期间树变更自动微任务重绘；resize 经 setResizeRepaint 同步重布局后输出
+ * （S1 slice 2：消除旧布局中间帧）。
  *
  * app 返回值类型放宽：JSX 值可能是节点、组件 thunk 或数组
  * （与 SolidJSX.Element 联合对齐，运行时由 insert 归一化）。
@@ -106,11 +107,16 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 export function renderRoot(app: () => unknown, renderer: FallbackRenderer): () => void {
 	activeRenderer = renderer
 	rootElement = createElementNode("root")
-	const offResize = renderer.onResize(() => markDirty())
+	renderer.setResizeRepaint(() => {
+		if (rootElement === undefined) return
+		const screen = renderer.currentScreen
+		layoutTree(rootElement, screen.width, screen.height)
+		paintTree(rootElement, screen)
+	})
 	const disposeTree = solid.render(app as () => FallbackNode, rootElement)
 	return () => {
 		disposeTree()
-		offResize()
+		renderer.setResizeRepaint(() => {})
 		rootElement = undefined
 		activeRenderer = undefined
 	}

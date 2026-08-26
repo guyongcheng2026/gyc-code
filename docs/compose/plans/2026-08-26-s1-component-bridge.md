@@ -44,7 +44,19 @@
 - 已知边界（记入 slice 2）：resize 时 FallbackRenderer.flushFull 先于重布局输出一次空帧（可感知闪烁）；
   Textarea 光标强制可见滚动（贴底收敛模式）；无光标闪烁动画；无鼠标/选区
 
-## 六、测试命令变更（重要）
+## 六、slice 2 交付（2026-08-26）
+
+- **resize 闪帧根治**：`FallbackRenderer.setResizeRepaint(cb)`——handleResize 时消费者先重布局重写 Screen 再全量输出，始终输出新布局，无旧布局中间帧；renderRoot 注册钩子（替代裸 onResize + 微任务）
+- **光标闪烁**：paint 层 textarea 支持 `cursorVisible`（false 跳过反白光标）；FallbackApp 500ms 相位切换 + 键入重置相位（恒亮 500ms 再起闪）
+- **会话引擎桥**（`chat-bridge.ts`）：ChatRow 流 + send()；
+  - `createGyccodeClient` + EventSource 桥接；无会话先 `session.create({directory})`，`session.prompt({parts})` 发送
+  - 事件：`message.updated` 记 role（user part 跳过——本地已回显）；`message.part.updated` 按 partID upsert（text=助手行 / reasoning=思考行截断 / tool=工具行+状态）；delta 流事件忽略（part.updated 累计文本足够）
+  - wire 事件解包（GlobalEvent = {directory, payload}）
+  - `clientOverride` 测试注入口（协议子集 ChatClientLike）
+- **接线**：主 app.tsx fallback 分支传 `input.fetch/events/url/headers/directory`；桥创建失败降级本地回显
+- 验收：fallback 全量 **78 pass / 0 fail**（slice2 新增 7）；scoped tsc 0 错误；lint 0 错误
+
+## 七、测试命令变更（重要）
 
 fallback 目录含 .tsx 后，测试必须带 solid 转译 preload：
 

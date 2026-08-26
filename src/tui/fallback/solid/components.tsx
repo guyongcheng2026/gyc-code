@@ -78,6 +78,8 @@ export interface TextareaProps {
 	height?: number
 	style?: LayoutProps["style"]
 	onSubmit?: (text: string) => void
+	/** 光标可见性（闪烁驱动：run-app 层 setInterval 切换；默认恒可见） */
+	cursorVisible?: boolean
 	ref?: (api: TextareaApi) => void
 }
 
@@ -181,6 +183,7 @@ export function Textarea(props: TextareaProps): JSX.Element {
 			lines={lines()}
 			cursorRow={cursor().row}
 			cursorCol={cursor().col}
+			cursorVisible={props.cursorVisible}
 		/>
 	)
 }
