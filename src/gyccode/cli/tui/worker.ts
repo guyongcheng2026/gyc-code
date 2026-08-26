@@ -40,7 +40,26 @@ const logWorkerCrash = (() => {
 
 const onUnhandledRejection = (error: unknown) => logWorkerCrash("unhandledRejection", error)
 
-const onUncaughtException = (error: Error) => logWorkerCrash("uncaughtException", error)
+// 堆超限（resourceLimits.maxOldGenerationSizeMb 触发）抛出的 RangeError：
+// 堆已满且无法回收，继续存活只会进入"每次分配都抛异常 + GC 风暴"的性能死
+// 区。主动退出（退出码 12），让主进程按 worker-exit 自动重启链路自愈——
+// 新 worker 堆从零开始，会话状态经 InstanceStore 从磁盘恢复。
+const WORKER_OOM_EXIT_CODE = 12
+const isHeapOOM = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error)
+  return (
+    message.includes("heap out of memory") ||
+    message.includes("JavaScript heap out of memory") ||
+    message.includes("Array buffer allocation failed")
+  )
+}
+
+const onUncaughtException = (error: Error) => {
+  logWorkerCrash("uncaughtException", error)
+  if (isHeapOOM(error)) {
+    process.exit(WORKER_OOM_EXIT_CODE)
+  }
+}
 
 process.on("unhandledRejection", onUnhandledRejection)
 process.on("uncaughtException", onUncaughtException)
@@ -66,19 +85,33 @@ const LAZY_MODULES: Record<string, () => Promise<unknown>> = {
 }
 
 const modCache = new Map<string, Promise<unknown>>()
+const MOD_CACHE_TTL = 5 * 60 * 1000 // 5分钟
+const modCacheTimestamps = new Map<string, number>()
 function importMod<T>(spec: string): Promise<T> {
   const loader = LAZY_MODULES[spec]
   if (!loader) return Promise.reject(new Error(`Unknown lazy module: ${spec}`))
+  
+  // 清理过期缓存
+  const now = Date.now()
+  for (const [key, timestamp] of modCacheTimestamps.entries()) {
+    if (now - timestamp > MOD_CACHE_TTL) {
+      modCache.delete(key)
+      modCacheTimestamps.delete(key)
+    }
+  }
+  
   let p = modCache.get(spec)
   if (!p) {
     p = loader().then(
       (m) => m as T,
       (error) => {
         modCache.delete(spec)
+        modCacheTimestamps.delete(spec)
         throw error
       },
     )
     modCache.set(spec, p)
+    modCacheTimestamps.set(spec, Date.now())
   }
   return p as Promise<T>
 }

@@ -15,11 +15,56 @@ const ENV_FILES = [
   join(homedir(), ".codex", ".env"),
   join(process.cwd(), ".env"),
 ]
+// 禁止注入的危险环境变量（影响子进程行为、安全边界）
+const BLOCKLISTED_ENVS = new Set([
+  "PATH",
+  "NODE_OPTIONS",
+  "NODE_EXTRA_CA_CERTS",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "REQUESTS_CA_BUNDLE",
+  "CURL_CA_BUNDLE",
+  "PYTHONPATH",
+  "PYTHONHOME",
+  "LD_PRELOAD",
+  "LD_LIBRARY_PATH",
+  "DYLD_INSERT_LIBRARIES",
+  "DYLD_LIBRARY_PATH",
+  "PS1",
+  "PS2",
+  "PS4",
+  "IFS",
+  "ENV",
+  "BASH_ENV",
+])
 for (const file of ENV_FILES) {
   if (!existsSync(file)) continue
-  for (const line of readFileSync(file, "utf-8").split(/\r?\n/)) {
-    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line)
+  for (const rawLine of readFileSync(file, "utf-8").split(/\r?\n/)) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith("#")) continue // 跳过空行和注释
+    // 支持行内注释：KEY=value # comment 或 KEY=value#comment
+    // 找到第一个不在引号内的 # 字符
+    let hashIdx = -1
+    let inQuote = false
+    let quoteChar = ""
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (!inQuote && (ch === '"' || ch === "'")) {
+        inQuote = true
+        quoteChar = ch
+      } else if (inQuote && ch === quoteChar) {
+        inQuote = false
+        quoteChar = ""
+      } else if (!inQuote && ch === "#") {
+        hashIdx = i
+        break
+      }
+    }
+    const cleanLine = hashIdx >= 0 ? line.slice(0, hashIdx).trim() : line
+    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(cleanLine)
     if (!m || process.env[m[1]] !== undefined) continue
+    const key = m[1]
+    if (BLOCKLISTED_ENVS.has(key)) continue // 阻断危险环境变量注入
     // 贪婪 (.*) 会吞掉行尾空白，先 trim；再按 dotenv 惯例剥离成对首尾引号
     // （API_KEY="sk-xxx" → sk-xxx），否则引号会原样进入环境变量导致认证失败
     let value = m[2].trim()
@@ -29,7 +74,7 @@ for (const file of ENV_FILES) {
     ) {
       value = value.slice(1, -1)
     }
-    process.env[m[1]] = value
+    process.env[key] = value
   }
 }
 // Windows conhost 默认按系统 ANSI 代码页（如 936/GBK）解码 UTF-8 字节流，
@@ -214,10 +259,4 @@ try {
     process.stderr.write(errorMessage(e) + EOL)
   }
   process.exitCode = 1
-} finally {
-  // Some subprocesses don't react properly to SIGTERM and similar signals.
-  // Most notably, some docker-container-based MCP servers don't handle such signals unless
-  // run using `docker run --init`.
-  // Explicitly exit to avoid any hanging subprocesses.
-  process.exit()
 }

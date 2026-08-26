@@ -1,6 +1,9 @@
 import { win32KernelLoader } from "#win32-kernel"
 import type { Win32Kernel } from "./win32-kernel"
 import type { ReadStream } from "node:tty"
+import { mkdir, appendFile } from "node:fs/promises"
+import { join } from "node:path"
+import { Global } from "@gyccode/core/global"
 
 const STD_INPUT_HANDLE = -10
 const ENABLE_PROCESSED_INPUT = 0x0001
@@ -92,7 +95,7 @@ export function utf8GuardMismatches(): number {
   return utf8GuardMismatchCount
 }
 
-export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
+export function win32InstallUtf8ConsoleGuard(intervalMs = 2000): () => void {
   if (process.platform !== "win32") return () => {}
   if (!isConsoleAttached()) return () => {}
   // 不在这里提前 load()，改为在每次回调中重试，避免句柄失效导致后续无效
@@ -108,8 +111,8 @@ export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
         // 静默吞掉异常，保证定时器持续运行
       }
     }, intervalMs)
-    // 故意不调用 unref()：让定时器持有进程，确保回调必定执行；
-    // 退出时由 Effect finalizer 调用返回的清理函数 clearInterval 释放。
+    // 添加 unref()：防止定时器阻塞进程正常退出
+    interval.unref()
     utf8GuardTimer = interval
   }
   utf8GuardRefs += 1
@@ -216,7 +219,8 @@ export function win32InstallCtrlCGuard() {
       // 静默吞掉异常，保证定时器持续运行
     }
   }, 2000)
-  // 故意不调用 unref()：同 win32InstallUtf8ConsoleGuard，由 finalizer 清理。
+  // 添加 unref()：防止定时器阻塞进程正常退出
+  interval.unref()
 
   let done = false
   unhook = () => {
@@ -269,11 +273,24 @@ export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () =
   // 不提前 load()，改为在回调中重试
   const timer = setInterval(() => {
     try {
-      if (load() && !win32HasConsole()) onClose()
+      if (load() && !win32HasConsole()) {
+        // 新增：记录终端关闭检测，便于诊断误报（如控制台句柄临时失效）
+        const logDir = Global.Path.log
+        void mkdir(logDir, { recursive: true })
+          .then(() =>
+            appendFile(
+              join(logDir, "gyccode.log"),
+              `timestamp=${new Date().toISOString()} level=Info run=main terminal-close-detected\n`,
+            ),
+          )
+          .catch(() => {})
+        onClose()
+      }
     } catch {
       // 静默吞掉异常，保证定时器持续运行
     }
   }, intervalMs)
-  // 故意不调用 unref()：由调用者的 finalizer 清理。
+  // 添加 unref()：防止定时器阻塞进程正常退出
+  timer.unref()
   return () => clearInterval(timer)
 }

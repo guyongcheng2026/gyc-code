@@ -112,7 +112,26 @@ const layer = Layer.effect(
         }),
       )
 
+    // 允许的包名模式：仅允许标准 npm 包名（可选 scope + 名称），禁止 file:/ git:/ 本地路径
+    const SAFE_PKG_PATTERN = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/
+    function validatePackageName(pkg: string): void {
+      // npa 解析支持 file: git: 等协议，需显式拒绝
+      if (/^(file:|git:|https?:|ssh:|npm:)/i.test(pkg)) {
+        throw new InstallFailedError({ add: [pkg], dir: "", cause: new Error(`Refusing to install non-registry protocol: ${pkg}`) })
+      }
+      // 拒绝包含路径分隔符的包名（防止 ../malicious 等）
+      if (pkg.includes("../") || pkg.includes("..\\") || pkg.startsWith("./") || pkg.startsWith(".\\")) {
+        throw new InstallFailedError({ add: [pkg], dir: "", cause: new Error(`Refusing to install local path: ${pkg}`) })
+      }
+      // 验证包名格式
+      const parsed = npa(pkg)
+      if (!SAFE_PKG_PATTERN.test(parsed.name ?? pkg)) {
+        throw new InstallFailedError({ add: [pkg], dir: "", cause: new Error(`Invalid package name format: ${pkg}`) })
+      }
+    }
+
     const add = Effect.fn("Npm.add")(function* (pkg: string) {
+      validatePackageName(pkg)
       const dir = directory(pkg)
       const name = (() => {
         try {

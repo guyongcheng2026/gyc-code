@@ -400,7 +400,8 @@ const live: Layer.Layer<
             const result = yield* Effect.acquireRelease(
               Effect.gen(function* () {
                 const start = Date.now()
-                yield* semaphore.take(1)
+                // 添加 30s 获取超时，防止信号量永久阻塞
+                yield* semaphore.take(1).pipe(Effect.timeout("30 seconds"))
                 const waitMs = Date.now() - start
                 if (waitMs > 200) {
                   yield* Effect.logInfo("llm stream waited for concurrency permit", {

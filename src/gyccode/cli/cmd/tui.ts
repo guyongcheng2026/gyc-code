@@ -16,6 +16,7 @@ import { win32InstallCtrlCGuard } from "@gyccode/tui/terminal-win32"
 import { tuiTiming } from "@gyccode/tui/util/timing"
 import { Worker } from "node:worker_threads"
 import { appendFile, mkdir } from "node:fs/promises"
+import os from "node:os"
 import { Global } from "@gyccode/core/global"
 
 declare global {
@@ -24,11 +25,11 @@ declare global {
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
 
-function createWorkerFetch(client: RpcClient): typeof fetch {
+function createWorkerFetch(client: () => RpcClient): typeof fetch {
   const fn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = new Request(input, init)
     const body = request.body ? await request.text() : undefined
-    const result = await client.call("fetch", {
+    const result = await client().call("fetch", {
       url: request.url,
       method: request.method,
       headers: Object.fromEntries(request.headers.entries()),
@@ -42,10 +43,10 @@ function createWorkerFetch(client: RpcClient): typeof fetch {
   return fn as typeof fetch
 }
 
-function createEventSource(client: RpcClient): EventSource {
+function createEventSource(client: () => RpcClient): EventSource {
   return {
     subscribe: async (handler) => {
-      return client.on<GlobalEvent>("global.event", (e) => {
+      return client().on<GlobalEvent>("global.event", (e) => {
         handler(e)
       })
     },
@@ -149,51 +150,140 @@ export const TuiThreadCommand = cmd({
       // node:worker_threads 里运行，Rpc 做双通道桥接（替代 Bun Web Worker）。
       // 尽早创建 worker：其模块图求值（effect/server 全家桶，实测 ~2.6s）
       // 与主进程的 TuiConfig/网络选项准备并行，是启动耗时的大头。
-      const worker = new Worker(file, {
-        env: Object.fromEntries(
-          Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
-        ),
-      })
+      //
+      // resourceLimits（根治 FatalOOM 崩溃）：worker isolate 无限制时继承主进程
+      // --max-old-space-size，双 isolate 各自可涨到该值，加上 OpenTUI 原生内存，
+      // 在 ~4GB 机器上 V8 C++ 层（TurboFan 编译器/地址空间分配）先于 JS 堆守
+      // 护耗尽内存，触发不可捕获的 FatalOOM abort（运行几分钟即崩）。设置
+      // resourceLimits 后 worker 堆超限在 worker 内抛可捕获的 RangeError，
+      // worker.ts 检测后主动退出，这里自动重启自愈。
+      const workerHeapLimits = () => {
+        const explicit = Number(process.env.GYC_WORKER_OLD_SPACE)
+        if (Number.isFinite(explicit) && explicit > 0) {
+          return { maxOldGenerationSizeMb: Math.round(explicit), maxYoungGenerationSizeMb: 64 }
+        }
+        const totalMb = Math.floor(os.totalmem() / 1024 / 1024)
+        const oldMb = totalMb <= 4096 ? 1024 : totalMb <= 8192 ? 1536 : 2048
+        return { maxOldGenerationSizeMb: oldMb, maxYoungGenerationSizeMb: 64 }
+      }
+
+      const network = resolveNetworkOptionsNoConfig(args)
+      const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
+
+      let currentWorker: Worker | undefined
+      let currentClient: RpcClient | undefined
+      let restarts = 0
+      const MAX_WORKER_RESTARTS = 3
+      // 空闲卸载（极致省内存）：无 RPC 活动持续 idleSec 后 terminate worker，
+      // 常驻省 200-400MB（isolate 底噪 + effect/drizzle/ai-sdk 模块图 + instance
+      // 状态）。下次请求经 ensureWorker 冷启（模块求值 ~2.6s，postMessage 在
+      // worker 未就绪时由 node 缓冲，请求不丢失）。会话进行中流式 RPC 频繁，
+      // 不会误卸。external 模式（--port 对外服务）禁用。
+      // GYC_TUI_IDLE_UNLOAD_SEC 可调，0 = 禁用。默认 10 分钟。
+      const IDLE_UNLOAD_SEC = Number(process.env.GYC_TUI_IDLE_UNLOAD_SEC ?? 600)
+      let lastActiveAt = Date.now()
+      const touchActive = () => {
+        lastActiveAt = Date.now()
+      }
+      // worker 存活时直接返回 client；空闲卸载后（或崩溃重启窗口）按需重生。
+      // 空闲唤醒不计入崩溃重启预算——正常唤醒与异常重启语义分离。
+      const ensureWorker = (): RpcClient => {
+        if (currentWorker && currentClient) return currentClient
+        spawnWorker()
+        return currentClient!
+      }
+      let stopped = false
+
+      const spawnWorker = () => {
+        const worker = new Worker(file, {
+          env: Object.fromEntries(
+            Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined),
+          ),
+          resourceLimits: workerHeapLimits(),
+        })
+        currentWorker = worker
+        currentClient = Rpc.client<typeof rpc>(worker, { onActivity: touchActive })
+        // worker 异常退出：记录日志并自动重启（指数退避），TUI 主进程保持存活。
+        // 此前仅记录不重启，worker 阵亡后所有 RPC 永久失败，TUI 功能瘫痪。
+        worker.on("exit", (code) => {
+          if (code === 0 || stopped) return
+          // 先 reject 挂起请求（Promise 挂在主进程，不 dispose 会永久悬挂），
+          // 再置空引用：确保 ensureWorker 在重启延迟窗口内被调用时立即重生
+          // worker（而非返回已死 client 的 postMessage 抛错）
+          currentClient?.dispose(new Error(`worker exited with code ${code}`))
+          currentWorker = undefined
+          currentClient = undefined
+          const delayMs = Math.min(2000 * 2 ** restarts, 8000)
+          restarts += 1
+          void mkdir(Global.Path.log, { recursive: true })
+            .then(() =>
+              appendFile(
+                path.join(Global.Path.log, "gyccode.log"),
+                `timestamp=${new Date().toISOString()} level=Error run=main worker-exit code=${code} restart=${restarts}/${MAX_WORKER_RESTARTS} delay=${delayMs}ms\n`,
+              ),
+            )
+            .catch(() => {})
+          if (restarts > MAX_WORKER_RESTARTS) return
+          setTimeout(() => {
+            if (stopped) return
+            // ensureWorker 可能在延迟窗口内已抢先重生（有请求到达时立即重启
+            // 优于定时重启），此时跳过，避免双 worker
+            if (currentWorker) return
+            try {
+              spawnWorker()
+            } catch {}
+          }, delayMs).unref?.()
+        })
+        return worker
+      }
+
+      spawnWorker()
       tuiTiming("worker created")
-      const client = Rpc.client<typeof rpc>(worker)
       const reload = () => {
-        client.call("reload", undefined).catch(() => {})
+        ensureWorker().call("reload", undefined).catch(() => {})
       }
       process.on("SIGUSR2", reload)
 
-      let stopped = false
+      // 空闲卸载巡检（每分钟）：pending 归零且超时才卸。摘除 exit 监听后
+      // terminate——exit 走"正常退出"路径（code!==0 但无监听），不触发重启链。
+      // external（--port/--hostname/--mdns 对外服务）模式下 worker 承载真实
+      // HTTP server，卸载即断服，禁用。
+      const idleTimer = IDLE_UNLOAD_SEC > 0
+        ? setInterval(() => {
+            if (stopped || !currentWorker || !currentClient) return
+            if (external) return
+            if (currentClient.pendingCount() > 0) return
+            if (Date.now() - lastActiveAt < IDLE_UNLOAD_SEC * 1000) return
+            const worker = currentWorker
+            currentWorker = undefined
+            currentClient.dispose(new Error("worker idle unloaded"))
+            currentClient = undefined
+            worker.removeAllListeners("exit")
+            worker.terminate()
+            void appendFile(
+              path.join(Global.Path.log, "gyccode.log"),
+              `timestamp=${new Date().toISOString()} level=Info run=main worker-idle-unloaded\n`,
+            ).catch(() => {})
+          }, 60_000)
+        : undefined
+      idleTimer?.unref?.()
+
       const stop = async () => {
         if (stopped) return
         stopped = true
         process.off("SIGUSR2", reload)
-        await withTimeout(client.call("shutdown", undefined), 5000).catch(() => {})
-        worker.terminate()
+        if (idleTimer) clearInterval(idleTimer)
+        if (currentWorker && currentClient) {
+          await withTimeout(currentClient.call("shutdown", undefined), 5000).catch(() => {})
+        }
+        currentWorker?.terminate()
       }
-
-      // worker 异常退出：记录到主进程日志（不在此处恢复终端——worker 'error' 事件
-      // 未监听时天然传播为主进程 uncaughtException，由 app.tsx 的崩溃兜底统一恢复终端）。
-      worker.on("exit", (code) => {
-        if (code === 0 || stopped) return
-        void mkdir(Global.Path.log, { recursive: true })
-          .then(() =>
-            appendFile(
-              path.join(Global.Path.log, "gyccode.log"),
-              `timestamp=${new Date().toISOString()} level=Error run=main worker-exit code=${code}\n`,
-            ),
-          )
-          .catch(() => {})
-        // worker 意外退出且非正常停止：手动触发主进程 uncaughtException，
-        // 让 app.tsx 的崩溃兜底统一恢复终端并退出，避免 TUI 卡死。
-        process.emit("uncaughtException", new Error(`gyc TUI worker exited unexpectedly (code=${code})`))
-      })
       const prompt = await input(args.prompt)
       tuiTiming("prompt resolved")
       // 骨架屏并行化：config 获取（模块加载 + 读取解析，实测 ~1.2s）提前 fire
       // 但不 await——与 worker 模块求值、effect/layer 加载并行；Promise 注入
       // TUI 后由首帧骨架屏过渡，配置到达再切换完整树。
       const configPromise = import("@/config/tui").then((m) => m.TuiConfig.get())
-      const network = resolveNetworkOptionsNoConfig(args)
-      const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
 
       // 懒加载：ServerAuth 仅 --port/--hostname/--mdns 对外暴露时需要，
       // 默认 internal RPC 传输不引入 server/auth 模块图。
@@ -201,15 +291,15 @@ export const TuiThreadCommand = cmd({
 
       const transport = external
         ? {
-            url: (await client.call("server", network)).url,
+            url: (await ensureWorker().call("server", network)).url,
             fetch: undefined,
             events: undefined,
             headers,
           }
         : {
             url: "http://gyccode.internal",
-            fetch: createWorkerFetch(client),
-            events: createEventSource(client),
+            fetch: createWorkerFetch(ensureWorker),
+            events: createEventSource(ensureWorker),
           }
 
       try {
@@ -234,7 +324,7 @@ export const TuiThreadCommand = cmd({
       }
 
       setTimeout(() => {
-        client.call("checkUpgrade", { directory: cwd }).catch(() => {})
+        ensureWorker().call("checkUpgrade", { directory: cwd }).catch(() => {})
       }, 1000).unref?.()
 
       try {
@@ -247,7 +337,7 @@ export const TuiThreadCommand = cmd({
             url: transport.url,
             async onSnapshot() {
               const tui = writeHeapSnapshot("tui.heapsnapshot")
-              const server = await client.call("snapshot", undefined)
+              const server = await ensureWorker().call("snapshot", undefined)
               return [tui, server]
             },
             config: configPromise,

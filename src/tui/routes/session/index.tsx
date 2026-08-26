@@ -23,6 +23,14 @@ import { useSync } from "../../context/sync"
 import { useEvent } from "../../context/event"
 import { SplitBorder } from "../../ui/border"
 import { useTuiPaths, useTuiTerminalEnvironment } from "../../context/runtime"
+import {
+  VIRTUAL_DEFAULT_STATE,
+  virtualEnsureVisible,
+  virtualExpandMore,
+  virtualOnNewMessage,
+  virtualRenderFrom as virtualRenderFromFn,
+  type VirtualWindowState,
+} from "./virtual-window"
 import { Spinner } from "../../component/spinner"
 import { createSyntaxStyleMemo, generateSubtleSyntax, selectedForeground, useTheme } from "../../context/theme"
 import { BoxRenderable, ScrollBoxRenderable, addDefaultParsers, TextAttributes, RGBA } from "@opentui/core"
@@ -438,9 +446,14 @@ export function Session() {
       return
     }
 
-    const child = scroll.getChildren().find((c) => c.id === targetID)
-    if (child) scroll.scrollBy(child.y - scroll.y - 1)
-    dialog.clear()
+    ensureVisible(targetID)
+    // 展开触发重渲染/重布局，延时一帧再取 child 坐标
+    setTimeout(() => {
+      if (!scroll || scroll.isDestroyed) return
+      const child = scroll.getChildren().find((c) => c.id === targetID)
+      if (child) scroll.scrollBy(child.y - scroll.y - 1)
+      dialog.clear()
+    }, 60)
   }
 
   function toBottom() {
@@ -555,10 +568,14 @@ export function Session() {
         dialog.replace(() => (
           <DialogTimeline
             onMove={(messageID) => {
-              const child = scroll.getChildren().find((child) => {
-                return child.id === messageID
-              })
-              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              ensureVisible(messageID)
+              setTimeout(() => {
+                if (!scroll || scroll.isDestroyed) return
+                const child = scroll.getChildren().find((child) => {
+                  return child.id === messageID
+                })
+                if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              }, 60)
             }}
             sessionID={route.sessionID}
             setPrompt={(promptInfo) => prompt?.set(promptInfo)}
@@ -578,10 +595,14 @@ export function Session() {
           <DialogForkFromTimeline
             onMove={(messageID) => {
               if (!messageID) return
-              const child = scroll.getChildren().find((child) => {
-                return child.id === messageID
-              })
-              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              ensureVisible(messageID)
+              setTimeout(() => {
+                if (!scroll || scroll.isDestroyed) return
+                const child = scroll.getChildren().find((child) => {
+                  return child.id === messageID
+                })
+                if (child) scroll.scrollBy(child.y - scroll.y - 1)
+              }, 60)
             }}
             sessionID={route.sessionID}
           />
@@ -935,10 +956,14 @@ export function Session() {
           )
 
           if (hasValidTextPart) {
-            const child = scroll.getChildren().find((child) => {
-              return child.id === message.id
-            })
-            if (child) scroll.scrollBy(child.y - scroll.y - 1)
+            ensureVisible(message.id)
+            setTimeout(() => {
+              if (!scroll || scroll.isDestroyed) return
+              const child = scroll.getChildren().find((child) => {
+                return child.id === message.id
+              })
+              if (child) scroll.scrollBy(child.y - scroll.y - 1)
+            }, 60)
             break
           }
         }
@@ -1417,6 +1442,63 @@ export function Session() {
   // snap to bottom when session changes
   createEffect(on(() => route.sessionID, toBottom))
 
+  // ── 消息视口虚拟化（长会话内存根治）────────────────────────────────
+  // 窗口计算纯逻辑提炼在 ./virtual-window.ts（含 17 项边界单测）：
+  // - 尾部 40 条完整渲染（流式 pending 天然在窗口内）
+  // - 更早消息渲染为单行摘要（无 markdown 子树，成本 ~1/50）
+  // - 滚动接近顶部 / 点击顶部提示行 / 消息跳转目标在折叠区 → 自动展开
+  // - 展开锚定消息 ID（而非绝对索引），revert/undo 改变列表时不错位
+  // - 短会话（≤40 条）renderFrom 恒为 0：零折叠、零提示行、零轮询
+  //   操作，行为与虚拟化前完全一致
+  const [virtualState, setVirtualState] = createSignal<VirtualWindowState>(VIRTUAL_DEFAULT_STATE)
+  const virtualRenderFrom = createMemo(() => virtualRenderFromFn(virtualState(), messages()))
+  const isCollapsed = (index: number, id: string) => {
+    // revert 区间（锚点提示 + 已撤回消息）强制完整渲染，保证撤回提示可见
+    const rIdx = revertMessageIndex()
+    if (rIdx !== -1 && index >= rIdx) return false
+    if (id === revertMessageID()) return false
+    return index < virtualRenderFrom()
+  }
+  const expandMore = () => {
+    setVirtualState((s) => virtualExpandMore(s, messages()))
+  }
+  // 跳转目标在折叠区时先展开（含目标上方少量上下文），再由调用方滚动。
+  // 展开触发 Solid 重渲染 + scrollbox 重布局，调用方需延时一帧再取 child.y。
+  const ensureVisible = (messageID: string) => {
+    setVirtualState((s) => virtualEnsureVisible(s, messages(), messageID))
+  }
+  const virtualAtBottom = () =>
+    !scroll || scroll.isDestroyed || scroll.scrollHeight - scroll.y - scroll.height < 10
+  // 新消息到达：贴底时回到默认尾部窗口（用户已回底部，历史无需保持展开）；
+  // 挂着不看导致窗口超限时强制收回，防止内存无限增长
+  createEffect(
+    on(
+      () => messages().length,
+      (len, prev) => {
+        if (prev === undefined || len <= prev) return
+        setVirtualState((s) => virtualOnNewMessage(s, messages(), virtualAtBottom()))
+      },
+    ),
+  )
+  // 切换会话重置虚拟化状态（不同会话的消息 ID 无关联）
+  createEffect(
+    on(
+      () => route.sessionID,
+      () => {
+        setVirtualState(VIRTUAL_DEFAULT_STATE)
+      },
+    ),
+  )
+  // 滚动接近顶部自动展开（500ms 轮询：OpenTUI scrollbox 无滚动事件，
+  // 单次属性读取开销可忽略；Solid 组件内 onCleanup 兜底清理）
+  const virtualTopPoll = setInterval(() => {
+    if (!scroll || scroll.isDestroyed) return
+    if (virtualRenderFrom() === 0) return
+    if (scroll.y > scroll.height) return
+    expandMore()
+  }, 500)
+  onCleanup(() => clearInterval(virtualTopPoll))
+
   return (
     <LocationProvider location={location()}>
       <context.Provider
@@ -1459,9 +1541,19 @@ export function Session() {
                 scrollAcceleration={scrollAcceleration()}
               >
                 <box height={1} />
+                <Show when={virtualRenderFrom() > 0}>
+                  <box flexShrink={0} marginTop={1} onMouseUp={expandMore}>
+                    <text fg={theme.textMuted}>
+                      ▲ 已折叠 {virtualRenderFrom()} 条更早消息（滚动到顶或点击此处展开）
+                    </text>
+                  </box>
+                </Show>
                 <For each={messages()}>
                   {(message, index) => (
                     <Switch>
+                      <Match when={isCollapsed(index(), message.id)}>
+                        <CollapsedMessage message={message} parts={sync.data.part[message.id] ?? []} />
+                      </Match>
                       <Match when={message.id === revert()?.messageID}>
                         {(function () {
                           const redoShortcut = useCommandShortcut("session.redo")
@@ -1622,6 +1714,26 @@ export function Session() {
         </box>
       </context.Provider>
     </LocationProvider>
+  )
+}
+
+// 折叠消息的单行摘要（视口虚拟化）：无 markdown/tree-sitter 子树，渲染成本
+// 约为完整消息的 1/50。box 带 id 以保持消息跳转导航（findNextVisibleMessage
+// 与 timeline/fork 跳转依赖 scroll.getChildren() 的 id）可用。
+function CollapsedMessage(props: { message: { id: string; role: string }; parts: Part[] }) {
+  const { theme } = useTheme()
+  const summary = createMemo(() => {
+    const text = props.parts.find((p) => p.type === "text" && !p.synthetic)?.text?.trim()
+    const raw = text ? stripAnsi(text).replace(/\s+/g, " ").slice(0, 90) : ""
+    return raw || (props.message.role === "user" ? "用户消息" : "助手消息")
+  })
+  const role = props.message.role === "user" ? "你" : "助手"
+  return (
+    <box id={props.message.id} flexShrink={0} marginTop={1} paddingLeft={1}>
+      <text fg={theme.textMuted}>
+        · {role} · {summary()}
+      </text>
+    </box>
   )
 }
 

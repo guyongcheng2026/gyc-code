@@ -94,6 +94,12 @@ const externalCommandDirectories = Effect.fn("BashTool.externalCommandDirectorie
   return [...directories]
 })
 
+/** External directories not covered by any allowed root; empty when all are permitted. */
+export const blockedExternalPaths = (
+  externalDirectories: readonly string[],
+  allowedRoots: readonly string[],
+) => externalDirectories.filter((directory) => !allowedRoots.some((root) => FSUtil.contains(root, directory)))
+
 const layer = Layer.effectDiscard(
   Effect.gen(function* () {
     const tools = yield* Tools.Service
@@ -106,7 +112,7 @@ const layer = Layer.effectDiscard(
     yield* tools
       .register({
         [name]: Tool.make({
-          description: `Execute one shell command string with the host user's filesystem, process, and network authority. The active Location is the default working directory. Relative workdir values resolve from that Location. External workdir values require external_directory approval; best-effort command-argument path warnings are advisory only. Timeout values are milliseconds (default: ${DEFAULT_TIMEOUT_MS}; maximum: ${MAX_TIMEOUT_MS}). Uses the configured shell when set; otherwise uses /bin/sh on POSIX and COMSPEC or cmd.exe on Windows.`,
+          description: `Execute one shell command string with the host user's filesystem, process, and network authority. The active Location is the default working directory. Relative workdir values resolve from that Location. External workdir values require external_directory approval. When "shell_enforcement.block_external_paths" is enabled in gyccode.json, command arguments referencing paths outside approved directories are rejected; otherwise they produce advisory warnings only. Timeout values are milliseconds (default: ${DEFAULT_TIMEOUT_MS}; maximum: ${MAX_TIMEOUT_MS}). Uses the configured shell when set; otherwise uses /bin/sh on POSIX and COMSPEC or cmd.exe on Windows.`,
           input: Input,
           output: Output,
           structured: StructuredOutput,
@@ -135,9 +141,25 @@ const layer = Layer.effectDiscard(
                   agent: context.agent,
                   source,
                 })
-              const warnings = (yield* externalCommandDirectories(fs, input.command, target.canonical)).map(
+              const entries = yield* config.entries()
+              const shell =
+                Object.assign({}, ...entries.flatMap((entry) => (entry.type === "document" ? [entry.info] : [])))
+                  .shell ?? defaultShell()
+              const enforcement = Config.latest(entries, "shell_enforcement")
+              const externalDirectories = yield* externalCommandDirectories(fs, input.command, target.canonical)
+              if (enforcement?.block_external_paths && externalDirectories.length > 0) {
+                const allowedRoots = yield* Effect.forEach(enforcement.allow_paths ?? [], (value) => fs.resolve(value))
+                const blocked = blockedExternalPaths(externalDirectories, allowedRoots)
+                if (blocked.length > 0)
+                  return yield* Effect.fail(
+                    new ToolFailure({
+                      message: `Blocked by "shell_enforcement.block_external_paths": command references paths outside approved directories: ${blocked.map((directory) => path.join(directory, "*").replaceAll("\\", "/")).join(", ")}. Extend "shell_enforcement.allow_paths" in gyccode.json or disable the setting to downgrade to advisory warnings.`,
+                    }),
+                  )
+              }
+              const warnings = externalDirectories.map(
                 (directory) =>
-                  `Command argument references external directory ${path.join(directory, "*").replaceAll("\\", "/")}. Bash runs with host-user filesystem, process, and network authority; this scan is advisory only.`,
+                  `Command argument references external directory ${path.join(directory, "*").replaceAll("\\", "/")}. Bash runs with host-user filesystem, process, and network authority${enforcement?.block_external_paths ? "" : "; this scan is advisory only"}.`,
               )
               yield* permission.assert({
                 action: name,
@@ -151,10 +173,6 @@ const layer = Layer.effectDiscard(
               if ((yield* fs.stat(target.canonical)).type !== "Directory")
                 return yield* Effect.fail(new Error(`Working directory is not a directory: ${target.canonical}`))
 
-              const entries = yield* config.entries()
-              const shell =
-                Object.assign({}, ...entries.flatMap((entry) => (entry.type === "document" ? [entry.info] : [])))
-                  .shell ?? defaultShell()
               const command = ChildProcess.make(input.command, [], {
                 cwd: target.canonical,
                 shell,
@@ -193,7 +211,13 @@ const layer = Layer.effectDiscard(
                 truncated: result.outputTruncated === true,
                 ...(warnings.length ? { warnings } : {}),
               }
-            }).pipe(Effect.mapError(() => new ToolFailure({ message: `Unable to execute command: ${input.command}` }))),
+            }).pipe(
+              Effect.mapError((error) =>
+                error instanceof ToolFailure
+                  ? error
+                  : new ToolFailure({ message: `Unable to execute command: ${input.command}` }),
+              ),
+            ),
         }),
       })
       .pipe(Effect.orDie)

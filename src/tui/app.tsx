@@ -343,6 +343,23 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             process.exit(code)
           }
           const onUncaughtException = (error: Error) => {
+            // AbortError / "Aborted" 是 Effect 正常取消流程（如用户中断、会话切换），
+            // 不应触发崩溃退出。仅记录 debug 日志，不恢复终端、不退出进程。
+            if (
+              error.name === "AbortError" ||
+              error.message?.includes("Aborted") ||
+              error.message?.includes("Abort")
+            ) {
+              void mkdir(global.log, { recursive: true })
+                .then(() =>
+                  appendFile(
+                    join(global.log, "gyccode.log"),
+                    `timestamp=${new Date().toISOString()} level=Debug run=main uncaughtException-abort message=${error.message}\n`,
+                  ),
+                )
+                .catch(() => {})
+              return
+            }
             writeMainCrash("uncaughtException", error)
             restoreTerminalAndExit(1)
           }
@@ -364,11 +381,18 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       // >0.5 销毁渲染器优雅退出（恢复终端），避免原生 OOM 崩溃残留 ANSI 乱码。
       // bin/gyc 以 --expose-gc --max-old-space-size 启动：堆超限变为可捕获的
       // RangeError，走 uncaughtException 兜底而非原生 abort。
+      //
+      // 2026-08-26 增强：① 增加 freemem（系统可用内存）维度——rss 阈值在
+      // 系统被其他进程占用时会误判（rss 未到 50% 但物理内存已耗尽，V8 C++
+      // 层先于 JS 守护崩溃，即 FatalOOM abort 的直接诱因）；② 低内存机器
+      // （≤4GB）守护间隔 30s→10s，内存涨速快时 30s 粒度来不及拦。
       yield* Effect.acquireRelease(
         Effect.sync(() => {
           let warnOnce = false
           let criticalOnce = false
           let lastSample = 0
+          const totalMem = os.totalmem()
+          const lowMemMachine = totalMem <= 4 * 1024 * 1024 * 1024
           // 主动 GC：bin/gyc 以 --expose-gc 启动 Node 时可用；未暴露时静默跳过
           const runGc = () => {
             try {
@@ -403,44 +427,54 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             try {
               const rss = process.memoryUsage().rss
               const total = os.totalmem()
+              const free = os.freemem()
               const rssMB = Math.round(rss / 1024 / 1024)
               const totalMB = Math.round(total / 1024 / 1024)
+              const freeMB = Math.round(free / 1024 / 1024)
               // 心跳采样：每 10 分钟一条 Info，供长跑内存趋势分析
               if (Date.now() - lastSample > 600_000) {
                 lastSample = Date.now()
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
               }
-              if (rss > total * 0.5) {
+              // 系统可用内存维度：物理内存即将耗尽时 V8 C++ 层（TurboFan/
+              // 地址空间分配）先于 JS 堆守护崩溃——不可捕获的 FatalOOM abort。
+              // free < 256MB 视同 fatal 立即降载。
+              const systemFatal = free < 256 * 1024 * 1024
+              if (rss > total * 0.5 || systemFatal) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
+                runGc()
                 try {
                   destroyRenderer(renderer)
                 } catch {}
-              } else if (rss > total * 0.45 && !criticalOnce) {
+              } else if (rss > total * 0.45 || free < 512 * 1024 * 1024) {
                 // 二级降载：写堆快照留证 + 主动 GC，尽量避免走到 fatal 退出
-                criticalOnce = true
-                void appendFile(
-                  join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-critical rss=${rssMB}MB total=${totalMB}MB\n`,
-                ).catch(() => {})
-                writeTuiMemorySnapshot(rssMB)
+                if (!criticalOnce) {
+                  criticalOnce = true
+                  void appendFile(
+                    join(global.log, "gyccode.log"),
+                    `timestamp=${new Date().toISOString()} level=Warn run=main memory-critical rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                  ).catch(() => {})
+                  writeTuiMemorySnapshot(rssMB)
+                }
                 runGc()
               } else if (rss > total * 0.4 && !warnOnce) {
                 // 一级预警：记录 + 主动 GC 尝试回落
                 warnOnce = true
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${rssMB}MB total=${totalMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
                 runGc()
               }
             } catch {}
-          }, 30_000)
+          }, lowMemMachine ? 10_000 : 30_000)
+          meter.unref()
           return () => clearInterval(meter)
         }),
         (cleanup) => Effect.sync(cleanup),

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "files": [
+    "src/core/config.ts",
+    "src/core/config/shell-enforcement.ts",
+    "src/core/tool/bash.ts",
+    "src/core/tool/bash.test.ts"
+  ]
+}

@@ -75,14 +75,42 @@ function spawnBun(bun, args) {
 // --max-old-space-size turns native V8 OOM aborts into catchable JS RangeErrors
 // (handled by TUI uncaughtException fallback -> graceful terminal restore);
 // --expose-gc lets the TUI memory guard run staged GC before degrading.
-// Size: 60% of physical memory, clamped to [1024, 4096] MB.
-// Override with GYC_MAX_OLD_SPACE (MB).
+// Size: dual-isolate budget. TUI runs TWO V8 isolates in one process (main
+// render thread + worker thread for server/instance) plus native OpenTUI/wasm
+// memory. A single 60%-of-RAM cap lets EACH isolate grow that large and the
+// combined demand crashes V8's C++ layer (FatalOOM in CompilationDependencies /
+// AllocateSubspace — an uncatchable native abort) on small machines (~4GB).
+// The main render isolate realistically peaks at ~600MB, so we cap it at
+// min(35% RAM, 2048) with a 1024MB floor; the worker isolate gets its own
+// resourceLimits in cli/cmd/tui.ts. Override with GYC_MAX_OLD_SPACE (MB).
 function nodeHeapFlags() {
   const os = require("os")
+  const fs = require("fs")
   const explicit = Number(process.env.GYC_MAX_OLD_SPACE)
+
+  // 读取 cgroup 内存限制（容器环境，支持 v1 和 v2）
+  let totalMemMb
+  try {
+    // cgroup v2
+    const cgroupV2 = fs.readFileSync("/sys/fs/cgroup/memory.max", "utf8").trim()
+    if (cgroupV2 !== "max" && !isNaN(Number(cgroupV2))) {
+      totalMemMb = Math.floor(Number(cgroupV2) / 1024 / 1024)
+    } else {
+      // cgroup v1 回退
+      const cgroupV1 = fs.readFileSync("/sys/fs/cgroup/memory/memory.limit_in_bytes", "utf8").trim()
+      if (!isNaN(Number(cgroupV1)) && Number(cgroupV1) < Number.MAX_SAFE_INTEGER) {
+        totalMemMb = Math.floor(Number(cgroupV1) / 1024 / 1024)
+      } else {
+        totalMemMb = Math.floor(os.totalmem() / 1024 / 1024)
+      }
+    }
+  } catch {
+    totalMemMb = Math.floor(os.totalmem() / 1024 / 1024)
+  }
+
   const mb = Number.isFinite(explicit) && explicit > 0
     ? Math.round(explicit)
-    : Math.min(Math.max(Math.round((os.totalmem() / 1024 / 1024) * 0.6), 1024), 4096)
+    : Math.min(Math.max(Math.round(totalMemMb * 0.35), 1024), 2048)
   return ["--expose-gc", `--max-old-space-size=${mb}`]
 }
 

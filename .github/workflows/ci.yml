@@ -25,6 +25,22 @@ jobs:
       - name: Build
         run: bun run build
 
+      - name: Security audit (bun)
+        run: bun audit 2>&1 || echo "bun audit unavailable, skipping"
+        continue-on-error: true
+
+      - name: Security audit (npm)
+        run: |
+          npm install --package-lock-only 2>/dev/null || true
+          npm audit --audit-level=high 2>&1 || echo "npm audit unavailable, skipping"
+        continue-on-error: true
+
+      - name: CodeQL Analysis (Security)
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "security"
+        continue-on-error: true
+
       - name: Test
         run: bun test --preload ./scripts/bun-solid-preload.ts --timeout 60000
         continue-on-error: true # 3 个 opentui 渲染用例无 TTY 环境失败为既有问题，不阻断 CI

@@ -58,17 +58,20 @@ export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
   onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null
   on?: (event: "message", listener: (data: string) => void) => void
-}) {
-  const pending = new Map<number, (result: any) => void>()
+}, hooks?: { onActivity?: () => void }) {
+  const pending = new Map<number, { resolve: (result: any) => void; reject: (error: Error) => void }>()
   const listeners = new Map<string, Set<(data: any) => void>>()
   let id = 0
   const onMessage = (data: string) => {
     const parsed = JSON.parse(data)
+    // 任一方向的流量（结果回传/事件推送）都算活动：LLM 流式输出期间
+    // 主进程不发请求，靠 rpc.event 维持 worker 空闲判定的活跃信号。
+    if (parsed.type === "rpc.result" || parsed.type === "rpc.event") hooks?.onActivity?.()
     if (parsed.type === "rpc.result") {
-      const resolve = pending.get(parsed.id)
-      if (resolve) {
-        resolve(parsed.result)
+      const entry = pending.get(parsed.id)
+      if (entry) {
         pending.delete(parsed.id)
+        entry.resolve(parsed.result)
       }
     }
     if (parsed.type === "rpc.event") {
@@ -90,10 +93,15 @@ export function client<T extends Definition>(target: {
   return {
     call<Method extends keyof T>(method: Method, input: Parameters<T[Method]>[0]): Promise<ReturnType<T[Method]>> {
       const requestId = id++
-      return new Promise((resolve) => {
-        pending.set(requestId, resolve)
+      hooks?.onActivity?.()
+      return new Promise((resolve, reject) => {
+        pending.set(requestId, { resolve, reject })
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
+    },
+    // 当前 in-flight 请求数：空闲卸载前检查，避免误杀活跃连接
+    pendingCount(): number {
+      return pending.size
     },
     on<Data>(event: string, handler: (data: Data) => void) {
       let handlers = listeners.get(event)
@@ -105,6 +113,14 @@ export function client<T extends Definition>(target: {
       return () => {
         handlers!.delete(handler)
       }
+    },
+    // worker 崩溃/被替换时调用：reject 所有挂起请求，避免上层 fetch 永久挂起。
+    // 事件监听器保留——它们绑定在新 client 上后继续生效（热重启场景）。
+    dispose(reason: Error) {
+      for (const entry of pending.values()) {
+        entry.reject(reason)
+      }
+      pending.clear()
     },
   }
 }
