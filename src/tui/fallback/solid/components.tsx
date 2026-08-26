@@ -95,23 +95,39 @@ export function Textarea(props: TextareaProps): JSX.Element {
 	const clampCursor = (row: number, col: number) => {
 		const ls = lines()
 		const r = Math.max(0, Math.min(row, ls.length - 1))
-		setCursor({ row: r, col: Math.max(0, Math.min(col, (ls[r] ?? "").length)) })
+		// 行长按 code point 计（光标口径），代理对安全
+		setCursor({ row: r, col: Math.max(0, Math.min(col, Array.from(ls[r] ?? "").length)) })
 	}
 
 	const api: TextareaApi = {
 		handleKey(key: Key): boolean {
 			const c = cursor()
 			switch (key.type) {
-				case "text": {
-					const text = key.text.replace(/[\r\n]/g, "")
-					if (text.length === 0) return true
-					const ls = [...lines()]
-					const chars = Array.from(ls[c.row] ?? "")
-					ls[c.row] = chars.slice(0, c.col).join("") + text + chars.slice(c.col).join("")
+			case "text": {
+				const text = key.text.replace(/\r/g, "")
+				if (text.length === 0) return true
+				const ls = [...lines()]
+				const chars = Array.from(ls[c.row] ?? "")
+				const before = chars.slice(0, c.col).join("")
+				const after = chars.slice(c.col).join("")
+				const segments = text.split("\n")
+				if (segments.length === 1) {
+					ls[c.row] = before + text + after
 					setLines(ls)
 					setCursor({ row: c.row, col: c.col + Array.from(text).length })
 					return true
 				}
+				// 多行插入（粘贴/API 直调）：首段接光标前，末段带走光标后内容
+				ls[c.row] = before + segments[0]!
+				for (let i = 1; i < segments.length; i++) {
+					const tail = i === segments.length - 1 ? segments[i]! + after : segments[i]!
+					ls.splice(c.row + i, 0, tail)
+				}
+				setLines(ls)
+				const last = segments[segments.length - 1]!
+				setCursor({ row: c.row + segments.length - 1, col: Array.from(last).length })
+				return true
+			}
 				case "backspace": {
 					const ls = [...lines()]
 					if (c.col > 0) {
@@ -150,7 +166,7 @@ export function Textarea(props: TextareaProps): JSX.Element {
 					return true
 				}
 				case "right": {
-					const lineLen = (lines()[c.row] ?? "").length
+					const lineLen = Array.from(lines()[c.row] ?? "").length
 					if (c.col < lineLen) setCursor({ row: c.row, col: c.col + 1 })
 					else if (c.row < lines().length - 1) clampCursor(c.row + 1, 0)
 					return true
@@ -165,7 +181,7 @@ export function Textarea(props: TextareaProps): JSX.Element {
 					setCursor({ row: c.row, col: 0 })
 					return true
 				case "end":
-					setCursor({ row: c.row, col: (lines()[c.row] ?? "").length })
+					setCursor({ row: c.row, col: Array.from(lines()[c.row] ?? "").length })
 					return true
 				default:
 					return false

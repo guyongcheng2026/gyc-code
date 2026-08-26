@@ -115,7 +115,9 @@ export function wrapTextareaLines(lines: readonly string[], width: number): Text
 		let colStart = 0
 		for (const seg of wrapped) {
 			rows.push({ text: seg, logicRow, colStart })
-			colStart += seg.length
+			// colStart 必须按 code point 累计（cursorCol 口径），
+			// UTF-16 length 会让代理对（emoji）后的换行行首映射错位
+			colStart += Array.from(seg).length
 		}
 	})
 	return rows
@@ -204,7 +206,9 @@ function paintNode(node: FallbackNode, screen: Screen, clip: LayoutRect, offsetY
 			paintTextarea(el, screen, clip)
 			return
 		case "scrollbox":
-			paintChildren(el, screen, clip, -el.scrollTop)
+			// 视口裁剪：内容必须限制在 scrollbox 自身矩形内，
+			// 否则超出视口的内容会溢出绘制到后续兄弟元素（状态条/输入区）
+			paintChildren(el, screen, intersect(clip, el.layout), -el.scrollTop)
 			return
 		case "text": {
 			const content = collectText(el)
@@ -303,9 +307,11 @@ function paintTextarea(el: ElementNode, screen: Screen, clip: LayoutRect): void 
 		const cursorY = rect.y + cursorPos.dispRow - scrollOffset
 		if (cursorY >= innerClip.y && cursorY < innerClip.y + innerClip.height) {
 			const cursorLine = rows[cursorPos.dispRow]?.text ?? ""
-			const prefix = cursorLine.slice(0, cursorPos.dispCol)
+			// code point 切片：UTF-16 slice 会把代理对劈成两半（乱码格）
+			const cps = Array.from(cursorLine)
+			const prefix = cps.slice(0, cursorPos.dispCol).join("")
 			const x = rect.x + textDisplayWidth(prefix)
-			const ch = cursorLine.slice(cursorPos.dispCol, cursorPos.dispCol + 1) || " "
+			const ch = cps[cursorPos.dispCol] ?? " "
 			if (x < innerClip.x + innerClip.width) {
 				screen.writeText(x, cursorY, ch, { ...(style ?? {}), reverse: true })
 			}
@@ -323,8 +329,10 @@ export function cursorDisplayPos(
 		if (row.logicRow !== cursorRow) continue
 		const next = rows[i + 1]
 		const isLast = next === undefined || next.logicRow !== cursorRow
-		const within = cursorCol >= row.colStart && cursorCol <= row.colStart + row.text.length
-		if (within || (isLast && cursorCol > row.colStart + row.text.length)) {
+		// 行长按 code point 计（cursorCol 口径），代理对安全
+		const len = Array.from(row.text).length
+		const within = cursorCol >= row.colStart && cursorCol <= row.colStart + len
+		if (within || (isLast && cursorCol > row.colStart + len)) {
 			return { dispRow: i, dispCol: Math.max(0, cursorCol - row.colStart) }
 		}
 	}

@@ -147,15 +147,25 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 		if (row) upsert(row)
 	})
 
-	const ensureSession = async (): Promise<string | undefined> => {
-		if (sessionID !== undefined) return sessionID
-		const res = await client.session.create({ directory: options.directory })
-		if (res.error || !res.data) {
-			pushSystem(`创建会话失败: ${String((res.error as { message?: string })?.message ?? res.error ?? "unknown")}`)
-			return undefined
-		}
-		sessionID = res.data.id
-		return sessionID
+	let creatingSession: Promise<string | undefined> | undefined
+
+	const ensureSession = (): Promise<string | undefined> => {
+		if (sessionID !== undefined) return Promise.resolve(sessionID)
+		// 并发去重：连发两条消息不得创建两个会话（首个 create 在途时共享同一 Promise）
+		creatingSession ??= (async () => {
+			try {
+				const res = await client.session.create({ directory: options.directory })
+				if (res.error || !res.data) {
+					pushSystem(`创建会话失败: ${String((res.error as { message?: string })?.message ?? res.error ?? "unknown")}`)
+					return undefined
+				}
+				sessionID = res.data.id
+				return sessionID
+			} finally {
+				creatingSession = undefined
+			}
+		})()
+		return creatingSession
 	}
 
 	const send = (text: string) => {

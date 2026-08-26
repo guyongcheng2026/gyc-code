@@ -251,6 +251,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32EnableUtf8Console()
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
+      // guard 卸载 finalizer 必须先于任何提前 return 注册：fallback 分支
+      // 不经过后续注册点，scope 关闭时统一卸载（否则守护定时器活到进程退出）
+      yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
       // S2 灰度切换（R3：GYC_TUI_BACKEND=auto/opentui 一键切回）：默认走自研
       // 渲染后端（backendChoice 未设置时返回 "fallback"）；显式 fallback 同路径。
       // auto 模式仍走 opentui（含创建失败降级）；opentui 模式纯原生。
@@ -330,7 +333,6 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             destroyRenderer(renderer)
           }),
       )
-      yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
       const keymap = createDefaultOpenTuiKeymap(renderer)
       // keymap 绑定中 leader/输入层需要 config，注册延迟到 config 就绪 fiber；
       // 卸载仍由 scope finalizer 保证。
