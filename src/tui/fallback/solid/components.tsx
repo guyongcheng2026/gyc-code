@@ -1,8 +1,9 @@
 /** @jsxImportSource #fallback-solid */
-import { createSignal } from "solid-js"
+import { createMemo, createSignal, For } from "solid-js"
+import { parseMarkdown } from "../markdown"
 import type { Key } from "../input"
 import type { ElementNode } from "./nodes"
-import type { JSX, LayoutProps } from "./jsx-runtime"
+import type { JSX, LayoutProps, SpanProp } from "./jsx-runtime"
 
 /**
  * S1 组件桥接：三大件组件层。
@@ -18,15 +19,24 @@ import type { JSX, LayoutProps } from "./jsx-runtime"
 
 export function Box(props: LayoutProps & { children?: unknown }): JSX.Element {
 	return (
-		<box width={props.width} height={props.height} flex={props.flex} style={props.style}>
+		<box
+			width={props.width}
+			height={props.height}
+			flex={props.flex}
+			direction={props.direction}
+			gap={props.gap}
+			padding={props.padding}
+			border={props.border}
+			style={props.style}
+		>
 			{props.children}
 		</box>
 	)
 }
 
-export function Text(props: LayoutProps & { children?: unknown }): JSX.Element {
+export function Text(props: LayoutProps & { spans?: SpanProp[]; children?: unknown }): JSX.Element {
 	return (
-		<text width={props.width} height={props.height} flex={props.flex} style={props.style}>
+		<text width={props.width} height={props.height} flex={props.flex} style={props.style} spans={props.spans}>
 			{props.children}
 		</text>
 	)
@@ -207,4 +217,23 @@ export function Textarea(props: TextareaProps): JSX.Element {
 /** Input：Textarea 提交特化——Enter 提交并清空，不插入换行。 */
 export function Input(props: Omit<TextareaProps, "onSubmit"> & { onSubmit: (text: string) => void }): JSX.Element {
 	return Textarea({ ...props }) as JSX.Element
+}
+
+export interface MarkdownProps {
+	/** Markdown 源文本 */
+	source: string
+	style?: LayoutProps["style"]
+}
+
+/**
+ * Markdown 渲染组件（parity slice A）：解析为富文本行（StyledSpan[]），
+ * 每行渲染为一个 spans 驱动的 text 元素。解析结果 memo 化——source 不变不重解析。
+ */
+export function Markdown(props: MarkdownProps): JSX.Element {
+	const lines = createMemo(() => parseMarkdown(props.source))
+	return (
+		<box style={props.style}>
+			<For each={lines()}>{(spans) => <text spans={spans as SpanProp[]} />}</For>
+		</box>
+	)
 }

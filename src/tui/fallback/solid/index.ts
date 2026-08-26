@@ -19,8 +19,8 @@ export const { createComponent, createElement, createTextNode, insert, insertNod
 export { renderRoot, flushSync } from "./renderer"
 
 // 组件层（三大件）
-export { Box, Text, ScrollBox, Textarea, Input } from "./components"
-export type { ScrollBoxApi, TextareaApi, TextareaProps } from "./components"
+export { Box, Text, ScrollBox, Textarea, Input, Markdown } from "./components"
+export type { ScrollBoxApi, TextareaApi, TextareaProps, MarkdownProps } from "./components"
 
 // solid-js builtIns：universal 产物直接从 moduleName import
 export {

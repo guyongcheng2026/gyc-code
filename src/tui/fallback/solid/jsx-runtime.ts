@@ -59,6 +59,14 @@ export interface LayoutProps {
 	height?: number
 	/** 父级高度有界时瓜分剩余空间 */
 	flex?: boolean
+	/** 主轴方向：column（默认，纵向堆叠）| row（横向排列） */
+	direction?: "row" | "column"
+	/** 子元素间距（沿主轴） */
+	gap?: number
+	/** 内边距（四边同值） */
+	padding?: number
+	/** 边框：true=single | "single" | "double"（内容自动内缩 1 格） */
+	border?: boolean | "single" | "double"
 	/** 文本/单元格样式 */
 	style?: CellStyle
 	children?: unknown
@@ -66,7 +74,15 @@ export interface LayoutProps {
 
 export interface BoxProps extends LayoutProps {}
 
-export interface TextProps extends LayoutProps {}
+export interface SpanProp {
+	text: string
+	style?: CellStyle
+}
+
+export interface TextProps extends LayoutProps {
+	/** 富文本行内段（与纯文本 children 互斥；spans 优先） */
+	spans?: SpanProp[]
+}
 
 export interface ScrollBoxProps extends LayoutProps {
 	/** 滚动偏移（paint 阶段 clamp 到 [0, contentHeight - viewportH]） */

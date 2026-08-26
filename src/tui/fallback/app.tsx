@@ -1,7 +1,7 @@
 /** @jsxImportSource #fallback-solid */
 import { createEffect, createSignal, For, onCleanup, onMount } from "solid-js"
 import type { Key } from "./input"
-import { ScrollBox, Textarea, type ScrollBoxApi, type TextareaApi } from "./solid"
+import { Markdown, ScrollBox, Textarea, type ScrollBoxApi, type TextareaApi } from "./solid"
 import type { ChatBridge, ChatRow } from "./chat-bridge"
 import type { JSX } from "./solid/jsx-runtime"
 
@@ -134,9 +134,16 @@ export function FallbackApp(props: FallbackAppProps): JSX.Element {
 				<TrackBottom />
 				<For each={rows()}>
 					{(row) => (
-						<text style={rowStyle(row)}>
-							{row.label}: {row.text}
-						</text>
+						<box>
+							{row.kind === "assistant" ? (
+								// 助手回复：Markdown 渲染（标题/列表/代码块/行内标记）
+								<Markdown source={`${row.label}: ${row.text}`} />
+							) : (
+								<text style={rowStyle(row)}>
+									{row.label}: {row.text}
+								</text>
+							)}
+						</box>
 					)}
 				</For>
 			</ScrollBox>
