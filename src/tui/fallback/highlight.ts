@@ -44,8 +44,8 @@ const KEYWORDS: Record<string, readonly string[]> = {
 
 const alias: Record<string, string> = { javascript: "js", typescript: "ts", jsx: "js", shell: "sh", zsh: "sh", "c++": "ts", cpp: "ts", c: "ts", java: "ts", go: "ts", rust: "ts", rs: "ts" }
 
-/** 词法 token 识别顺序：注释 → 字符串 → 数字 → 标识符（关键字/函数/类型）→ 其他。 */
-const TOKEN_RE = /(\/\/[^\n]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|\s+|.)/g
+/** 词法 token 识别顺序：注释（// 与 #，# 由 hashComment 开关控制消费）→ 字符串 → 数字 → 标识符 → 其他。 */
+const TOKEN_RE = /(\/\/[^\n]*|#[^\n]*|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`(?:[^`\\]|\\.)*`|\b\d+(?:\.\d+)?\b|[A-Za-z_$][\w$]*|\s+|.)/g
 
 /** 判定标识符样式：关键字 → 类型 → 函数调用 → 普通。 */
 function identStyle(word: string, keywords: ReadonlySet<string>, nextChar: string | undefined): CellStyle {

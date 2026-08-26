@@ -61,20 +61,30 @@ export class Screen {
 	private cells: Cell[]
 	private cols: number
 	private rows: number
-	/** 行级写戳：slice B 性能优化——renderDelta 先比戳跳过未变行（O(1)/行）。 */
-	private rowStamps: Uint32Array
+	/**
+	 * 行级写戳：slice B 性能优化——renderDelta 先比戳跳过未变行（O(1)/行）。
+	 * Float64Array：计数器是 JS number，存 Uint32Array 会在 2^32 写入后
+	 * 截断回绕、可能恰好撞上旧戳误判"未变"而漏重绘（防御性精度）。
+	 */
+	private rowStamps: Float64Array
 
 	constructor(cols: number, rows: number) {
 		this.cols = Math.max(1, Math.floor(cols))
 		this.rows = Math.max(1, Math.floor(rows))
 		this.cells = Array.from({ length: this.cols * this.rows }, () => BLANK)
-		this.rowStamps = new Uint32Array(this.rows)
+		this.rowStamps = new Float64Array(this.rows)
 	}
 
 	/** 行写戳（差分引擎短路判定用）。 */
 	rowStampAt(y: number): number {
 		if (y < 0 || y >= this.rows) return -1
 		return this.rowStamps[y]!
+	}
+
+	/** 同步另一屏的行戳（内容已证等价时的零拷贝对齐，见 terminal.present）。 */
+	syncStampsFrom(other: Screen): void {
+		if (this.rows !== other.rows) return
+		this.rowStamps.set(other.rowStamps)
 	}
 
 	get width(): number {
@@ -118,7 +128,11 @@ export class Screen {
 		this.cells = next
 		this.cols = nc
 		this.rows = nr
-		this.rowStamps = new Uint32Array(nr)
+		// 保留重叠区行戳（防御性：当前调用方 resize 后总伴随全量重绘，
+		// 但若未来走 delta 路径，全 0 戳会误判旧行未变而漏重绘）
+		const prevStamps = this.rowStamps
+		this.rowStamps = new Float64Array(nr)
+		this.rowStamps.set(prevStamps.subarray(0, Math.min(nr, prevStamps.length)))
 		return true
 	}
 

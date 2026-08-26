@@ -201,6 +201,10 @@ export class FallbackRenderer {
 			if (delta.length > 0) {
 				this.backend.write(delta)
 				this.prevScreen = this.snapshotCurrent()
+			} else if (this.prevScreen !== undefined) {
+				// 空 delta 帧：内容已证等价，同步行戳对齐 prevScreen——否则
+				// clear() 递增过的戳会让后续每帧都对未变行做无谓逐格比较
+				this.prevScreen.syncStampsFrom(this.screen)
 			}
 		})
 	}

@@ -29,7 +29,6 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 	const out: MarkdownLine[] = []
 	let inFence = false
 	let fenceLang = ""
-	let orderedIndex = 0
 
 	for (const raw of lines) {
 		// 代码块 fence 切换
@@ -71,19 +70,15 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 		// 无序列表
 		const bullet = /^[-*+]\s+(.*)$/.exec(trimmed)
 		if (bullet) {
-			orderedIndex = 0
 			out.push([{ text: "  • ", style: MD_STYLES.list }, ...parseInline(bullet[1]!, {})])
 			continue
 		}
 		// 有序列表
 		const ordered = /^(\d+)[.)]\s+(.*)$/.exec(trimmed)
 		if (ordered) {
-			orderedIndex += 1
-			const marker = `${ordered[1] ?? orderedIndex}. `
-			out.push([{ text: `  ${marker}`, style: MD_STYLES.list }, ...parseInline(ordered[2]!, {})])
+			out.push([{ text: `  ${ordered[1]}. `, style: MD_STYLES.list }, ...parseInline(ordered[2]!, {})])
 			continue
 		}
-		orderedIndex = 0
 		// 引用
 		const quote = /^>\s?(.*)$/.exec(trimmed)
 		if (quote) {

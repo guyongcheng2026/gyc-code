@@ -48,6 +48,7 @@
     "src/tui/fallback/solid/parity.test.tsx",
     "src/tui/fallback/solid/parity-b.test.tsx",
     "src/tui/fallback/solid/review-fix.test.tsx",
+    "src/tui/fallback/solid/review3-fix.test.tsx",
     "scripts/tui-fallback-demo.ts",
     "scripts/tui-fallback-bench.ts"
   ]

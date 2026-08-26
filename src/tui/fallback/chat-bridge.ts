@@ -113,6 +113,9 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 	}
 
 	const [rows, setRows] = createSignal<readonly ChatRow[]>([])
+	// roles 上限（第二轮审查修复：长会话 messageID 持续累积构成内存泄漏；
+	// 超限裁掉最旧一半——Map 迭代序即插入序，角色判定只需覆盖近期消息）
+	const ROLES_LIMIT = 1024
 	const roles = new Map<string, string>()
 	let sessionID: string | undefined
 	let offEvents: (() => void) | undefined
@@ -135,6 +138,16 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 		const event = eventOf(raw)
 		if (isMessageUpdated(event)) {
 			roles.set(event.properties.info.id, event.properties.info.role)
+			if (roles.size > ROLES_LIMIT) {
+				// 裁掉最旧一半（迭代序即插入序）
+				const drop = roles.size - ROLES_LIMIT / 2
+				let n = 0
+				for (const key of roles.keys()) {
+					if (n >= drop) break
+					roles.delete(key)
+					n += 1
+				}
+			}
 			return
 		}
 		if (!isPartUpdated(event)) return
