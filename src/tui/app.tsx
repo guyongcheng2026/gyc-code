@@ -354,6 +354,28 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             } catch {}
             process.exit(code)
           }
+          // 运行中原生崩溃的降级通道：清场后进入纯 JS 安全模式展示崩溃摘要，
+          // 用户退出后再按原 exit code 退出。claimFallbackOnce 一次性护栏：
+          // 安全模式内再崩直接退，杜绝降级循环。GYC_TUI_BACKEND=opentui 禁用。
+          let degrading = false
+          const degradeToSafeModeAndExit = async (error: unknown, code: number) => {
+            if (!shouldUseFallback() || degrading || !claimFallbackOnce()) {
+              restoreTerminalAndExit(code)
+              return
+            }
+            degrading = true
+            try {
+              win32FlushInputBuffer()
+            } catch {}
+            try {
+              destroyRenderer(renderer)
+            } catch {}
+            try {
+              const { runFallbackSafeMode } = await import("./fallback/safe-mode")
+              await runFallbackSafeMode({ error })
+            } catch {}
+            process.exit(code)
+          }
           const onUncaughtException = (error: Error) => {
             // AbortError / "Aborted" 是 Effect 正常取消流程（如用户中断、会话切换），
             // 不应触发崩溃退出。仅记录 debug 日志，不恢复终端、不退出进程。
@@ -373,11 +395,11 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               return
             }
             writeMainCrash("uncaughtException", error)
-            restoreTerminalAndExit(1)
+            void degradeToSafeModeAndExit(error, 1)
           }
           const onUnhandledRejection = (reason: unknown) => {
             writeMainCrash("unhandledRejection", reason)
-            restoreTerminalAndExit(1)
+            void degradeToSafeModeAndExit(reason, 1)
           }
           process.on("uncaughtException", onUncaughtException)
           process.on("unhandledRejection", onUnhandledRejection)
