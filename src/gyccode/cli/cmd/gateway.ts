@@ -1,7 +1,7 @@
 // gyc gateway：微信网关常驻守护（B 案独占连接）
 // 职责：长轮询收信 -> LLM 应答 -> 原路回复；启动前检查 hermes 网关与残留 gyc 守护
 // 杜绝双消费竞争；Ctrl+C 优雅退出。切换手册见 docs/compose/plans/2026-08-25-gateway-weixin.md
-import { readFileSync, writeFileSync, openSync, closeSync, constants } from "node:fs"
+import { readFileSync, writeFileSync, openSync, closeSync, unlinkSync, constants } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { EOL } from "node:os"
@@ -41,9 +41,8 @@ export function detectHermesGateway(): string | null {
 }
 
 /** 原子性获取独占锁文件（wx + O_EXCL），成功返回锁文件句柄，失败返回 null */
-function tryAcquireLock(): number | null {
-  const lockDir = join(homedir(), ".gyc", "data", "weixin")
-  const lockFile = join(lockDir, "gateway.lock")
+export function tryAcquireLock(): number | null {
+  const lockFile = join(homedir(), ".gyc", "data", "weixin", "gateway.lock")
   try {
     // O_EXCL | O_CREAT | O_WRONLY: 仅当文件不存在时原子创建并打开
     return openSync(lockFile, constants.O_EXCL | constants.O_CREAT | constants.O_WRONLY)
@@ -52,11 +51,38 @@ function tryAcquireLock(): number | null {
   }
 }
 
-/** 释放锁文件 */
-function releaseLock(fd: number | null): void {
+/** 释放锁文件：关闭句柄并删除文件，否则残留锁将永久阻断后续启动 */
+export function releaseLock(fd: number | null): void {
+  const lockFile = join(homedir(), ".gyc", "data", "weixin", "gateway.lock")
   if (fd !== null) {
     try { closeSync(fd) } catch {}
   }
+  try { unlinkSync(lockFile) } catch {}
+}
+
+/**
+ * 清理陈旧锁：仅当心跳表明没有存活的其他守护时才删锁。
+ * 返回是否已清理。心跳由调用方在拿锁后立即写入，
+ * 因此「锁存在但无心跳」即意味着上次运行未正常释放。
+ */
+export function recoverStaleLock(): boolean {
+  const heartbeatFile = join(homedir(), ".gyc", "data", "weixin", "heartbeat.json")
+  let alive = false
+  try {
+    const previous = JSON.parse(readFileSync(heartbeatFile, "utf-8")) as { pid?: number }
+    if (typeof previous.pid === "number" && previous.pid !== process.pid && isPidAlive(previous.pid)) {
+      alive = true
+    }
+  } catch {
+    // 心跳缺失或不可读：视为无存活守护
+  }
+  if (alive) return false
+  try {
+    unlinkSync(join(homedir(), ".gyc", "data", "weixin", "gateway.lock"))
+  } catch {
+    return false
+  }
+  return true
 }
 
 export async function detectGycHeartbeat(): Promise<string | null> {
@@ -92,16 +118,24 @@ export const GatewayCommand = effectCmd({
       }
     }
 
-    // 原子获取独占锁：防止 check-then-act 窗口期的双实例并发
-    const lockFd = yield* Effect.sync(() => tryAcquireLock())
+    // 原子获取独占锁：防止 check-then-act 窗口期的双实例并发。
+    // 锁存在但心跳无存活守护时，视为上次异常退出残留，清理后重试一次。
+    let lockFd = yield* Effect.sync(() => tryAcquireLock())
+    if (lockFd === null) {
+      const aliveDaemon = yield* Effect.promise(() => detectGycHeartbeat())
+      const recovered = aliveDaemon ? false : yield* Effect.sync(() => recoverStaleLock())
+      if (recovered) lockFd = yield* Effect.sync(() => tryAcquireLock())
+    }
     if (lockFd === null) {
       return yield* fail("另一 gyc gateway 实例正在启动或运行中，已持有独占锁。请稍后重试或使用 --force")
     }
 
+    // 拿锁后立即登记心跳（先于 connect）：让 recoverStaleLock 的「无存活守护」判定尽快成立，
+    // 后续实例 detectGycHeartbeat 亦依此拦截，防多守护并存
+    yield* Effect.promise(() => recordHeartbeat())
+
     const adapter = new WeixinAdapter()
     yield* Effect.promise(() => adapter.connect())
-    // 启动即登记心跳：后续实例 detectGycHeartbeat 依此拦截，防多守护并存
-    yield* Effect.promise(() => recordHeartbeat())
     const replier = new Replier()
     const controller = new AbortController()
     const onSignal = () => {
