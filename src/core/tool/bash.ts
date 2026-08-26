@@ -147,8 +147,22 @@ const layer = Layer.effectDiscard(
                   .shell ?? defaultShell()
               const enforcement = Config.latest(entries, "shell_enforcement")
               const externalDirectories = yield* externalCommandDirectories(fs, input.command, target.canonical)
+              let invalidAllowPaths: readonly string[] = []
               if (enforcement?.block_external_paths && externalDirectories.length > 0) {
-                const allowedRoots = yield* Effect.forEach(enforcement.allow_paths ?? [], (value) => fs.resolve(value))
+                // allow_paths 单条解析失败不再整体报错（此前会被 mapError 吞成笼统错误）：
+                // 跳过无效条目并在 warnings 显式列出，合法条目照常生效
+                const allowPathEntries = yield* Effect.forEach(
+                  enforcement.allow_paths ?? [],
+                  (value) =>
+                    fs.resolve(value).pipe(
+                      Effect.map((resolved) => [value, resolved] as const),
+                      Effect.catchAll(() => Effect.succeed([value, undefined] as const)),
+                    ),
+                )
+                const allowedRoots = allowPathEntries
+                  .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
+                  .map((entry) => entry[1])
+                invalidAllowPaths = allowPathEntries.filter((entry) => entry[1] === undefined).map(([value]) => value)
                 const blocked = blockedExternalPaths(externalDirectories, allowedRoots)
                 if (blocked.length > 0)
                   return yield* Effect.fail(
@@ -157,10 +171,17 @@ const layer = Layer.effectDiscard(
                     }),
                   )
               }
-              const warnings = externalDirectories.map(
-                (directory) =>
-                  `Command argument references external directory ${path.join(directory, "*").replaceAll("\\", "/")}. Bash runs with host-user filesystem, process, and network authority${enforcement?.block_external_paths ? "" : "; this scan is advisory only"}.`,
-              )
+              const warnings = [
+                ...externalDirectories.map(
+                  (directory) =>
+                    `Command argument references external directory ${path.join(directory, "*").replaceAll("\\", "/")}. Bash runs with host-user filesystem, process, and network authority${enforcement?.block_external_paths ? "" : "; this scan is advisory only"}.`,
+                ),
+                ...(invalidAllowPaths.length > 0
+                  ? [
+                      `Ignored unresolvable "shell_enforcement.allow_paths" entries: ${invalidAllowPaths.map((value) => JSON.stringify(value)).join(", ")}.`,
+                    ]
+                  : []),
+              ]
               yield* permission.assert({
                 action: name,
                 resources: [input.command],

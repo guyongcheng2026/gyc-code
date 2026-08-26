@@ -169,13 +169,17 @@ export async function recordHeartbeat(): Promise<string | null> {
   return stale
 }
 
-/** 进程探活：ESRCH=进程已不存在；其余异常（如 EPERM）视为存活处理。 */
+/** 进程探活：ESRCH=进程已不存在；EPERM=进程存在但无权限发信号，视为存活。 */
 export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (cause) {
+    // 注释与实现对齐：仅 EPERM 视为存活；ESRCH/EINVAL 等一律视为已退出。
+    // 若一律 false，双守护（陈旧锁恢复、旧进程检测）会把活着的守护误判为死，
+    // 导致重复启动与锁误清。
+    const code = (cause as NodeJS.ErrnoException | undefined)?.code
+    return code === "EPERM"
   }
 }
 

@@ -129,6 +129,15 @@ async function runTask(description: string): Promise<string> {
       } catch {
         // 进程已退出
       }
+      // 强杀兜底：子进程若忽略 SIGTERM（如卡死的原生子进程），5s 后 SIGKILL，
+      // 确保 proc.exited 必然 resolve，finally 释放 taskRunning，防通道永久卡死
+      setTimeout(() => {
+        try {
+          proc.kill("SIGKILL")
+        } catch {
+          // 进程已退出
+        }
+      }, 5000).unref?.()
     }, TASK_TIMEOUT_MS)
     timer.unref?.()
     const [stdout, stderr, exitCode] = await Promise.all([

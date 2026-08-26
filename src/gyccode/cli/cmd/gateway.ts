@@ -131,11 +131,17 @@ export const GatewayCommand = effectCmd({
     }
 
     // 拿锁后立即登记心跳（先于 connect）：让 recoverStaleLock 的「无存活守护」判定尽快成立，
-    // 后续实例 detectGycHeartbeat 亦依此拦截，防多守护并存
-    yield* Effect.promise(() => recordHeartbeat())
+    // 后续实例 detectGycHeartbeat 亦依此拦截，防多守护并存。
+    // 心跳与 connect 任一抛错（Effect.promise 转 defect）都会跳过正常释放路径，
+    // onError 兜底释放锁，防「一次失败永久锁死」。releaseLock 内部全吞异常，可安全重入。
+    yield* Effect.promise(() => recordHeartbeat()).pipe(
+      Effect.onError(() => Effect.sync(() => releaseLock(lockFd))),
+    )
 
     const adapter = new WeixinAdapter()
-    yield* Effect.promise(() => adapter.connect())
+    yield* Effect.promise(() => adapter.connect()).pipe(
+      Effect.onError(() => Effect.sync(() => releaseLock(lockFd))),
+    )
     const replier = new Replier()
     const controller = new AbortController()
     const onSignal = () => {
