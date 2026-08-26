@@ -35,6 +35,18 @@ function markDirty(): void {
 	})
 }
 
+/**
+ * 量算缓存失效（slice B 性能优化）：清除自身及全部祖先的缓存。
+ * 必须沿父链向上——父级堆叠高度依赖子内容，子变父必变。
+ */
+function invalidateMeasure(node: FallbackNode): void {
+	let cur: FallbackNode | undefined = node
+	while (cur !== undefined) {
+		if (cur.kind === "element") cur.measureCache = undefined
+		cur = cur.parent
+	}
+}
+
 function repaint(): void {
 	const renderer = activeRenderer
 	const root = rootElement
@@ -68,6 +80,7 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 	replaceText(node, value) {
 		if (isTextNode(node)) {
 			node.text = value
+			invalidateMeasure(node)
 			markDirty()
 		}
 	},
@@ -81,14 +94,18 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 			return
 		}
 		node.props[name] = value
+		// 量算缓存失效：自身及祖先（父级堆叠高度依赖子内容）
+		invalidateMeasure(node)
 		markDirty()
 	},
 	insertNode(parent, node, anchor) {
 		insertNode(parent, node, anchor)
+		invalidateMeasure(node)
 		markDirty()
 	},
 	removeNode(parent, node) {
 		removeNode(parent, node)
+		invalidateMeasure(node)
 		markDirty()
 	},
 	getParentNode,

@@ -3,6 +3,7 @@ import { createMemo, createSignal, For } from "solid-js"
 import { parseMarkdown } from "../markdown"
 import type { Key } from "../input"
 import type { ElementNode } from "./nodes"
+import { textDisplayWidth } from "./paint"
 import type { JSX, LayoutProps, SpanProp } from "./jsx-runtime"
 
 /**
@@ -234,6 +235,172 @@ export function Markdown(props: MarkdownProps): JSX.Element {
 	return (
 		<box style={props.style}>
 			<For each={lines()}>{(spans) => <text spans={spans as SpanProp[]} />}</For>
+		</box>
+	)
+}
+
+// ---------- slice B：Select / ScrollBar / TextTable ----------
+
+export interface SelectApi {
+	/** 处理按键；返回 true 表示已消费（上下/回车/Esc） */
+	handleKey(key: Key): boolean
+	/** 当前选中索引 */
+	selectedIndex(): number
+}
+
+export interface SelectProps {
+	/** 选项文本列表 */
+	options: string[]
+	/** 视口可见行数（缺省全部） */
+	visibleRows?: number
+	/** 选中变化回调 */
+	onChange?: (index: number) => void
+	/** 回车确认回调 */
+	onConfirm?: (index: number) => void
+	/** Esc 取消回调 */
+	onCancel?: () => void
+	style?: LayoutProps["style"]
+	ref?: (api: SelectApi) => void
+}
+
+/**
+ * Select 选择器（slice B）：上下移动 + 回车确认 + Esc 取消，
+ * 选中项反白高亮，超视口自动滚动跟随（对齐 opentui Select 核心行为）。
+ */
+export function Select(props: SelectProps): JSX.Element {
+	const [index, setIndex] = createSignal(0)
+	const [offset, setOffset] = createSignal(0)
+	const visible = () => props.visibleRows ?? props.options.length
+	const options = () => props.options
+
+	const clampView = (i: number) => {
+		const v = visible()
+		// 选中项强制保持在视口内
+		if (i < offset()) setOffset(i)
+		else if (i >= offset() + v) setOffset(i - v + 1)
+	}
+
+	const move = (delta: number) => {
+		const next = Math.max(0, Math.min(index() + delta, options().length - 1))
+		if (next === index()) return
+		setIndex(next)
+		clampView(next)
+		props.onChange?.(next)
+	}
+
+	const api: SelectApi = {
+		handleKey(key: Key): boolean {
+			switch (key.type) {
+				case "up":
+					move(-1)
+					return true
+				case "down":
+					move(1)
+					return true
+				case "pageup":
+					move(-visible())
+					return true
+				case "pagedown":
+					move(visible())
+					return true
+				case "home":
+					move(-options().length)
+					return true
+				case "end":
+					move(options().length)
+					return true
+				case "enter":
+					props.onConfirm?.(index())
+					return true
+				case "escape":
+					props.onCancel?.()
+					return true
+				default:
+					return false
+			}
+		},
+		selectedIndex: () => index(),
+	}
+	props.ref?.(api)
+
+	return (
+		<box style={props.style}>
+			<For each={options().slice(offset(), offset() + visible())}>
+				{(option, i) => (
+					<text style={offset() + i() === index() ? { reverse: true } : {}}>{option}</text>
+				)}
+			</For>
+		</box>
+	)
+}
+
+/**
+ * ScrollBar 滚动指示条（slice B）：竖直比例条——每行一个字符（█ 滑块 / │ 轨道），
+ * 滑块长度与位置由 内容高/视口高/滚动位 比例计算。
+ * 与 ScrollBox 组合使用（对齐 opentui ScrollBar 的视觉职责，不含交互）。
+ */
+export function ScrollBar(props: { contentHeight: number; viewportHeight: number; scrollTop: number }): JSX.Element {
+	const track = () => Math.max(1, props.viewportHeight)
+	const barLen = () => {
+		if (props.contentHeight <= 0) return 1
+		return Math.max(1, Math.round((props.viewportHeight / props.contentHeight) * track()))
+	}
+	const barPos = () => {
+		const max = track() - barLen()
+		if (max <= 0) return 0
+		const maxScroll = Math.max(1, props.contentHeight - props.viewportHeight)
+		return Math.min(max, Math.round((props.scrollTop / maxScroll) * max))
+	}
+	// 竖直轨道：每行一格（For 逐行 text，行内单字符 spans）
+	return (
+		<box>
+			<For each={Array.from({ length: track() }, (_, i) => i)}>
+				{(i) => (
+					<text
+						spans={[
+							{
+								text: i >= barPos() && i < barPos() + barLen() ? "█" : "│",
+								style: i >= barPos() && i < barPos() + barLen() ? { fg: "#6a737d" } : { fg: "#d0d7de" },
+							},
+						]}
+					/>
+				)}
+			</For>
+		</box>
+	)
+}
+
+export interface TextTableProps {
+	/** 表头（首行加粗+下划线） */
+	header?: string[]
+	/** 数据行 */
+	rows: string[][]
+	style?: LayoutProps["style"]
+}
+
+/**
+ * TextTable 表格（slice B）：列宽按列内容最大显示宽 + 2 空格分隔，
+ * 宽字符安全（display-width 口径）。对齐 opentui TextTable 的基础呈现。
+ */
+export function TextTable(props: TextTableProps): JSX.Element {
+	const table = createMemo(() => {
+		const all = [props.header ?? [], ...props.rows]
+		const widths: number[] = []
+		for (const row of all) {
+			row.forEach((cell, i) => {
+				widths[i] = Math.max(widths[i] ?? 0, textDisplayWidth(cell))
+			})
+		}
+		return { widths }
+	})
+	const padCell = (cell: string, i: number) => cell + " ".repeat(Math.max(1, (table().widths[i] ?? 0) - textDisplayWidth(cell) + 2))
+
+	return (
+		<box style={props.style}>
+			{props.header ? (
+				<text style={{ bold: true, underline: true }}>{props.header.map((h, i) => padCell(h, i)).join("")}</text>
+			) : null}
+			<For each={props.rows}>{(row) => <text>{row.map((cell, i) => padCell(cell, i)).join("")}</text>}</For>
 		</box>
 	)
 }

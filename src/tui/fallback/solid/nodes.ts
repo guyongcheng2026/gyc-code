@@ -24,6 +24,8 @@ export interface ElementNode {
 	contentHeight: number
 	/** scrollbox：paint 阶段 clamp 后的实际 scrollTop（供 scrollBy 读取） */
 	scrollTop: number
+	/** 量算缓存（slice B 性能优化）：{宽度, 结果}——props/子树变更时失效 */
+	measureCache: { width: number; value: number } | undefined
 }
 
 export interface TextNode {
@@ -46,6 +48,7 @@ export function createElementNode(type: string): ElementNode {
 		layout: { x: 0, y: 0, width: 0, height: 0 },
 		contentHeight: 0,
 		scrollTop: 0,
+		measureCache: undefined,
 	}
 }
 

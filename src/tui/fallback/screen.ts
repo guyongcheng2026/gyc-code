@@ -35,15 +35,46 @@ export interface Cell {
 const BLANK_STYLE: CellStyle = {}
 const BLANK: Cell = { ch: " ", width: 1, style: BLANK_STYLE }
 
+/** 样式浅比较（全字段；diff 引擎与本类值比较写入共用）。 */
+export function sameStyle(a: CellStyle, b: CellStyle): boolean {
+	return (
+		a.fg === b.fg &&
+		a.bg === b.bg &&
+		a.bold === b.bold &&
+		a.dim === b.dim &&
+		a.reverse === b.reverse &&
+		a.italic === b.italic &&
+		a.underline === b.underline &&
+		a.strikethrough === b.strikethrough
+	)
+}
+
+/** 单元格相等（字符/宽度/样式全比较；值比较写入与差分定位共用）。 */
+export function cellEqual(a: Cell, b: Cell): boolean {
+	return a.ch === b.ch && a.width === b.width && sameStyle(a.style, b.style)
+}
+
+/** 行戳全局计数器（单调递增；跨 Screen 实例共享，保证不同写入产生不同戳）。 */
+let stampCounter = 0
+
 export class Screen {
 	private cells: Cell[]
 	private cols: number
 	private rows: number
+	/** 行级写戳：slice B 性能优化——renderDelta 先比戳跳过未变行（O(1)/行）。 */
+	private rowStamps: Uint32Array
 
 	constructor(cols: number, rows: number) {
 		this.cols = Math.max(1, Math.floor(cols))
 		this.rows = Math.max(1, Math.floor(rows))
 		this.cells = Array.from({ length: this.cols * this.rows }, () => BLANK)
+		this.rowStamps = new Uint32Array(this.rows)
+	}
+
+	/** 行写戳（差分引擎短路判定用）。 */
+	rowStampAt(y: number): number {
+		if (y < 0 || y >= this.rows) return -1
+		return this.rowStamps[y]!
 	}
 
 	get width(): number {
@@ -61,6 +92,11 @@ export class Screen {
 
 	clear(): void {
 		this.cells.fill(BLANK)
+		// 清屏视为全行写入：未变化行由后续重写的值比较吸收（戳不递增），
+		// 原本非空的行戳递增（BLANK 与原值不等）
+		for (let y = 0; y < this.rows; y++) {
+			this.rowStamps[y] = ++stampCounter
+		}
 	}
 
 	/**
@@ -82,6 +118,7 @@ export class Screen {
 		this.cells = next
 		this.cols = nc
 		this.rows = nr
+		this.rowStamps = new Uint32Array(nr)
 		return true
 	}
 
@@ -89,7 +126,7 @@ export class Screen {
 		for (let ry = y; ry < y + h && ry < this.rows; ry++) {
 			for (let rx = x; rx < x + w && rx < this.cols; rx++) {
 				if (rx < 0 || ry < 0) continue
-				this.cells[ry * this.cols + rx] = { ch: " ", width: 1, style }
+				this.setCell(rx, ry, { ch: " ", width: 1, style })
 			}
 		}
 	}
@@ -124,13 +161,18 @@ export class Screen {
 
 	private setCell(x: number, y: number, cell: Cell): void {
 		if (x < 0 || x >= this.cols || y < 0 || y >= this.rows) return
-		this.cells[y * this.cols + x] = cell
+		const idx = y * this.cols + x
+		// 值比较写入：内容未变不写不递增戳（全量重绘场景下吸收无效写入）
+		if (cellEqual(this.cells[idx]!, cell)) return
+		this.cells[idx] = cell
+		this.rowStamps[y] = ++stampCounter
 	}
 
-	/** 深拷贝当前网格。 */
+	/** 深拷贝当前网格（含行写戳——快照的戳反映该时刻状态）。 */
 	clone(): Screen {
 		const copy = new Screen(this.cols, this.rows)
 		copy.cells = this.cells.map((c) => ({ ...c }))
+		copy.rowStamps = this.rowStamps.slice()
 		return copy
 	}
 

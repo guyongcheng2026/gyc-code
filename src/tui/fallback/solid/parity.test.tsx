@@ -222,9 +222,12 @@ describe("parity：Markdown 渲染", () => {
 		expect(lines[3]![0]!.text).toBe("  • ")
 		// 引用
 		expect(lines[4]![0]!.text).toBe("│ ")
-		// 代码块 fence
+		// 代码块 fence（体行经语法高亮分段——按段拼接断言全文）
 		expect(lines[5]![0]!.text).toBe("┌ ts")
-		expect(lines[6]![1]!.text).toBe("const a = 1")
+		expect(lines[6]!.slice(1).map((s) => s.text).join("")).toBe("const a = 1")
+		// 高亮生效：const 是关键字段
+		expect(lines[6]![1]!.text).toBe("const")
+		expect(lines[6]![1]!.style.fg).toBe("#d73a49")
 		expect(lines[7]![0]!.text).toBe("└")
 	})
 

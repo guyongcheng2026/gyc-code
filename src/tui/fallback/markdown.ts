@@ -1,5 +1,6 @@
 import type { CellStyle } from "./screen"
 import type { StyledSpan } from "./solid/paint"
+import { highlightCodeLine } from "./highlight"
 
 /**
  * parity slice A：最小 Markdown 解析器（零依赖，逐行扫描 + 行内标记）。
@@ -44,10 +45,9 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 			continue
 		}
 		if (inFence) {
-			out.push([
-				{ text: "│ ", style: MD_STYLES.quote },
-				{ text: raw, style: MD_STYLES.code },
-			])
+			// 代码块体：通用语法高亮（零原生依赖，见 highlight.ts）
+			const highlighted = highlightCodeLine(raw, fenceLang)
+			out.push([{ text: "│ ", style: MD_STYLES.quote }, ...highlighted])
 			continue
 		}
 

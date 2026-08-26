@@ -155,10 +155,21 @@ function spansOf(el: ElementNode): StyledSpan[] | undefined {
 	return out
 }
 
-/** 节点在给定宽度下的内容高度（行数）。显式 height 优先于内容量算。 */
+/**
+ * 节点在给定宽度下的内容高度（行数）。显式 height 优先于内容量算。
+ * slice B 性能优化：element 节点结果缓存（同宽度命中直接返回）——
+ * props/子树变更时由 renderer.invalidateMeasure 沿父链清除。
+ */
 function measureNode(node: FallbackNode, width: number): number {
 	if (node.kind === "text") return wrapText(node.text, width).length
 	const el = node
+	if (el.measureCache !== undefined && el.measureCache.width === width) return el.measureCache.value
+	const value = measureUncached(el, width)
+	el.measureCache = { width, value }
+	return value
+}
+
+function measureUncached(el: ElementNode, width: number): number {
 	if (typeof el.props.height === "number") return el.props.height
 	if (el.type === "textarea") return measureTextarea(el, width)
 	if (el.type === "scrollbox") return measureChildren(el, width)

@@ -43,8 +43,10 @@
     "src/tui/fallback/run-app.ts",
     "src/tui/fallback/chat-bridge.ts",
     "src/tui/fallback/markdown.ts",
+    "src/tui/fallback/highlight.ts",
     "src/tui/fallback/solid/slice2.test.tsx",
     "src/tui/fallback/solid/parity.test.tsx",
+    "src/tui/fallback/solid/parity-b.test.tsx",
     "src/tui/fallback/solid/review-fix.test.tsx",
     "scripts/tui-fallback-demo.ts",
     "scripts/tui-fallback-bench.ts"
