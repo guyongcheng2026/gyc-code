@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test"
 import { MemoryBackend } from "./terminal"
-import { runFallbackSafeMode, shouldUseFallback } from "./safe-mode"
+import {
+	claimFallbackOnce,
+	resetFallbackClaimForTest,
+	runFallbackSafeMode,
+	shouldUseFallback,
+	type CloseWatcher,
+} from "./safe-mode"
 
 describe("安全模式降级通道", () => {
 	test("开关判定：未设置/auto/fallback 均启用，opentui 禁用", () => {
@@ -41,6 +47,31 @@ describe("安全模式降级通道", () => {
 		await new Promise((r) => setTimeout(r, 0))
 		expect(backend.output).toContain("纯字符串错误")
 		backend.emitInput("\x03")
+		expect(await app).toBe(true)
+	})
+
+	test("降级护栏：全进程仅首次放行", () => {
+		resetFallbackClaimForTest()
+		expect(claimFallbackOnce()).toBe(true)
+		expect(claimFallbackOnce()).toBe(false)
+		expect(claimFallbackOnce()).toBe(false)
+		resetFallbackClaimForTest()
+	})
+
+	test("终端窗口关闭时自动收场（watchClose 注入）", async () => {
+		resetFallbackClaimForTest()
+		const backend = new MemoryBackend(80, 10)
+		let closeCb: (() => void) | undefined
+		const fakeWatcher: CloseWatcher = (cb) => {
+			closeCb = cb
+			return () => {
+				closeCb = undefined
+			}
+		}
+		const app = runFallbackSafeMode({ backend, error: "x", watchClose: fakeWatcher })
+		await new Promise((r) => setTimeout(r, 0))
+		expect(closeCb).toBeDefined()
+		closeCb!()
 		expect(await app).toBe(true)
 	})
 })
