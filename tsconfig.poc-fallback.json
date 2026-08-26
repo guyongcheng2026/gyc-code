@@ -23,6 +23,11 @@
     "src/tui/fallback/safe-mode.ts",
     "src/tui/fallback/safe-mode.test.ts",
     "src/tui/fallback/snapshot-matrix.test.ts",
+    "src/tui/fallback/rich-text.ts",
+    "src/tui/fallback/rich-text.test.ts",
+    "src/tui/fallback/renderer-backend.ts",
+    "src/tui/fallback/renderer-backend-adapters.ts",
+    "src/tui/fallback/renderer-backend.test.ts",
     "scripts/tui-fallback-demo.ts",
     "scripts/tui-fallback-bench.ts"
   ]

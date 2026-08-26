@@ -144,8 +144,26 @@ export class FallbackRenderer {
 		this.screen = new Screen(backend.getWidth(), backend.getHeight())
 	}
 
+	/** 渲染器是否已销毁（对齐 RendererBackend.isDestroyed 契约）。 */
+	get isDestroyed(): boolean {
+		return !this.started
+	}
+
 	get currentScreen(): Screen {
 		return this.screen
+	}
+
+	/** 订阅终端 resize 事件（对外暴露，供抽象层使用）。 */
+	onResize(cb: () => void): () => void {
+		return this.backend.onResize(cb)
+	}
+
+	getWidth(): number {
+		return this.backend.getWidth()
+	}
+
+	getHeight(): number {
+		return this.backend.getHeight()
 	}
 
 	start(): void {

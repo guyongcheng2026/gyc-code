@@ -7,7 +7,10 @@ import stringWidth from "string-width"
  * 以及全面替换决策的技术孵化载体。宽度口径与 src/core/util/display-width.ts
  * 同源（string-width），从根上杜绝原生/JS 宽度判定分歧导致的乱码。
  *
- * 明确不做：布局引擎、Solid reconciler、鼠标、语法高亮。超纲即砍。
+ * 富文本样式层（P1 扩容，2026-08-26）：CellStyle 全字段对齐 opentui
+ * StyleDefinition；tree-sitter token 样式解析见 rich-text.ts。
+ *
+ * 明确不做：布局引擎、Solid reconciler、鼠标。超纲即砍。
  */
 
 export interface CellStyle {
@@ -16,6 +19,9 @@ export interface CellStyle {
 	readonly bold?: boolean
 	readonly dim?: boolean
 	readonly reverse?: boolean
+	readonly italic?: boolean
+	readonly underline?: boolean
+	readonly strikethrough?: boolean
 }
 
 export interface Cell {

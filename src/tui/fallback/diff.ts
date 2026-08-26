@@ -15,7 +15,10 @@ function sgrFor(style: CellStyle): string {
 	const codes: string[] = []
 	if (style.bold) codes.push("1")
 	if (style.dim) codes.push("2")
+	if (style.italic) codes.push("3")
+	if (style.underline) codes.push("4")
 	if (style.reverse) codes.push("7")
+	if (style.strikethrough) codes.push("9")
 	if (style.fg) codes.push(fgCode(style.fg))
 	if (style.bg) codes.push(bgCode(style.bg))
 	if (codes.length === 0) return RESET
@@ -40,7 +43,16 @@ function bgCode(color: string): string {
 }
 
 function sameStyle(a: CellStyle, b: CellStyle): boolean {
-	return a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.dim === b.dim && a.reverse === b.reverse
+	return (
+		a.fg === b.fg &&
+		a.bg === b.bg &&
+		a.bold === b.bold &&
+		a.dim === b.dim &&
+		a.reverse === b.reverse &&
+		a.italic === b.italic &&
+		a.underline === b.underline &&
+		a.strikethrough === b.strikethrough
+	)
 }
 
 /** 进入全屏模式序列：alt-screen + 清屏 + 隐藏光标 */
@@ -49,7 +61,11 @@ export const ENTER_SEQ = "\x1b[?1049h\x1b[H\x1b[2J\x1b[?25l"
 export const LEAVE_SEQ = "\x1b[?25h\x1b[?1049l"
 
 function cellKey(c: Cell): string {
-	return `${c.width}\u0000${c.ch}\u0000${c.style.fg ?? ""}\u0000${c.style.bg ?? ""}\u0000${c.style.bold ? 1 : 0}\u0000${c.style.dim ? 1 : 0}\u0000${c.style.reverse ? 1 : 0}`
+	return (
+		`${c.width}\u0000${c.ch}\u0000${c.style.fg ?? ""}\u0000${c.style.bg ?? ""}` +
+		`\u0000${c.style.bold ? 1 : 0}\u0000${c.style.dim ? 1 : 0}\u0000${c.style.reverse ? 1 : 0}` +
+		`\u0000${c.style.italic ? 1 : 0}\u0000${c.style.underline ? 1 : 0}\u0000${c.style.strikethrough ? 1 : 0}`
+	)
 }
 
 function rowEqual(a: Screen, b: Screen, y: number): boolean {
