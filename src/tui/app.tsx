@@ -11,7 +11,7 @@ import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
-import { shouldUseFallback } from "./fallback/safe-mode"
+import { backendChoice, claimFallbackOnce, isExplicitFallback, shouldUseFallback } from "./fallback/safe-mode"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
@@ -251,6 +251,26 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32EnableUtf8Console()
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
+      // S0 显式 fallback 通道（R1：默认 auto 不走此分支）：GYC_TUI_BACKEND=fallback
+      // 跳过 opentui 创建，直接进入自研渲染后端安全模式。S0 预览形态为
+      // 消息流+单行输入；完整组件桥接（Solid reconciler 替代）属 S1 范畴。
+      if (isExplicitFallback()) {
+        yield* Effect.promise(async () => {
+          void mkdir(global.log, { recursive: true })
+            .then(() =>
+              appendFile(
+                join(global.log, "gyccode.log"),
+                `timestamp=${new Date().toISOString()} level=Info run=main renderer=fallback backend=fallback event=backend-explicit-fallback\n`,
+              ),
+            )
+            .catch(() => {})
+          const { runFallbackSafeMode } = await import("./fallback/safe-mode")
+          await runFallbackSafeMode({
+            error: new Error("GYC_TUI_BACKEND=fallback：自研渲染后端 S0 预览（消息流 + 单行输入）"),
+          })
+        })
+        return { epilogue: exit.epilogue, reason: exit.reason }
+      }
       // 骨架屏并行化：config 由调用方以 Promise 注入（与 worker/effect 模块加载
       // 并行获取）。首帧只渲染零 config 依赖的骨架层，配置到达后 <Show> 切换
       // 完整应用树——TuiConfig.get() 实测约 1.2s，不再挡住首帧。
@@ -262,7 +282,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               const r = await createCliRenderer({
                 externalOutputMode: "passthrough",
                 targetFps: 30,
-                gatherStats: false,
+                // S0 P5 基线采集：GYC_TUI_STATS=1 开启帧统计（默认关闭，行为不变），
+                // 供 opentui 端帧耗时与 fallback 引擎对比验收。
+                gatherStats: process.env.GYC_TUI_STATS === "1",
                 exitOnCtrlC: false,
                 useKittyKeyboard: {},
                 autoFocus: false,
@@ -280,6 +302,15 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // 变「黑屏退出」为可用保底；用户退出后仍抛出原错误走报错路径。
               // GYC_TUI_BACKEND=opentui 可禁用降级。
               if (shouldUseFallback()) {
+                // S0 G5 可观测：降级事件带 renderer 归因（T3 触发条件的监测数据源）
+                void mkdir(global.log, { recursive: true })
+                  .then(() =>
+                    appendFile(
+                      join(global.log, "gyccode.log"),
+                      `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} event=renderer-create-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
+                    ),
+                  )
+                  .catch(() => {})
                 const { runFallbackSafeMode } = await import("./fallback/safe-mode")
                 await runFallbackSafeMode({ error })
               }
@@ -340,7 +371,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               .then(() =>
                 appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main ${kind} message=${detail} rss=${rssMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} ${kind} message=${detail} rss=${rssMB}MB\n`,
                 ),
               )
               .catch(() => {})
@@ -364,6 +395,15 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               return
             }
             degrading = true
+            // S0 G5 可观测：运行中崩溃降级事件带 renderer 归因
+            void mkdir(global.log, { recursive: true })
+              .then(() =>
+                appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} event=runtime-crash-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
+                ),
+              )
+              .catch(() => {})
             try {
               win32FlushInputBuffer()
             } catch {}
@@ -477,9 +517,18 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // 心跳采样：每 10 分钟一条 Info，供长跑内存趋势分析
               if (Date.now() - lastSample > 600_000) {
                 lastSample = Date.now()
+                // S0 P5 基线：GYC_TUI_STATS=1 时附带 opentui 帧统计，
+                // 与 fallback 引擎基准（0.150ms/帧）做验收对比（帧耗时 ≤2 倍线）。
+                let statsLine = ""
+                if (process.env.GYC_TUI_STATS === "1") {
+                  try {
+                    const s = renderer.getStats()
+                    statsLine = ` rendererStats fps=${s.fps.toFixed(1)} avgFrameMs=${s.averageFrameTime.toFixed(3)} frames=${s.frameCount}`
+                  } catch {}
+                }
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB${statsLine}\n`,
                 ).catch(() => {})
               }
               // 启动宽限期内只记录不退出，给 V8 堆稳定留时间

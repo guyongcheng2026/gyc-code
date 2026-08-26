@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import { MemoryBackend } from "./terminal"
 import {
+	backendChoice,
 	claimFallbackOnce,
+	isExplicitFallback,
 	resetFallbackClaimForTest,
 	runFallbackSafeMode,
 	shouldUseFallback,
@@ -20,6 +22,43 @@ describe("安全模式降级通道", () => {
 			expect(shouldUseFallback()).toBe(true)
 			process.env.GYC_TUI_BACKEND = "opentui"
 			expect(shouldUseFallback()).toBe(false)
+		} finally {
+			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
+			else process.env.GYC_TUI_BACKEND = saved
+		}
+	})
+
+	test("S0 三态语义：backendChoice 解析", () => {
+		const saved = process.env.GYC_TUI_BACKEND
+		try {
+			delete process.env.GYC_TUI_BACKEND
+			expect(backendChoice()).toBe("auto")
+			process.env.GYC_TUI_BACKEND = "auto"
+			expect(backendChoice()).toBe("auto")
+			process.env.GYC_TUI_BACKEND = "opentui"
+			expect(backendChoice()).toBe("opentui")
+			process.env.GYC_TUI_BACKEND = "fallback"
+			expect(backendChoice()).toBe("fallback")
+			// 非法值回落 auto
+			process.env.GYC_TUI_BACKEND = "garbage"
+			expect(backendChoice()).toBe("auto")
+		} finally {
+			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
+			else process.env.GYC_TUI_BACKEND = saved
+		}
+	})
+
+	test("S0 显式 fallback 判定：仅 fallback 值为真", () => {
+		const saved = process.env.GYC_TUI_BACKEND
+		try {
+			delete process.env.GYC_TUI_BACKEND
+			expect(isExplicitFallback()).toBe(false)
+			process.env.GYC_TUI_BACKEND = "auto"
+			expect(isExplicitFallback()).toBe(false)
+			process.env.GYC_TUI_BACKEND = "opentui"
+			expect(isExplicitFallback()).toBe(false)
+			process.env.GYC_TUI_BACKEND = "fallback"
+			expect(isExplicitFallback()).toBe(true)
 		} finally {
 			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
 			else process.env.GYC_TUI_BACKEND = saved
