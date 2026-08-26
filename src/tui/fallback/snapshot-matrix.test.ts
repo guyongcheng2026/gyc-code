@@ -28,7 +28,10 @@ describe("乱码专项快照矩阵", () => {
 		const s = new Screen(20, 1)
 		s.writeText(0, 0, "gyc-code 自研渲染器")
 		// 显示列宽累加（占位格计入 1 列），不得超过网格宽度
-		const displayCols = Array.from({ length: 20 }, (_, x) => s.cellAt(x, 0).width).reduce((a, b) => a + b, 0)
+		const displayCols = Array.from({ length: 20 }, (_, x) => s.cellAt(x, 0).width as number).reduce(
+			(a, b) => a + b,
+			0,
+		)
 		expect(displayCols).toBeLessThanOrEqual(20)
 		expect(s.cellAt(0, 0).ch).toBe("g")
 	})

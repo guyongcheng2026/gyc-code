@@ -20,6 +20,10 @@
     "src/tui/fallback/input.test.ts",
     "src/tui/fallback/demo-app.ts",
     "src/tui/fallback/demo-app.test.ts",
-    "scripts/tui-fallback-demo.ts"
+    "src/tui/fallback/safe-mode.ts",
+    "src/tui/fallback/safe-mode.test.ts",
+    "src/tui/fallback/snapshot-matrix.test.ts",
+    "scripts/tui-fallback-demo.ts",
+    "scripts/tui-fallback-bench.ts"
   ]
 }

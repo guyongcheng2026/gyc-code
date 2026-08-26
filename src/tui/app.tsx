@@ -11,6 +11,7 @@ import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
+import { shouldUseFallback } from "./fallback/safe-mode"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
@@ -256,24 +257,35 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       const [config, setConfig] = createSignal<TuiConfig.Resolved | undefined>(undefined)
       const renderer = yield* Effect.acquireRelease(
         Effect.tryPromise({
-          try: () =>
-            createCliRenderer({
-              externalOutputMode: "passthrough",
-              targetFps: 30,
-              gatherStats: false,
-              exitOnCtrlC: false,
-              useKittyKeyboard: {},
-              autoFocus: false,
-              openConsoleOnError: false,
-              // 骨架期先关闭；配置到达后经 renderer.useMouse setter 运行时补启
-              useMouse: false,
-              consoleOptions: {
-                keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
-              },
-            }).then((r) => {
+          try: async () => {
+            try {
+              const r = await createCliRenderer({
+                externalOutputMode: "passthrough",
+                targetFps: 30,
+                gatherStats: false,
+                exitOnCtrlC: false,
+                useKittyKeyboard: {},
+                autoFocus: false,
+                openConsoleOnError: false,
+                // 骨架期先关闭；配置到达后经 renderer.useMouse setter 运行时补启
+                useMouse: false,
+                consoleOptions: {
+                  keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
+                },
+              })
               tuiTiming("opentui renderer created")
               return r
-            }),
+            } catch (error) {
+              // 自动降级通道：原生层初始化失败时进入纯 JS 安全模式，
+              // 变「黑屏退出」为可用保底；用户退出后仍抛出原错误走报错路径。
+              // GYC_TUI_BACKEND=opentui 可禁用降级。
+              if (shouldUseFallback()) {
+                const { runFallbackSafeMode } = await import("./fallback/safe-mode")
+                await runFallbackSafeMode({ error })
+              }
+              throw error instanceof Error ? error : new Error(String(error))
+            }
+          },
           catch: (error) => (error instanceof Error ? error : new Error(String(error))),
         }),
         (renderer) =>
@@ -391,6 +403,15 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           let warnOnce = false
           let criticalOnce = false
           let lastSample = 0
+          // 启动宽限期：前 30 秒不做 fatal 判定，给 V8 堆增长、模块加载留出缓冲
+          // 4GB 机器启动时 free memory 常跌至 100-200MB，属正常瞬态，不应触发退出
+          let startupGracePeriod = true
+          setTimeout(() => { startupGracePeriod = false }, 30_000).unref()
+          
+          // free < 256MB 的"致命"判定在低内存机器上是启动瞬态，采用连续多轮
+          // 确认（本轮起 3 轮 × 10s ≈ 30s）再退出；rss > 50% 仍立即退出。
+          let fatalStreak = 0
+          const FATAL_STREAK_LIMIT = 3
           const totalMem = os.totalmem()
           const lowMemMachine = totalMem <= 4 * 1024 * 1024 * 1024
           // 主动 GC：bin/gyc 以 --expose-gc 启动 Node 时可用；未暴露时静默跳过
@@ -439,11 +460,24 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
               }
+              // 启动宽限期内只记录不退出，给 V8 堆稳定留时间
+              if (startupGracePeriod) {
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-startup-grace rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                ).catch(() => {})
+                runGc()
+                return
+              }
               // 系统可用内存维度：物理内存即将耗尽时 V8 C++ 层（TurboFan/
               // 地址空间分配）先于 JS 堆守护崩溃——不可捕获的 FatalOOM abort。
-              // free < 256MB 视同 fatal 立即降载。
+              // free < 256MB 本属 fatal，但低内存机器（4GB 机）启动瞬间游离于
+              // 此线是常态：主进程+worker 加载临时吞掉数百 MB + Standby 缓存
+              // 动态释放有延时，单轮 low 不代表不可恢复。改用连续多轮确认
+              // （fatalStreak ≥3 才退出），期间写日志+尽力 GC，给喘息窗口。
               const systemFatal = free < 256 * 1024 * 1024
-              if (rss > total * 0.5 || systemFatal) {
+              if (rss > total * 0.5) {
+                // 进程自身堆失控（rss>50%RAM）：真致命，立即降载退出
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
@@ -452,8 +486,31 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 try {
                   destroyRenderer(renderer)
                 } catch {}
-              } else if (rss > total * 0.45 || free < 512 * 1024 * 1024) {
-                // 二级降载：写堆快照留证 + 主动 GC，尽量避免走到 fatal 退出
+              } else if (systemFatal) {
+                // 系统可用内存紧张：连续多轮确认才退出，防启动瞬态误杀
+                fatalStreak += 1
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow streak=${fatalStreak}/${FATAL_STREAK_LIMIT} rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                ).catch(() => {})
+                runGc()
+                if (fatalStreak >= FATAL_STREAK_LIMIT) {
+                  void appendFile(
+                    join(global.log, "gyccode.log"),
+                    `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB streak=${fatalStreak}\n`,
+                  ).catch(() => {})
+                  try {
+                    destroyRenderer(renderer)
+                  } catch {}
+                }
+              } else {
+                // 系统内存恢复常态：reset 连续计数
+                fatalStreak = 0
+              }
+              // 二级降载：rss 接近上限或 free 进入紧张带——写堆快照留证 + 主动
+              // GC，尽量避免走到 fatal 退出。独立于 fatal 判断，fatal streak
+              // 期间同样生效（free<256<512，条件恒真，仅首次写证）。
+              if (rss > total * 0.45 || free < 512 * 1024 * 1024) {
                 if (!criticalOnce) {
                   criticalOnce = true
                   void appendFile(
