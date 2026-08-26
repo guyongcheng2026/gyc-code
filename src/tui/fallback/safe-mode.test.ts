@@ -28,27 +28,29 @@ describe("安全模式降级通道", () => {
 		}
 	})
 
-	test("S0 三态语义：backendChoice 解析", () => {
+	test("S2 灰度语义：backendChoice 默认 fallback，auto/opentui 显式切回", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
+			// S2 默认值反转：未设置 → fallback（自研渲染器）
 			delete process.env.GYC_TUI_BACKEND
-			expect(backendChoice()).toBe("auto")
+			expect(backendChoice()).toBe("fallback")
+			// R3 切回手段：auto（opentui 优先+降级）与 opentui（纯原生）
 			process.env.GYC_TUI_BACKEND = "auto"
 			expect(backendChoice()).toBe("auto")
 			process.env.GYC_TUI_BACKEND = "opentui"
 			expect(backendChoice()).toBe("opentui")
 			process.env.GYC_TUI_BACKEND = "fallback"
 			expect(backendChoice()).toBe("fallback")
-			// 非法值回落 auto
+			// 非法值回落 S2 默认 fallback
 			process.env.GYC_TUI_BACKEND = "garbage"
-			expect(backendChoice()).toBe("auto")
+			expect(backendChoice()).toBe("fallback")
 		} finally {
 			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
 			else process.env.GYC_TUI_BACKEND = saved
 		}
 	})
 
-	test("S0 显式 fallback 判定：仅 fallback 值为真", () => {
+	test("S2 显式 fallback 判定：仅显式 fallback 值为真（默认不算显式）", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
 			delete process.env.GYC_TUI_BACKEND

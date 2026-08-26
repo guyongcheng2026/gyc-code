@@ -251,16 +251,18 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       win32EnableUtf8Console()
       win32DisableProcessedInput()
       const unguardUtf8Console = win32InstallUtf8ConsoleGuard()
-      // S0 显式 fallback 通道（R1：默认 auto 不走此分支）：GYC_TUI_BACKEND=fallback
-      // 跳过 opentui 创建，运行自研渲染后端。S1 起为 Solid 组件树会话视图，
-      // transport 齐备时接线真实会话引擎（ChatBridge）；崩溃降级走 DemoApp。
-      if (isExplicitFallback()) {
+      // S2 灰度切换（R3：GYC_TUI_BACKEND=auto/opentui 一键切回）：默认走自研
+      // 渲染后端（backendChoice 未设置时返回 "fallback"）；显式 fallback 同路径。
+      // auto 模式仍走 opentui（含创建失败降级）；opentui 模式纯原生。
+      if (backendChoice() === "fallback") {
         yield* Effect.promise(async () => {
+          // G5 归因：source 区分显式选择与 S2 默认值
+          const source = isExplicitFallback() ? "explicit" : "default"
           void mkdir(global.log, { recursive: true })
             .then(() =>
               appendFile(
                 join(global.log, "gyccode.log"),
-                `timestamp=${new Date().toISOString()} level=Info run=main renderer=fallback backend=fallback event=backend-explicit-fallback\n`,
+                `timestamp=${new Date().toISOString()} level=Info run=main renderer=fallback backend=fallback source=${source} event=backend-selected\n`,
               ),
             )
             .catch(() => {})
