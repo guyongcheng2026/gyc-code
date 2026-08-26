@@ -39,7 +39,22 @@
 | S2 灰度切换 | 默认 fallback，opentui 转后备依赖 | 第 4 周 | R3：GYC_TUI_BACKEND 一键切回 |
 | S3 清理收尾 | 移除 opentui 依赖与三个补丁脚本 | 第 5 周 | R4：git revert 单独提交的 S3 |
 
-**执行进展（2026-08-26）**：S0 ✅（d374461）→ S1 ✅（02d53b0 + d840ca0，真机验收通过）→ **S2 ✅（默认值反转，GYC_TUI_BACKEND 未设置时走自研渲染器；`GYC_TUI_BACKEND=auto|opentui` 一键切回）** → S3 待启动。
+**执行进展（2026-08-26）**：S0 ✅（d374461）→ S1 ✅（02d53b0 + d840ca0，真机验收通过）→ **S2 ✅（默认值反转，GYC_TUI_BACKEND 未设置时走自研渲染器；`GYC_TUI_BACKEND=auto|opentui` 一键切回）** → 全链路代码审查 ✅（3c59e8d，修复 5 处缺陷）→ **S3 缓执行**（决策见下）。
+
+### S3 缓执行决策记录（2026-08-26，谷总拍板）
+
+**决策**：字面 S3（移除 opentui 依赖与补丁链）暂缓，待 fallback 补齐 Markdown/Dialog/主题等功能达到平价后一次性执行。
+
+**决策依据（全链路审查实证）**：
+1. `src/tui` 有 91+ 处 `@opentui` import——完整 UI（18 个 Dialog、diff-viewer、Markdown/tree-sitter 渲染、主题、keymap、鼠标）构建在 opentui 上；fallback 当前仅覆盖核心对话流，字面 S3 = 产品功能大幅缩水
+2. S2 实际已达成核心收益：默认路径**零 opentui.dll 加载**（resolveRenderLib 惰性调用实证）、零原生崩溃风险；opentui 仅作为显式 opt-in 完整 UI 后备
+3. S3 是单向门：执行后 R3 保险丝（GYC_TUI_BACKEND=auto 切回完整 UI）失效
+4. P5 验收线（帧耗时实测对比）未采集
+
+**S3 重启条件**（满足即自动进入评审）：
+- fallback 补齐 Markdown 渲染（复用 P1 rich-text 层）与 Dialog 基础件
+- G2 乱码矩阵 + G3 bench 在灰度期零回归
+- S2 灰度运行 ≥2 周无稳定性事件（gyccode.log backend-selected 归因）
 
 全程原则：每阶段独立可回滚；任一阶段失败退回上一回滚点即恢复产线形态。
 
