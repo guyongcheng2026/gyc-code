@@ -22,3 +22,7 @@ models-mirror/
 .workbuddy/
 # 稳定性监控运行产物
 stability-*
+
+# 验证报告与临时文件（一次性验证产物，不入库）
+*-verify-report.json
+temp.txt
