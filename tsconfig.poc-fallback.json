@@ -1,0 +1,25 @@
+﻿{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "jsx": "preserve"
+  },
+  "files": [
+    "src/tui/fallback/screen.ts",
+    "src/tui/fallback/screen.test.ts",
+    "src/tui/fallback/diff.ts",
+    "src/tui/fallback/diff.test.ts",
+    "src/tui/fallback/terminal.ts",
+    "src/tui/fallback/terminal.test.ts",
+    "src/tui/fallback/input.ts",
+    "src/tui/fallback/input.test.ts",
+    "src/tui/fallback/demo-app.ts",
+    "src/tui/fallback/demo-app.test.ts",
+    "scripts/tui-fallback-demo.ts"
+  ]
+}
