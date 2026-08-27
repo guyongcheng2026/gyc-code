@@ -7,6 +7,7 @@ import { SessionManager } from "./session"
 import { IHistoryManager } from "./history"
 import { UI } from "../ui"
 import { readLine } from "./input"
+import { TokyoNight, Typography } from "../theme"
 
 export interface ExecutorContext {
   sdk: GyccodeClient
@@ -552,9 +553,9 @@ function parseModelInput(value: string): { providerID: string; modelID: string }
 async function selectFromList(title: string, items: Array<{ label: string; value: string }>): Promise<string | undefined> {
   if (items.length === 0) return undefined
   let index = 0
-  const DIM = "\x1b[90m"
-  const BOLD = "\x1b[1m"
-  const RESET = "\x1b[0m"
+  const DIM = TokyoNight.textMuted
+  const BOLD = Typography.bold
+  const RESET = Typography.reset + TokyoNight.text
   const stdin = process.stdin
 
   const render = () => {

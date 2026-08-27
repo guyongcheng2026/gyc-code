@@ -4,12 +4,13 @@
 import fuzzysort from "fuzzysort"
 import { MenuEntry, SlashCommandSpec } from "./interactive-types"
 import { commandManifest } from "./command-manifest"
+import { TokyoNight, Typography } from "../theme"
 
 const MENU_HEIGHT = 10
-const DIM = "\x1b[90m"
-const BOLD = "\x1b[1m"
-const RESET = "\x1b[0m"
-const CYAN = "\x1b[96m"
+const DIM = TokyoNight.textMuted
+const BOLD = Typography.bold
+const RESET = Typography.reset + TokyoNight.text
+const CYAN = TokyoNight.primary
 
 export interface SlashMenuOptions {
   onSelect: (entry: MenuEntry) => void

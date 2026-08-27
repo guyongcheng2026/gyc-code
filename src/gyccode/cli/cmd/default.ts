@@ -18,6 +18,7 @@ import fuzzysort from "fuzzysort"
 import { FormatError, FormatUnknownError } from "../error"
 import { streamLoop, type SubagentInfo } from "./run/stream-cli"
 import { InstallationVersion } from "@gyccode/core/installation/version"
+import { TokyoNight, Typography } from "../theme"
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { RunCommand } from "./run"
 import { writeClipboardOsc52, writeCopyTempFile } from "./run/copy.shared"
@@ -266,9 +267,9 @@ async function renderWelcome(sdk: GyccodeClient, sessionID: string, input: CliIn
   const homedir = (await import("os")).homedir()
   const displayDir = dir === homedir ? "~" : dir.startsWith(homedir + "\\") ? "~" + dir.slice(homedir.length) : dir
 
-  const CYAN = "\x1b[96m"
-  const DIM = "\x1b[90m"
-  const RESET = "\x1b[0m"
+  const CYAN = TokyoNight.primary
+  const DIM = TokyoNight.textMuted
+  const RESET = Typography.reset + TokyoNight.text
 
   const lines = [
     `${CYAN}›${RESET} Ask gyc to do anything`,
@@ -282,7 +283,7 @@ async function renderStatusLine(_sdk: GyccodeClient, _sessionID: string, input: 
   const dir = input.directory ?? process.cwd()
   const homedir = (await import("os")).homedir()
   const displayDir = dir === homedir ? "~" : dir.startsWith(homedir + "\\") ? "~" + dir.slice(homedir.length) : dir
-  process.stdout.write(`\n  \x1b[90m${statusModel} · ${displayDir}\x1b[0m\n`)
+  process.stdout.write(`\n  ${TokyoNight.textMuted}${statusModel} · ${displayDir}${Typography.reset + TokyoNight.text}\n`)
 }
 
 // 通用 CLI 列表选择器（主流 AI CLI 风格）：
@@ -296,9 +297,9 @@ function selectFromList(title: string, items: ListChoice[]): Promise<string | un
       return
     }
     let index = 0
-    const DIM = "\x1b[90m"
-    const BOLD = "\x1b[1m"
-    const RESET = "\x1b[0m"
+    const DIM = TokyoNight.textMuted
+    const BOLD = Typography.bold
+    const RESET = Typography.reset + TokyoNight.text
     const input = process.stdin
     const render = () => {
       process.stdout.write("\r\x1b[K" + title + "\n")

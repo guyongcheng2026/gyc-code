@@ -4,6 +4,7 @@
 import { streamLoop, type SubagentInfo } from "../cmd/run/stream-cli"
 import { createGyccodeClient, type GyccodeClient, type SessionMessage } from "@gyccode/protocol/v2"
 import { UI } from "../ui"
+import { TokyoNight, Typography } from "../theme"
 
 export type OutputFormat = "default" | "json" | "markdown" | "raw"
 
@@ -126,21 +127,21 @@ export class MarkdownFormatter {
   }
 }
 
-// 简单的 ANSI 颜色工具
+// 简单的 ANSI 颜色工具（语义色取自"东京夜"主题，对齐 gyc tui）
 export const Colors = {
-  reset: "\x1b[0m",
-  bold: "\x1b[1m",
-  dim: "\x1b[2m",
-  italic: "\x1b[3m",
-  underline: "\x1b[4m",
-  red: "\x1b[31m",
-  green: "\x1b[32m",
-  yellow: "\x1b[33m",
-  blue: "\x1b[34m",
-  magenta: "\x1b[35m",
-  cyan: "\x1b[36m",
-  white: "\x1b[37m",
-  gray: "\x1b[90m",
+  reset: Typography.reset,
+  bold: Typography.bold,
+  dim: Typography.dim,
+  italic: Typography.italic,
+  underline: Typography.underline,
+  red: TokyoNight.error,
+  green: TokyoNight.success,
+  yellow: TokyoNight.warning,
+  blue: TokyoNight.info,
+  magenta: TokyoNight.secondary,
+  cyan: TokyoNight.primary,
+  white: TokyoNight.text,
+  gray: TokyoNight.textMuted,
   bgRed: "\x1b[41m",
   bgGreen: "\x1b[42m",
   bgYellow: "\x1b[43m",

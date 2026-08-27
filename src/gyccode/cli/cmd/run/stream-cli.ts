@@ -115,6 +115,16 @@ export type StreamLoopInput = {
 export async function streamLoop(input: StreamLoopInput): Promise<string | undefined> {
   const { client, events, sessionID, format, thinking, auto, interactive, question, onSubagent } = input
   const toggles = new Map<string, boolean>()
+  // 逐 token 流式输出：partID -> 已输出到 stdout 的字符数（part.text 是累计全文，差量即新增）
+  const streamed = new Map<string, number>()
+  // 流式文本已写出但行未闭合（避免工具/错误输出拼在半行文本后）
+  let lineOpen = false
+  const closeLine = () => {
+    if (lineOpen) {
+      process.stdout.write(EOL)
+      lineOpen = false
+    }
+  }
   let error: string | undefined
 
   function emit(type: string, data: Record<string, unknown>) {
@@ -153,6 +163,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
 
       if (part.type === "tool" && (part.state.status === "completed" || part.state.status === "error")) {
         if (emit("tool_use", { part })) continue
+        closeLine()
         if (part.state.status === "completed") {
           await tool(part)
           continue
@@ -168,6 +179,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
         format !== "json"
       ) {
         if (toggles.get(part.id) === true) continue
+        closeLine()
         await tool(part)
         toggles.set(part.id, true)
       }
@@ -193,17 +205,36 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
         if (emit("step_finish", { part })) continue
       }
 
-      if (part.type === "text" && part.time?.end) {
+      if (part.type === "text") {
         if (emit("text", { part })) continue
-        const text = part.text.trim()
-        if (!text) continue
+        const full = part.text ?? ""
         if (!process.stdout.isTTY) {
-          process.stdout.write(text + EOL)
+          // 非 TTY：保持整段输出
+          if (part.time?.end) {
+            const text = full.trim()
+            if (text) process.stdout.write(text + EOL)
+          }
           continue
         }
-        UI.empty()
-        UI.println(text)
-        UI.empty()
+        if (part.time?.end) {
+          // 完成：补齐未流式输出的尾部（如有），收尾换行 + 空行
+          const done = streamed.get(part.id) ?? 0
+          streamed.delete(part.id)
+          const tail = full.slice(done)
+          if (!done && !tail.trim()) continue
+          if (tail) process.stdout.write(tail)
+          process.stdout.write(EOL)
+          lineOpen = false
+          UI.empty()
+          continue
+        }
+        // 生成中：仅输出新增增量，实现逐 token 实时渲染
+        const done = streamed.get(part.id) ?? 0
+        if (full.length > done) {
+          process.stdout.write(full.slice(done))
+          streamed.set(part.id, full.length)
+          lineOpen = true
+        }
       }
 
       if (part.type === "reasoning" && part.time?.end && thinking) {
@@ -230,6 +261,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
       }
       error = error ? error + EOL + err : err
       if (emit("error", { error: props.error })) continue
+      closeLine()
       UI.error(err)
       // 会话级错误（如模型限流 / 认证失败）意味着本轮已终结：立即结束事件
       // 消费，让调用方快速拿到错误并恢复提示符，而非继续空等 idle。

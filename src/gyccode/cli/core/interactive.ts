@@ -10,6 +10,7 @@ import { type GyccodeClient } from "@gyccode/protocol/v2"
 import { UI } from "../ui"
 import { executeBuiltinCommand, ExecutorContext } from "./executor"
 import { HistorySearchResult } from "./interactive-types"
+import { TokyoNight, Typography } from "../theme"
 
 export interface InteractiveOptions {
   directory?: string
@@ -24,10 +25,11 @@ export interface InteractiveOptions {
   fork?: boolean
 }
 
-const CYAN = "\x1b[96m"
-const DIM = "\x1b[90m"
-const RESET = "\x1b[0m"
-const BOLD = "\x1b[1m"
+// 输入界面配色：取自"东京夜"主题（对齐 gyc tui）
+const CYAN = TokyoNight.primary
+const DIM = TokyoNight.textMuted
+const RESET = Typography.reset + TokyoNight.text
+const BOLD = Typography.bold
 
 export async function runInteractiveLoop(options: InteractiveOptions): Promise<void> {
   const directory = options.directory ?? process.cwd()
@@ -56,7 +58,8 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     })
     sessionId = created.data?.id
     if (!sessionId) {
-      UI.error("Failed to create session")
+      // 暴露服务端错误明细，避免只显示笼统提示拖慢排障
+      UI.error(`创建会话失败: ${created.error ? JSON.stringify(created.error) : "未知错误（无返回数据）"}`)
       process.exit(1)
     }
   }
@@ -117,6 +120,8 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     onSubmit: async (value) => {
       if (paletteOpen) return
       await handleSubmit(executorCtx, value.trim(), slashMenu, history, completer)
+      // AI 回复输出完毕，重新渲染 "> " 输入提示行
+      inputHandler.redraw()
     },
     onCancel: () => {
       if (paletteOpen) {
@@ -181,10 +186,10 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     },
   })
 
-  await inputHandler.start()
-
-  // 渲染欢迎信息
+  // 先渲染欢迎界面，再渲染输入行——保证光标停在 "> " 提示符后（对齐 pi agent）
   await renderWelcome(sdk, sessionId, executorCtx.input)
+
+  await inputHandler.start()
 
   // 主渲染循环
   function renderAll(): void {

@@ -1,6 +1,7 @@
 import { EOL } from "os"
 import { Schema } from "effect"
 import { logo as glyphs } from "./logo"
+import { TokyoNight, Typography } from "./theme"
 
 const wordmark = [
   `                                         `,
@@ -11,21 +12,23 @@ const wordmark = [
 
 export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("UICancelledError", {}) {}
 
+// 样式常量全部取自"东京夜"主题（对齐 gyc tui：src/tui/theme/assets/tokyonight.json）
+// TEXT_NORMAL 语义为"恢复正文样式"：重置修饰并回到主题正文色
 export const Style = {
-  TEXT_HIGHLIGHT: "\x1b[96m",
-  TEXT_HIGHLIGHT_BOLD: "\x1b[96m\x1b[1m",
-  TEXT_DIM: "\x1b[90m",
-  TEXT_DIM_BOLD: "\x1b[90m\x1b[1m",
-  TEXT_NORMAL: "\x1b[0m",
-  TEXT_NORMAL_BOLD: "\x1b[1m",
-  TEXT_WARNING: "\x1b[93m",
-  TEXT_WARNING_BOLD: "\x1b[93m\x1b[1m",
-  TEXT_DANGER: "\x1b[91m",
-  TEXT_DANGER_BOLD: "\x1b[91m\x1b[1m",
-  TEXT_SUCCESS: "\x1b[92m",
-  TEXT_SUCCESS_BOLD: "\x1b[92m\x1b[1m",
-  TEXT_INFO: "\x1b[94m",
-  TEXT_INFO_BOLD: "\x1b[94m\x1b[1m",
+  TEXT_HIGHLIGHT: TokyoNight.primary,
+  TEXT_HIGHLIGHT_BOLD: TokyoNight.primary + Typography.bold,
+  TEXT_DIM: TokyoNight.textMuted,
+  TEXT_DIM_BOLD: TokyoNight.textMuted + Typography.bold,
+  TEXT_NORMAL: Typography.reset + TokyoNight.text,
+  TEXT_NORMAL_BOLD: TokyoNight.text + Typography.bold,
+  TEXT_WARNING: TokyoNight.warning,
+  TEXT_WARNING_BOLD: TokyoNight.warning + Typography.bold,
+  TEXT_DANGER: TokyoNight.error,
+  TEXT_DANGER_BOLD: TokyoNight.error + Typography.bold,
+  TEXT_SUCCESS: TokyoNight.success,
+  TEXT_SUCCESS_BOLD: TokyoNight.success + Typography.bold,
+  TEXT_INFO: TokyoNight.info,
+  TEXT_INFO_BOLD: TokyoNight.info + Typography.bold,
 }
 
 export function println(...message: string[]) {

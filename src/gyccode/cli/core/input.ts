@@ -69,6 +69,20 @@ export class Utf8Decoder {
   }
 }
 
+// ESC 序列完整性判断（调用方保证 chunk[0] === 0x1b）：不完整则等待后续分片
+function isCompleteEscapeSequence(chunk: Buffer): boolean {
+  if (chunk.length === 1) return false
+  if (chunk[1] === 0x5b) { // CSI 序列（\x1b[...），终止符 0x40-0x7E
+    for (let i = 2; i < chunk.length; i++) {
+      const b = chunk[i]!
+      if (b >= 0x40 && b <= 0x7e) return true
+    }
+    return false
+  }
+  if (chunk[1] === 0x4f) return chunk.length >= 3 // SS3 序列（\x1bOA 等）
+  return true
+}
+
 // 原始输入处理器
 export class RawInputHandler extends EventEmitter {
   private stdin: NodeJS.ReadableStream
@@ -78,6 +92,8 @@ export class RawInputHandler extends EventEmitter {
   private decoder: Utf8Decoder
   private rawMode = false
   private cursorVisible = true
+  private pendingChunks: Buffer[] = []
+  private escapeTimer: NodeJS.Timeout | null = null
 
   constructor(stdin: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, options: RawInputOptions) {
     super()
@@ -100,6 +116,11 @@ export class RawInputHandler extends EventEmitter {
   }
 
   stop(): void {
+    if (this.escapeTimer !== null) {
+      clearTimeout(this.escapeTimer)
+      this.escapeTimer = null
+    }
+    this.pendingChunks = []
     this.disableRawMode()
     this.stdin.off("data", this.onData.bind(this))
   }
@@ -109,6 +130,8 @@ export class RawInputHandler extends EventEmitter {
       this.stdin.setRawMode(true)
       this.stdin.resume()
       this.rawMode = true
+      // 括号粘贴模式：粘贴内容以 \x1b[200~/\x1b[201~ 包裹，粘贴换行不再误触发提交
+      this.stdout.write("\x1b[?2004h")
     }
   }
 
@@ -117,6 +140,7 @@ export class RawInputHandler extends EventEmitter {
       this.stdin.setRawMode(false)
       this.stdin.pause()
       this.rawMode = false
+      this.stdout.write("\x1b[?2004l")
     }
     this.showCursor()
   }
@@ -125,13 +149,52 @@ export class RawInputHandler extends EventEmitter {
     return typeof (this.stdin as NodeJS.WriteStream).isTTY === "boolean"
   }
 
-  private onData(chunk: Buffer): void {
+  private onData(chunk: Buffer, forced = false): void {
+    // ESC 序列分片容错：以 ESC 开头但序列不完整时缓存等待，50ms 超时按原样处理
+    if (!forced && chunk.length > 0 && chunk[0] === 0x1b && !isCompleteEscapeSequence(chunk)) {
+      this.pendingChunks.push(chunk)
+      if (this.escapeTimer === null) {
+        this.escapeTimer = setTimeout(() => {
+          this.escapeTimer = null
+          const merged = this.pendingChunks
+          this.pendingChunks = []
+          this.onData(Buffer.concat(merged), true)
+        }, 50)
+      }
+      return
+    }
+    // 等待分片期间来了后续数据：合并处理（这些字节尚未解码，重喂安全）
+    if (this.escapeTimer !== null) {
+      clearTimeout(this.escapeTimer)
+      this.escapeTimer = null
+      chunk = Buffer.concat([...this.pendingChunks, chunk])
+      this.pendingChunks = []
+    }
+
     const text = this.decoder.decode(chunk)
     if (!text && chunk.length > 0) {
       // 可能是不完整的 UTF-8 序列，等待更多数据
       return
     }
 
+    // 括号粘贴：包裹内容为粘贴文本，换行转空格（单行输入），避免误触发提交
+    const pasteStartMark = "\x1b[200~"
+    const pasteEndMark = "\x1b[201~"
+    const pasteStart = text.indexOf(pasteStartMark)
+    if (pasteStart >= 0) {
+      const pasteEnd = text.indexOf(pasteEndMark, pasteStart)
+      const pasted = text.slice(pasteStart + pasteStartMark.length, pasteEnd >= 0 ? pasteEnd : undefined)
+        .replace(/\r\n|\r|\n/g, " ")
+      this.feedText(text.slice(0, pasteStart))
+      this.insertText(pasted)
+      this.feedText(pasteEnd >= 0 ? text.slice(pasteEnd + pasteEndMark.length) : "")
+      return
+    }
+
+    this.feedText(text)
+  }
+
+  private feedText(text: string): void {
     for (const char of text) {
       const code = char.charCodeAt(0)
 
@@ -143,7 +206,12 @@ export class RawInputHandler extends EventEmitter {
 
       // Enter
       if (code === 13 || code === 10) {
-        this.options.onSubmit(this.state.buffer)
+        const value = this.state.buffer
+        // 提交行定格为对话记录并换行；清空 buffer，避免屏幕残影"删不掉"
+        this.state.buffer = ""
+        this.state.cursor = 0
+        this.stdout.write("\r\x1b[K" + this.options.prompt + value + "\n")
+        this.options.onSubmit(value)
         return
       }
 
@@ -172,11 +240,16 @@ export class RawInputHandler extends EventEmitter {
 
       // 可打印字符
       if (code >= 32 || char === "\t") {
-        this.state.buffer = this.state.buffer.slice(0, this.state.cursor) + char + this.state.buffer.slice(this.state.cursor)
-        this.state.cursor++
-        this.render()
+        this.insertText(char)
       }
     }
+  }
+
+  private insertText(str: string): void {
+    if (!str) return
+    this.state.buffer = this.state.buffer.slice(0, this.state.cursor) + str + this.state.buffer.slice(this.state.cursor)
+    this.state.cursor += str.length
+    this.render()
   }
 
   private handleEscapeSequence(chunk: Buffer): void {
@@ -291,6 +364,11 @@ export class RawInputHandler extends EventEmitter {
   setValue(value: string): void {
     this.state.buffer = value
     this.state.cursor = value.length
+    this.render()
+  }
+
+  /** 上层输出（AI 回复等）结束后重新渲染输入提示行 */
+  redraw(): void {
     this.render()
   }
 
