@@ -1,6 +1,7 @@
 import { build } from "bun"
 import { spawnSync } from "node:child_process"
-import { rmSync } from "node:fs"
+import { rmSync, cpSync, existsSync, readdirSync } from "node:fs"
+import { join } from "node:path"
 import os from "node:os"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
 
@@ -103,9 +104,66 @@ async function buildOnce(targetRuntime, outdir) {
     // （与 dev 命令 --conditions=browser 的行为一致，bun 条件是 Bun 默认附加）。
     conditions: targetRuntime === "node" ? ["node", "browser"] : ["browser", "bun"],
   })
+  // 复制 @opentui/core 运行时依赖的 parser.worker.js 和 assets 目录
+  // OpenTUI 通过 new URL("./parser.worker.js", import.meta.url) 动态加载，
+  // 不经过打包器，构建时需显式复制到 dist 根目录。
+  copyOpentuiAssets(outdir)
   // 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
   await Bun.write(process.cwd() + `/${outdir}/RUNTIME`, runtime)
   console.log(`build done: ${outdir} (${targetRuntime})`)
+}
+
+function copyOpentuiAssets(outdir) {
+  try {
+    // 查找 @opentui/core 包路径（bun 安装在 node_modules/.bun/...）
+    const opentuiCorePaths = [
+      join(process.cwd(), "node_modules", "@opentui", "core"),
+      join(process.cwd(), "node_modules", ".bun", "@opentui+core@*", "node_modules", "@opentui", "core"),
+    ]
+    let srcDir = ""
+    for (const p of opentuiCorePaths) {
+      // 处理通配符路径
+      if (p.includes("*")) {
+        const base = join(process.cwd(), "node_modules", ".bun")
+        if (existsSync(base)) {
+          const entries = readdirSync(base)
+          for (const entry of entries) {
+            if (entry.startsWith("@opentui+core@")) {
+              const candidate = join(base, entry, "node_modules", "@opentui", "core")
+              if (existsSync(candidate)) {
+                srcDir = candidate
+                break
+              }
+            }
+          }
+        }
+      } else if (existsSync(p)) {
+        srcDir = p
+        break
+      }
+    }
+    if (!srcDir) {
+      console.warn("[build] @opentui/core not found, skipping asset copy")
+      return
+    }
+    // 复制 parser.worker.js
+    const workerSrc = join(srcDir, "parser.worker.js")
+    const workerDest = join(outdir, "parser.worker.js")
+    if (existsSync(workerSrc)) {
+      cpSync(workerSrc, workerDest, { force: true })
+      console.log(`[build] copied parser.worker.js -> ${outdir}`)
+    }
+    // 复制 assets 目录（tree-sitter wasm 等）
+    const assetsSrc = join(srcDir, "assets")
+    const assetsDest = join(outdir, "assets")
+    if (existsSync(assetsSrc)) {
+      cpSync(assetsSrc, assetsDest, { recursive: true, force: true })
+      console.log(`[build] copied assets/ -> ${outdir}`)
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.warn("[build] failed to copy opentui assets:", msg)
+  }
 }
 
 async function runBuild() {

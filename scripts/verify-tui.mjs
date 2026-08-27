@@ -545,6 +545,7 @@ const COMPLIANCE_EXEMPTS = [
   { file: "src\\tui\\util\\custom-provider.test.ts", reason: "测试夹具：@ai-sdk/openai-compatible 包名引用" },
   { file: "src\\gyccode\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
   { file: "src\\gyccode\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },
+  { file: "src\\gyccode\\cli\\cmd\\gateway.ts", reason: "微信网关：检测 hermes 网关状态文件与独占锁竞争（功能互操作，非品牌冒用）" },
 ]
 const COMPLIANCE_EXEMPT_WORDS = ["openai-compatible"] // 含于第三方包名的子串
 
