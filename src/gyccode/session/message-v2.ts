@@ -524,13 +524,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
         if (part.type === "tool") {
           toolNames.add(part.tool)
           if (part.state.status === "completed") {
-            const outputText = part.state.time.compacted
-              ? "[Old tool result content cleared]"
-              : truncateToolOutput(
-                  part.state.output,
-                  toolCapForOutput(toolCaps, part.callID, part.state.output, part.tool, options?.toolOutputMaxChars),
-                  part.tool,
-                )
+            // 2026-08-27 摘要式压缩：compact 过的工具输出保留头部摘要。新旧
+            // 数据都走 truncateToolOutput——新数据 markCompacted 时已把 output
+            // 截断为 2K 摘要（re-truncate 无副作用），旧数据在此实时截断。
+            // 不再使用固定占位符，LLM 能看到真实摘要，显著降低压缩后幻觉率。
+            const outputText = truncateToolOutput(
+              part.state.output,
+              toolCapForOutput(toolCaps, part.callID, part.state.output, part.tool, options?.toolOutputMaxChars),
+              part.tool,
+            )
             const attachments = part.state.time.compacted || options?.stripMedia ? [] : (part.state.attachments ?? [])
 
             // For providers that don't support media in tool results, extract media files

@@ -163,7 +163,11 @@ export const TuiThreadCommand = cmd({
           return { maxOldGenerationSizeMb: Math.round(explicit), maxYoungGenerationSizeMb: 64 }
         }
         const totalMb = Math.floor(os.totalmem() / 1024 / 1024)
-        const oldMb = totalMb <= 4096 ? 1024 : totalMb <= 8192 ? 1536 : 2048
+        // 2026-08-27 实测修正：4GB 机主进程常驻 ~800MB + worker 1024MB 预算，
+        // 与系统合计超订物理内存 → Windows 页面交换 → 磁盘持续读写（发热/
+        // 噪音主因）。worker 下调到 768MB：主+worker ≈1.6GB，为系统留出
+        // ~2.4GB 余量；超限时走既有的 OOM exit(12) 自动重启链路自愈。
+        const oldMb = totalMb <= 4096 ? 768 : totalMb <= 8192 ? 1536 : 2048
         return { maxOldGenerationSizeMb: oldMb, maxYoungGenerationSizeMb: 64 }
       }
 

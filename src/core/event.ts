@@ -383,7 +383,7 @@ export const layerWith = (options?: LayerOptions) =>
               }),
             )
           if (definition?.durable) {
-            const committed = yield* commitDurableEvent(definition, event as Payload, undefined, commit)
+            const committed = yield* commitDurableEvent(definition, event as Payload, {}, commit)
             if (committed) {
               event = {
                 ...event,

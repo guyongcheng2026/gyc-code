@@ -165,7 +165,10 @@ const layer = Layer.effect(
       Global.Path.cache,
       source === "https://models.opencode.ai" ? "models.json" : `models-${Hash.fast(source)}.json`,
     )
-    const ttl = Duration.minutes(5)
+    // TTL 24h（2026-08-27 修正，原 5min）：上游目录日更频率远低于 5 分钟，
+    // 短 TTL 导致每次启动 TUI 都重新下载并全量重写 4.3MB——无谓的网络流量
+    // 与磁盘写放大（磁盘发热贡献源之一）。强制刷新走 `gyc models --refresh`。
+    const ttl = Duration.hours(24)
     const lockKey = `models-dev:${filepath}`
 
     const fresh = Effect.fnUntraced(function* () {

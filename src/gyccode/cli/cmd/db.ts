@@ -68,6 +68,70 @@ const CleanupCommand = effectCmd({
     console.log("deleted orphaned events; vacuumed")
   }),
 })
+// 与 compaction.ts 的 TOOL_OUTPUT_MAX_CHARS 对齐：存量 compacted part 的
+// 超长工具输出截断保留的头部摘要长度。
+const RETRO_COMPACT_CHARS = 2_000
+const PART_BATCH = 500
+
+const CompactCommand = effectCmd({
+  command: "compact",
+  describe: "compact long tool outputs of already-compacted parts to head summaries (shrink the DB)",
+  instance: false,
+  handler: Effect.fn("Cli.db.compact")(function* () {
+    const { db } = yield* Database.Service
+    // 一次性维护命令：遍历投影表 part，找到已标记 compacted（state.time.compacted
+    // 存在）的完成工具输出，把超长 output 静态截断为头部摘要——与运行时
+    // markCompacted 的摘要式压缩对齐。已 compacted 的 part 不再参与推理输出
+    // （aggregateToolCaps/serialization 均跳过其全文），截断是非破坏性的：
+    // 即使未来被事件重放覆盖也只会恢复原文（数据不丢），最坏只是体积回升。
+    // 不写 event 事件：part 表是投影，实际运行路径从表读，重放不依赖全文。
+    // 分批扫描避免一次载入 174MB 到内存。
+    let offset = 0
+    let scanned = 0
+    let truncated = 0
+    let freedBytes = 0
+    for (;;) {
+      const rows = yield* db
+        .all<{ id: string; data: string }>(
+          sql.raw(`SELECT id, data FROM part ORDER BY rowid LIMIT ${PART_BATCH} OFFSET ${offset}`),
+        )
+        .pipe(Effect.orDie)
+      if (rows.length === 0) break
+      scanned += rows.length
+      for (const row of rows) {
+        let data: unknown
+        try {
+          data = JSON.parse(row.data)
+        } catch {
+          continue
+        }
+        if (typeof data !== "object" || data === null) continue
+        const part = data as Record<string, unknown>
+        if (part.type !== "tool") continue
+        const state = part.state as Record<string, unknown> | undefined
+        if (typeof state !== "object" || state === null) continue
+        if (state.status !== "completed") continue
+        const time = state.time as Record<string, unknown> | undefined
+        if (typeof time !== "object" || time === null) continue
+        if (typeof time.compacted !== "number") continue // 只处理已 compact 的存量
+        const output = state.output
+        if (typeof output !== "string" || output.length <= RETRO_COMPACT_CHARS) continue
+        state.output = `${output.slice(0, RETRO_COMPACT_CHARS)}…`
+        yield* db
+          .run(sql.raw(`UPDATE part SET data = '${JSON.stringify(data).replace(/'/g, "''")}' WHERE id = '${row.id.replace(/'/g, "''")}'`))
+          .pipe(Effect.orDie)
+        truncated++
+        freedBytes += output.length - state.output.length
+      }
+      offset += PART_BATCH
+      if (rows.length < PART_BATCH) break
+    }
+    console.log(`scanned ${scanned} parts`)
+    console.log(`truncated ${truncated} compacted tool outputs`)
+    console.log(`freed ~${(freedBytes / 1024 / 1024).toFixed(1)} MB in part table`)
+    console.log("run `gyc db cleanup` afterwards to VACUUM and reclaim the file size")
+  }),
+})
 const CacheCommand = effectCmd({
   command: "cache",
   describe: "report recent prompt-cache hit rate from persisted message tokens",
@@ -137,7 +201,13 @@ export const DbCommand = effectCmd({
   describe: "database tools",
   instance: false,
   builder: (yargs: Argv) => {
-    return yargs.command(QueryCommand).command(PathCommand).command(CleanupCommand).command(CacheCommand).demandCommand()
+    return yargs
+      .command(QueryCommand)
+      .command(PathCommand)
+      .command(CleanupCommand)
+      .command(CompactCommand)
+      .command(CacheCommand)
+      .demandCommand()
   },
   handler: Effect.fn("Cli.db")(function* () {}),
 })

@@ -41,6 +41,13 @@ const DEFAULT_TAIL_TURNS = 2
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
 const MAX_PRESERVE_RECENT_TOKENS = 8_000
 
+// 2026-08-27 摘要式压缩：compact 后的工具输出替换为头部摘要再持久化。
+// 超长输出截头保留前 TOOL_OUTPUT_MAX_CHARS 字符——工具输出首部通常是结论/
+// 关键数据，尾部多为明细/样板。两点收益：①序列化端给 LLM 的是真实摘要而非
+// 固定占位符，显著降低压缩后的幻觉率；②释放 SQLite 中的大文本（库膨胀主因）。
+const summarizeToolOutput = (output: string): string =>
+  output.length > TOOL_OUTPUT_MAX_CHARS ? `${output.slice(0, TOOL_OUTPUT_MAX_CHARS)}…` : output
+
 // --- Microcompact ---
 export const MICROCOMPACT_THRESHOLD = 0.9 // Start microcompact at 90% context usage
 export const CACHE_PREFIX_KEEP = 20 // Keep first 20 messages for cache preservation
@@ -399,6 +406,16 @@ const layer = Layer.effect(
       for (const part of parts) {
         if (part.state.status === "completed") {
           part.state.time.compacted = Date.now()
+          // 2026-08-27 摘要式压缩：把超长工具输出替换为头部摘要再持久化。
+          // 两点收益：①序列化端给 LLM 的是真实摘要而非固定占位符，显著降低
+          // 压缩后的幻觉率；②释放 SQLite 中的大文本（库膨胀主因，174MB→可
+          // 观下降）。安全依据：aggregateToolCaps（message-v2.ts:217）与
+          // serialization（message-v2.ts:527）均已跳过 compacted part 的 output
+          // 全文，压缩后 output 不再参与推理路径；历史数据（旧 compacted
+          // part 未压缩）由序列化端摘要兜底。
+          if (typeof part.state.output === "string" && part.state.output.length > TOOL_OUTPUT_MAX_CHARS) {
+            part.state.output = summarizeToolOutput(part.state.output)
+          }
           yield* session.updatePart(part)
           changed = true
         }
