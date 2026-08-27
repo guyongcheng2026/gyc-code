@@ -1,6 +1,6 @@
-import { chmod, mkdir, readFile, stat as statFile, writeFile } from "fs/promises"
+import { chmod, mkdir, readFile, readdir, stat as statFile, writeFile } from "fs/promises"
 import { stripBom } from "@gyccode/core/util/text-encoding"
-import { createWriteStream, existsSync, statSync } from "fs"
+import { createWriteStream, existsSync, readdirSync, statSync } from "fs"
 import { dirname, isAbsolute, join, resolve as pathResolve } from "path"
 import { Readable } from "stream"
 import { pipeline } from "stream/promises"
@@ -47,6 +47,50 @@ export async function readJson<T = unknown>(p: string): Promise<T> {
 
 export async function readBytes(p: string): Promise<Buffer> {
   return readFile(p)
+}
+
+export interface DirectoryEntry {
+  name: string
+  isDirectory: boolean
+  isFile: boolean
+  isSymbolicLink: boolean
+  path: string
+}
+
+/**
+ * 列出目录条目（异步）。不存在的目录返回空数组而非抛错。
+ */
+export async function list(p: string): Promise<DirectoryEntry[]> {
+  try {
+    const dirents = await readdir(p, { withFileTypes: true })
+    return dirents.map(d => ({
+      name: d.name,
+      isDirectory: d.isDirectory(),
+      isFile: d.isFile(),
+      isSymbolicLink: d.isSymbolicLink(),
+      path: pathResolve(p, d.name),
+    }))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 列出目录条目（同步）。不存在的目录返回空数组而非抛错。
+ */
+export function listSync(p: string): DirectoryEntry[] {
+  try {
+    const dirents = readdirSync(p, { withFileTypes: true })
+    return dirents.map(d => ({
+      name: d.name,
+      isDirectory: d.isDirectory(),
+      isFile: d.isFile(),
+      isSymbolicLink: d.isSymbolicLink(),
+      path: pathResolve(p, d.name),
+    }))
+  } catch {
+    return []
+  }
 }
 
 export async function readArrayBuffer(p: string): Promise<ArrayBuffer> {

@@ -130,8 +130,8 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       switch (event.type) {
         case "catalog.updated":
           void Promise.all([
-            result.location.model.refresh(event.location),
-            result.location.provider.refresh(event.location),
+            dataResult.location.model.refresh(event.location),
+            dataResult.location.provider.refresh(event.location),
           ])
           break
         case "session.next.agent.switched":
@@ -395,13 +395,13 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           })
           break
         case "reference.updated":
-          void result.location.reference.refresh()
+          void dataResult.location.reference.refresh()
           break
         case "integration.updated":
           void Promise.all([
-            result.location.integration.refresh(event.location),
-            result.location.model.refresh(event.location),
-            result.location.provider.refresh(event.location),
+            dataResult.location.integration.refresh(event.location),
+            dataResult.location.model.refresh(event.location),
+            dataResult.location.provider.refresh(event.location),
           ])
           break
       }
@@ -418,14 +418,14 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       onCleanup(unsub)
     })
 
-    const result = {
+    const dataResult = {
       session: {
         get(sessionID: string) {
           return store.session.info[sessionID]
         },
         async refresh(sessionID: string) {
-          const result = await sdk.client.v2.session.get({ sessionID }, { throwOnError: true })
-          setStore("session", "info", sessionID, result.data.data)
+          const sessionResult = await sdk.client.v2.session.get({ sessionID }, { throwOnError: true })
+          setStore("session", "info", sessionID, sessionResult.data.data)
         },
         message: {
           list(sessionID: string) {
@@ -555,20 +555,20 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
 
     onMount(() => {
       void Promise.allSettled([
-        result.location.refresh(),
-        result.location.agent.refresh(),
-        result.location.integration.refresh(),
-        result.location.model.refresh(),
-        result.location.provider.refresh(),
-        result.location.reference.refresh(),
-        result.location.command.refresh(),
-        result.location.skill.refresh(),
+        dataResult.location.refresh(),
+        dataResult.location.agent.refresh(),
+        dataResult.location.integration.refresh(),
+        dataResult.location.model.refresh(),
+        dataResult.location.provider.refresh(),
+        dataResult.location.reference.refresh(),
+        dataResult.location.command.refresh(),
+        dataResult.location.skill.refresh(),
       ]).then((settled) => {
         for (const failure of settled.filter((item) => item.status === "rejected"))
           console.error("Failed to refresh default location data", failure.reason)
       })
     })
 
-    return result
+    return dataResult
   },
 })

@@ -1,0 +1,405 @@
+// 原始输入处理 - raw mode、UTF-8 解码、光标控制
+// 参考 pi agent 的输入处理模式
+
+import { EventEmitter } from "events"
+
+export interface RawInputOptions {
+  prompt: string
+  initialValue?: string
+  placeholder?: string
+  onSubmit: (value: string) => void
+  onCancel: () => void
+  onTab?: (value: string, cursor: number) => Promise<string[]>
+  onKeyDown?: (key: KeyEvent) => boolean
+  completer?: (line: string, cursor: number) => Promise<CompletionResult>
+}
+
+export interface KeyEvent {
+  sequence: string
+  name: string
+  ctrl: boolean
+  shift: boolean
+  meta: boolean
+  raw: Buffer
+}
+
+export interface CompletionResult {
+  suggestions: string[]
+  prefixLength: number
+}
+
+export interface InputState {
+  buffer: string
+  cursor: number
+  history: string[]
+  historyIndex: number
+}
+
+// UTF-8 流式解码器
+export class Utf8Decoder {
+  private decoder = new TextDecoder("utf-8", { fatal: false })
+  private buffer = Buffer.alloc(0)
+
+  decode(chunk: Buffer): string {
+    this.buffer = Buffer.concat([this.buffer, chunk])
+    // 尝试解码完整字符，保留不完整的尾部
+    let result = ""
+    let lastValid = 0
+    for (let i = 0; i < this.buffer.length; i++) {
+      try {
+        const decoded = this.decoder.decode(this.buffer.subarray(0, i + 1))
+        if (decoded !== result) {
+          result = decoded
+          lastValid = i + 1
+        }
+      } catch {
+        break
+      }
+    }
+    if (lastValid > 0) {
+      this.buffer = this.buffer.subarray(lastValid)
+    }
+    return result
+  }
+
+  flush(): string {
+    const result = this.decoder.decode(this.buffer)
+    this.buffer = Buffer.alloc(0)
+    return result
+  }
+}
+
+// 原始输入处理器
+export class RawInputHandler extends EventEmitter {
+  private stdin: NodeJS.ReadableStream
+  private stdout: NodeJS.WritableStream
+  private options: RawInputOptions
+  private state: InputState
+  private decoder: Utf8Decoder
+  private rawMode = false
+  private cursorVisible = true
+
+  constructor(stdin: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, options: RawInputOptions) {
+    super()
+    this.stdin = stdin
+    this.stdout = stdout
+    this.options = options
+    this.state = {
+      buffer: options.initialValue ?? "",
+      cursor: options.initialValue?.length ?? 0,
+      history: [],
+      historyIndex: -1,
+    }
+    this.decoder = new Utf8Decoder()
+  }
+
+  async start(): Promise<void> {
+    this.enableRawMode()
+    this.render()
+    this.stdin.on("data", this.onData.bind(this))
+  }
+
+  stop(): void {
+    this.disableRawMode()
+    this.stdin.off("data", this.onData.bind(this))
+  }
+
+  private enableRawMode(): void {
+    if (this.isTTY) {
+      this.stdin.setRawMode(true)
+      this.stdin.resume()
+      this.rawMode = true
+    }
+  }
+
+  private disableRawMode(): void {
+    if (this.rawMode && this.isTTY) {
+      this.stdin.setRawMode(false)
+      this.stdin.pause()
+      this.rawMode = false
+    }
+    this.showCursor()
+  }
+
+  private get isTTY(): boolean {
+    return typeof (this.stdin as NodeJS.WriteStream).isTTY === "boolean"
+  }
+
+  private onData(chunk: Buffer): void {
+    const text = this.decoder.decode(chunk)
+    if (!text && chunk.length > 0) {
+      // 可能是不完整的 UTF-8 序列，等待更多数据
+      return
+    }
+
+    for (const char of text) {
+      const code = char.charCodeAt(0)
+
+      // Ctrl+C
+      if (code === 3) {
+        this.options.onCancel()
+        return
+      }
+
+      // Enter
+      if (code === 13 || code === 10) {
+        this.options.onSubmit(this.state.buffer)
+        return
+      }
+
+      // Backspace
+      if (code === 127 || code === 8) {
+        if (this.state.cursor > 0) {
+          this.state.buffer = this.state.buffer.slice(0, this.state.cursor - 1) + this.state.buffer.slice(this.state.cursor)
+          this.state.cursor--
+          this.render()
+        }
+        return
+      }
+
+      // Escape (取消/退出菜单)
+      if (code === 27) {
+        // 可能是 ANSI 转义序列开始
+        this.handleEscapeSequence(chunk)
+        return
+      }
+
+      // Tab - 补全
+      if (code === 9 && this.options.onTab) {
+        this.handleTab()
+        return
+      }
+
+      // 可打印字符
+      if (code >= 32 || char === "\t") {
+        this.state.buffer = this.state.buffer.slice(0, this.state.cursor) + char + this.state.buffer.slice(this.state.cursor)
+        this.state.cursor++
+        this.render()
+      }
+    }
+  }
+
+  private handleEscapeSequence(chunk: Buffer): void {
+    const seq = chunk.toString("utf-8")
+
+    // 方向键
+    if (seq === "\x1b[A" || seq === "\x1bOA") { // Up
+      this.historyPrev()
+      return
+    }
+    if (seq === "\x1b[B" || seq === "\x1bOB") { // Down
+      this.historyNext()
+      return
+    }
+    if (seq === "\x1b[C" || seq === "\x1bOC") { // Right
+      if (this.state.cursor < this.state.buffer.length) {
+        this.state.cursor++
+        this.render()
+      }
+      return
+    }
+    if (seq === "\x1b[D" || seq === "\x1bOD") { // Left
+      if (this.state.cursor > 0) {
+        this.state.cursor--
+        this.render()
+      }
+      return
+    }
+
+    // Home / End
+    if (seq === "\x1b[H" || seq === "\x1bOH") { this.state.cursor = 0; this.render(); return }
+    if (seq === "\x1b[F" || seq === "\x1bOF") { this.state.cursor = this.state.buffer.length; this.render(); return }
+
+    // Delete
+    if (seq === "\x1b[3~") {
+      if (this.state.cursor < this.state.buffer.length) {
+        this.state.buffer = this.state.buffer.slice(0, this.state.cursor) + this.state.buffer.slice(this.state.cursor + 1)
+        this.render()
+      }
+      return
+    }
+
+    // Ctrl+键组合
+    if (seq.startsWith("\x1b[")) {
+      // 更多组合键...
+    }
+
+    // 单独的 Escape - 取消
+    this.options.onCancel()
+  }
+
+  private async handleTab(): Promise<void> {
+    if (!this.options.onTab) return
+    const suggestions = await this.options.onTab(this.state.buffer, this.state.cursor)
+    if (suggestions.length === 1) {
+      // 单一补全，直接应用
+      const completion = suggestions[0]
+      const prefix = this.state.buffer.slice(0, this.state.cursor)
+      // 简单的前缀匹配补全
+      if (completion.startsWith(prefix)) {
+        const suffix = completion.slice(prefix.length)
+        this.state.buffer = prefix + suffix + this.state.buffer.slice(this.state.cursor)
+        this.state.cursor = prefix.length + suffix.length
+        this.render()
+      }
+    } else if (suggestions.length > 1) {
+      // 多选项，触发菜单显示（由上层处理）
+      this.emit("completions", suggestions)
+    }
+  }
+
+  private historyPrev(): void {
+    if (this.state.history.length === 0) return
+    if (this.state.historyIndex === -1) {
+      this.state.historyIndex = this.state.history.length - 1
+    } else if (this.state.historyIndex > 0) {
+      this.state.historyIndex--
+    }
+    this.state.buffer = this.state.history[this.state.historyIndex]
+    this.state.cursor = this.state.buffer.length
+    this.render()
+  }
+
+  private historyNext(): void {
+    if (this.state.historyIndex === -1) return
+    if (this.state.historyIndex < this.state.history.length - 1) {
+      this.state.historyIndex++
+      this.state.buffer = this.state.history[this.state.historyIndex]
+    } else {
+      this.state.historyIndex = -1
+      this.state.buffer = ""
+    }
+    this.state.cursor = this.state.buffer.length
+    this.render()
+  }
+
+  addToHistory(entry: string): void {
+    if (!entry.trim()) return
+    this.state.history.push(entry)
+    if (this.state.history.length > 1000) this.state.history.shift()
+    this.state.historyIndex = -1
+  }
+
+  getValue(): string {
+    return this.state.buffer
+  }
+
+  getCursor(): number {
+    return this.state.cursor
+  }
+
+  setValue(value: string): void {
+    this.state.buffer = value
+    this.state.cursor = value.length
+    this.render()
+  }
+
+  private render(): void {
+    const { prompt } = this.options
+    const prefixWidth = this.getDisplayWidth(prompt)
+    this.stdout.write("\r\x1b[K" + prompt + this.state.buffer)
+    const col = prefixWidth + this.getDisplayWidth(this.state.buffer.slice(0, this.state.cursor)) + 1
+    this.stdout.write("\x1b[" + col + "G")
+  }
+
+  private getDisplayWidth(str: string): number {
+    let width = 0
+    for (const char of str) {
+      const code = char.charCodeAt(0)
+      if (code >= 0x1100 && (code <= 0x115F || code === 0x2329 || code === 0x232A ||
+        (code >= 0x2E80 && code <= 0xA4CF) ||
+        (code >= 0xAC00 && code <= 0xD7A3) ||
+        (code >= 0xF900 && code <= 0xFAFF) ||
+        (code >= 0xFE10 && code <= 0xFE1F) ||
+        (code >= 0xFE30 && code <= 0xFE6F) ||
+        (code >= 0xFF00 && code <= 0xFF60) ||
+        (code >= 0xFFE0 && code <= 0xFFE6))) {
+        width += 2
+      } else {
+        width += 1
+      }
+    }
+    return width
+  }
+
+  private hideCursor(): void {
+    if (this.cursorVisible) {
+      this.stdout.write("\x1b[?25l")
+      this.cursorVisible = false
+    }
+  }
+
+  private showCursor(): void {
+    if (!this.cursorVisible) {
+      this.stdout.write("\x1b[?25h")
+      this.cursorVisible = true
+    }
+  }
+}
+
+// 简单的行读取器（非 raw mode，用于密码等）
+export async function readLine(prompt: string): Promise<string> {
+  const { createInterface } = await import("node:readline/promises")
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    return await rl.question(prompt)
+  } finally {
+    rl.close()
+    try { process.stdin.pause() } catch {}
+  }
+}
+
+// 密码输入（隐藏回显）
+export async function readPassword(prompt: string): Promise<string> {
+  const { createInterface } = await import("node:readline/promises")
+  const rl = createInterface({ input: process.stdin, output: process.stdout })
+  const stdin = process.stdin
+  let password = ""
+
+  if (stdin.isTTY) {
+    stdin.setRawMode(true)
+    stdin.resume()
+  }
+
+  process.stdout.write(prompt)
+
+  return new Promise((resolve) => {
+    const onData = (chunk: Buffer) => {
+      for (const byte of chunk) {
+        if (byte === 13 || byte === 10) { // Enter
+          process.stdout.write("\n")
+          cleanup()
+          resolve(password)
+          return
+        }
+        if (byte === 3) { // Ctrl+C
+          process.stdout.write("\n")
+          cleanup()
+          resolve("")
+          return
+        }
+        if (byte === 127 || byte === 8) { // Backspace
+          if (password.length > 0) {
+            password = password.slice(0, -1)
+            process.stdout.write("\r\x1b[K" + prompt + "*".repeat(password.length))
+          }
+          return
+        }
+        if (byte >= 32) {
+          password += String.fromCharCode(byte)
+          process.stdout.write("*")
+        }
+      }
+    }
+    stdin.on("data", onData)
+
+    const cleanup = () => {
+      stdin.off("data", onData)
+      if (stdin.isTTY) {
+        stdin.setRawMode(false)
+        stdin.pause()
+      }
+      rl.close()
+    }
+  })
+}
