@@ -383,6 +383,17 @@ export function Session() {
   const dialog = useDialog()
   const renderer = useRenderer()
 
+  // 流式输出帧率对标 pi agent（16ms/60fps）：生成期间升到 60fps 保证
+  // delta 上屏节奏；空闲回落 30fps 控制 CPU（4GB 机的内存/CPU 底线）。
+  createEffect(() => {
+    const streaming = pending() !== undefined
+    if (renderer.isDestroyed) return
+    renderer.targetFps = streaming ? 60 : 30
+  })
+  onCleanup(() => {
+    if (!renderer.isDestroyed) renderer.targetFps = 30
+  })
+
   onCleanup(
     event.on("session.status", (evt) => {
       if (evt.properties.sessionID !== route.sessionID) return

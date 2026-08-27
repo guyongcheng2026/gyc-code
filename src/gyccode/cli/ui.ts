@@ -1,7 +1,10 @@
 import { EOL } from "os"
 import { Schema } from "effect"
 import { logo as glyphs } from "./logo"
-import { TokyoNight, Typography } from "./theme"
+import { TokyoNight, Typography, theme } from "./theme"
+
+// 主题实例随 UI 一并导出，供流式渲染等模块按 pi token 取色
+export { theme }
 
 const wordmark = [
   `                                         `,
@@ -14,6 +17,7 @@ export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("U
 
 // 样式常量全部取自"东京夜"主题（对齐 gyc tui：src/tui/theme/assets/tokyonight.json）
 // TEXT_NORMAL 语义为"恢复正文样式"：重置修饰并回到主题正文色
+// pi agent 兼容 token 语义：工具标题加粗、工具输出弱化、diff 增删着色
 export const Style = {
   TEXT_HIGHLIGHT: TokyoNight.primary,
   TEXT_HIGHLIGHT_BOLD: TokyoNight.primary + Typography.bold,
@@ -29,6 +33,17 @@ export const Style = {
   TEXT_SUCCESS_BOLD: TokyoNight.success + Typography.bold,
   TEXT_INFO: TokyoNight.info,
   TEXT_INFO_BOLD: TokyoNight.info + Typography.bold,
+  // pi token：accent 强调（图标/列表符号）
+  TEXT_ACCENT: theme.getFgAnsi("accent"),
+  // pi token：muted 次要说明
+  TEXT_MUTED: theme.getFgAnsi("muted"),
+  // pi token：toolTitle 工具标题（粗体）与 toolOutput 工具输出
+  TEXT_TOOL_TITLE: theme.getFgAnsi("toolTitle") + Typography.bold,
+  TEXT_TOOL_OUTPUT: theme.getFgAnsi("toolOutput"),
+  // pi token：diff 增删/上下文
+  TEXT_DIFF_ADDED: theme.getFgAnsi("toolDiffAdded"),
+  TEXT_DIFF_REMOVED: theme.getFgAnsi("toolDiffRemoved"),
+  TEXT_DIFF_CONTEXT: theme.getFgAnsi("toolDiffContext"),
 }
 
 export function println(...message: string[]) {
@@ -128,8 +143,85 @@ export function error(message: string) {
   println(Style.TEXT_DANGER_BOLD + "Error: " + Style.TEXT_NORMAL + message)
 }
 
+// ============================================================================
+// 轻量 Markdown 着色（pi markdown token 口径，零依赖、行式单遍）
+// 仅用于完成态整段文本；流式增量输出不做重渲染（行式 CLI 无法回写已输出行）
+// ============================================================================
+
+// 行内 token：代码/粗体/斜体/链接/自动链接（注意顺序：粗体先于斜体）
+const INLINE_RE =
+  /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(__[^_\n]+__)|(\*[^*\n]+\*)|(\[[^\]\n]+\]\([^)\n]+\))|(<https?:\/\/[^>\n]+>)/g
+
+function inlineStyle(segment: string): string {
+  if (segment.startsWith("`") && segment.endsWith("`") && segment.length > 2) {
+    return theme.fg("mdCode", segment.slice(1, -1))
+  }
+  if (segment.startsWith("**") && segment.endsWith("**") && segment.length > 4) {
+    return theme.bold(segment.slice(2, -2))
+  }
+  if (segment.startsWith("__") && segment.endsWith("__") && segment.length > 4) {
+    return theme.bold(segment.slice(2, -2))
+  }
+  if (segment.startsWith("*") && segment.endsWith("*") && segment.length > 2) {
+    return theme.italic(segment.slice(1, -1))
+  }
+  if (segment.startsWith("[")) {
+    const closeBracket = segment.indexOf("](")
+    const label = segment.slice(1, closeBracket)
+    const url = segment.slice(closeBracket + 2, -1)
+    return theme.fg("mdLink", label) + " " + theme.fg("mdLinkUrl", `(${url})`)
+  }
+  if (segment.startsWith("<")) {
+    return theme.fg("mdLink", segment.slice(1, -1))
+  }
+  return segment
+}
+
+function inlineMarkdown(line: string): string {
+  let out = ""
+  let last = 0
+  for (const match of line.matchAll(INLINE_RE)) {
+    const index = match.index ?? 0
+    out += line.slice(last, index)
+    out += inlineStyle(match[0])
+    last = index + match[0].length
+  }
+  out += line.slice(last)
+  return out
+}
+
+function blockMarkdown(line: string): string {
+  const heading = line.match(/^(#{1,6})\s+(.*)$/)
+  if (heading) {
+    return theme.fg("mdHeading", theme.bold(heading[2] ?? ""))
+  }
+  if (/^\s*([-*+]|\d+\.)\s/.test(line)) {
+    const bullet = line.match(/^\s*([-*+]|\d+\.)\s/)?.[0] ?? ""
+    return theme.fg("mdListBullet", bullet) + inlineMarkdown(line.slice(bullet.length))
+  }
+  if (line.startsWith(">")) {
+    const body = line.replace(/^>\s?/, "")
+    return theme.fg("mdQuoteBorder", "▌ ") + theme.fg("mdQuote", body)
+  }
+  if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
+    return theme.fg("mdHr", line)
+  }
+  return inlineMarkdown(line)
+}
+
 export function markdown(text: string): string {
-  return text
+  if (theme.mode === "none") return text
+  const out: string[] = []
+  let inCode = false
+  for (const line of text.split("\n")) {
+    if (line.trimStart().startsWith("```")) {
+      inCode = !inCode
+      out.push(theme.fg("mdCodeBlockBorder", line))
+      continue
+    }
+    out.push(inCode ? theme.fg("mdCodeBlock", line) : blockMarkdown(line))
+  }
+  return out.join("\n")
 }
 
 export * as UI from "./ui"

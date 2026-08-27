@@ -185,7 +185,10 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
     permission: permissionRules,
   })
   const id = created.data?.id
-  if (!id) throw new Error("Failed to create session")
+  if (!id) {
+    // 暴露服务端错误明细，避免只显示笼统提示拖慢排障（对齐 interactive.ts 先例）
+    throw new Error(`Failed to create session: ${created.error ? JSON.stringify(created.error) : "未知错误（无返回数据）"}`)
+  }
   return { id, title: created.data?.title, directory: created.data?.directory }
 }
 

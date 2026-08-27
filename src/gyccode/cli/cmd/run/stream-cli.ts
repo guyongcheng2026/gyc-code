@@ -9,18 +9,47 @@ type Inline = {
   icon: string
   title: string
   description?: string
+  /** 正文为 diff（edit 工具），按 pi 的 toolDiffAdded/Removed/Context 着色 */
+  diff?: boolean
 }
 
-function inline(info: Inline) {
-  const suffix = info.description ? UI.Style.TEXT_DIM + ` ${info.description}` + UI.Style.TEXT_NORMAL : ""
-  UI.println(UI.Style.TEXT_NORMAL + info.icon, UI.Style.TEXT_NORMAL + info.title + suffix)
+// pi createResultFallback 口径：工具输出默认预览 10 行，超出显示 muted 提示
+const TOOL_PREVIEW_LINES = 10
+
+function truncateOutput(output: string): string {
+  const lines = output.split("\n")
+  if (lines.length <= TOOL_PREVIEW_LINES) {
+    return output
+  }
+  const remaining = lines.length - TOOL_PREVIEW_LINES
+  const hint = `... (${remaining} more lines)`
+  return lines.slice(0, TOOL_PREVIEW_LINES).join("\n") + UI.Style.TEXT_MUTED + "\n" + hint + UI.Style.TEXT_NORMAL
+}
+
+// diff 行着色：+ 增 / - 删 / @@ 块头（pi diff 组件同款 token）
+function styleDiff(body: string): string {
+  const styled = body.split("\n").map((line) => {
+    if (line.startsWith("+")) return UI.Style.TEXT_DIFF_ADDED + line
+    if (line.startsWith("-")) return UI.Style.TEXT_DIFF_REMOVED + line
+    if (line.startsWith("@@")) return UI.Style.TEXT_DIFF_CONTEXT + line
+    return line
+  })
+  return styled.join("\n") + UI.Style.TEXT_NORMAL
+}
+
+// pi 口径：图标 accent 强调、标题粗体（toolTitle）、说明弱化（muted）
+function inline(info: Inline, iconStyle: string = UI.Style.TEXT_ACCENT) {
+  const suffix = info.description ? UI.Style.TEXT_MUTED + ` ${info.description}` + UI.Style.TEXT_NORMAL : ""
+  UI.println(iconStyle + info.icon, UI.Style.TEXT_TOOL_TITLE + info.title + suffix)
 }
 
 function block(info: Inline, output?: string) {
   UI.empty()
   inline(info)
-  if (!output?.trim()) return
-  UI.println(output)
+  const body = output?.trim()
+  if (!body) return
+  const styled = info.diff ? styleDiff(body) : UI.Style.TEXT_TOOL_OUTPUT + truncateOutput(body) + UI.Style.TEXT_NORMAL
+  UI.println(styled)
   UI.empty()
 }
 
@@ -46,17 +75,23 @@ async function toolError(part: ToolPart) {
   try {
     const { toolInlineInfo } = await import("./tool")
     const next = toolInlineInfo(part)
-    inline({
-      icon: "✗",
-      title: `${next.title} failed`,
-      ...(next.description && { description: next.description }),
-    })
+    inline(
+      {
+        icon: "✗",
+        title: `${next.title} 执行失败`,
+        ...(next.description && { description: next.description }),
+      },
+      UI.Style.TEXT_DANGER,
+    )
     return
   } catch {
-    inline({
-      icon: "✗",
-      title: `${part.tool} failed`,
-    })
+    inline(
+      {
+        icon: "✗",
+        title: `${part.tool} failed`,
+      },
+      UI.Style.TEXT_DANGER,
+    )
   }
 }
 
@@ -241,10 +276,11 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
         if (emit("reasoning", { part })) continue
         const text = part.text.trim()
         if (!text) continue
-        const line = `Thinking: ${text}`
+        const line = `思考：${text}`
         if (process.stdout.isTTY) {
           UI.empty()
-          UI.println(`${UI.Style.TEXT_DIM}\u001b[3m${line}\u001b[0m${UI.Style.TEXT_NORMAL}`)
+          // pi 口径：思考文本 = thinkingText 色 + 斜体
+          UI.println(UI.theme.italic(UI.theme.fg("thinkingText", line)))
           UI.empty()
           continue
         }
@@ -328,7 +364,7 @@ export async function streamLoop(input: StreamLoopInput): Promise<string | undef
       } else {
         UI.println(
           UI.Style.TEXT_WARNING_BOLD + "!",
-          UI.Style.TEXT_NORMAL + "question requested; no question handler, leaving unanswered",
+          UI.Style.TEXT_NORMAL + "问题请求；无应答处理器，保持未回答",
         )
       }
     }

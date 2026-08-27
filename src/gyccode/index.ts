@@ -366,6 +366,9 @@ if (isHelp) {
           }))
           if (result.error) die(result.error)
           process.exitCode = result.exitCode
+          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
+          yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", resolve)))
+          process.exit(result.exitCode)
           return
         }
 
@@ -388,6 +391,9 @@ if (isHelp) {
           }))
           if (result.error) die(result.error)
           process.exitCode = result.exitCode
+          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
+          yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", resolve)))
+          process.exit(result.exitCode)
         } else {
           // 无消息：进入交互式循环（惰性加载 cli/core，纯单轮命令不背载交互模块）
           const { runInteractiveLoop } = yield* Effect.promise(() => import("./cli/core"))

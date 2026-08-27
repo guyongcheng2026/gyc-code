@@ -63,6 +63,8 @@ export type ToolInline = {
   description?: string
   mode?: "inline" | "block"
   body?: string
+  /** 正文为 diff（pi toolDiffAdded/Removed/Context 着色口径） */
+  diff?: boolean
 }
 
 export type ToolPermissionInfo = {
@@ -352,6 +354,7 @@ function runEdit(p: ToolProps<typeof EditTool>): ToolInline {
     title: `Edit ${toolPath(p.input.filePath)}`,
     mode: "block",
     body: p.metadata.diff,
+    diff: true,
   }
 }
 

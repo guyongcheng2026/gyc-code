@@ -324,7 +324,7 @@ export const RunCommand = effectCmd({
             .catch(() => undefined)
 
           if (!current?.data) {
-            UI.error("Session not found")
+            UI.error("会话不存在")
             process.exit(1)
           }
 
@@ -504,7 +504,7 @@ export const RunCommand = effectCmd({
       async function execute(sdk: GyccodeClient) {
         const sess = await session(sdk)
         if (!sess?.id) {
-          UI.error("Session not found")
+          UI.error("会话不存在")
           process.exit(1)
         }
         const sessionID = sess.id
@@ -535,10 +535,30 @@ export const RunCommand = effectCmd({
           console.error(e)
           process.exitCode = 1
         })
+        // streamLoop 是否已通过 session.error 事件展示了可读错误明细
+        let streamErrorShown = false
         async function finish() {
           if (args.attach) return
           const error = await completed
-          if (error) process.exitCode = 1
+          if (error) {
+            process.exitCode = 1
+            streamErrorShown = true
+          }
+        }
+        // 错误路径：服务端在返回 HTTP 错误的同时可能已发布可读的 session.error
+        // 事件（如 "Model not found: xxx"）。给事件流一小段时间消费完再退出，
+        // 否则 process.exit 会提前杀掉事件消费、丢失错误明细；超时兜底防挂起。
+        async function finishWithErrorDrain(httpError: unknown) {
+          if (args.format !== "json" && !args.attach) {
+            const drain = finish()
+            const timeout = new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 5000)
+              timer.unref?.()
+            })
+            await Promise.race([drain, timeout])
+            if (streamErrorShown) return
+          }
+          UI.error(formatRunError(httpError))
         }
 
         if (args.command) {
@@ -554,7 +574,7 @@ export const RunCommand = effectCmd({
             if (args.format === "json") {
               process.stdout.write(JSON.stringify({ type: "error", timestamp: Date.now(), error: result.error }) + "\n")
             } else {
-              UI.error(formatRunError(result.error))
+              await finishWithErrorDrain(result.error)
             }
             process.exitCode = 1
             return
@@ -575,7 +595,7 @@ export const RunCommand = effectCmd({
           if (args.format === "json") {
             process.stdout.write(JSON.stringify({ type: "error", timestamp: Date.now(), error: result.error }) + "\n")
           } else {
-            UI.error(formatRunError(result.error))
+            await finishWithErrorDrain(result.error)
           }
           process.exitCode = 1
           return
@@ -585,9 +605,23 @@ export const RunCommand = effectCmd({
       }
 
 
+      // 单轮 CLI 语义：输出写完即退出。实例 dispose 不覆盖全部句柄
+      // （watcher/location services/UTF8 守护轮询），event loop 不空会让
+      // 进程在会话结束后永久挂起（实测 RSS 260MB 悬挂数分钟）。
+      async function exitWhenFlushed() {
+        await new Promise<void>((resolve) => process.stdout.write("", resolve))
+        // 让出事件循环数拍，等待错误路径下进行中的 libuv async handle
+        // 关闭完成，避免 process.exit 触发 uv_async_send 断言崩溃
+        // （Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)）。
+        await new Promise<void>((resolve) => setTimeout(resolve, 100))
+        process.exit(process.exitCode ?? 0)
+      }
+
       if (args.attach) {
         const sdk = attachSDK(directory)
-        return await execute(sdk)
+        await execute(sdk)
+        await exitWhenFlushed()
+        return
       }
 
       const fetchFn = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -604,6 +638,7 @@ export const RunCommand = effectCmd({
         directory,
       })
       await execute(sdk)
+      await exitWhenFlushed()
     })
   }),
 })

@@ -28,11 +28,12 @@ import { useTuiStartup } from "./runtime"
 import { createSimpleContext } from "./helper"
 import { useExit } from "./exit"
 import { useArgs } from "./args"
-import { batch, createSignal, onMount } from "solid-js"
+import { batch, createSignal, onCleanup, onMount } from "solid-js"
 import path from "path"
 import { tuiTiming } from "../util/timing"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
+import { createDeltaFlushController, DELTA_FLUSH_MS } from "./delta-flush"
 
 const emptyConsoleState: ConsoleState = {
   consoleManagedProviders: [],
@@ -223,10 +224,9 @@ export const {
       }
     }
 
-    // Batch streaming text deltas (30ms) so high-frequency token updates collapse
-    // into a single store write. Avoids re-parsing and re-highlighting the whole
-    // markdown block (tree-sitter WASM) on every token for long assistant messages.
-    const DELTA_FLUSH_MS = 30
+    // 流式 delta 上屏调度（对标 pi agent 的 16ms 节奏）：涓流逐 token 立即
+    // 上屏，洪泛按 DELTA_FLUSH_MS 窗口合并为一次 store 写。避免高频 token
+    // 逐个触发整块 markdown 重解析（tree-sitter WASM）导致长回复渲染跟不上。
     type PendingDelta = {
       sessionID: string
       messageID: string
@@ -235,10 +235,8 @@ export const {
       text: string
     }
     let pendingDeltas = new Map<string, PendingDelta>()
-    let deltaTimer: ReturnType<typeof setTimeout> | undefined
 
     const flushDeltas = () => {
-      deltaTimer = undefined
       if (pendingDeltas.size === 0) return
       const deltas = pendingDeltas
       pendingDeltas = new Map()
@@ -262,6 +260,8 @@ export const {
         }
       })
     }
+    const deltaFlush = createDeltaFlushController(flushDeltas, DELTA_FLUSH_MS)
+    onCleanup(() => deltaFlush.dispose())
 
     function sessionListQuery(): { scope?: "project"; path?: string } {
       if (!kv.get("session_directory_filter_enabled", true)) return { scope: "project" }
@@ -570,7 +570,7 @@ export const {
               field: event.properties.field,
               text: event.properties.delta,
             })
-          if (!deltaTimer) deltaTimer = setTimeout(flushDeltas, DELTA_FLUSH_MS)
+          deltaFlush.schedule()
           break
         }
 
