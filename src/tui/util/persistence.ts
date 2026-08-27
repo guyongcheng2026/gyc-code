@@ -1,5 +1,6 @@
 import path from "path"
 import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "fs/promises"
+import { Path } from "@gyccode/core/global"
 
 export async function readText(filePath: string) {
   return readFile(filePath, "utf8")
@@ -19,6 +20,13 @@ export async function appendText(filePath: string, content: string) {
   await appendFile(filePath, content)
 }
 
+// Windows 上 rename 的目标文件被杀毒软件/并发读句柄瞬时锁定时抛
+// EPERM/EBUSY/EACCES/ENOTEMPTY，属瞬时错误：短暂退避重试即可成功。
+// 2026-08-27 实证：model.json 的 EPERM rename 失败曾以 unhandledRejection
+// 击穿 TUI 主进程（降级安全模式退出），必须在此层吸收。
+const TRANSIENT_RENAME_ERRORS = new Set(["EPERM", "EBUSY", "EACCES", "ENOTEMPTY"])
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
 export async function writeJsonAtomic(filePath: string, value: unknown) {
   await mkdir(path.dirname(filePath), { recursive: true })
   const temporary = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`
@@ -34,8 +42,37 @@ export async function writeJsonAtomic(filePath: string, value: unknown) {
     throw error
   }
   await handle.close()
-  await rename(temporary, filePath).catch(async (error) => {
-    await rm(temporary, { force: true }).catch(() => undefined)
-    throw error
-  })
+  // 瞬时占用重试：100/200/400ms 三次退避
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rename(temporary, filePath)
+      return
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code ?? ""
+      if (attempt >= 2 || !TRANSIENT_RENAME_ERRORS.has(code)) {
+        await rm(temporary, { force: true }).catch(() => undefined)
+        throw error
+      }
+      await sleep(100 * 2 ** attempt)
+    }
+  }
+}
+
+/**
+ * 偏好类状态写入：失败不向调用方传播（void 调用场景下避免升级为
+ * unhandledRejection 击穿 TUI），仅写 gyccode.log 留证。数据仍在内存
+ * store 中，下次状态变化会重写。
+ */
+export async function writeJsonAtomicLogged(filePath: string, value: unknown, label: string) {
+  try {
+    await writeJsonAtomic(filePath, value)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    try {
+      await appendFile(
+        path.join(Path.log, "gyccode.log"),
+        `timestamp=${new Date().toISOString()} level=Warn run=main persistence-write-failed label=${label} file=${filePath} message=${JSON.stringify(message)}\n`,
+      )
+    } catch {}
+  }
 }

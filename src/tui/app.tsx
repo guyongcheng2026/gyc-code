@@ -574,13 +574,26 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 ).catch(() => {})
                 runGc()
                 if (fatalStreak >= FATAL_STREAK_LIMIT) {
-                  void appendFile(
-                    join(global.log, "gyccode.log"),
-                    `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB streak=${fatalStreak}\n`,
-                  ).catch(() => {})
-                  try {
-                    destroyRenderer(renderer)
-                  } catch {}
+                  // 2026-08-27 实证修正：4GB 机 free 长期游走 180-250MB 是
+                  // 系统常态（外部进程占用），主进程 rss 仅 ~20% 时退出 gyc
+                  // 只释放数百 MB 却牺牲用户会话——得不偿失。仅当本进程 rss
+                  // 也是内存大户（>30% RAM）才退出；否则降级为持续告警
+                  //（重置计数继续监护，下轮 streak 再确认），不再销毁渲染器。
+                  if (rss > total * 0.3) {
+                    void appendFile(
+                      join(global.log, "gyccode.log"),
+                      `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB streak=${fatalStreak}\n`,
+                    ).catch(() => {})
+                    try {
+                      destroyRenderer(renderer)
+                    } catch {}
+                  } else {
+                    fatalStreak = 0
+                    void appendFile(
+                      join(global.log, "gyccode.log"),
+                      `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow-sustained rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                    ).catch(() => {})
+                  }
                 }
               } else {
                 // 系统内存恢复常态：reset 连续计数
