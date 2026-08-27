@@ -26,3 +26,26 @@ stability-*
 # 验证报告与临时文件（一次性验证产物，不入库）
 *-verify-report.json
 temp.txt
+
+# 本地调试/构建产物
+.build-out*
+.chat-smoke.txt
+.commit-msg*
+.cr*
+.dist-check.cjs
+.ebuild*
+.env-check.cjs
+.fix-build-out.txt
+.node-smoke.txt
+.pty*
+.rebuild*
+.t3.txt
+.task-smoke-full.ts
+.tui-diag*
+.tui-pty-smoke.mjs
+.tui-run-out.txt
+.tui-smoke*
+0)
+scripts/emergency-build.mjs
+tsconfig.p1-scoped.json
+

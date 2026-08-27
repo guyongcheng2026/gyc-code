@@ -239,6 +239,21 @@ export const TuiThreadCommand = cmd({
 
       spawnWorker()
       tuiTiming("worker created")
+      // 等待 worker RPC 监听就绪，避免主进程过早发起请求导致竞态。
+      // 超时保护（2026-08-27 紧急修复）：worker 启动失败/重启窗口时
+      // currentClient 为空，无超时则无限轮询——TUI 永久黑屏卡死的主嫌疑根因
+      await new Promise<void>((resolve) => {
+        const deadline = Date.now() + 15_000
+        const checkReady = () => {
+          if ((currentClient && currentClient.pendingCount() === 0) || Date.now() > deadline) {
+            resolve()
+            return
+          }
+          setTimeout(checkReady, 20)
+        }
+        checkReady()
+      })
+      tuiTiming("worker rpc ready")
       const reload = () => {
         ensureWorker().call("reload", undefined).catch(() => {})
       }

@@ -84,7 +84,8 @@ function fallbackModel(): ModelChoice {
 const SYSTEM_PROMPT =
   "你是谷总的微信助手，通过微信机器人与谷总对话。用简体中文回复，措辞规范简洁、专业严谨。" +
   "回复务必短小精悍：日常问题两三句话即可；除非对方明确要求，不要罗列长清单或展开长篇论述。" +
-  "如需执行真实编码任务，提示对方发送「/run 任务描述」。"
+  "你擅长综合办公（写作、总结、翻译、日程与文档起草）与答疑；" +
+  "如需执行真实任务（写代码、改文件、跑命令等实际操作），提示对方发送「/run 任务描述」。"
 
 interface Turn {
   role: "user" | "assistant"
@@ -99,12 +100,55 @@ function truncate(text: string, limit = REPLY_MAX_CHARS): string {
 /** 互斥任务执行：同一时刻仅允许一个 gyc run 子进程。 */
 let taskRunning = false
 
-async function runTask(description: string): Promise<string> {
-  if (taskRunning) return "当前已有任务在执行中，请稍后再试。完成后将自动回报结果。"
-  taskRunning = true
-  const started = Date.now()
-  try {
-    // Bun 原生 spawn：node:child_process 兼容层在长驻进程下 close 事件不可靠（曾致永久挂起）
+interface TaskOutcome {
+  stdout: string
+  stderr: string
+  exitCode: number | null
+}
+
+/**
+ * 解析任务子进程入口：Node 运行时（生产 dist）下 argv[1] 即当前入口
+ * （bin/gyc 重执行保证为 dist/index.js）；缺失时按 cwd/dist 兜底。
+ */
+function resolveNodeTaskEntry(cwd: string): string {
+  const argv1 = process.argv[1] ?? ""
+  if (argv1.endsWith(".js") && existsSync(argv1)) return argv1
+  const distEntry = join(cwd, "dist", "index.js")
+  if (existsSync(distEntry)) return distEntry
+  throw new Error(`未找到可执行入口（${distEntry} 不存在）：请先构建 dist 或改用 Bun 运行网关`)
+}
+
+/** 双杀兜底：先 SIGTERM，5s 后 SIGKILL，确保子进程必然退出、Promise 必然落定。 */
+function armKillTimer(kill: (sig?: unknown) => unknown, timeoutMs: number): ReturnType<typeof setTimeout> {
+  const timer = setTimeout(() => {
+    try {
+      kill()
+    } catch {
+      // 进程已退出
+    }
+    setTimeout(() => {
+      try {
+        kill("SIGKILL")
+      } catch {
+        // 进程已退出
+      }
+    }, 5_000).unref?.()
+  }, timeoutMs)
+  timer.unref?.()
+  return timer
+}
+
+/**
+ * 运行时自适应任务子进程：
+ * - Bun 运行时（src 直跑）：Bun.spawn（node:child_process 兼容层在 Bun
+ *   长驻进程下 close 事件不可靠，曾致永久挂起）
+ * - Node 运行时（生产 dist）：node:child_process.spawn + 流收集 + close 事件。
+ *   此前此处无条件引用 Bun.spawn——Node 下 Bun 全局不存在，/run 任务
+ *   必抛 ReferenceError（微信侧表现为「任务执行失败」），2026-08-27 审查修复。
+ */
+async function spawnTask(description: string): Promise<TaskOutcome> {
+  const cwd = process.cwd() || "C:\\gyc-code"
+  if (typeof Bun !== "undefined") {
     const proc = Bun.spawn(
       [
         process.execPath,
@@ -117,34 +161,59 @@ async function runTask(description: string): Promise<string> {
         "--yolo",
       ],
       {
-        cwd: process.cwd() || "C:\\gyc-code",
+        cwd,
         stdin: "ignore",
         stdout: "pipe",
         stderr: "pipe",
       },
     )
-    const timer = setTimeout(() => {
-      try {
-        proc.kill()
-      } catch {
-        // 进程已退出
-      }
-      // 强杀兜底：子进程若忽略 SIGTERM（如卡死的原生子进程），5s 后 SIGKILL，
-      // 确保 proc.exited 必然 resolve，finally 释放 taskRunning，防通道永久卡死
-      setTimeout(() => {
-        try {
-          proc.kill("SIGKILL")
-        } catch {
-          // 进程已退出
-        }
-      }, 5000).unref?.()
-    }, TASK_TIMEOUT_MS)
-    timer.unref?.()
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout as ReadableStream).text(),
-      new Response(proc.stderr as ReadableStream).text(),
-      proc.exited,
-    ]).finally(() => clearTimeout(timer))
+    const timer = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
+    try {
+      const [stdout, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout as ReadableStream).text(),
+        new Response(proc.stderr as ReadableStream).text(),
+        proc.exited,
+      ])
+      return { stdout, stderr, exitCode }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  // Node 路径（生产 dist）
+  const { spawn } = await import("node:child_process")
+  const entry = resolveNodeTaskEntry(cwd)
+  return await new Promise<TaskOutcome>((resolve, reject) => {
+    const proc = spawn(process.execPath, [entry, "run", description, "--yolo"], {
+      cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    })
+    let stdout = ""
+    let stderr = ""
+    const timer = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
+    const finish = (settle: () => void) => {
+      clearTimeout(timer)
+      settle()
+    }
+    proc.stdout?.setEncoding("utf8")
+    proc.stderr?.setEncoding("utf8")
+    proc.stdout?.on("data", (chunk: string) => {
+      stdout += chunk
+    })
+    proc.stderr?.on("data", (chunk: string) => {
+      stderr += chunk
+    })
+    proc.on("error", (cause: Error) => finish(() => reject(cause)))
+    proc.on("close", (code: number | null) => finish(() => resolve({ stdout, stderr, exitCode: code })))
+  })
+}
+
+async function runTask(description: string): Promise<string> {
+  if (taskRunning) return "当前已有任务在执行中，请稍后再试。完成后将自动回报结果。"
+  taskRunning = true
+  const started = Date.now()
+  try {
+    const { stdout, stderr, exitCode } = await spawnTask(description)
     const elapsed = Math.round((Date.now() - started) / 1000)
     const body = stdout.trim() || stderr.trim() || "(无输出)"
     return truncate(`任务${exitCode === 0 ? "完成" : `退出码 ${exitCode}`}，耗时 ${elapsed}s：\n${body}`)

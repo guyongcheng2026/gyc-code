@@ -270,21 +270,38 @@ export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () =
     process.on("SIGHUP", onClose)
     return () => process.off("SIGHUP", onClose)
   }
+  // 如果没有真实控制台（如重定向输出），直接返回空操作，避免误报
+  if (!isConsoleAttached()) return () => {}
+  
+  let consecutiveFailures = 0
+  const REQUIRED_FAILURES = 3 // 连续 3 次失败才判定终端关闭，防止启动瞬态误报
+  let startupGracePeriod = true
+  
+  // 启动宽限期：前 5 秒不检测，给 OpenTUI alternate screen 切换留出缓冲
+  setTimeout(() => { startupGracePeriod = false }, 5000).unref()
+  
   // 不提前 load()，改为在回调中重试
   const timer = setInterval(() => {
     try {
-      if (load() && !win32HasConsole()) {
-        // 新增：记录终端关闭检测，便于诊断误报（如控制台句柄临时失效）
-        const logDir = Global.Path.log
-        void mkdir(logDir, { recursive: true })
-          .then(() =>
-            appendFile(
-              join(logDir, "gyccode.log"),
-              `timestamp=${new Date().toISOString()} level=Info run=main terminal-close-detected\n`,
-            ),
-          )
-          .catch(() => {})
-        onClose()
+      if (startupGracePeriod) return
+      if (!load()) return
+      if (!isConsoleAttached()) return // 运行期间控制台被分离，不再检测
+      if (!win32HasConsole()) {
+        consecutiveFailures += 1
+        if (consecutiveFailures >= REQUIRED_FAILURES) {
+          const logDir = Global.Path.log
+          void mkdir(logDir, { recursive: true })
+            .then(() =>
+              appendFile(
+                join(logDir, "gyccode.log"),
+                `timestamp=${new Date().toISOString()} level=Info run=main terminal-close-detected consecutive=${consecutiveFailures}\n`,
+              ),
+            )
+            .catch(() => {})
+          onClose()
+        }
+      } else {
+        consecutiveFailures = 0 // 重置计数器
       }
     } catch {
       // 静默吞掉异常，保证定时器持续运行

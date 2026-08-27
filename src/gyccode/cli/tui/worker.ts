@@ -117,13 +117,19 @@ function importMod<T>(spec: string): Promise<T> {
 }
 
 let instanceWarmed = false
-async function ensureWarmInstance() {
+let prewarmPromise: Promise<void> | null = null
+async function ensureWarmInstance(): Promise<void> {
   if (instanceWarmed) return
-  const { InstanceRuntime } = await importMod<typeof import("@/project/instance-runtime")>(
-    "@/project/instance-runtime",
-  )
-  await InstanceRuntime.load({ directory: process.cwd() })
-  instanceWarmed = true
+  if (!prewarmPromise) {
+    prewarmPromise = (async () => {
+      const { InstanceRuntime } = await importMod<typeof import("@/project/instance-runtime")>(
+        "@/project/instance-runtime",
+      )
+      await InstanceRuntime.load({ directory: process.cwd() })
+      instanceWarmed = true
+    })()
+  }
+  return prewarmPromise
 }
 
 export const rpc = {

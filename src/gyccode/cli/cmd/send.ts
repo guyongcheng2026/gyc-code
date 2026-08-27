@@ -21,6 +21,9 @@ function parseTarget(raw: string | undefined): { platform: string; chatId?: stri
 }
 
 async function readStdin(): Promise<string> {
+  // TTY（交互终端无管道输入）时立即返回空：for-await 会挂起等待 EOF，
+  // 终端直接执行 `gyc send "文本"` 将永久卡死（2026-08-27 审查修复）
+  if (process.stdin.isTTY) return ""
   try {
     const chunks: string[] = []
     for await (const chunk of process.stdin) chunks.push(String(chunk))

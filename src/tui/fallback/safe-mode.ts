@@ -7,11 +7,11 @@ import { ProcessBackend, type TerminalBackend } from "./terminal"
  * 变「黑屏退出」为「可用保底」：展示错误摘要与基础交互界面，
  * 谷总仍可查看诊断信息并输入文本（回显确认终端通路完好）。
  *
- * 开关（S2 灰度语义，2026-08-26 默认反转）：GYC_TUI_BACKEND =
- *   - 未设置/非法值（默认）：fallback——自研渲染器（S2 灰度切换的声明性行为）
+ * 开关：GYC_TUI_BACKEND =
+ *   - 未设置/非法值（默认）：auto——opentui 优先，失败时自动降级 fallback
  *   - "fallback"：显式自研后端
- *   - "auto"：opentui 优先，失败时自动降级（R3 切回手段）
- *   - "opentui"：纯 opentui，禁用一切降级（R3 切回手段）
+ *   - "auto"：同默认
+ *   - "opentui"：纯 opentui，禁用一切降级
  */
 
 /** GYC_TUI_BACKEND 解析结果。 */
@@ -20,9 +20,8 @@ export type TuiBackendChoice = "opentui" | "fallback" | "auto"
 export function backendChoice(): TuiBackendChoice {
 	const value = process.env.GYC_TUI_BACKEND
 	if (value === "opentui" || value === "fallback" || value === "auto") return value
-	// S2 灰度：默认自研 fallback。切回 opentui：
-	//   GYC_TUI_BACKEND=auto（失败可降级）或 =opentui（纯 opentui）
-	return "fallback"
+	// 默认 auto：opentui 优先，失败自动降级 fallback
+	return "auto"
 }
 
 /** 是否允许失败时自动降级到安全模式（opentui 显式禁用）。 */
