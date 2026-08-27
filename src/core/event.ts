@@ -383,7 +383,9 @@ export const layerWith = (options?: LayerOptions) =>
               }),
             )
           if (definition?.durable) {
-            const committed = yield* commitDurableEvent(definition, event as Payload, {}, commit)
+            // 运行时新发布：input 必须为 undefined（走"新事件"路径，seq 自动 latest+1）。
+            // 传 {} 会误入 replay 严格校验分支（aggregateID undefined ≠ 事件 aggregate → die）。
+            const committed = yield* commitDurableEvent(definition, event as Payload, undefined, commit)
             if (committed) {
               event = {
                 ...event,
