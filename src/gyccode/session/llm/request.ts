@@ -135,7 +135,7 @@ const resolveProviderOptions = Effect.fn("LLMRequestPrep.resolveProviderOptions"
   ) {
     const isOpenaiOauth = input.provider.id === "openai" && input.auth?.type === "oauth"
     const isDeepSeek = input.provider.id === "deepseek"
-    // OpenCode Zen 等 API 不接受 messages 中的 system role，要求使用 instructions 顶层字段。
+    // GycCode 云模型网关等 API 不接受 messages 中的 system role，要求使用 instructions 顶层字段。
     // 通过 provider 配置 options.useInstructions 开启（见 gyccode.json 的 provider 配置）。
     const useInstructions = isOpenaiOauth || isDeepSeek || input.provider.options?.["useInstructions"] === true
 

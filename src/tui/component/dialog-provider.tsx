@@ -347,23 +347,17 @@ function ApiMethod(props: ApiMethodProps) {
           gyccode: (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                OpenCode Zen gives you access to all the best coding models at the cheapest prices with a single API
-                key.
+                GycCode 云模型服务：一个 API Key 即可以优惠价格访问多款主流编码模型。
               </text>
-              <text fg={theme.text}>
-                Go to the official website to get an API key
-              </text>
+              <text fg={theme.text}>前往官方网站获取 API Key</text>
             </box>
           ),
           "gyccode-go": (
             <box gap={1}>
               <text fg={theme.textMuted}>
-                OpenCode Go is a $10 per month subscription that provides reliable access to popular open coding models
-                并提供宽裕的使用额度。
+                GycCode 云模型订阅（月付），稳定访问多款主流开源编码模型，并提供宽裕的使用额度。
               </text>
-              <text fg={theme.text}>
-                Go to the official website and enable OpenCode Go
-              </text>
+              <text fg={theme.text}>前往官方网站启用订阅</text>
             </box>
           ),
         })[props.providerID] ?? undefined
