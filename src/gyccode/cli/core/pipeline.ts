@@ -1,7 +1,6 @@
 // 统一执行管道 - 核心抽象层
 // 单轮 run / 交互 default / 附着 attach 共享同一执行逻辑
 
-import { Effect, Layer, Context, Option } from "effect"
 import { createGyccodeClient, type GyccodeClient, type CommandV2Info } from "@gyccode/protocol/v2"
 import { Filesystem } from "@/util/filesystem"
 import { pathToFileURL } from "url"
@@ -286,12 +285,3 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
     cleanup?.()
   }
 }
-
-// Effect 版本（用于 CLI 命令集成）
-export const PipelineService = Context.GenericTag<{
-  run: (input: PipelineInput) => Effect.Effect<PipelineResult, Error>
-}>("@gyccode/PipelineService")
-
-export const PipelineServiceLive = Layer.succeed(PipelineService, {
-  run: (input) => Effect.tryPromise(() => runPipeline(input)),
-})
