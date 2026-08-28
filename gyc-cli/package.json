@@ -1,0 +1,11 @@
+{
+  "name": "gyc-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "gyc cli —— 纯自主研发的终端编码助手：QueryEngine 对话循环 + 工具编排 + 权限系统（LLM 直接复用 gyc TUI 的 @gyccode/llm）",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
