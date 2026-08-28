@@ -11,35 +11,72 @@ import { cellEqual, Screen, sameStyle } from "./screen"
 
 const RESET = "\x1b[0m"
 
-function sgrFor(style: CellStyle): string {
-	const codes: string[] = []
-	if (style.bold) codes.push("1")
-	if (style.dim) codes.push("2")
-	if (style.italic) codes.push("3")
-	if (style.underline) codes.push("4")
-	if (style.reverse) codes.push("7")
-	if (style.strikethrough) codes.push("9")
-	if (style.fg) codes.push(fgCode(style.fg))
-	if (style.bg) codes.push(bgCode(style.bg))
-	if (codes.length === 0) return RESET
-	return `\x1b[${codes.join(";")}m`
-}
+const useTrueColor =
+  process.env.COLORTERM === "truecolor" ||
+  process.env.COLORTERM === "24bit" ||
+  process.env.TERM?.includes("truecolor") ||
+  process.env.TERM?.includes("24bit") ||
+  false
+
+const use256Color =
+  !useTrueColor &&
+  (process.env.COLORTERM === "256bit" ||
+    process.env.COLORTERM === "256color" ||
+    process.env.TERM?.includes("256") ||
+    process.env.TERM === "xterm" ||
+    process.env.TERM === "screen" ||
+    false)
 
 function parseHex(color: string): [number, number, number] {
-	const hex = color.replace("#", "")
-	const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex
-	const n = Number.parseInt(full.slice(0, 6), 16)
-	return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+  const hex = color.replace("#", "")
+  const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex
+  const n = Number.parseInt(full.slice(0, 6), 16)
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+}
+
+const C256: [number, number, number][] = [
+  [0, 0, 0], [128, 0, 0], [0, 128, 0], [128, 128, 0], [0, 0, 128], [128, 0, 128], [0, 128, 128], [192, 192, 192],
+  [128, 128, 128], [255, 0, 0], [0, 255, 0], [255, 255, 0], [0, 0, 255], [255, 0, 255], [0, 255, 255], [255, 255, 255],
+  [0, 0, 0], [255, 255, 255],
+]
+
+function nearest256(r: number, g: number, b: number): number {
+  let min = Infinity, best = 0
+  for (let i = 0; i < C256.length; i++) {
+    const [cr, cg, cb] = C256[i], d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
+    if (d < min) { min = d; best = i }
+  }
+  return best < 16 ? best : 16 + Math.round(r / 51) * 36 + Math.round(g / 51) * 6 + Math.round(b / 51)
 }
 
 function fgCode(color: string): string {
-	const [r, g, b] = parseHex(color)
-	return `38;2;${r};${g};${b}`
+  const [r, g, b] = parseHex(color)
+  if (useTrueColor) return `38;2;${r};${g};${b}`
+  if (use256Color) return `38;5;${nearest256(r, g, b)}`
+  const v = (0.299 * r + 0.587 * g + 0.114 * b) > 127 ? 37 : 30
+  return String(v)
 }
 
 function bgCode(color: string): string {
-	const [r, g, b] = parseHex(color)
-	return `48;2;${r};${g};${b}`
+  const [r, g, b] = parseHex(color)
+  if (useTrueColor) return `48;2;${r};${g};${b}`
+  if (use256Color) return `48;5;${nearest256(r, g, b)}`
+  const v = (0.299 * r + 0.587 * g + 0.114 * b) > 127 ? 47 : 40
+  return String(v)
+}
+
+function sgrFor(style: CellStyle): string {
+  const codes: string[] = []
+  if (style.bold) codes.push("1")
+  if (style.dim) codes.push("2")
+  if (style.italic) codes.push("3")
+  if (style.underline) codes.push("4")
+  if (style.reverse) codes.push("7")
+  if (style.strikethrough) codes.push("9")
+  if (style.fg) codes.push(fgCode(style.fg))
+  if (style.bg) codes.push(bgCode(style.bg))
+  if (codes.length === 0) return RESET
+  return `\x1b[${codes.join(";")}m`
 }
 
 /** 进入全屏模式序列：alt-screen + 清屏 + 隐藏光标 */

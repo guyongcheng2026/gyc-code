@@ -12,6 +12,7 @@ import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
 import { backendChoice, claimFallbackOnce, isExplicitFallback, shouldUseFallback } from "./fallback/safe-mode"
+import { isRecoverableRejection } from "./util/crash-classify"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
@@ -30,6 +31,8 @@ import {
 import { TuiPathsProvider, TuiStartupProvider, TuiTerminalEnvironmentProvider, useTuiStartup } from "./context/runtime"
 import { DialogProvider, useDialog } from "./ui/dialog"
 import { DialogProvider as DialogProviderList } from "./component/dialog-provider"
+import { MemoryAlertToast, publishMemoryAlert } from "./ui/memory-alert"
+import { shouldEmitMemoryAlert } from "./util/memory-alert"
 import { ErrorComponent } from "./component/error-component"
 import { PluginRouteMissing } from "./component/plugin-route-missing"
 import { ProjectProvider, useProject } from "./context/project"
@@ -108,7 +111,7 @@ import {
 } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
 import { appendFile, mkdir, readdir, rm } from "node:fs/promises"
-import { writeHeapSnapshot } from "node:v8"
+import v8, { writeHeapSnapshot } from "node:v8"
 import { join } from "node:path"
 import os from "node:os"
 import { cliErrorMessage, errorFormat } from "./util/error"
@@ -446,6 +449,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             void degradeToSafeModeAndExit(error, 1)
           }
           const onUnhandledRejection = (reason: unknown) => {
+            // 可恢复的瞬时错误（限流 429 / SSE 超时 / 网络抖动 / 原子写竞争）：
+            // 记日志继续运行，不再降级/退出（2026-08-28 实证：这些错误曾多次
+            // 以 unhandledRejection 击穿 TUI，表现为运行几分钟后回到终端）。
+            if (isRecoverableRejection(reason)) {
+              writeMainCrash("unhandledRejection-recoverable", reason)
+              return
+            }
             writeMainCrash("unhandledRejection", reason)
             void degradeToSafeModeAndExit(reason, 1)
           }
@@ -473,6 +483,12 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           let warnOnce = false
           let criticalOnce = false
           let lastSample = 0
+          // 用户可见的内存压力提示（2026-08-28）：critical 首次提示一次；
+          // severe（free<256MB）60s 冷却节流，防止威胁期内刷屏；
+          // 启动宽限期结束后首个样本若可用内存偏低则提示一次。
+          let criticalToastShown = false
+          let severeLastShownAt = 0
+          let startupAlertChecked = false
           // 启动宽限期：前 30 秒不做 fatal 判定，给 V8 堆增长、模块加载留出缓冲
           // 4GB 机器启动时 free memory 常跌至 100-200MB，属正常瞬态，不应触发退出
           let startupGracePeriod = true
@@ -517,9 +533,16 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           const meter = setInterval(() => {
             try {
               const rss = process.memoryUsage().rss
+              const heap = v8.getHeapStatistics()
+              const heapUsed = heap.used_heap_size
+              const heapTotal = heap.total_heap_size + heap.external_memory
+              const heapLimit = heap.heap_size_limit
+              const heapRatio = heapUsed / heapLimit
               const total = os.totalmem()
               const free = os.freemem()
               const rssMB = Math.round(rss / 1024 / 1024)
+              const heapUsedMB = Math.round(heapUsed / 1024 / 1024)
+              const heapLimitMB = Math.round(heapLimit / 1024 / 1024)
               const totalMB = Math.round(total / 1024 / 1024)
               const freeMB = Math.round(free / 1024 / 1024)
               // 心跳采样：每 10 分钟一条 Info，供长跑内存趋势分析
@@ -536,17 +559,25 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 }
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB${statsLine}\n`,
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB heap=${heapUsedMB}/${heapLimitMB}MB total=${totalMB}MB free=${freeMB}MB${statsLine}\n`,
                 ).catch(() => {})
               }
               // 启动宽限期内只记录不退出，给 V8 堆稳定留时间
               if (startupGracePeriod) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Info run=main memory-startup-grace rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Info run=main memory-startup-grace rss=${rssMB}MB heap=${heapUsedMB}/${heapLimitMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
                 runGc()
                 return
+              }
+              // 宽限期结束后的首个采样：可用内存仍偏低 → 提示一次（用户可见，
+              // 对应「启动期间内存不足」场景）。
+              if (!startupAlertChecked) {
+                startupAlertChecked = true
+                if (free < 128 * 1024 * 1024) {
+                  publishMemoryAlert({ level: "startup", rssMB, totalMB, freeMB })
+                }
               }
               // 系统可用内存维度：物理内存即将耗尽时 V8 C++ 层（TurboFan/
               // 地址空间分配）先于 JS 堆守护崩溃——不可捕获的 FatalOOM abort。
@@ -555,13 +586,20 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // 动态释放有延时，单轮 low 不代表不可恢复。改用连续多轮确认
               // （fatalStreak ≥3 才退出），期间写日志+尽力 GC，给喘息窗口。
               const systemFatal = free < 256 * 1024 * 1024
-              if (rss > total * 0.5) {
-                // 进程自身堆失控（rss>50%RAM）：真致命，立即降载退出
+              if (rss > total * 0.5 || heapRatio > 0.85) {
+                // 进程自身堆失控（rss>50%RAM 或 V8 堆>85% 上限）：真致命，立即降载退出
+                // 2026-08-28：V8 堆使用率比 RSS 更早捕捉 FatalOOM 的根因（堆使用
+                // 到达上限触发 native abort），提前降载避免不可恢复的 native 崩溃
                 void appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB heap=${heapUsedMB}/${heapLimitMB}MB (${(heapRatio * 100).toFixed(1)}%)\n`,
                 ).catch(() => {})
                 runGc()
+                // 落屏提示 + 退出后 stderr 可见的原因说明（2026-08-28）
+                publishMemoryAlert({ level: "severe", rssMB, totalMB, freeMB })
+                exit.reason = new Error(
+                  `gyc tui 因系统内存不足已退出（已用 ${rssMB}MB / 总内存 ${totalMB}MB，可用 ${freeMB}MB）。建议关闭与 gyc tui 无关的程序（浏览器、大型 IDE、视频播放器等）释放内存后重试。`,
+                )
                 try {
                   destroyRenderer(renderer)
                 } catch {}
@@ -573,6 +611,11 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow streak=${fatalStreak}/${FATAL_STREAK_LIMIT} rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                 ).catch(() => {})
                 runGc()
+                // 用户可见的严重提示（60s 冷却，避免威胁期内刷屏）
+                if (shouldEmitMemoryAlert(severeLastShownAt, Date.now(), 60_000)) {
+                  severeLastShownAt = Date.now()
+                  publishMemoryAlert({ level: "severe", rssMB, totalMB, freeMB, streak: fatalStreak })
+                }
                 if (fatalStreak >= FATAL_STREAK_LIMIT) {
                   // 2026-08-27 实证修正：4GB 机 free 长期游走 180-250MB 是
                   // 系统常态（外部进程占用），主进程 rss 仅 ~20% 时退出 gyc
@@ -584,6 +627,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                       join(global.log, "gyccode.log"),
                       `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB streak=${fatalStreak}\n`,
                     ).catch(() => {})
+                    publishMemoryAlert({ level: "severe", rssMB, totalMB, freeMB, streak: fatalStreak })
+                    exit.reason = new Error(
+                      `gyc tui 因系统内存不足已退出（已用 ${rssMB}MB / 总内存 ${totalMB}MB，可用 ${freeMB}MB）。建议关闭与 gyc tui 无关的程序（浏览器、大型 IDE、视频播放器等）释放内存后重试。`,
+                    )
                     try {
                       destroyRenderer(renderer)
                     } catch {}
@@ -610,6 +657,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     `timestamp=${new Date().toISOString()} level=Warn run=main memory-critical rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
                   ).catch(() => {})
                   writeTuiMemorySnapshot(rssMB)
+                  if (!criticalToastShown) {
+                    criticalToastShown = true
+                    publishMemoryAlert({ level: "critical", rssMB, totalMB, freeMB })
+                  }
                 }
                 runGc()
               } else if (rss > total * 0.4 && !warnOnce) {
@@ -708,6 +759,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                                 <ArgsProvider {...input.args}>
                                   <KVProvider>
                                     <ToastProvider>
+                                      <MemoryAlertToast />
                                       <RouteProvider
                                         initialRoute={
                                           input.args.continue

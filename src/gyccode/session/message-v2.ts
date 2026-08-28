@@ -33,7 +33,7 @@ import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
 import type { Provider } from "@/provider/provider"
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Schema } from "effect"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -896,6 +896,20 @@ export function fromError(
           metadata: {
             code: (e as FetchDecompressionError).code,
             message: e.message,
+          },
+        },
+        { cause: e },
+      ).toObject()
+    case Cause.isTimeoutError(e):
+      // effect 内核 TimeoutError（如 llm-timeout.ts 的首事件超时 Effect.timeout）：
+      // 无 message 字段，若落入下方 Error 分支会以 name "TimeoutError" 直接展示给用户。
+      // 映射为可重试 APIError，走 SessionRetry 重试路径并给出可读文案。
+      return new APIError(
+        {
+          message: "模型响应超时：连接已建立但长时间未收到首个响应事件，可能是网络中断或服务端无响应",
+          isRetryable: true,
+          metadata: {
+            code: "TimeoutError",
           },
         },
         { cause: e },

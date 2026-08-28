@@ -15,7 +15,7 @@ import {
 } from "./llm"
 import { createCanUseTool } from "./permissions"
 import { validateAgainstSchema, type Tool, type ToolContext } from "./tool"
-import type { ContentBlock, Message, PermissionMode, ToolUseBlock, Usage } from "./types"
+import type { CanUseToolFn, ContentBlock, Message, PermissionMode, ToolUseBlock, Usage } from "./types"
 
 const MAX_TOOL_CONCURRENCY = 10
 const MAX_TURNS = 40
@@ -142,10 +142,7 @@ async function runSingleTool(
     onToolStart?: (toolName: string, input: Record<string, unknown>) => void
     onToolResult?: (toolName: string, output: string, isError: boolean) => void
   },
-  canUseTool: (
-    toolName: string,
-    input: Record<string, unknown>,
-  ) => Promise<{ behavior: "allow"; updatedInput: Record<string, unknown> } | { behavior: "deny"; message: string }>,
+  canUseTool: CanUseToolFn,
 ): Promise<ContentBlock> {
   const fail = (message: string): ContentBlock => ({
     type: "tool_result",
@@ -161,7 +158,7 @@ async function runSingleTool(
 
   params.onToolStart?.(tool.name, parsed.value)
   const permission = await canUseTool(tool.name, parsed.value)
-  if (permission.behavior === "deny") return fail(permission.message)
+  if (permission.behavior !== "allow") return fail(permission.message)
   const input = permission.updatedInput
 
   const validation = tool.validateInput

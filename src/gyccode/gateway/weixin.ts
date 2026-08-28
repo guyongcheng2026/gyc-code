@@ -22,6 +22,28 @@ const MAX_MESSAGE_LENGTH = 2000
 const MSG_TYPE_BOT = 2
 const MSG_STATE_FINISH = 2
 const ITEM_TEXT = 1
+const SEND_MIN_INTERVAL_MS = 250
+const SEND_RATE_LIMIT_MAX_RETRIES = 2
+const SEND_RATE_LIMIT_BACKOFF_MS = 1500
+
+const sendGate: Map<string, Promise<void>> = new Map()
+
+const acquireSendSlot = async (accountId: string): Promise<() => void> => {
+  const previous = sendGate.get(accountId) ?? Promise.resolve()
+  let release!: () => void
+  const next = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  sendGate.set(
+    accountId,
+    previous.then(() => new Promise<void>((resolve) => setTimeout(resolve, SEND_MIN_INTERVAL_MS))).then(() => release),
+  )
+  await previous
+  return () => {
+    release()
+    if (sendGate.get(accountId) === next) sendGate.delete(accountId)
+  }
+}
 
 export const WEIXIN_DATA_DIR = join(homedir(), ".gyc", "data", "weixin")
 
@@ -210,44 +232,57 @@ export class WeixinAdapter implements GatewayAdapter {
   async sendText(chatId: string, text: string): Promise<GatewaySendResult> {
     if (!this.config) return { ok: false, error: "适配器未连接", kind: "unknown" }
     const config = this.config
-    let lastError: GatewayError | undefined
-    let lastMessageId = ""
-    for (const chunk of splitWeixinText(text)) {
-      const message: IlinkSendRequest = {
-        msg: {
-          from_user_id: "",
-          to_user_id: chatId,
-          client_id: crypto.randomUUID(),
-          message_type: MSG_TYPE_BOT,
-          message_state: MSG_STATE_FINISH,
-          item_list: [{ type: ITEM_TEXT, text_item: { text: chunk } }],
-        },
-        base_info: { channel_version: CHANNEL_VERSION },
+    const release = await acquireSendSlot(config.accountId)
+    try {
+      let lastError: GatewayError | undefined
+      let lastMessageId = ""
+      for (const chunk of splitWeixinText(text)) {
+        const message: IlinkSendRequest = {
+          msg: {
+            from_user_id: "",
+            to_user_id: chatId,
+            client_id: crypto.randomUUID(),
+            message_type: MSG_TYPE_BOT,
+            message_state: MSG_STATE_FINISH,
+            item_list: [{ type: ITEM_TEXT, text_item: { text: chunk } }],
+          },
+          base_info: { channel_version: CHANNEL_VERSION },
+        }
+        const ctxToken = await this.contextToken(chatId)
+        if (ctxToken) message.msg.context_token = ctxToken
+        let attempt = 0
+        let response: Awaited<ReturnType<typeof apiPost>>
+        for (;;) {
+          response = await apiPost(config, ENDPOINT_SEND, message, SEND_TIMEOUT_MS).catch(
+            (cause: GatewayError) => cause as unknown as GatewayError,
+          )
+          if (response instanceof GatewayError) {
+            lastError = response
+            break
+          }
+          const failure = classifyIlinkResponse(
+            response.ret as number | undefined,
+            response.errcode as number | undefined,
+            String(response.errmsg ?? ""),
+          )
+          if (!failure) break
+          if (failure.kind !== "rate_limited" || attempt >= SEND_RATE_LIMIT_MAX_RETRIES) {
+            lastError = failure
+            break
+          }
+          attempt += 1
+          await new Promise<void>((r) => setTimeout(r, SEND_RATE_LIMIT_BACKOFF_MS * attempt))
+        }
+        if (lastError) break
+        lastMessageId = String((response as IlinkSendResponse).message_id ?? "")
       }
-      const ctxToken = await this.contextToken(chatId)
-      if (ctxToken) message.msg.context_token = ctxToken
-      const response = await apiPost(config, ENDPOINT_SEND, message, SEND_TIMEOUT_MS).catch(
-        (cause: GatewayError) => cause,
-      )
-      if (response instanceof GatewayError) {
-        lastError = response
-        break
-      }
-      const failure = classifyIlinkResponse(
-        response.ret as number | undefined,
-        response.errcode as number | undefined,
-        String(response.errmsg ?? ""),
-      )
-      if (failure) {
-        lastError = failure
-        break
-      }
-      lastMessageId = String((response as IlinkSendResponse).message_id ?? "")
+      if (lastError) return { ok: false, error: lastError.message, kind: lastError.kind }
+      const stale = await recordHeartbeat().catch(() => null)
+      if (stale) console.warn(`[gyc] 注意：检测到另一存活进程 ${stale} 亦在使用 bot 凭证，存在消息竞争风险`)
+      return { ok: true, messageId: lastMessageId || `gyc-weixin-${Date.now().toString(16)}` }
+    } finally {
+      release()
     }
-    if (lastError) return { ok: false, error: lastError.message, kind: lastError.kind }
-    const stale = await recordHeartbeat().catch(() => null)
-    if (stale) console.warn(`[gyc] 注意：检测到另一存活进程 ${stale} 亦在使用 bot 凭证，存在消息竞争风险`)
-    return { ok: true, messageId: lastMessageId || `gyc-weixin-${Date.now().toString(16)}` }
   }
 
   async poll(onMessage: (message: GatewayMessage) => Promise<void>, abort: AbortSignal): Promise<void> {

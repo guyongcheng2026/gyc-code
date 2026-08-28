@@ -20,6 +20,9 @@ models-mirror/
 .codebuddy/
 .hermes/
 .workbuddy/
+# 本地会议记录与分析笔记（不入仓）
+会议记录/
+src/gyccode/acp/memories-*.md
 # 稳定性监控运行产物
 stability-*
 
@@ -37,6 +40,7 @@ tmp-*.txt
 .dist-check.cjs
 .ebuild*
 .env-check.cjs
+.env
 .fix-build-out.txt
 .node-smoke.txt
 .pty*

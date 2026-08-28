@@ -95,7 +95,7 @@ export function utf8GuardMismatches(): number {
   return utf8GuardMismatchCount
 }
 
-export function win32InstallUtf8ConsoleGuard(intervalMs = 2000): () => void {
+export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
   if (process.platform !== "win32") return () => {}
   if (!isConsoleAttached()) return () => {}
   // 不在这里提前 load()，改为在每次回调中重试，避免句柄失效导致后续无效

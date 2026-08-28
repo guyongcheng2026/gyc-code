@@ -75,6 +75,14 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
       location: {},
     })
 
+    // setStore 深路径写入不自动创建中间节点：location[key] 缺失时直接写
+    // ("location", key, field, value) 会在 solid store 深度遍历中读到 undefined
+    // 抛 TypeError（uncaughtException 击穿 TUI 主进程）。先补齐节点再写叶子。
+    function setLocationLeaf(key: string, field: keyof LocationData, value: unknown) {
+      if (!store.location[key]) setStore("location", key, {})
+      setStore("location", key, field, value)
+    }
+
     const sdk = useSDK()
     const events = useEvent()
     const [defaultLocation, setDefaultLocation] = createSignal<LocationRef>({
@@ -129,10 +137,12 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
     function handleEvent(event: V2Event) {
       switch (event.type) {
         case "catalog.updated":
+          // 事件驱动的后台刷新：失败（如瞬时限流/网络抖动）只应静默，
+          // 绝不能让 rejection 逃逸为 unhandledRejection 击穿 TUI。
           void Promise.all([
             dataResult.location.model.refresh(event.location),
             dataResult.location.provider.refresh(event.location),
-          ])
+          ]).catch(() => {})
           break
         case "session.next.agent.switched":
           message.update(event.data.sessionID, (draft) => {
@@ -395,14 +405,14 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           })
           break
         case "reference.updated":
-          void dataResult.location.reference.refresh()
+          void dataResult.location.reference.refresh().catch(() => {})
           break
         case "integration.updated":
           void Promise.all([
             dataResult.location.integration.refresh(event.location),
             dataResult.location.model.refresh(event.location),
             dataResult.location.provider.refresh(event.location),
-          ])
+          ]).catch(() => {})
           break
       }
     }
@@ -484,7 +494,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.agent.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "agent", result.data.data)
+            setLocationLeaf(key, "agent", result.data.data)
           },
         },
         command: {
@@ -494,7 +504,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.command.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "command", result.data.data)
+            setLocationLeaf(key, "command", result.data.data)
           },
         },
         integration: {
@@ -507,7 +517,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
               { throwOnError: true },
             )
             const key = locationKey(result.data.location)
-            setStore("location", key, "integration", result.data.data)
+            setLocationLeaf(key, "integration", result.data.data)
           },
         },
         model: {
@@ -517,7 +527,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.model.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "model", result.data.data)
+            setLocationLeaf(key, "model", result.data.data)
           },
         },
         provider: {
@@ -527,7 +537,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.provider.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "provider", result.data.data)
+            setLocationLeaf(key, "provider", result.data.data)
           },
         },
         reference: {
@@ -537,7 +547,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.reference.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "reference", result.data.data)
+            setLocationLeaf(key, "reference", result.data.data)
           },
         },
         skill: {
@@ -547,7 +557,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           async refresh(ref?: LocationRef) {
             const result = await sdk.client.v2.skill.list({ location: locationQuery(ref) }, { throwOnError: true })
             const key = locationKey(result.data.location)
-            setStore("location", key, "skill", result.data.data)
+            setLocationLeaf(key, "skill", result.data.data)
           },
         },
       },

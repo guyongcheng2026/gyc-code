@@ -117,11 +117,12 @@ function toGycMessages(messages: ChatMessage[]): Message[] {
     if (msg.role === "assistant") {
       out.push(
         Message.assistant(
-          blocks.map(block =>
-            block.type === "tool_use"
-              ? ToolCallPart.make({ id: block.id, name: block.name, input: block.input })
-              : Message.text(block.text),
-          ),
+          blocks.flatMap(block => {
+            if (block.type === "tool_use") {
+              return [ToolCallPart.make({ id: block.id, name: block.name, input: block.input })]
+            }
+            return block.type === "text" ? [Message.text(block.text)] : []
+          }),
         ),
       )
       continue

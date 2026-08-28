@@ -25,7 +25,11 @@ export function spawn(file: string, args: string[], opts: Opts): Proc {
       proc.resize(cols, rows)
     },
     kill(signal) {
-      proc.kill(signal)
+      try {
+        proc.kill(signal)
+      } catch {
+        // 进程已退出或权限不足，幂等视为成功
+      }
     },
   }
 }

@@ -302,12 +302,14 @@ export const {
         case "permission.asked": {
           const request = event.properties
           if (permission.mode === "auto") {
-            void sdk.client.permission.reply({
-              requestID: request.id,
-              reply: "once",
-              directory,
-              workspace,
-            })
+            void sdk.client.permission
+              .reply({
+                requestID: request.id,
+                reply: "once",
+                directory,
+                workspace,
+              })
+              .catch(() => {})
             break
           }
           const requests = store.permission[request.sessionID]
@@ -592,7 +594,10 @@ export const {
 
         case "lsp.updated": {
           const workspace = project.workspace.current()
-          void sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", x.data ?? []))
+          void sdk.client.lsp
+            .status({ workspace })
+            .then((x) => setStore("lsp", x.data ?? []))
+            .catch(() => {})
           break
         }
 

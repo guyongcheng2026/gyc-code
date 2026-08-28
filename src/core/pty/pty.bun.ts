@@ -20,7 +20,11 @@ export function spawn(file: string, args: string[], opts: Opts): Proc {
       pty.resize(cols, rows)
     },
     kill(signal) {
-      pty.kill(signal)
+      try {
+        pty.kill(signal)
+      } catch {
+        // 进程已退出或权限不足，幂等视为成功
+      }
     },
   }
 }

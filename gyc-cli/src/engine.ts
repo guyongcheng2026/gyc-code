@@ -1,7 +1,7 @@
 // QueryEngine —— gyc cli 会话生命周期：
 // 一个会话一个实例；messages / readFileState / totalUsage 跨 turn 持久
+// 不持有常驻 readline（避免与主输入处理器竞争 stdin），权限确认用一次性 readline
 
-import * as readline from "node:readline"
 import { getSystemPrompt, getUserContext } from "./context"
 import { loadLlmConfig } from "./llm"
 import { query } from "./query"
@@ -14,9 +14,8 @@ export class QueryEngine {
   private readonly config = loadLlmConfig()
   private readonly tools: Tool[]
   private readonly toolContext: ToolContext
-  private readonly messages: Message[] = []
+  private messages: Message[] = []
   private readonly totalUsage: Usage = { input_tokens: 0, output_tokens: 0 }
-  private readonly rl: readline.Interface
 
   constructor(params: { cwd: string; mode: PermissionMode }) {
     this.tools = [
@@ -33,21 +32,33 @@ export class QueryEngine {
       askUser: prompt => this.ask(prompt),
     }
     this.mode = params.mode
-    this.rl = readline.createInterface({ input: process.stdin, output: process.stdout })
   }
 
   private readonly mode: PermissionMode
 
-  private ask(prompt: string): Promise<boolean> {
-    return new Promise(resolve => {
-      this.rl.question(`${prompt} `, answer => {
-        resolve(/^y(es)?$/i.test(answer.trim()))
-      })
-    })
+  /** 清空会话上下文（/clear 命令），开启新对话 */
+  clear(): void {
+    this.messages = []
   }
 
-  /** 提交一条用户消息并跑完整个 agentic 循环 */
-  async submitMessage(text: string): Promise<string> {
+  /** 当前 LLM（provider/model），/model 命令展示 */
+  modelInfo(): string {
+    return `${this.config.provider}/${this.config.model}`
+  }
+
+  private async ask(prompt: string): Promise<boolean> {
+    const { createInterface } = await import("node:readline/promises")
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    try {
+      const answer = await rl.question(`${prompt} `)
+      return /^y(es)?$/i.test(answer.trim())
+    } finally {
+      rl.close()
+    }
+  }
+
+  /** 提交一条用户消息并跑完整个 agentic 循环；emitText=false 时由调用方自行输出最终文本 */
+  async submitMessage(text: string, options: { emitText?: boolean } = {}): Promise<string> {
     this.messages.push({ role: "user", content: text, uuid: crypto.randomUUID() })
     let finalText = ""
     for await (const update of query({
@@ -58,9 +69,12 @@ export class QueryEngine {
       tools: this.tools,
       toolContext: this.toolContext,
       mode: this.mode,
-      onText: text => {
-        process.stdout.write(text + "\n")
-      },
+      onText:
+        options.emitText === false
+          ? undefined
+          : text => {
+              process.stdout.write(text + "\n")
+            },
       onToolStart: (toolName, input) => {
         const target =
           (input.file_path as string | undefined) ??
@@ -86,9 +100,5 @@ export class QueryEngine {
 
   usageSummary(): string {
     return `tokens: 输入 ${this.totalUsage.input_tokens} / 输出 ${this.totalUsage.output_tokens}`
-  }
-
-  close(): void {
-    this.rl.close()
   }
 }

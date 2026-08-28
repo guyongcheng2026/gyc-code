@@ -1,7 +1,8 @@
 import { TooManyRequestsError } from "@gyccode/protocol/errors"
 import { RateLimit } from "@gyccode/protocol/middleware/rate-limit"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Redacted } from "effect"
 import { HttpEffect, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { ServerAuth } from "../auth"
 
 // ── 令牌桶参数 ──────────────────────────────────────────────
 // 容量 240 突发 + 每秒 2 枚补充（≈120 req/分钟稳态）。
@@ -26,14 +27,20 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>()
 
-function take(key: string): boolean {
+function take(key: string, authenticated: boolean): boolean {
   const now = Date.now()
   if (buckets.size >= MAX_BUCKETS) {
     // Map 迭代按插入序，首个即最久未触碰的桶（每次 take 都会 set 刷新位置）。
     const oldest = buckets.keys().next().value
     if (oldest !== undefined) buckets.delete(oldest)
   }
-  const bucket = buckets.get(key) ?? { tokens: NEW_KEY_TOKENS, lastRefill: now }
+  // 已认证（持有正确密码）的请求方按满桶起步：合法客户端启动时是并发洪峰
+  // （TUI init/SSE/握手 10+ 请求同时发出），NEW_KEY_TOKENS 起步额度会被打死；
+  // 攻击者没有正确密码，永远进不了认证桶。
+  const bucket = buckets.get(key) ?? {
+    tokens: authenticated ? CAPACITY : NEW_KEY_TOKENS,
+    lastRefill: now,
+  }
   const elapsedSeconds = (now - bucket.lastRefill) / 1000
   bucket.tokens = Math.min(CAPACITY, bucket.tokens + elapsedSeconds * REFILL_PER_SECOND)
   bucket.lastRefill = now
@@ -46,21 +53,28 @@ function take(key: string): boolean {
   return allowed
 }
 
-function requesterFromRequest(request: HttpServerRequest.HttpServerRequest): string {
+function credentialsFromRequest(request: HttpServerRequest.HttpServerRequest): { username: string; password: string } {
   const match = /^Basic\s+([A-Za-z0-9+/=]+)$/i.exec(request.headers.authorization ?? "")
-  if (!match) return "anonymous"
+  if (!match) return { username: "anonymous", password: "" }
   try {
     const decoded = Buffer.from(match[1]!, "base64").toString("utf8")
     const separator = decoded.indexOf(":")
-    return separator === -1 ? "anonymous" : decoded.slice(0, separator)
+    if (separator === -1) return { username: "anonymous", password: "" }
+    return { username: decoded.slice(0, separator), password: decoded.slice(separator + 1) }
   } catch {
-    return "anonymous"
+    return { username: "anonymous", password: "" }
   }
 }
 
 export const rateLimitLayer = Layer.effect(
   RateLimit,
   Effect.gen(function* () {
+    const authConfig = yield* ServerAuth.Config
+    // 未配置密码（本地嵌入式 loopback 单用户）时完全跳过限流：
+    // 与 authorizationLayer 的免鉴权口径一致。此场景下限流没有安全价值
+    // （无密码可保护），却会把 TUI 启动并发握手（init 洪峰 > 新桶 8 枚起步）
+    // 打成 429，触发主进程崩溃降级到安全模式。
+    if (!ServerAuth.required(authConfig)) return RateLimit.of((effect) => effect)
     return RateLimit.of((effect) =>
       Effect.gen(function* () {
         const request = yield* HttpServerRequest.HttpServerRequest
@@ -68,9 +82,15 @@ export const rateLimitLayer = Layer.effect(
         // 一样消耗 1 枚令牌——完全豁免会让伪造 Upgrade 头的握手洪水零成本
         // 绕过令牌桶。升级握手的特征判定统一在 authorization.ts 的
         // isWebSocketUpgrade（upgrade 头 + connection 头 + GET 方法），避免两处判定漂移。
-        const requester = requesterFromRequest(request)
-        if (take(requester)) return yield* effect
-        yield* Effect.logWarning("rate limit exceeded", { requester })
+        const credentials = credentialsFromRequest(request)
+        const authenticated = ServerAuth.authorized(
+          { username: credentials.username, password: Redacted.make(credentials.password) },
+          authConfig,
+        )
+        // 认证桶 key 与匿名桶隔离：认证用户即使与攻击者同用户名也不共享额度
+        const key = authenticated ? `authed:${credentials.username}` : credentials.username
+        if (take(key, authenticated)) return yield* effect
+        yield* Effect.logWarning("rate limit exceeded", { requester: credentials.username })
         yield* HttpEffect.appendPreResponseHandler((_request, response) =>
           Effect.succeed(HttpServerResponse.setHeader(response, "retry-after", "5")),
         )
@@ -81,4 +101,4 @@ export const rateLimitLayer = Layer.effect(
       }),
     )
   }),
-)
+).pipe(Layer.provide(ServerAuth.Config.layer))

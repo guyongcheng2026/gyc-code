@@ -6,6 +6,6 @@
   "type": "module",
   "scripts": {
     "start": "bun run src/cli.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node scripts/typecheck.mjs"
   }
 }

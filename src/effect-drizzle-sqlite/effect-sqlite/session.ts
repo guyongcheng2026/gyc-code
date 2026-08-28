@@ -151,10 +151,15 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
                 ).pipe(
                   Effect.exit,
                   Effect.flatMap((exit) => {
+                    const releaseSavepoint = this.executeTransactionStatement(
+                      connection,
+                      `release savepoint effect_sql_${id}`,
+                    ).pipe(Effect.catch(() => Effect.void))
+
                     const finalize = Exit.isSuccess(exit)
                       ? id === 0
                         ? this.executeTransactionStatement(connection, "commit").pipe(
-                            // SQLite keeps the transaction open after deferred constraint commit failures.
+                            Effect.ensuring(releaseSavepoint),
                             Effect.catch((error) =>
                               this.executeTransactionStatement(connection, "rollback").pipe(
                                 Effect.catch(() => Effect.void),
@@ -162,13 +167,17 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
                               ),
                             ),
                           )
-                        : this.executeTransactionStatement(connection, `release savepoint effect_sql_${id}`)
+                        : releaseSavepoint
                       : id === 0
-                        ? this.executeTransactionStatement(connection, "rollback")
-                        : this.executeTransactionStatement(connection, `rollback to savepoint effect_sql_${id}`).pipe(
-                            Effect.andThen(
-                              this.executeTransactionStatement(connection, `release savepoint effect_sql_${id}`),
-                            ),
+                        ? this.executeTransactionStatement(connection, "rollback").pipe(
+                            Effect.ensuring(releaseSavepoint),
+                          )
+                        : this.executeTransactionStatement(
+                            connection,
+                            `rollback to savepoint effect_sql_${id}`,
+                          ).pipe(
+                            Effect.catch(() => Effect.void),
+                            Effect.andThen(releaseSavepoint),
                           )
 
                     return finalize.pipe(Effect.flatMap(() => exit))

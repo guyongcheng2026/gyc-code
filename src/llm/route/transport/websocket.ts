@@ -19,12 +19,24 @@ export interface Interface {
   readonly open: (input: WebSocketRequest) => Effect.Effect<WebSocketConnection, LLMError>
 }
 
-type WebSocketConstructorWithHeaders = new (
-  url: string,
-  options?: { readonly headers?: Headers.Headers },
-) => globalThis.WebSocket
-
 export class Service extends Context.Service<Service, Interface>()("@gyccode/LLM/WebSocketExecutor") {}
+
+const isNodeRuntime = typeof globalThis.WebSocket === "undefined"
+
+const createWebSocket = (
+  url: string,
+  headers: Headers.Headers,
+): globalThis.WebSocket => {
+  if (isNodeRuntime) {
+    type NodeWebSocketModule = typeof import("ws")
+    const mod: NodeWebSocketModule = require("ws")
+    return new mod.WebSocket(url, { headers }) as unknown as globalThis.WebSocket
+  }
+  if (headers && Object.keys(headers).length > 0) {
+    console.warn("[websocket] ignoring custom headers in browser environment")
+  }
+  return new globalThis.WebSocket(url)
+}
 
 const transportError = (
   method: string,
@@ -68,33 +80,62 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
           ws.removeEventListener("close", onClose)
           signal.removeEventListener("abort", onAbort)
         }
+        let aborted = false
         const onAbort = () => {
+          aborted = true
+          try {
+            resume(
+              Effect.fail(
+                transportError("open", "WebSocket connection aborted", { url: input.url, kind: "open" }),
+              ),
+            )
+          } catch {
+            // resume already called (e.g. onOpen fired before abort)
+          }
           cleanup()
           if (ws.readyState !== globalThis.WebSocket.CLOSED && ws.readyState !== globalThis.WebSocket.CLOSING)
             ws.close(1000)
         }
         const onOpen = () => {
           cleanup()
-          resume(Effect.void)
+          if (!aborted) {
+            try {
+              resume(Effect.void)
+            } catch {
+              // resume already called (e.g. onAbort fired before onOpen)
+            }
+          }
         }
         const onError = (event: Event) => {
           cleanup()
-          resume(
-            Effect.fail(
-              transportError("open", `Failed to open WebSocket: ${eventMessage(event)}`, { url: input.url, kind: "open" }),
-            ),
-          )
+          if (!aborted) {
+            try {
+              resume(
+                Effect.fail(
+                  transportError("open", `Failed to open WebSocket: ${eventMessage(event)}`, { url: input.url, kind: "open" }),
+                ),
+              )
+            } catch {
+              // resume already called
+            }
+          }
         }
         const onClose = (event: CloseEvent) => {
           cleanup()
-          resume(
-            Effect.fail(
-              transportError("open", `WebSocket closed before opening with code ${event.code}`, {
-                url: input.url,
-                kind: "open",
-              }),
-            ),
-          )
+          if (!aborted) {
+            try {
+              resume(
+                Effect.fail(
+                  transportError("open", `WebSocket closed before opening with code ${event.code}`, {
+                    url: input.url,
+                    kind: "open",
+                  }),
+                ),
+              )
+            } catch {
+              // resume already called
+            }
+          }
         }
         ws.addEventListener("open", onOpen, { once: true })
         ws.addEventListener("error", onError, { once: true })
@@ -131,8 +172,7 @@ const webSocketUrl = (value: string) =>
 
 export const open = (input: WebSocketRequest) =>
   Effect.try({
-    try: () =>
-      new (globalThis.WebSocket as unknown as WebSocketConstructorWithHeaders)(input.url, { headers: input.headers }),
+    try: () => createWebSocket(input.url, input.headers),
     catch: (error) =>
       transportError("open", error instanceof Error ? error.message : "Failed to construct WebSocket", {
         url: input.url,

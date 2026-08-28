@@ -110,7 +110,7 @@ function nodeHeapFlags() {
 
   const mb = Number.isFinite(explicit) && explicit > 0
     ? Math.round(explicit)
-    : Math.min(Math.max(Math.round(totalMemMb * 0.35), 1024), 2048)
+    : Math.min(Math.max(Math.round(totalMemMb * 0.35), 1024), 4096)
   return ["--expose-gc", `--max-old-space-size=${mb}`]
 }
 

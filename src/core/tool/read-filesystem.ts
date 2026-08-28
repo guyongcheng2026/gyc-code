@@ -268,8 +268,10 @@ export const read = Effect.fn("ReadTool.read")(function* (
             if (!discard) {
               pending += text
               if (pending.length > MAX_LINE_LENGTH) {
-                pending = pending.slice(0, MAX_LINE_LENGTH + 1)
+                pending = pending.slice(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX
                 discard = true
+                if (!append(pending.endsWith("\r") ? pending.slice(0, -1) : pending)) return false
+                pending = ""
               }
             }
             break
