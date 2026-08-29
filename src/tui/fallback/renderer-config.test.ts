@@ -26,26 +26,26 @@ describe("P2 渲染器配置开关", () => {
 		}
 	})
 
-	test("env 未设时 configRenderer 生效", () => {
+	test("env 未设时 configRenderer 生效（P3-3: default = fallback）", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
 			delete process.env.GYC_TUI_BACKEND
-			expect(backendChoice(undefined)).toBe("auto")
+			expect(backendChoice(undefined)).toBe("fallback")
 			expect(backendChoice("fallback")).toBe("fallback")
 			expect(backendChoice("opentui")).toBe("opentui")
-			expect(backendChoice("auto")).toBe("auto")
+			expect(backendChoice("auto")).toBe("fallback")
 		} finally {
 			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
 			else process.env.GYC_TUI_BACKEND = saved
 		}
 	})
 
-	test("isExplicitFallback(configRenderer)：fallback 显式为 true", () => {
+	test("isExplicitFallback(configRenderer)：P3-3 default fallback 判定为 true", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
 			delete process.env.GYC_TUI_BACKEND
-			expect(isExplicitFallback(undefined)).toBe(false)
-			expect(isExplicitFallback("auto")).toBe(false)
+			expect(isExplicitFallback(undefined)).toBe(true) // P3-3: default = fallback
+			expect(isExplicitFallback("auto")).toBe(true) // P3-3: auto → fallback
 			expect(isExplicitFallback("opentui")).toBe(false)
 			expect(isExplicitFallback("fallback")).toBe(true)
 		} finally {
