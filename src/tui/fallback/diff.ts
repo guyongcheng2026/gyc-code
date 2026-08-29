@@ -2,30 +2,39 @@ import type { Cell, CellStyle } from "./screen"
 import { cellEqual, Screen, sameStyle } from "./screen"
 
 /**
- * 自研 fallback 渲染器：差分帧引擎。
- *
- * 策略：逐行扫描变化区间（first..last 整段重绘），段内按样式连续子段
- * 切换 SGR，最小化转义字节输出。宽字符占位格（width=0）归属主格，
- * 重绘区间自动扩展，保证宽字符不被撕裂。
- */
+ * 自研 fallback 渲染器：差分帧引擎�? *
+ * 策略：逐行扫描变化区间（first..last 整段重绘），段内按样式连续子�? * 切换 SGR，最小化转义字节输出。宽字符占位格（width=0）归属主格，
+ * 重绘区间自动扩展，保证宽字符不被撕裂�? */
 
 const RESET = "\x1b[0m"
 
-const useTrueColor =
-  process.env.COLORTERM === "truecolor" ||
-  process.env.COLORTERM === "24bit" ||
-  process.env.TERM?.includes("truecolor") ||
-  process.env.TERM?.includes("24bit") ||
-  false
+function detectTrueColor(): boolean {
+	return (
+		process.env.COLORTERM === "truecolor" ||
+		process.env.COLORTERM === "24bit" ||
+		process.env.TERM?.includes("truecolor") === true ||
+		process.env.TERM?.includes("24bit") === true
+	)
+}
 
-const use256Color =
-  !useTrueColor &&
-  (process.env.COLORTERM === "256bit" ||
-    process.env.COLORTERM === "256color" ||
-    process.env.TERM?.includes("256") ||
-    process.env.TERM === "xterm" ||
-    process.env.TERM === "screen" ||
-    false)
+function detect256Color(): boolean {
+	return (
+		process.env.COLORTERM === "256bit" ||
+		process.env.COLORTERM === "256color" ||
+		process.env.TERM?.includes("256") === true ||
+		process.env.TERM === "xterm" ||
+		process.env.TERM === "screen"
+	)
+}
+
+/** 每次 color decision 时调用（避免模块加载�?env 未设置的固化�?*/
+function supportsTrueColor(): boolean {
+	return detectTrueColor()
+}
+
+function supports256Color(): boolean {
+	return !detectTrueColor() && detect256Color()
+}
 
 function parseHex(color: string): [number, number, number] {
   const hex = color.replace("#", "")
@@ -51,16 +60,16 @@ function nearest256(r: number, g: number, b: number): number {
 
 function fgCode(color: string): string {
   const [r, g, b] = parseHex(color)
-  if (useTrueColor) return `38;2;${r};${g};${b}`
-  if (use256Color) return `38;5;${nearest256(r, g, b)}`
+  if (supportsTrueColor()) return `38;2;${r};${g};${b}`
+  if (supports256Color()) return `38;5;${nearest256(r, g, b)}`
   const v = (0.299 * r + 0.587 * g + 0.114 * b) > 127 ? 37 : 30
   return String(v)
 }
 
 function bgCode(color: string): string {
   const [r, g, b] = parseHex(color)
-  if (useTrueColor) return `48;2;${r};${g};${b}`
-  if (use256Color) return `48;5;${nearest256(r, g, b)}`
+  if (supportsTrueColor()) return `48;2;${r};${g};${b}`
+  if (supports256Color()) return `48;5;${nearest256(r, g, b)}`
   const v = (0.299 * r + 0.587 * g + 0.114 * b) > 127 ? 47 : 40
   return String(v)
 }
@@ -81,17 +90,13 @@ function sgrFor(style: CellStyle): string {
 
 /** 进入全屏模式序列：alt-screen + 清屏 + 隐藏光标 */
 export const ENTER_SEQ = "\x1b[?1049h\x1b[H\x1b[2J\x1b[?25l"
-/** 离开全屏模式序列：显示光标 + 恢复主屏 */
+/** 离开全屏模式序列：显示光�?+ 恢复主屏 */
 export const LEAVE_SEQ = "\x1b[?25h\x1b[?1049l"
 
 /**
- * 计算增量帧：仅重绘内容发生变化的行。
- * 返回空串表示两帧完全一致。
- *
+ * 计算增量帧：仅重绘内容发生变化的行�? * 返回空串表示两帧完全一致�? *
  * slice B 性能优化：行写戳短路——两屏同 y 行戳相等（该行未发生任何
- * 实际写入）时 O(1) 跳过，免除逐格比较；戳不等时再逐格浅比较定位
- * 区间（cellEqual，无字符串构造）。
- */
+ * 实际写入）时 O(1) 跳过，免除逐格比较；戳不等时再逐格浅比较定�? * 区间（cellEqual，无字符串构造）�? */
 export function renderDelta(prev: Screen, next: Screen): string {
 	if (prev.width !== next.width || prev.height !== next.height) {
 		return renderFull(next)
@@ -104,7 +109,7 @@ export function renderDelta(prev: Screen, next: Screen): string {
 	return out
 }
 
-/** 全量绘制（不含进入序列），每行定位后整行写入。 */
+/** 全量绘制（不含进入序列），每行定位后整行写入�?*/
 export function renderFull(screen: Screen): string {
 	let out = ""
 	for (let y = 0; y < screen.height; y++) {
@@ -130,9 +135,8 @@ function renderRow(screen: Screen, y: number): string {
 }
 
 /**
- * 重绘某行的变化区间 [first..last]，边界向外扩展吞并宽字符占位格，
- * 区间内按连续同样式子段切换 SGR。浅比较定位（无字符串构造）。
- */
+ * 重绘某行的变化区�?[first..last]，边界向外扩展吞并宽字符占位格，
+ * 区间内按连续同样式子段切�?SGR。浅比较定位（无字符串构造）�? */
 function renderChangedSegment(prev: Screen, next: Screen, y: number): string {
 	let first = -1
 	let last = -1

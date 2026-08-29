@@ -2,6 +2,9 @@ import { describe, expect, test } from "bun:test"
 import { ENTER_SEQ, renderDelta, renderFull } from "./diff"
 import { Screen } from "./screen"
 
+// 确保 truecolor 模式（否则 diff 降级到 256 色）
+process.env.COLORTERM = "truecolor"
+
 describe("差分帧引擎", () => {
 	test("首帧全量绘制包含定位与文本", () => {
 		const s = new Screen(10, 3)

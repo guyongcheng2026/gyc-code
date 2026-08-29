@@ -3,6 +3,9 @@ import { DEFAULT_PALETTE, resolveTokenStyle, writeRichText, type RichToken } fro
 import { Screen } from "./screen"
 import { renderDelta, renderFull } from "./diff"
 
+// 确保 truecolor 模式（否则 diff 降级到 256 色）
+process.env.COLORTERM = "truecolor"
+
 /**
  * P1 引擎验收扩容：富文本层快照矩阵。
  *
