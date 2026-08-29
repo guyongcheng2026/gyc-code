@@ -1,4 +1,4 @@
-import stringWidth from "string-width"
+import { charWidth } from "./char-width"
 import { renderScreenToLines } from "./snapshot.js"
 
 /**
@@ -161,7 +161,7 @@ export class Screen {
 				cx += 1
 				continue
 			}
-			const w = stringWidth(ch) as 0 | 1 | 2
+			const w = charWidth(ch)
 			const width = w === 2 ? 2 : 1
 			if (cx + width > this.cols) break
 			this.setCell(cx, y, { ch, width, style })
