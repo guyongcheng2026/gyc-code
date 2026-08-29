@@ -1,13 +1,13 @@
 import { ENTER_SEQ, LEAVE_SEQ, renderDelta, renderFull } from "./diff"
 import { Screen } from "./screen"
+import { renderScreenToLines } from "./snapshot"
+import { renderBudget, type RenderBudget } from "./capability"
+
+const DEFAULT_BUDGET: RenderBudget = { maxFps: 60, mouseEnabled: true, kittyKeyboard: true }
 
 /**
- * 自研 fallback 渲染器：终端抽象与帧调度。
- *
- * TerminalBackend 可注入：ProcessBackend 绑定真实 stdout/stdin，
- * MemoryBackend 供测试与无 TTY 场景使用。FallbackRenderer 负责帧合并
- * （同一 tick 内多次 present 只输出一次）与 resize 全量重绘。
- */
+ * 自研 fallback 渲染器：终端抽象与帧调度�? *
+ * TerminalBackend 可注入：ProcessBackend 绑定真实 stdout/stdin�? * MemoryBackend 供测试与�?TTY 场景使用。FallbackRenderer 负责帧合�? * （同丢� tick 内多�?present 只输出一次）�?resize 全量重绘�? */
 
 export interface TerminalBackend {
 	write(data: string): void
@@ -16,7 +16,7 @@ export interface TerminalBackend {
 	setRawMode(on: boolean): void
 	onResize(cb: () => void): () => void
 	onInput(cb: (chunk: string) => void): () => void
-	/** 启用 SGR 1003 mouse tracking。返回取消函数 */
+	/** 启用 SGR 1003 mouse tracking。返回取消函�?*/
 	onMouse?(cb: (event: MouseEvent) => void): () => void
 	start(): void
 	stop(): void
@@ -211,35 +211,39 @@ export class FallbackRenderer {
 	private screen: Screen
 	private prevScreen: Screen | undefined
 	private scheduled = false
+	private pendingFlush = false
 	private started = false
 	private offResize: (() => void) | undefined
 	private resizeRepaint: (() => void) | undefined
+	private readonly renderBudget: RenderBudget
+	private lastFrameTime = 0
 
-	constructor(private readonly backend: TerminalBackend) {
+	constructor(private readonly backend: TerminalBackend, budget: RenderBudget = DEFAULT_BUDGET) {
 		this.screen = new Screen(backend.getWidth(), backend.getHeight())
+		this.renderBudget = budget
 	}
 
-	/** 渲染器是否已销毁（对齐 RendererBackend.isDestroyed 契约）。 */
+	/** 渲染器是否已锢�毁（对齐 RendererBackend.isDestroyed 契约）��?*/
 	get isDestroyed(): boolean {
 		return !this.started
+	}
+
+	get budget(): RenderBudget {
+		return this.renderBudget
 	}
 
 	get currentScreen(): Screen {
 		return this.screen
 	}
 
-	/** 订阅终端 resize 事件（对外暴露，供抽象层使用）。 */
+	/** 订阅终端 resize 事件（对外暴露，供抽象层使用）��?*/
 	onResize(cb: () => void): () => void {
 		return this.backend.onResize(cb)
 	}
 
 	/**
-	 * 注册 resize 重绘钩子（S1 slice 2：消除旧布局闪帧）。
-	 *
-	 * 无钩子时 handleResize 直接输出 resize 后的旧内容（布局未更新，可感知
-	 * 闪帧）；有钩子时先执行钩子（消费者重布局重写 Screen 内容），再全量
-	 * 输出——始终输出新布局，无双帧。
-	 */
+	 * 注册 resize 重绘钩子（S1 slice 2：消除旧布局闪帧）��?	 *
+	 * 无钩子时 handleResize 直接输出 resize 后的旧内容（布局未更新，可感�?	 * 闪帧）；有钩子时先执行钩子（消费者重布局重写 Screen 内容），再全�?	 * 输出—��始终输出新布局，无双帧�?	 */
 	setResizeRepaint(cb: () => void): void {
 		this.resizeRepaint = cb
 	}
@@ -263,24 +267,43 @@ export class FallbackRenderer {
 		this.flushFull()
 	}
 
-	/** 提交一帧：合并同 tick 多次调用，异步输出增量。 */
+	/** 提交丢�帧：合并�?tick 多次调用，异步输出增量��FPS 节流（plain TTY 10fps / 标准 60fps）��?*/
 	present(mutate: (screen: Screen) => void): void {
 		mutate(this.screen)
+		this.pendingFlush = true
 		if (this.scheduled) return
 		this.scheduled = true
 		queueMicrotask(() => {
 			this.scheduled = false
 			if (!this.started) return
-			const delta = this.prevScreen ? renderDelta(this.prevScreen, this.screen) : renderFull(this.screen)
-			if (delta.length > 0) {
-				this.backend.write(delta)
-				this.prevScreen = this.snapshotCurrent()
-			} else if (this.prevScreen !== undefined) {
-				// 空 delta 帧：内容已证等价，同步行戳对齐 prevScreen——否则
-				// clear() 递增过的戳会让后续每帧都对未变行做无谓逐格比较
-				this.prevScreen.syncStampsFrom(this.screen)
+			// FPS 节流：budget.maxFps=0 表示不限频；>0 时最小帧间隔 = 1000/maxFps ms
+			if (this.renderBudget.maxFps > 0) {
+				const minInterval = 1000 / this.renderBudget.maxFps
+				const elapsed = performance.now() - this.lastFrameTime
+				if (elapsed < minInterval) {
+					setTimeout(() => {
+						if (!this.started || !this.pendingFlush) return
+						this.pendingFlush = false
+						this.flushFrame()
+					}, minInterval - elapsed)
+					return
+				}
 			}
+			this.pendingFlush = false
+			this.flushFrame()
 		})
+	}
+
+	private flushFrame(): void {
+		if (!this.started) return
+		const delta = this.prevScreen ? renderDelta(this.prevScreen, this.screen) : renderFull(this.screen)
+		if (delta.length > 0) {
+			this.backend.write(delta)
+			this.prevScreen = this.snapshotCurrent()
+		} else if (this.prevScreen !== undefined) {
+			this.prevScreen.syncStampsFrom(this.screen)
+		}
+		this.lastFrameTime = performance.now()
 	}
 
 	stop(): void {
@@ -297,8 +320,7 @@ export class FallbackRenderer {
 		this.screen.resize(this.backend.getWidth(), this.backend.getHeight())
 		this.prevScreen = undefined
 		if (this.resizeRepaint) {
-			// 有消费者钩子：先重布局重写内容，再输出（无闪帧）
-			this.screen.clear()
+			// 有消费��钩子：先重布局重写内容，再输出（无闪帧�?			this.screen.clear()
 			try {
 				this.resizeRepaint()
 			} catch {}

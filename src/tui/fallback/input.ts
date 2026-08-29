@@ -20,6 +20,9 @@ export type Key =
 	| { type: "escape" }
 	| { type: "ctrl-c" }
 	| { type: "text"; text: string }
+	| { type: "cursor-request"; row: number; col: number }
+	/** SGR 鼠标事件：button=0 左键/1 中键/2 右键/64 上滚/65 下滚；motion 指示移动事件；press=false 为释放 */
+	| { type: "mouse"; button: number; x: number; y: number; motion: boolean; press: boolean }
 
 /** 未识别转义序列的丢弃上限：超过即放弃前缀，防止病态输入撑爆缓冲 */
 const MAX_SEQ = 32
@@ -40,6 +43,22 @@ const TILDE_KEYS: Record<number, Key> = {
 	6: { type: "pagedown" },
 	7: { type: "home" },
 	8: { type: "end" },
+}
+
+/**
+ * 启用 SGR（1006）鼠标追踪。
+ * 调用后终端会以 SGR 格式上报鼠标事件，KeyParser 负责解析。
+ * @param write 终端写入函数（stdout.write 或 backend.write）
+ */
+export function setSgrMouse(write: (data: string) => void): void {
+	write("\x1b[?1006h\x1b[?1002h\x1b[?1005h")
+}
+
+/**
+ * 禁用 SGR 鼠标追踪。
+ */
+export function disableMouse(write: (data: string) => void): void {
+	write("\x1b[?1006l\x1b[?1002l\x1b[?1005l")
 }
 
 export class KeyParser {
@@ -121,7 +140,26 @@ export class KeyParser {
 			if (key) this.onKey(key)
 			return true
 		}
-		// 不完整的 CSI 序列（如 "\x1b["）：等待下一个 chunk 拼齐
+		// DSR (Device Status Report) 响应：\x1b[row;colR，光标位置查询（用于 IME 悬浮窗定位）
+		const dsr = /^\x1b\[(\d+);(\d+)R/.exec(this.buf)
+		if (dsr) {
+			this.buf = this.buf.slice(dsr[0].length)
+			this.onKey({ type: "cursor-request", row: Number(dsr[1]), col: Number(dsr[2]) })
+			return true
+		}
+		// SGR 鼠标追踪：\x1b[<bbb;xxx;yyyM (press) 或 \x1b[<bbb;xxx;yyym (release)
+		// bbb=按钮编码 (0左/1中/2右/64上滚/65下滚，+32=motion，+128=release)
+		const sgr = /^\x1b\[<(\d+);(\d+);(\d+)([Mm])/.exec(this.buf)
+		if (sgr) {
+			this.buf = this.buf.slice(sgr[0].length)
+			const b = Number(sgr[1])
+			const x = Number(sgr[2])
+			const y = Number(sgr[3])
+			const isRelease = sgr[4] === "m"
+			this.onKey({ type: "mouse", button: b & ~32 & ~128, x, y, motion: (b & 32) !== 0, press: !isRelease })
+			return true
+		}
+		// 不完整的 CSI 序列（如 "\x1b["）：等待下一 chunk 拼齐
 		if (/^\x1b\[[\d;]*$/.test(this.buf)) return false
 		// 无法识别的序列：丢弃 ESC 前缀后按文本继续解析
 		if (this.buf.length >= MAX_SEQ || !/^\x1b\[/.test(this.buf)) {

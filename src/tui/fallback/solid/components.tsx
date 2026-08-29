@@ -1,5 +1,5 @@
 /** @jsxImportSource #fallback-solid */
-import { createMemo, createSignal, For } from "solid-js"
+import { createEffect, createMemo, createSignal, For } from "solid-js"
 import { parseMarkdown } from "../markdown"
 import type { Key } from "../input"
 import type { ElementNode } from "./nodes"
@@ -83,6 +83,8 @@ export interface TextareaApi {
 	handleKey(key: Key): boolean
 	getText(): string
 	clear(): void
+	/** 当前光标位置（光标口径：code point 索引，row 为行号，col 为字符列） */
+	getCursor(): { row: number; col: number }
 }
 
 export interface TextareaProps {
@@ -91,6 +93,10 @@ export interface TextareaProps {
 	onSubmit?: (text: string) => void
 	/** 光标可见性（闪烁驱动：run-app 层 setInterval 切换；默认恒可见） */
 	cursorVisible?: boolean
+	/** 光标移动回调（绝对坐标：屏幕 row + col），用于驱动 IME 浮窗定位 */
+	onCursorMove?: (row: number, col: number) => void
+	/** 输入区在屏幕上的起始 row（用于把逻辑 row 折算成绝对 row） */
+	screenOffsetRow?: number
 	ref?: (api: TextareaApi) => void
 }
 
@@ -200,8 +206,19 @@ export function Textarea(props: TextareaProps): JSX.Element {
 		},
 		getText: () => lines().join("\n"),
 		clear,
+		getCursor: () => cursor(),
 	}
 	props.ref?.(api)
+
+	// 光标移动副作用：把「逻辑 row/col」折算为「屏幕绝对 row/col」上报，
+	// 供 run-app 层把终端物理光标移动到对应位置，IME 浮窗自动跟随
+	createEffect(() => {
+		const c = cursor()
+		if (props.onCursorMove) {
+			const absRow = (props.screenOffsetRow ?? 0) + c.row
+			props.onCursorMove(absRow, c.col)
+		}
+	})
 
 	return (
 		<textarea

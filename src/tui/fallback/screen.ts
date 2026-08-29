@@ -1,4 +1,5 @@
 import stringWidth from "string-width"
+import { renderScreenToLines } from "./snapshot.js"
 
 /**
  * 自研 fallback 渲染器：Cell 网格模型。
@@ -190,16 +191,8 @@ export class Screen {
 		return copy
 	}
 
-	/** 每行拼接为纯文本，供快照断言。宽字符占位格输出空串。 */
+	/** 每行拼接为纯文本，供快照断言。宽字符占位格输出空串。委托 snapshot.ts 纯函数。*/
 	snapshot(): string[] {
-		const lines: string[] = []
-		for (let y = 0; y < this.rows; y++) {
-			let line = ""
-			for (let x = 0; x < this.cols; x++) {
-				line += this.cellAt(x, y).ch
-			}
-			lines.push(line)
-		}
-		return lines
+		return renderScreenToLines(this)
 	}
 }

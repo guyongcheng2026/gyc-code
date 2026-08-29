@@ -1,7 +1,8 @@
-import { KeyParser, type Key } from "./input"
+import { KeyParser, setSgrMouse, disableMouse, type Key } from "./input"
 import { FallbackRenderer, ProcessBackend, type TerminalBackend } from "./terminal"
 import { flushSync, renderRoot } from "./solid"
 import { createComponent } from "solid-js"
+import { probeTerminal, renderBudget } from "./capability"
 import type { FallbackAppApi } from "./app"
 
 /**
@@ -29,7 +30,9 @@ export interface RunFallbackAppOptions {
 
 export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promise<void> {
 	const backend = options.backend ?? new ProcessBackend(process.stdout, process.stdin)
-	const renderer = new FallbackRenderer(backend)
+	const probe = probeTerminal()
+	const budget = renderBudget(probe)
+	const renderer = new FallbackRenderer(backend, budget)
 	renderer.start()
 
 	let done = false
@@ -45,7 +48,10 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 	}
 
 	const { FallbackApp } = await import("./app")
-	const { watchTerminalClose } = await import("../terminal-win32")
+	const { win32DisableProcessedInput, watchTerminalClose } = await import("../terminal-win32")
+	// Win32 必备：关闭 ENABLE_PROCESSED_INPUT，避免 Windows 控制台加工输入
+	// （如 Ctrl+C 触发 SIGINT 杀进程、C 字符被翻译等）。
+	win32DisableProcessedInput()
 	const offWatchClose = watchTerminalClose(finish)
 
 	// 会话引擎桥：transport 齐备时接线（失败降级本地回显并提示）
@@ -60,6 +66,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 			createComponent(FallbackApp, {
 				onExit: finish,
 				chat,
+				backend,
 				onReady: (api) => {
 					appApi = api
 				},
@@ -77,6 +84,9 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 	})
 	backend.onInput((chunk) => parser.feed(chunk))
 
+	// 启用 SGR 鼠标追踪（1006 + 1002 拖动 + 1005 UTF-8 编码）
+	setSgrMouse((d) => backend.write(d))
+
 	await new Promise<void>((resolve) => {
 		const timer = setInterval(() => {
 			if (done) {
@@ -87,6 +97,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 	})
 	chat?.dispose()
 	offWatchClose()
+	disableMouse((d) => backend.write(d))
 }
 
 async function createChatBridgeSafe(

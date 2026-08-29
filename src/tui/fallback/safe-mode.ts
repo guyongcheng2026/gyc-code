@@ -17,21 +17,27 @@ import { ProcessBackend, type TerminalBackend } from "./terminal"
 /** GYC_TUI_BACKEND 解析结果。 */
 export type TuiBackendChoice = "opentui" | "fallback" | "auto"
 
-export function backendChoice(): TuiBackendChoice {
-	const value = process.env.GYC_TUI_BACKEND
-	if (value === "opentui" || value === "fallback" || value === "auto") return value
+/**
+ * 解析最终渲染后端选择。
+ * 优先级：环境变量 GYC_TUI_BACKEND > 配置文件 configRenderer > 默认 "auto"。
+ * @param configRenderer 来自 TuiConfig.renderer（可选：auto/opentui/fallback）
+ */
+export function backendChoice(configRenderer?: "auto" | "opentui" | "fallback"): TuiBackendChoice {
+	const envValue = process.env.GYC_TUI_BACKEND
+	if (envValue === "opentui" || envValue === "fallback" || envValue === "auto") return envValue
+	if (configRenderer === "opentui" || configRenderer === "fallback") return configRenderer
 	// 默认 auto：opentui 优先，失败自动降级 fallback
 	return "auto"
 }
 
 /** 是否允许失败时自动降级到安全模式（opentui 显式禁用）。 */
-export function shouldUseFallback(): boolean {
-	return backendChoice() !== "opentui"
+export function shouldUseFallback(configRenderer?: "auto" | "opentui" | "fallback"): boolean {
+	return backendChoice(configRenderer) !== "opentui"
 }
 
 /** 是否显式强制使用自研 fallback 后端（区别于 S2 默认值，供日志归因）。 */
-export function isExplicitFallback(): boolean {
-	return process.env.GYC_TUI_BACKEND === "fallback"
+export function isExplicitFallback(configRenderer?: "auto" | "opentui" | "fallback"): boolean {
+	return backendChoice(configRenderer) === "fallback"
 }
 
 /**

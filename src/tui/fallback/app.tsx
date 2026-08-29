@@ -46,6 +46,8 @@ export function FallbackApp(props: FallbackAppProps): JSX.Element {
 		},
 	])
 	const rows = () => props.chat?.rows() ?? localRows[0]()
+	const titleBarText = () =>
+		"gyc-code · fallback（S1 组件桥接" + (props.chat ? " · 会话引擎已接线）" : " · 本地回显）")
 	let scroller: ScrollBoxApi | undefined
 	let input: TextareaApi | undefined
 
@@ -123,7 +125,7 @@ export function FallbackApp(props: FallbackAppProps): JSX.Element {
 	return (
 		<box flex>
 			<box height={1} style={{ fg: "#ffffff", bg: "#0000aa", reverse: true }}>
-				gyc-code · fallback（S1 组件桥接{props.chat ? " · 会话引擎已接线" : " · 本地回显"}）
+				<text>{titleBarText()}</text>
 			</box>
 			<ScrollBox
 				flex
