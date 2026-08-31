@@ -12,7 +12,7 @@ export const MemoryCommand = cmd({
         handler: async () => {
           const memories = await readMemories()
           if (memories.length === 0) {
-            console.log("No memories found.")
+            console.log("未找到任何记忆。")
             return
           }
           console.log(`Memories (${memories.length}):`)

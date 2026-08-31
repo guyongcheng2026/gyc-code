@@ -120,7 +120,7 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
     const slug = parseShareUrl(file)
     if (!slug) {
       const baseUrl = yield* Effect.orDie(share.url())
-      process.stdout.write(`Invalid URL format. Expected: ${baseUrl}/share/<slug>`)
+      process.stdout.write(`URL 格式无效。期望格式：${baseUrl}/share/<slug>`)
       process.stdout.write(EOL)
       return
     }
@@ -146,7 +146,7 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
     }
 
     if (!response.ok) {
-      process.stdout.write(`Failed to fetch share data: ${response.statusText}`)
+      process.stdout.write(`获取分享数据失败：${response.statusText}`)
       process.stdout.write(EOL)
       return
     }
@@ -171,7 +171,7 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
   }
 
   if (!exportData) {
-    process.stdout.write(`Failed to read session data`)
+    process.stdout.write(`读取会话数据失败`)
     process.stdout.write(EOL)
     return
   }

@@ -65,7 +65,7 @@ const CleanupCommand = effectCmd({
     yield* db.run(sql.raw(`VACUUM`)).pipe(Effect.orDie)
     // VACUUM in WAL mode grows the -wal file; checkpoint it back into the main db.
     yield* db.run(sql.raw(`PRAGMA wal_checkpoint(TRUNCATE)`)).pipe(Effect.orDie)
-    console.log("deleted orphaned events; vacuumed")
+    console.log("已删除孤立事件并完成 VACUUM")
   }),
 })
 // 与 compaction.ts 的 TOOL_OUTPUT_MAX_CHARS 对齐：存量 compacted part 的
@@ -121,15 +121,15 @@ const CompactCommand = effectCmd({
           .run(sql.raw(`UPDATE part SET data = '${JSON.stringify(data).replace(/'/g, "''")}' WHERE id = '${row.id.replace(/'/g, "''")}'`))
           .pipe(Effect.orDie)
         truncated++
-        freedBytes += output.length - output.length
+        freedBytes += output.length - RETRO_COMPACT_CHARS
       }
       offset += PART_BATCH
       if (rows.length < PART_BATCH) break
     }
-    console.log(`scanned ${scanned} parts`)
-    console.log(`truncated ${truncated} compacted tool outputs`)
-    console.log(`freed ~${(freedBytes / 1024 / 1024).toFixed(1)} MB in part table`)
-    console.log("run `gyc db cleanup` afterwards to VACUUM and reclaim the file size")
+    console.log(`共扫描 ${scanned} 个 part`)
+    console.log(`已截断 ${truncated} 条已压缩的工具输出`)
+    console.log(`part 表内释放约 ${(freedBytes / 1024 / 1024).toFixed(1)} MB`)
+    console.log("随后可运行 `gyc db cleanup` 执行 VACUUM 以回收文件大小")
   }),
 })
 const CacheCommand = effectCmd({
@@ -164,17 +164,17 @@ const CacheCommand = effectCmd({
       }
     }
     if (withTokens === 0) {
-      console.log("no token usage persisted in the last 50 messages")
+      console.log("最近 50 条消息中未持久化任何 token 用量")
       return
     }
     const rate = input > 0 ? ((cacheRead / input) * 100).toFixed(1) : "0.0"
-    console.log(`messages with usage: ${withTokens}`)
-    console.log(`total input tokens: ${input.toLocaleString()}`)
-    console.log(`cache-read tokens: ${cacheRead.toLocaleString()}`)
-    console.log(`prompt-cache hit rate: ${rate}%`)
+    console.log(`含用量的消息数：${withTokens}`)
+    console.log(`总输入 token：${input.toLocaleString()}`)
+    console.log(`缓存读取 token：${cacheRead.toLocaleString()}`)
+    console.log(`prompt 缓存命中率：${rate}%`)
     if (rate === "0.0" && input > 0) {
-      console.log("note: 0% suggests the current model/provider does not report prompt caching,")
-      console.log("or the system-prompt prefix changes between requests.")
+      console.log("注意：命中率为 0% 说明当前模型/服务商未上报 prompt 缓存，")
+      console.log("或系统提示前缀在多次请求间发生了变化。")
     }
 
     // Per-message trend (oldest → newest): a stable prefix shows ~99% on every
@@ -182,7 +182,7 @@ const CacheCommand = effectCmd({
     // exact turn where the prefix drifted (memory/skills/env/tools change).
     const asc = perMessage.reverse()
     console.log("")
-    console.log(`per-message hit rate (oldest → newest, last ${asc.length}):`)
+    console.log(`逐条命中率（从旧到新，最近 ${asc.length} 条）：`)
     asc.forEach((m, i) => {
       const ratio = m.total > 0 ? m.cached / m.total : 0
       const r = (ratio * 100).toFixed(1)

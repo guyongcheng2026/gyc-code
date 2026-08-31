@@ -92,12 +92,23 @@ export async function resolveFileParts(files: string[], directory?: string, atta
       throw new Error(`无法附加本地目录: ${filePath}`)
     }
     const mime = isDirectory ? "application/x-directory" : "text/plain"
-    parts.push({
-      type: "file",
-      url: attachMode ? `data:${mime};base64,` : pathToFileURL(resolved).href,
-      filename: path.basename(resolved),
-      mime,
-    })
+    if (attachMode) {
+      // 远程模式必须把文件字节读出并编成 base64，否则服务端只会收到空附件
+      const buf = await Filesystem.readBytes(resolved)
+      parts.push({
+        type: "file",
+        url: `data:${mime};base64,${buf.toString("base64")}`,
+        filename: path.basename(resolved),
+        mime,
+      })
+    } else {
+      parts.push({
+        type: "file",
+        url: pathToFileURL(resolved).href,
+        filename: path.basename(resolved),
+        mime,
+      })
+    }
   }
   return parts
 }
@@ -141,7 +152,10 @@ export async function fetchDynamicCommands(sdk: GyccodeClient, directory: string
         commands.set(item.name, item)
       }
     }
-  } catch {}
+  } catch (e) {
+    // 拉取失败时降级为仅内置命令，但必须留痕，否则用户只看到"命令不存在"无从排查
+    console.error(`[pipeline] 拉取动态命令失败，已降级为仅内置命令：${String(e)}`)
+  }
   return commands
 }
 
@@ -184,8 +198,9 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
     { permission: "plan_enter", action: "deny" as const, pattern: "*" },
     { permission: "plan_exit", action: "deny" as const, pattern: "*" },
   ]
-  const model: { providerID: string; modelID: string; variant?: string } | undefined = parseModelInput(input.model)
-  const modelConfig = model ? { id: model.modelID, providerID: model.providerID, variant: (model.variant ?? input.variant) } : undefined
+  const model = parseModelInput(input.model)
+  // parseModelInput 返回类型不含 variant，model.variant 恒为 undefined，直接取 input.variant
+  const modelConfig = model ? { id: model.modelID, providerID: model.providerID, variant: input.variant } : undefined
   const created = await sdk.session.create({
     title: input.title,
     agent: input.agent,
@@ -257,13 +272,12 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
   const message = [input.message, piped].filter(Boolean).join("\n")
 
   if (!message?.trim() && !input.command) {
-    return { sessionID: "", error: "You must provide a message or a command", exitCode: 1 }
+    return { sessionID: "", error: "必须提供一条消息或一个命令", exitCode: 1 }
   }
 
   // 确定 SDK
   let sdk: GyccodeClient
   let directory = input.directory ?? process.cwd()
-  let cleanup: (() => void) | undefined
 
   if (input.attachUrl) {
     sdk = createSdkClient({ baseUrl: input.attachUrl, directory, headers: input.attachHeaders })
@@ -271,27 +285,23 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
     sdk = await createLocalSdk(directory)
   }
 
-  try {
-    // 获取动态命令
-    const dynamicCommands = await fetchDynamicCommands(sdk, directory)
+  // 获取动态命令
+  const dynamicCommands = await fetchDynamicCommands(sdk, directory)
 
-    // 解析会话
-    const session = await resolveSession(sdk, { ...input, message })
-    if (!session) return { sessionID: "", error: "Failed to resolve session", exitCode: 1 }
+  // 解析会话
+  const session = await resolveSession(sdk, { ...input, message })
+  if (!session) return { sessionID: "", error: "解析会话失败", exitCode: 1 }
 
-    // 执行
-    const ctx: ExecutionContext = {
-      sdk,
-      sessionID: session.id,
-      directory,
-      input: { ...input, message },
-      dynamicCommands,
-      subagents: [],
-    }
-
-    await executeTurn(ctx)
-    return { sessionID: session.id, exitCode: (process.exitCode ?? 0) as number }
-  } finally {
-    cleanup?.()
+  // 执行
+  const ctx: ExecutionContext = {
+    sdk,
+    sessionID: session.id,
+    directory,
+    input: { ...input, message },
+    dynamicCommands,
+    subagents: [],
   }
+
+  await executeTurn(ctx)
+  return { sessionID: session.id, exitCode: (process.exitCode ?? 0) as number }
 }
