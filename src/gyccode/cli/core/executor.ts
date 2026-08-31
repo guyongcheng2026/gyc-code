@@ -603,7 +603,26 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
   const fileParts = await resolveFileParts(ctx.input.files ?? [], ctx.directory, { skipMissing: true })
   const { streamLoop } = await import("../cmd/run/stream-cli")
 
-  const events = await ctx.sdk.event.subscribe()
+  // 斜杠命令轮次同样每轮新建 SSE 订阅，结束必须 abort 释放底层连接
+  const sseAbort = new AbortController()
+  const events = await ctx.sdk.event.subscribe({ signal: sseAbort.signal })
+  try {
+    await runStreamTurn(ctx, text, { streamLoop, events, sseAbort })
+  } finally {
+    sseAbort.abort()
+  }
+}
+
+async function runStreamTurn(
+  ctx: ExecutorContext,
+  text: string,
+  deps: {
+    streamLoop: typeof import("../cmd/run/stream-cli")["streamLoop"]
+    events: Awaited<ReturnType<ExecutorContext["sdk"]["event"]["subscribe"]>>
+    sseAbort: AbortController
+  },
+): Promise<void> {
+  const { streamLoop, events } = deps
   const completed = streamLoop({
     client: ctx.sdk,
     events,

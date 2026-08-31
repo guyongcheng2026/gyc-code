@@ -233,51 +233,58 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
 export async function executeTurn(ctx: ExecutionContext): Promise<string | undefined> {
   const { sdk, sessionID, input, dynamicCommands, subagents } = ctx
 
-  const events = await sdk.event.subscribe()
-  const completed = streamLoop({
-    client: sdk,
-    events,
-    sessionID,
-    format: input.format === "json" ? "json" : "default",
-    thinking: input.thinking ?? false,
-    auto: input.auto ?? false,
-    question: {
-      reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
-      reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
-    },
-    onSubagent: (info) => {
-      subagents.push({ ...info, at: new Date().toLocaleTimeString() })
-      if (subagents.length > 100) subagents.splice(0, subagents.length - 100)
-    },
-  }).catch((e) => {
-    console.error(e)
-    process.exitCode = 1
-  })
+  // SSE 订阅生命周期：轮次结束（含异常路径）显式 abort——SDK 的 SSE 封装在
+  // 消费结束后仅 releaseLock 不 cancel 底层连接，不 abort 会泄漏至 GC 兜底
+  const sseAbort = new AbortController()
+  const events = await sdk.event.subscribe({ signal: sseAbort.signal })
+  try {
+    const completed = streamLoop({
+      client: sdk,
+      events,
+      sessionID,
+      format: input.format === "json" ? "json" : "default",
+      thinking: input.thinking ?? false,
+      auto: input.auto ?? false,
+      question: {
+        reply: (requestID, answers) => sdk.v2.session.question.reply({ sessionID, requestID, questionV2Reply: { answers } }),
+        reject: (requestID) => sdk.v2.session.question.reject({ sessionID, requestID }),
+      },
+      onSubagent: (info) => {
+        subagents.push({ ...info, at: new Date().toLocaleTimeString() })
+        if (subagents.length > 100) subagents.splice(0, subagents.length - 100)
+      },
+    }).catch((e) => {
+      console.error(e)
+      process.exitCode = 1
+    })
 
-  if (input.command) {
-    const dynamic = dynamicCommands.get(input.command)
-    if (dynamic) {
-      const result = await sdk.session.command({ sessionID, command: dynamic.name, arguments: input.commandArgs })
-      if (result.error) throw new Error(JSON.stringify(result.error))
-      await completed
-      return undefined
+    if (input.command) {
+      const dynamic = dynamicCommands.get(input.command)
+      if (dynamic) {
+        const result = await sdk.session.command({ sessionID, command: dynamic.name, arguments: input.commandArgs })
+        if (result.error) throw new Error(JSON.stringify(result.error))
+        await completed
+        return undefined
+      }
+      // 内置命令由调用方处理
+      return "builtin"
     }
-    // 内置命令由调用方处理
-    return "builtin"
-  }
 
-  const fileParts = await resolveFileParts(input.files ?? [], input.directory, { attachMode: !!input.attachUrl })
-  const model = parseModelInput(input.model)
-  const result = await sdk.session.prompt({
-    sessionID,
-    model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant } : undefined,
-    agent: input.agent,
-    variant: input.variant,
-    parts: [...fileParts, { type: "text", text: input.message ?? "" }],
-  })
-  if (result.error) throw new Error(JSON.stringify(result.error))
-  await completed
-  return undefined
+    const fileParts = await resolveFileParts(input.files ?? [], input.directory, { attachMode: !!input.attachUrl })
+    const model = parseModelInput(input.model)
+    const result = await sdk.session.prompt({
+      sessionID,
+      model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant } : undefined,
+      agent: input.agent,
+      variant: input.variant,
+      parts: [...fileParts, { type: "text", text: input.message ?? "" }],
+    })
+    if (result.error) throw new Error(JSON.stringify(result.error))
+    await completed
+    return undefined
+  } finally {
+    sseAbort.abort()
+  }
 }
 
 // 统一执行入口
