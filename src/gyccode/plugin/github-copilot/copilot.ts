@@ -27,8 +27,20 @@ function base(enterpriseUrl?: string) {
   return enterpriseUrl ? `https://copilot-api.${normalizeDomain(enterpriseUrl)}` : "https://api.githubcopilot.com"
 }
 
+// Copilot 需同时兼容 Anthropic / OpenAI Responses / Chat Completions 三种消息格式，
+// 此处用最小结构描述内容块，避免在各处写 any。
+type ContentBlock = {
+  type?: string
+  text?: unknown
+  content?: unknown
+}
+type MessageLike = {
+  role?: string
+  content?: unknown
+}
+
 // Check if a message is a synthetic user msg used to attach an image from a tool call
-function imgMsg(msg: any): boolean {
+function imgMsg(msg: MessageLike): boolean {
   if (msg?.role !== "user") return false
 
   // Handle the 3 api formats
@@ -37,7 +49,7 @@ function imgMsg(msg: any): boolean {
   if (typeof content === "string") return content === MessageV2.SYNTHETIC_ATTACHMENT_PROMPT
   if (!Array.isArray(content)) return false
   return content.some(
-    (part: any) =>
+    (part: ContentBlock) =>
       (part?.type === "text" || part?.type === "input_text") && part.text === MessageV2.SYNTHETIC_ATTACHMENT_PROMPT,
   )
 }
@@ -117,8 +129,8 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                   const last = body.messages[body.messages.length - 1]
                   return {
                     isVision: body.messages.some(
-                      (msg: any) =>
-                        Array.isArray(msg.content) && msg.content.some((part: any) => part.type === "image_url"),
+                      (msg: MessageLike) =>
+                        Array.isArray(msg.content) && msg.content.some((part: ContentBlock) => part.type === "image_url"),
                     ),
                     isAgent: last?.role !== "user" || imgMsg(last),
                   }
@@ -129,8 +141,8 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                   const last = body.input[body.input.length - 1]
                   return {
                     isVision: body.input.some(
-                      (item: any) =>
-                        Array.isArray(item?.content) && item.content.some((part: any) => part.type === "input_image"),
+                      (item: MessageLike) =>
+                        Array.isArray(item?.content) && item.content.some((part: ContentBlock) => part.type === "input_image"),
                     ),
                     isAgent: last?.role !== "user" || imgMsg(last),
                   }
@@ -140,13 +152,13 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                 if (body?.messages) {
                   const last = body.messages[body.messages.length - 1]
                   const hasNonToolCalls =
-                    Array.isArray(last?.content) && last.content.some((part: any) => part?.type !== "tool_result")
+                    Array.isArray(last?.content) && last.content.some((part: ContentBlock) => part?.type !== "tool_result")
                   return {
                     isVision: body.messages.some(
-                      (item: any) =>
+                      (item: MessageLike) =>
                         Array.isArray(item?.content) &&
                         item.content.some(
-                          (part: any) =>
+                          (part: ContentBlock) =>
                             part?.type === "image" ||
                             // images can be nested inside tool_result content
                             (part?.type === "tool_result" &&
