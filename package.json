@@ -182,6 +182,7 @@
     "drizzle-kit": "0.31.10",
     "jsdom": "25.0.1",
     "katex": "0.18.4",
+    "knip": "6.33.0",
     "monaco-editor": "0.52.2",
     "prettier": "3.6.2",
     "react": "19.2.8",

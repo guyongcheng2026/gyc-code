@@ -51,11 +51,12 @@ describe("wrapRateLimitRetry", () => {
     expect(calls).toHaveLength(2)
   })
 
+  // 默认退避为 5s（DEFAULT_RETRY_AFTER_MS），需放宽超时避免与 5s 真实等待竞态
   test("无 retry-after 头时使用默认退避", async () => {
     const { calls, fn } = makeFetch(jsonResponse(429), jsonResponse(200))
     const wrapped = wrapRateLimitRetry(fn)
     const res = await wrapped(new Request("http://x/api/provider"))
     expect(res.status).toBe(200)
     expect(calls).toHaveLength(2)
-  })
+  }, 8000)
 })

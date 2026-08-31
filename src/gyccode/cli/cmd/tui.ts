@@ -391,4 +391,12 @@ export const TuiThreadCommand = cmd({
         await stop()
       }
     } finally {
-      try
+      try {
+        unguard?.()
+      } catch {
+        // 进程即将退出，Ctrl+C 守卫移除失败可忽略
+      }
+    }
+    process.exit(0)
+  },
+})

@@ -1,0 +1,44 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": [
+        "bin/gyc",
+        "src/gyccode/index.ts",
+        "build.mjs",
+        "scripts/**/*.mjs",
+        "scripts/**/*.cjs",
+        "scripts/**/*.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "src/**/*.mjs",
+        "services/**/*.ts"
+      ],
+      "ignore": [
+        "src/**/gen/**",
+        "**/bundle.gen.ts",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "src/webapp/**",
+        "examples/**",
+        "marketplace/**",
+        "gyc-cli/**",
+        "docs/**"
+      ],
+      "ignoreDependencies": [
+        "@gyccode/codemode",
+        "@gyccode/core",
+        "@gyccode/effect-drizzle-sqlite",
+        "@gyccode/llm",
+        "@gyccode/protocol",
+        "@gyccode/schema",
+        "@gyccode/server",
+        "@gyccode/tui",
+        "@gyccode/ui"
+      ]
+    }
+  }
+}
