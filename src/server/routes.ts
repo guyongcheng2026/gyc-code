@@ -39,16 +39,14 @@ const applicationServices = LayerNode.group([
   WorkflowV2.node,
 ])
 
+/** @deprecated 2026-08-31 审查确认零引用（生产路由在 @/server/routes/instance/httpapi/server）。
+ *  保留一个版本周期供测试迁移，下一轮删除。 */
 export function createRoutes(password?: string) {
   return makeRoutes(
     password
       ? ServerAuth.Config.configLayer({ username: "gyccode", password: Option.some(password) })
       : ServerAuth.Config.layer,
   )
-}
-
-export function createEmbeddedRoutes() {
-  return makeRoutes(ServerAuth.Config.configLayer({ username: "gyccode", password: Option.none() }))
 }
 
 function makeRoutes<AuthError, AuthServices>(auth: Layer.Layer<ServerAuth.Config, AuthError, AuthServices>) {

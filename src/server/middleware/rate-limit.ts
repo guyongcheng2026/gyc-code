@@ -2,7 +2,9 @@ import { TooManyRequestsError } from "@gyccode/protocol/errors"
 import { RateLimit } from "@gyccode/protocol/middleware/rate-limit"
 import { Effect, Layer, Redacted } from "effect"
 import { HttpEffect, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
-import { ServerAuth } from "../auth"
+// 与 httpapi 授权层（@/server/routes/instance/httpapi/server.ts）同源，
+// 消除双 ServerAuth 实例漂移（src/server/auth.ts 与 @/server/auth 两处定义）
+import { ServerAuth } from "@/server/auth"
 
 // ── 令牌桶参数 ──────────────────────────────────────────────
 // 容量 240 突发 + 每秒 2 枚补充（≈120 req/分钟稳态）。
@@ -90,7 +92,9 @@ export const rateLimitLayer = Layer.effect(
         // 认证桶 key 与匿名桶隔离：认证用户即使与攻击者同用户名也不共享额度
         const key = authenticated ? `authed:${credentials.username}` : credentials.username
         if (take(key, authenticated)) return yield* effect
-        yield* Effect.logWarning("rate limit exceeded", { requester: credentials.username })
+        // 用户名来自不可信 Basic 头：去空白 + 截断，防日志行注入与日志洪水
+        const safeRequester = credentials.username.replace(/\s+/g, "_").slice(0, 64)
+        yield* Effect.logWarning("rate limit exceeded", { requester: safeRequester })
         yield* HttpEffect.appendPreResponseHandler((_request, response) =>
           Effect.succeed(HttpServerResponse.setHeader(response, "retry-after", "5")),
         )

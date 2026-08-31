@@ -2,6 +2,7 @@ export * as ServerAuth from "./auth"
 
 import { ConfigService } from "@/effect/config-service"
 import { Flag } from "@gyccode/core/flag/flag"
+import { createHash, timingSafeEqual } from "node:crypto"
 import { Config as EffectConfig, Context, Option, Redacted } from "effect"
 
 export type Credentials = {
@@ -25,11 +26,19 @@ export function required(config: Info) {
   return Option.isSome(config.password) && config.password.value !== ""
 }
 
+// 恒定时间比较：先哈希到等长摘要再比对（对齐 src/server/auth.ts 的 safeEqual），
+// 消除 username/password 明文 === 短路比较的时序侧信道
+function safeEqual(a: string, b: string) {
+  const ha = createHash("sha256").update(a).digest()
+  const hb = createHash("sha256").update(b).digest()
+  return timingSafeEqual(ha, hb)
+}
+
 export function authorized(credentials: DecodedCredentials, config: Info) {
   return (
     Option.isSome(config.password) &&
-    credentials.username === config.username &&
-    Redacted.value(credentials.password) === config.password.value
+    safeEqual(credentials.username, config.username) &&
+    safeEqual(Redacted.value(credentials.password), config.password.value)
   )
 }
 
