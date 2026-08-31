@@ -19,7 +19,7 @@ const ENV_KEYS = [
 /** 将配对凭据写入 ~/.gyc/.env：替换既有 GYC_WEIXIN_* 行，缺失则追加。 */
 function saveCredentials(credential: { accountId: string; token: string; baseUrl: string; homeChannel: string }): void {
   const envPath = join(homedir(), ".gyc", ".env")
-  const values = new Map(ENV_KEYS.map(([key, pick]) => [key, pick(credential)]))
+  const values = new Map<typeof ENV_KEYS[number][0], string>(ENV_KEYS.map(([key, pick]) => [key, pick(credential)]))
   let lines: string[] = []
   try {
     lines = readFileSync(envPath, "utf-8").split(/\r?\n/)
@@ -29,11 +29,11 @@ function saveCredentials(credential: { accountId: string; token: string; baseUrl
   const seen = new Set<string>()
   const replaced = lines.map((line) => {
     const match = /^([A-Z0-9_]+)\s*=/.exec(line)
-    if (!match || !values.has(match[1])) return line
+    if (!match || !values.has(match[1] as typeof ENV_KEYS[number][0])) return line
     seen.add(match[1])
-    return `${match[1]}=${values.get(match[1])}`
+    return `${match[1]}=${values.get(match[1] as typeof ENV_KEYS[number][0])}`
   })
-  const missing = [...values.keys()].filter((key) => !seen.has(key))
+  const missing: (typeof ENV_KEYS[number][0])[] = ENV_KEYS.filter(([key]) => !seen.has(key)).map(([key]) => key)
   if (missing.length > 0) {
     replaced.push("# gyc 微信网关凭证（gyc pair 写入）", ...missing.map((key) => `${key}=${values.get(key)}`))
   }

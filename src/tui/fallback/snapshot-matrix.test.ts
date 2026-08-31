@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Screen } from "./screen"
+import { charWidth } from "./char-width"
 import { renderDelta, renderFull } from "./diff"
 
 /**
@@ -68,25 +69,33 @@ describe("乱码专项快照矩阵", () => {
 		expect(renderFull(b)).toContain("✨")
 	})
 
+	test("box drawing / 半角符号占 1 列（终端按半角显示）", () => {
+		// │ ─ █ → ‘ ’ … • 等 Ambiguous 字符在终端按 1 列渲染，
+		// 布局必须与终端口径一致，否则滚动条/文本逐字符右移错位。
+		const s = new Screen(8, 1)
+		s.writeText(0, 0, "│a")
+		expect(s.cellAt(0, 0).width).toBe(1)
+		expect(s.cellAt(1, 0).ch).toBe("a")
+		const t = new Screen(8, 1)
+		t.writeText(0, 0, "█x")
+		expect(t.cellAt(0, 0).width).toBe(1)
+		expect(t.cellAt(1, 0).ch).toBe("x")
+		const u = new Screen(8, 1)
+		u.writeText(0, 0, "→y")
+		expect(u.cellAt(0, 0).width).toBe(1)
+		expect(u.cellAt(1, 0).ch).toBe("y")
+		const v = new Screen(8, 1)
+		v.writeText(0, 0, "…z")
+		expect(v.cellAt(0, 0).width).toBe(1)
+		expect(v.cellAt(1, 0).ch).toBe("z")
+	})
+
 	test("长中文段落逐行写入无错位", () => {
 		const s = new Screen(40, 3)
 		const para = Array.from(
 			"自研差分帧渲染器用于根治第三方渲染层的宽度口径分歧问题，同时作为原生层失效时的安全模式保底方案长期孵化演进",
 		)
-		const widthOf = (ch: string): number => {
-			const code = ch.codePointAt(0)
-			if (code === undefined) return 1
-			if (code < 0x20) return 0
-			if (code >= 0x4e00 && code <= 0x9fff) return 2
-			if (code >= 0x3400 && code <= 0x4dbf) return 2
-			if (code >= 0xff01 && code <= 0xff60) return 2
-			if (code >= 0x3040 && code <= 0x30ff) return 2
-			if (code >= 0xac00 && code <= 0xd7af) return 2
-			if (code >= 0x1f300 && code <= 0x1f9ff) return 2
-			if (code >= 0x1f3fb && code <= 0x1f3ff) return 2
-			if (code >= 0x200d) return 2
-			return 1
-		}
+		const widthOf = (ch: string): number => charWidth(ch)
 		let row = 0
 		let col = 0
 		for (const ch of para) {

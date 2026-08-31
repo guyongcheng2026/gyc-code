@@ -2,6 +2,8 @@
 // 设计对标 hermes BasePlatformAdapter 的核心抽象（connect/poll/send/disconnect），
 // 保持零依赖、可被 CLI 与 TUI 共同复用。
 
+import { GatewayErrorKind } from "./errors"
+
 export interface GatewayTarget {
   platform: string
   chatId: string

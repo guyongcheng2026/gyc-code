@@ -52,3 +52,4 @@ export interface KeyBinding {
   action: string
   description: string
 }
+

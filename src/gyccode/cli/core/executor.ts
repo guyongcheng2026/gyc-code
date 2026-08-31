@@ -544,10 +544,12 @@ registerBuiltinCommand("history", async (ctx, args) => {
 }, ["hist"])
 
 // 辅助函数
-function parseModelInput(value: string): { providerID: string; modelID: string } | undefined {
+function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
   if (!value) return undefined
   const [providerID, ...rest] = value.split("/")
-  return { providerID, modelID: rest.join("/") }
+  const modelPart = rest.join("/")
+  const [modelID, variant] = modelPart.split(":")
+  return { providerID, modelID, variant }
 }
 
 async function selectFromList(title: string, items: Array<{ label: string; value: string }>): Promise<string | undefined> {
@@ -649,10 +651,10 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
   const model = parseModelInput(ctx.input.model)
   const result = await ctx.sdk.session.prompt({
     sessionID: ctx.sessionId,
-    model: model ? { providerID: model.providerID, id: model.modelID, variant: ctx.input.variant } : undefined,
+    model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant ?? ctx.input.variant } as { providerID: string; modelID: string; variant?: string } : undefined,
     agent: ctx.input.agent,
     variant: ctx.input.variant,
-    parts: [...fileParts, { type: "text", text }],
+    parts: [...fileParts, { type: "text" as const, text }],
   })
   if (result.error) { UI.error(JSON.stringify(result.error)); return }
   await completed
@@ -665,7 +667,7 @@ async function resolveFileParts(files: string[], directory?: string) {
   for (const filePath of files) {
     const resolved = path.resolve(directory ?? process.cwd(), filePath)
     if (!(await Filesystem.exists(resolved))) continue
-    parts.push({ type: "file", url: pathToFileURL(resolved).href, filename: path.basename(resolved), mime: "text/plain" })
+    parts.push({ type: "file" as const, url: pathToFileURL(resolved).href, filename: path.basename(resolved), mime: "text/plain" })
   }
   return parts
 }

@@ -80,10 +80,11 @@ export const AttachCommand = cmd({
     const { Effect } = await import("effect")
     const { run } = await import("../tui/layer")
     const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
+    const configPromise = Promise.resolve(config)
     await Effect.runPromise(
       run({
         url: args.url,
-        config,
+        config: configPromise,
         pluginHost: createLegacyTuiPluginHost(),
         args: {
           continue: args.continue,
@@ -92,7 +93,7 @@ export const AttachCommand = cmd({
         },
         directory,
         headers,
-      }),
+      })
     )
   },
 })

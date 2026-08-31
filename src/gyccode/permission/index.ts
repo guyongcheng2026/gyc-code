@@ -2,7 +2,8 @@ import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { ConfigPermissionV1 } from "@gyccode/core/v1/config/permission"
 import { InstanceState } from "@/effect/instance-state"
 import { Wildcard } from "@gyccode/core/util/wildcard"
-import { Deferred, Effect, Layer, Context, Ref } from "effect"
+import { Deferred, Effect, Layer, Context } from "effect"
+import * as RefModule from "effect/Ref"
 import os from "os"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -21,7 +22,7 @@ interface PendingEntry {
 }
 
 interface State {
-  pending: Ref<Map<PermissionV1.ID, PendingEntry>>
+  pending: RefModule.Ref<Map<PermissionV1.ID, PendingEntry>>
   approved: PermissionV1.Rule[]
 }
 
@@ -43,18 +44,18 @@ const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2Bridge.Service
-    const state = yield* InstanceState.make<State>(
+    const stateCache = yield* InstanceState.make<State>(
       Effect.fn("Permission.state")(function* (ctx) {
         void ctx
         const state = {
-          pending: yield* Ref.make(new Map<PermissionV1.ID, PendingEntry>()),
+          pending: yield* RefModule.make(new Map<PermissionV1.ID, PendingEntry>()),
           approved: [],
         }
 
         yield* Effect.addFinalizer(() =>
           Effect.gen(function* () {
-            const entries = (yield* Ref.get(state.pending)).entries()
-            yield* Ref.set(state.pending, new Map())
+            const entries = (yield* RefModule.get(state.pending)).entries()
+            yield* RefModule.set(state.pending, new Map())
             for (const [, item] of entries) {
               yield* Deferred.fail(item.deferred, new PermissionV1.RejectedError())
             }
@@ -65,8 +66,9 @@ const layer = Layer.effect(
       }),
     )
 
+    const state = yield* InstanceState.get(stateCache)
     const ask = Effect.fn("Permission.ask")(function* (input: PermissionV1.AskInput) {
-      const { approved } = yield* InstanceState.get(state)
+      const { approved } = state
       const { ruleset, ...request } = input
       let needsAsk = false
 
@@ -97,28 +99,28 @@ const layer = Layer.effect(
       yield* Effect.logInfo("asking", { id, permission: info.permission, patterns: info.patterns })
 
       const deferred = yield* Deferred.make<void, PermissionV1.RejectedError | PermissionV1.CorrectedError>()
-      yield* Ref.modify(state.pending, (m) => {
-        m.set(id, { info, deferred })
-        return m
+      yield* RefModule.modify(state.pending, (m) => { m.set(id, { info, deferred })
+        return [undefined, m] as const
       })
       yield* events.publish(Event.Asked, info)
       return yield* Effect.ensuring(
         Deferred.await(deferred),
-        Ref.modify(state.pending, (m) => {
+        RefModule.modify(state.pending, (m) => {
           m.delete(id)
-          return m
+          return [undefined, m] as const
         }),
       )
     })
 
     const reply = Effect.fn("Permission.reply")(function* (input: PermissionV1.ReplyInput) {
-      const { approved } = yield* InstanceState.get(state)
-      const existing = yield* Ref.get(state.pending).pipe(Effect.map((m) => m.get(input.requestID)))
+      const state = yield* InstanceState.get(stateCache)
+      const { approved } = state
+      const existing = yield* RefModule.get(state.pending).pipe(Effect.map((m) => m.get(input.requestID)))
       if (!existing) return yield* new PermissionV1.NotFoundError({ requestID: input.requestID })
 
-      yield* Ref.modify(state.pending, (m) => {
+      yield* RefModule.modify(state.pending, (m) => {
         m.delete(input.requestID)
-        return m
+        return [undefined, m] as const
       })
       yield* events.publish(Event.Replied, {
         sessionID: existing.info.sessionID,
@@ -134,12 +136,12 @@ const layer = Layer.effect(
             : new PermissionV1.RejectedError(),
         )
 
-        const toReject = (yield* Ref.get(state.pending)).entries().filter(
+        const toReject = (yield* RefModule.get(state.pending)).entries().filter(
           ([, item]) => item.info.sessionID === existing.info.sessionID,
         )
-        yield* Ref.modify(state.pending, (m) => {
+        yield* RefModule.modify(state.pending, (m) => {
           for (const [id, item] of toReject) m.delete(id)
-          return m
+          return [undefined, m] as const
         })
         for (const [id, item] of toReject) {
           yield* events.publish(Event.Replied, {
@@ -163,15 +165,15 @@ const layer = Layer.effect(
         })
       }
 
-      const toResolve = (yield* Ref.get(state.pending)).entries().filter(([, item]) => {
+      const toResolve = (yield* RefModule.get(state.pending)).entries().filter(([, item]) => {
         if (item.info.sessionID !== existing.info.sessionID) return false
         return item.info.patterns.every(
           (pattern) => evaluate(item.info.permission, pattern, approved).action === "allow",
         )
       })
-      yield* Ref.modify(state.pending, (m) => {
+      yield* RefModule.modify(state.pending, (m) => {
         for (const [id] of toResolve) m.delete(id)
-        return m
+        return [undefined, m] as const
       })
       for (const [, item] of toResolve) {
         yield* events.publish(Event.Replied, {
@@ -184,7 +186,8 @@ const layer = Layer.effect(
     })
 
     const list = Effect.fn("Permission.list")(function* () {
-      const pending = yield* Ref.get(state.pending)
+      const state = yield* InstanceState.get(stateCache)
+      const pending = yield* RefModule.get(state.pending)
       return Array.from(pending.values(), (item) => item.info)
     })
 

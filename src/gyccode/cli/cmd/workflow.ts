@@ -1,7 +1,7 @@
 import { cmd } from "./cmd"
 import type { Argv } from "yargs"
 import { Effect, ManagedRuntime } from "effect"
-import { WorkflowV2 } from "@gyccode/core/workflow"
+import { WorkflowV2, Service } from "@gyccode/core/workflow"
 import { AppNodeBuilder } from "@gyccode/core/effect/app-node-builder"
 import type { WorkflowRun } from "@gyccode/schema/workflow"
 
@@ -18,7 +18,7 @@ function makeRuntime() {
   return ManagedRuntime.make(AppNodeBuilder.build(WorkflowV2.node))
 }
 
-function runInRuntime<A, E>(effect: Effect.Effect<A, E>, runtime: WorkflowRuntime) {
+function runInRuntime<A, E>(effect: Effect.Effect<A, E, Service>, runtime: WorkflowRuntime) {
   return runtime.runPromise(effect)
 }
 
@@ -47,7 +47,7 @@ const WorkflowDefsCommand = cmd({
         }
       }
     } finally {
-      runtime.disposeSync()
+      runtime.dispose()
     }
   },
 })
@@ -77,7 +77,7 @@ const WorkflowStartCommand = cmd({
       const run = await runInRuntime(
         WorkflowV2.Service.use((svc) =>
           svc.start({
-            workflow: args.workflow,
+            workflow: args.workflow!,
             sessionID: args.session,
             directory: directoryOf(process.cwd(), args.directory),
           }),
@@ -89,7 +89,7 @@ const WorkflowStartCommand = cmd({
         console.log(`  - ${step.stepId}: ${step.status}`)
       }
     } finally {
-      runtime.disposeSync()
+      runtime.dispose()
     }
   },
 })
@@ -126,7 +126,7 @@ const WorkflowStatusCommand = cmd({
       }
       for (const run of runs) printRun(run)
     } finally {
-      runtime.disposeSync()
+      runtime.dispose()
     }
   },
 })
@@ -145,7 +145,7 @@ const WorkflowAbortCommand = cmd({
       await runInRuntime(WorkflowV2.Service.use((svc) => svc.abort(args.run as string)), runtime)
       console.log(`已终止运行：${args.run}`)
     } finally {
-      runtime.disposeSync()
+      runtime.dispose()
     }
   },
 })

@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "generatedAt": "2026-08-27T13:59:52.815Z",
+  "generatedAt": "2026-08-29T04:42:32.893Z",
   "commands": [
     {
       "name": "add-dir",
@@ -394,6 +394,20 @@
       "executor": "builtin",
       "aliases": [],
       "requiresSession": true
+    },
+    {
+      "name": "renderer",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "config",
+      "tuiOnly": true,
+      "executor": "builtin"
+    },
+    {
+      "name": "renderer.select",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "system",
+      "executor": "builtin",
+      "tuiOnly": false
     },
     {
       "name": "rewind",
@@ -961,6 +975,20 @@
       "aliases": [],
       "requiresSession": true
     },
+    "renderer": {
+      "name": "renderer",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "config",
+      "tuiOnly": true,
+      "executor": "builtin"
+    },
+    "renderer.select": {
+      "name": "renderer.select",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "system",
+      "executor": "builtin",
+      "tuiOnly": false
+    },
     "rewind": {
       "name": "rewind",
       "description": "回退到历史某点",
@@ -1151,6 +1179,7 @@
       "logout",
       "mode.lock",
       "release_notes",
+      "renderer.select",
       "status",
       "switch",
       "title.toggle",
@@ -1213,6 +1242,7 @@
       "memory",
       "output-style",
       "release-notes",
+      "renderer",
       "themes",
       "thinking",
       "timestamps",

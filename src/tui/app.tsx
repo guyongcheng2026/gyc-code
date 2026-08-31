@@ -52,6 +52,7 @@ import { DialogStatus } from "./component/dialog-status"
 import { DialogDebug } from "./component/dialog-debug"
 import { DialogDoctor } from "./component/dialog-doctor"
 import { DialogConfig } from "./component/dialog-config"
+import { DialogRendererSelect } from "./component/dialog-renderer-select"
 import { DialogUsage } from "./component/dialog-usage"
 import { DialogPermissions } from "./component/dialog-permissions"
 import { DialogVim } from "./component/dialog-vim"
@@ -260,10 +261,20 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       // S2 灰度切换（R3：GYC_TUI_BACKEND=auto/opentui 一键切回）：默认走自研
       // 渲染后端（backendChoice 未设置时返回 "fallback"）；显式 fallback 同路径。
       // auto 模式仍走 opentui（含创建失败降级）；opentui 模式纯原生。
-      if (backendChoice() === "fallback") {
+      // 配置渲染器（config.renderer）已就近传入；首帧前 config 尚未就绪，故
+      // 此处先按环境变量做初判；如需尊重配置，断言 config.renderer 时改在
+      // createSignal 就绪后的子作用域里再读（见下方 "config 就绪 fiber"）。
+      // 骨架屏并行化：config 由调用方以 Promise 注入（与 worker/effect 模块加载
+      // 并行获取）。首帧只渲染零 config 依赖的骨架层，配置到达后 <Show> 切换
+      // 完整应用树——TuiConfig.get() 实测约 1.2s，不再挡住首帧。
+      // 声明必须先于 fallback 分支：该分支的归因日志在骨架期读取 config()，
+      // 声明在后会触发 TDZ（Cannot access 'config' before initialization）。
+      const [config, setConfig] = createSignal<TuiConfig.Resolved | undefined>(undefined)
+      const initialChoice = backendChoice()
+      if (initialChoice === "fallback") {
         yield* Effect.promise(async () => {
           // G5 归因：source 区分显式选择与 S2 默认值
-          const source = isExplicitFallback() ? "explicit" : "default"
+          const source = isExplicitFallback(config()?.renderer) ? "explicit" : "default"
           void mkdir(global.log, { recursive: true })
             .then(() =>
               appendFile(
@@ -283,10 +294,6 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         })
         return { epilogue: exit.epilogue, reason: exit.reason }
       }
-      // 骨架屏并行化：config 由调用方以 Promise 注入（与 worker/effect 模块加载
-      // 并行获取）。首帧只渲染零 config 依赖的骨架层，配置到达后 <Show> 切换
-      // 完整应用树——TuiConfig.get() 实测约 1.2s，不再挡住首帧。
-      const [config, setConfig] = createSignal<TuiConfig.Resolved | undefined>(undefined)
       const renderer = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: async () => {
@@ -313,13 +320,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // 自动降级通道：原生层初始化失败时进入纯 JS 安全模式，
               // 变「黑屏退出」为可用保底；用户退出后仍抛出原错误走报错路径。
               // GYC_TUI_BACKEND=opentui 可禁用降级。
-              if (shouldUseFallback()) {
+              if (shouldUseFallback(config()?.renderer)) {
                 // S0 G5 可观测：降级事件带 renderer 归因（T3 触发条件的监测数据源）
                 void mkdir(global.log, { recursive: true })
                   .then(() =>
                     appendFile(
                       join(global.log, "gyccode.log"),
-                      `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} event=renderer-create-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
+                      `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=renderer-create-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
                     ),
                   )
                   .catch(() => {})
@@ -382,7 +389,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               .then(() =>
                 appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} ${kind} message=${detail} rss=${rssMB}MB\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} ${kind} message=${detail} rss=${rssMB}MB\n`,
                 ),
               )
               .catch(() => {})
@@ -401,7 +408,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           // 安全模式内再崩直接退，杜绝降级循环。GYC_TUI_BACKEND=opentui 禁用。
           let degrading = false
           const degradeToSafeModeAndExit = async (error: unknown, code: number) => {
-            if (!shouldUseFallback() || degrading || !claimFallbackOnce()) {
+            if (!shouldUseFallback(config()?.renderer) || degrading || !claimFallbackOnce()) {
               restoreTerminalAndExit(code)
               return
             }
@@ -411,7 +418,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               .then(() =>
                 appendFile(
                   join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice()} event=runtime-crash-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
+                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=runtime-crash-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
                 ),
               )
               .catch(() => {})
@@ -1450,6 +1457,15 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         slashName: "config",
         run: () => {
           dialog.replace(() => <DialogConfig />)
+        },
+      },
+      {
+        name: "renderer.select",
+        title: "选择渲染器（opentui / fallback）",
+        category: "系统",
+        slashName: "renderer",
+        run: () => {
+          dialog.replace(() => <DialogRendererSelect />)
         },
       },
       {

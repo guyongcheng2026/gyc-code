@@ -24,7 +24,7 @@ export const WorkflowGroup = HttpApiGroup.make("server.workflow")
   )
   .add(
     HttpApiEndpoint.post("workflow.start", "/api/workflow/start", {
-      body: WorkflowStartBody,
+      payload: WorkflowStartBody,
       success: Workflow.WorkflowRun,
     }).annotateMerge(
       OpenApi.annotations({
@@ -48,7 +48,7 @@ export const WorkflowGroup = HttpApiGroup.make("server.workflow")
   )
   .add(
     HttpApiEndpoint.get("workflow.get", "/api/workflow/:id", {
-      path: Schema.Struct({ id: Schema.String }),
+      params: Schema.Struct({ id: Schema.String }),
       success: Schema.optional(Workflow.WorkflowRun),
     }).annotateMerge(
       OpenApi.annotations({
@@ -60,7 +60,7 @@ export const WorkflowGroup = HttpApiGroup.make("server.workflow")
   )
   .add(
     HttpApiEndpoint.post("workflow.abort", "/api/workflow/:id/abort", {
-      path: Schema.Struct({ id: Schema.String }),
+      params: Schema.Struct({ id: Schema.String }),
       success: Schema.Void,
     }).annotateMerge(
       OpenApi.annotations({

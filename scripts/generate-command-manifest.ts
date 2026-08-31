@@ -55,6 +55,7 @@ function extractTuiCommands(): CommandSpec[] {
     { name: "vim", description: "Vim 键绑定开关", category: "config" as const },
     { name: "login", description: "登录", category: "system" as const },
     { name: "logout", description: "登出", category: "system" as const },
+    { name: "renderer", description: "选择渲染器（opentui / fallback）", category: "config" as const },
     { name: "hooks", description: "钩子管理", category: "config" as const },
     { name: "commit", description: "提交变更", category: "session" as const },
     { name: "memory", description: "记忆管理", category: "config" as const },

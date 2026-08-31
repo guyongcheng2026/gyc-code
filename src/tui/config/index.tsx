@@ -39,6 +39,12 @@ export const Cursor = Schema.Struct({
   }),
 }).annotate({ description: "Terminal cursor settings" })
 
+export const Renderer = Schema.Literals(["auto", "opentui", "fallback"]).annotate({
+  description:
+    "TUI renderer backend: 'auto' (default, prefers opentui with fallback on failure), 'opentui' (force native), 'fallback' (force pure-JS self-render, avoids V8 OOM)",
+})
+export type Renderer = Schema.Schema.Type<typeof Renderer>
+
 export const AttentionSounds = Schema.Record(AttentionSoundName, Schema.optionalKey(Schema.String))
 export type AttentionSoundPaths = Schema.Schema.Type<typeof AttentionSounds>
 export const Attention = Schema.Struct({
@@ -72,6 +78,10 @@ export const Info = Schema.Struct({
   diff_style: Schema.optional(DiffStyle),
   cursor: Schema.optional(Cursor),
   mouse: Schema.optional(Schema.Boolean).annotate({ description: "Enable or disable mouse capture (default: true)" }),
+  renderer: Schema.optional(Renderer).annotate({
+    description:
+      "TUI renderer backend: 'auto' (default), 'opentui' (force native), 'fallback' (force pure-JS self-render)",
+  }),
 })
 export type Info = Schema.Schema.Type<typeof Info>
 
@@ -126,6 +136,7 @@ export function resolve(input: Info, options: ResolveOptions): Resolved {
     }),
     leader_timeout: input.leader_timeout ?? LeaderTimeoutDefault,
     mouse: input.mouse ?? true,
+    renderer: input.renderer ?? "auto",
     cursor: input.cursor
       ? {
           style: input.cursor.style ?? "block",

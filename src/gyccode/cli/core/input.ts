@@ -127,7 +127,7 @@ export class RawInputHandler extends EventEmitter {
 
   private enableRawMode(): void {
     if (this.isTTY) {
-      this.stdin.setRawMode(true)
+      (this.stdin as NodeJS.ReadStream).setRawMode?.(true) ?? false
       this.stdin.resume()
       this.rawMode = true
       // 括号粘贴模式：粘贴内容以 \x1b[200~/\x1b[201~ 包裹，粘贴换行不再误触发提交
@@ -137,7 +137,7 @@ export class RawInputHandler extends EventEmitter {
 
   private disableRawMode(): void {
     if (this.rawMode && this.isTTY) {
-      this.stdin.setRawMode(false)
+      (this.stdin as NodeJS.ReadStream).setRawMode?.(false) ?? false
       this.stdin.pause()
       this.rawMode = false
       this.stdout.write("\x1b[?2004l")
@@ -191,6 +191,12 @@ export class RawInputHandler extends EventEmitter {
       return
     }
 
+    // 处理 ESC 开头的完整转义序列（方向键、功能键等）
+    if (text.startsWith("\x1b") && isCompleteEscapeSequence(Buffer.from(text, "utf-8"))) {
+      this.handleEscapeSequence(Buffer.from(text, "utf-8"))
+      return
+    }
+
     this.feedText(text)
   }
 
@@ -222,13 +228,6 @@ export class RawInputHandler extends EventEmitter {
           this.state.cursor--
           this.render()
         }
-        return
-      }
-
-      // Escape (取消/退出菜单)
-      if (code === 27) {
-        // 可能是 ANSI 转义序列开始
-        this.handleEscapeSequence(chunk)
         return
       }
 
