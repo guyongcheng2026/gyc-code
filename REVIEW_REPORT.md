@@ -3,6 +3,8 @@
 > **⚠️ 勘误（2026-08-31 复核）**：本报告 3 个 P0 中 2 个为误报，已重新取证纠正：
 > - **P0「Effect.catchAll 已移除会崩溃」= 误报**：排除 `**/gen/**`、`bundle.gen.ts` 后全库无真实 `Effect.catchAll` 调用（唯一命中在 bundle.gen.ts 内嵌 skill 文本中）。
 > - **P0「setRawMode 在 Node/Bun 不存在致崩溃」= 误报**：`input.ts` 已用可选链 `setRawMode?.()`，不存在即跳过，不会崩溃。
+> - **P1-17「application-tools.ts / tool/config.ts 为死代码」= 误报**：两者均被 `registry.ts:11` / `registry.ts:29` 实际引用。
+> - **P1-16/P1-19 重复实现、P1-25 any 泛滥**：属实，已修复（commits `0ac2da3` / `b349782` / `fb16f3e`）。
 > - 教训：结论前必须排除生成物并读取实际上下文。本轮已修复的真实缺陷见 commit `d8986ae`（pipeline 附件空内容/死代码/吞错、db compact 统计恒零、多处中文铁律违规）。
 
 **审查时间**：2026-08-29  
