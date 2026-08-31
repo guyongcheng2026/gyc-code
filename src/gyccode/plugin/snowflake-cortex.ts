@@ -294,9 +294,9 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                 },
               })
               .catch(() => {
-              // 保存刷新后的 token 失败会导致用户下次需重新登录，必须留痕
-              console.error("[snowflake-cortex] 保存刷新后的 OAuth token 失败")
-            })
+                // 保存刷新后的 token 失败会导致用户下次需重新登录，必须留痕
+                console.error("[snowflake-cortex] 保存刷新后的 OAuth token 失败")
+              })
           } catch (e) {
             console.error(`[snowflake-cortex] token 刷新失败：${String(e)}`)
           }
@@ -491,4 +491,9 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
         {
           type: "api",
           label: "Paste PAT or bearer token manually",
-         
+          prompts: prompts.filter((item) => item.key === "account"),
+        },
+      ],
+    },
+  }
+}
