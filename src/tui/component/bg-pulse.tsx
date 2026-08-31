@@ -73,24 +73,29 @@ export function BgPulse() {
   const { theme } = useTheme()
   const renderer = useRenderer()
   const kv = useKV()
-  let targetFps = renderer.targetFps
-  let maxFps = renderer.maxFps
   let active = false
+  // 挂载时的 fps 原值（app.tsx 基线 30 / opentui 默认 maxFps），cleanup 条件恢复：
+  // 若 BgPulse 存活期间 session 路由已把 targetFps 接管为流式 60，此处不覆盖——
+  // 直接恢复快照会把 60 打回 12，触发"流式降帧到动画刷新率"竞态（P2-1）。
+  let originalFps: number | undefined
+  let originalMaxFps: number | undefined
 
   onMount(() => {
     // Respect the global animations toggle; when off, never force a render loop.
     if (!kv.get("animations_enabled", false)) return
-    active = true
-    targetFps = renderer.targetFps
-    maxFps = renderer.maxFps
+    originalFps = renderer.targetFps
+    originalMaxFps = renderer.maxFps
     renderer.targetFps = 12
     renderer.maxFps = 12
+    active = true
   })
 
   onCleanup(() => {
     if (!active) return
-    renderer.targetFps = targetFps
-    renderer.maxFps = maxFps
+    // 仅当当前值仍是本组件压低的 12（即未被 session 路由接管）时才恢复原值；
+    // 否则保留路由的新值（如流式 60fps），避免空转或降帧。
+    if (originalFps !== undefined && renderer.targetFps === 12) renderer.targetFps = originalFps
+    if (originalMaxFps !== undefined && renderer.maxFps === 12) renderer.maxFps = originalMaxFps
   })
 
   if (!kv.get("animations_enabled", false)) return null

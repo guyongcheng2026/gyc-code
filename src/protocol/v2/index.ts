@@ -6,6 +6,7 @@ import { createClient } from "./gen/client/client.gen.js"
 import { GyccodeClient } from "./gen/sdk.gen.js"
 import { wrapClientError } from "./error-interceptor.js"
 import { wrapConditionalGet } from "../conditional-cache.js"
+import { wrapRateLimitRetry } from "../rate-limit-retry.js"
 export { GyccodeClient }
 
 function pick(value: string | null, fallback: string | undefined, encode?: (input: string) => string) {
@@ -60,6 +61,12 @@ export function createGyccodeClient(config: Record<string, any>) {
   config = {
     ...config,
     fetch: wrapConditionalGet(config.fetch),
+  }
+  // 429 限流退避重试：对幂等请求（GET/HEAD）按 retry-after 退避重试一次，
+  // 降低限流低谷撞上 TUI 启动并发洪峰被打成致命错误的概率
+  config = {
+    ...config,
+    fetch: wrapRateLimitRetry(config.fetch),
   }
   if (config?.directory) {
     config.headers = {

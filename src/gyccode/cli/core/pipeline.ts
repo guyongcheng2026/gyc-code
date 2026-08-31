@@ -151,7 +151,7 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
 
   if (sessionID) {
     const current = await sdk.session.get({ sessionID }).catch(() => undefined)
-    if (!current?.data) throw new Error("Session not found")
+    if (!current?.data) throw new Error("会话不存在")
     let targetID = current.data.id
     if (fork) {
       const forked = await sdk.session.fork({ sessionID })
@@ -163,15 +163,19 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
   if (cont) {
     const list = await sdk.session.list()
     const sessions = list.data ?? []
-    const base = sessions.find(item => !item.parentID)
+    // -c 恢复应优先当前目录的会话：跨目录场景直接取最新根会话会恢复错项目。
+    // session.list 无 directory query 参数，服务端按 Instance 目录返回，跨目录时
+    // 需在客户端按 directory 二次过滤；过滤后无匹配再回退到最新的根会话。
+    const roots = sessions.filter(item => !item.parentID)
+    const currentDir = input.directory ?? process.cwd()
+    const base = roots.find(item => item.directory === currentDir) ?? roots[0]
     if (!base) return undefined
-    const baseSession = base!
-    let targetID = baseSession.id
+    let targetID = base.id
     if (fork) {
-      const forked = await sdk.session.fork({ sessionID: baseSession.id })
-      targetID = forked.data?.id ?? baseSession.id
+      const forked = await sdk.session.fork({ sessionID: base.id })
+      targetID = forked.data?.id ?? base.id
     }
-    return { id: targetID, title: baseSession.title, directory: baseSession.directory }
+    return { id: targetID, title: base.title, directory: base.directory }
   }
 
   // 新建会话
@@ -190,7 +194,7 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
   })
   const id = created.data?.id
   if (!id) {
-    throw new Error(`Failed to create session: ${created.error ? JSON.stringify(created.error) : "未知错误（无返回数据）"}`)
+    throw new Error(`创建会话失败: ${created.error ? JSON.stringify(created.error) : "未知错误（无返回数据）"}`)
   }
   return { id, title: created.data?.title ?? "", directory: created.data?.directory }
 }

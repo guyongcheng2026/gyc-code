@@ -204,7 +204,7 @@ export const RunCommand = effectCmd({
           process.chdir(path.isAbsolute(args.dir) ? args.dir : path.join(root, args.dir))
           return process.cwd()
         } catch {
-          UI.error("Failed to change directory to " + args.dir)
+          UI.error("切换目录失败: " + args.dir)
           process.exit(1)
         }
       })()
@@ -226,14 +226,14 @@ export const RunCommand = effectCmd({
         for (const filePath of list) {
           const resolvedPath = path.resolve(args.attach ? root : (directory ?? root), filePath)
           if (!(await Filesystem.exists(resolvedPath))) {
-            UI.error(`File not found: ${filePath}`)
+            UI.error(`文件不存在: ${filePath}`)
             process.exit(1)
           }
 
           const stat = Filesystem.stat(resolvedPath)
           const isDirectory = stat?.isDirectory() ?? false
           if (args.attach && isDirectory) {
-            UI.error(`Cannot attach local directory without a shared filesystem: ${filePath}`)
+            UI.error(`无法附加本地目录（无共享文件系统）: ${filePath}`)
             process.exit(1)
           }
 
@@ -243,7 +243,7 @@ export const RunCommand = effectCmd({
             try {
               const opened = await handle.stat()
               if (!opened.isFile() || Number(opened.size) > ATTACH_FILE_MAX_BYTES) {
-                UI.error(`Cannot attach local file larger than 10 MiB or a special file: ${filePath}`)
+                UI.error(`无法附加大于 10MiB 或特殊文件: ${filePath}`)
                 process.exit(1)
               }
               if (opened.size === 0) return Buffer.alloc(0)
@@ -282,12 +282,12 @@ export const RunCommand = effectCmd({
       message = resolveRunInput(message, piped) ?? ""
 
       if (message.trim().length === 0 && !args.command) {
-        UI.error("You must provide a message or a command")
+        UI.error("必须提供消息或命令")
         process.exit(1)
       }
 
       if (args.fork && !args.continue && !args.session) {
-        UI.error("--fork requires --continue or --session")
+        UI.error("--fork 需要配合 --continue 或 --session")
         process.exit(1)
       }
 
@@ -351,7 +351,14 @@ export const RunCommand = effectCmd({
           }
         }
 
-        const base = args.continue ? (await sdk.session.list()).data?.find((item) => !item.parentID) : undefined
+        const base = args.continue
+          ? await (async () => {
+              const list = await sdk.session.list()
+              const roots = (list.data ?? []).filter((item) => !item.parentID)
+              // -c 恢复优先当前目录的根会话；跨目录场景避免错恢复
+              return roots.find((item) => item.directory === directory) ?? roots[0]
+            })()
+          : undefined
 
         if (base && args.fork) {
           const forked = await sdk.session.fork({
@@ -422,7 +429,7 @@ export const RunCommand = effectCmd({
           return next
         }
 
-        UI.error("Failed to resolve remote directory")
+        UI.error("无法解析远程目录")
         process.exit(1)
       }
 

@@ -42,7 +42,9 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
   let sessionId = options.sessionId
   if (!sessionId && options.continue) {
     const list = await sdk.session.list()
-    const base = list.data?.find(s => !s.parentID)
+    const roots = (list.data ?? []).filter(s => !s.parentID)
+    // -c 恢复优先当前目录的根会话；跨目录场景避免错恢复
+    const base = roots.find(s => s.directory === directory) ?? roots[0]
     if (base) sessionId = base.id
   }
   if (!sessionId) {
