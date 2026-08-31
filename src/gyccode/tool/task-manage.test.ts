@@ -25,9 +25,15 @@ const bg = (id: string, status: BackgroundJob.Status = "running"): BackgroundJob
   started_at: Date.now(),
 })
 
-const exec = async (info: Tool.Info<any, any>, args: any) => {
+const exec = async (info: Tool.Info, args: Record<string, unknown>) => {
   const def = await Effect.runPromise(Tool.init(info))
-  return Effect.runPromise(def.execute(args, { sessionID: "s1", messageID: "m1", agent: "build" } as any))
+  // 测试 fixture 不构造完整参数 schema 形状，以显式断言桥接
+  return Effect.runPromise(
+    def.execute(
+      args as unknown as Parameters<typeof def.execute>[0],
+      { sessionID: "s1", messageID: "m1", agent: "build" } as unknown as Parameters<typeof def.execute>[1],
+    ),
+  )
 }
 
 describe("task_list", () => {

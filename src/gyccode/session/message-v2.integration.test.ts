@@ -1,11 +1,16 @@
 ﻿import { expect, test } from "bun:test"
 import { resetTruncationDecisions, toModelMessages } from "./message-v2"
 
+// 从被测函数签名反推 mock 类型，避免 any
+type TestWithParts = Parameters<typeof toModelMessages>[0]
+type TestModel = Parameters<typeof toModelMessages>[1]
+type TestModelMsg = ReturnType<typeof toModelMessages>[number]
+
 const model = {
   providerID: "test-provider",
   id: "test-model",
   api: { npm: "@ai-sdk/openai", id: "test-api" },
-} as any
+} as unknown as TestModel
 
 function toolPart(callID: string, output: string, tool: string = "read") {
   return {
@@ -13,10 +18,10 @@ function toolPart(callID: string, output: string, tool: string = "read") {
     callID,
     tool,
     state: { status: "completed", input: {}, output, title: "t", metadata: {}, time: { start: 0, end: 1 } },
-  } as any
+  }
 }
 
-function messages(toolParts: any[]) {
+function messages(toolParts: ReturnType<typeof toolPart>[]): TestWithParts {
   return [
     {
       info: { id: "u1", role: "user", providerID: "test-provider", modelID: "test-model" },
@@ -26,10 +31,10 @@ function messages(toolParts: any[]) {
       info: { id: "a1", role: "assistant", providerID: "test-provider", modelID: "test-model" },
       parts: toolParts,
     },
-  ] as any
+  ] as unknown as TestWithParts
 }
 
-function findToolResult(modelMsgs: any[], callID: string): string {
+function findToolResult(modelMsgs: TestModelMsg[], callID: string): string {
   for (const m of modelMsgs) {
     if (m.role !== "tool") continue
     for (const p of m.content ?? []) {
@@ -87,17 +92,17 @@ function userTextMsg(id: string, text: string) {
   return {
     info: { id, role: "user", providerID: "test-provider", modelID: "test-model" },
     parts: [{ type: "text", text }],
-  } as any
+  } as unknown as TestWithParts
 }
 
-function findUserTexts(modelMsgs: any[]): string[] {
+function findUserTexts(modelMsgs: TestModelMsg[]): string[] {
   return modelMsgs
     .filter((m) => m.role === "user")
     .map((m) =>
       Array.isArray(m.content)
         ? m.content
-            .filter((p: any) => p.type === "text")
-            .map((p: any) => p.text)
+            .filter((p): p is { type: "text"; text: string } => "type" in p && p.type === "text")
+            .map((p) => p.text)
             .join("\n")
         : "",
     )
@@ -112,14 +117,14 @@ test("集成：injectMemories 只注入最新 user 消息，历史 user 字节�
     },
     userTextMsg("u2", "second message"),
   ]
-  const withMem = await toModelMessages(msgs as any, model, { injectMemories: "<memories>fact A</memories>" })
+  const withMem = await toModelMessages(msgs as unknown as TestWithParts, model, { injectMemories: "<memories>fact A</memories>" })
   const texts = findUserTexts(withMem)
   // u1（历史）不变；u2（最新 user）追加记忆
   expect(texts[0]).toBe("first message")
   expect(texts[1]).toContain("second message")
   expect(texts[1]).toContain("<memories>fact A</memories>")
   // 换一份记忆重新序列化：u1 仍不变（前缀字节稳定），仅最新 user 尾部变化
-  const withMem2 = await toModelMessages(msgs as any, model, { injectMemories: "<memories>fact B</memories>" })
+  const withMem2 = await toModelMessages(msgs as unknown as TestWithParts, model, { injectMemories: "<memories>fact B</memories>" })
   const texts2 = findUserTexts(withMem2)
   expect(texts2[0]).toBe("first message")
   expect(texts2[1]).toContain("fact B")

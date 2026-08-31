@@ -2,12 +2,15 @@
 import { pivotTail } from "./compaction"
 import type { MessageID } from "./schema"
 
+// 从被测函数签名反推 mock 消息类型，避免 any
+type PivotMsg = Parameters<typeof pivotTail>[0][number]
+
 function mid(id: string) {
   return id as MessageID
 }
 
-function msg(id: string, role: "user" | "assistant"): any {
-  return { info: { id, role }, parts: [] }
+function msg(id: string, role: "user" | "assistant"): PivotMsg {
+  return { info: { id, role }, parts: [] } as unknown as PivotMsg
 }
 
 test("pivotTail splits head before pivot and tail_start_id at pivot", () => {

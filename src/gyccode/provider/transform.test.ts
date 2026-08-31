@@ -2,7 +2,8 @@
 import type { ModelMessage } from "ai"
 import type { Provider } from "./provider"
 
-function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string; providerID?: string }): any {
+function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string; providerID?: string }): Provider.Model {
+  // mock 只构造被测路径关心的字段，其余以显式断言补齐
   return {
     id: over.id ?? "claude-sonnet-4-6",
     providerID: over.providerID ?? "anthropic",
@@ -16,7 +17,7 @@ function modelWith(over: Partial<Provider.Model["capabilities"]> & { id?: string
       toolcall: true,
       attachment: false,
     },
-  }
+  } as unknown as Provider.Model
 }
 
 describe("shouldEnableThinkingByDefault", () => {

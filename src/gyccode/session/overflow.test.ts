@@ -1,11 +1,15 @@
 ﻿import { describe, expect, it } from "bun:test"
 import { usable, calculateTokenWarningState } from "./overflow"
 
-const baseCfg: any = { compaction: {} }
+// 从被测函数签名反推 mock 所需类型，避免 any
+type UsableCfg = Parameters<typeof usable>[0]["cfg"]
+type UsableModel = Parameters<typeof usable>[0]["model"]
+
+const baseCfg = { compaction: {} } as unknown as UsableCfg
 
 describe("usable", () => {
   it("applies GYCCODE_MAX_CONTEXT_TOKENS cap when limit.input is set", () => {
-    const model = { limit: { context: 1_000_000, input: 1_000_000, output: 128_000 } } as any
+    const model = { limit: { context: 1_000_000, input: 1_000_000, output: 128_000 } } as unknown as UsableModel
     // cap 500k; input branch: min(1M, 500k) - reserved(20k)
     const prev = process.env.GYCCODE_MAX_CONTEXT_TOKENS
     process.env.GYCCODE_MAX_CONTEXT_TOKENS = "500000"
@@ -19,12 +23,12 @@ describe("usable", () => {
   })
 
   it("returns 0 when context is 0", () => {
-    const model = { limit: { context: 0, output: 32_000 } } as any
+    const model = { limit: { context: 0, output: 32_000 } } as unknown as UsableModel
     expect(usable({ cfg: baseCfg, model, outputTokenMax: 32_000 })).toBe(0)
   })
 
   it("uses context branch when limit.input is absent", () => {
-    const model = { limit: { context: 200_000, output: 64_000 } } as any
+    const model = { limit: { context: 200_000, output: 64_000 } } as unknown as UsableModel
     const prev = process.env.GYCCODE_MAX_CONTEXT_TOKENS
     delete process.env.GYCCODE_MAX_CONTEXT_TOKENS
     try {
@@ -39,8 +43,8 @@ describe("usable", () => {
 describe("calculateTokenWarningState", () => {
   // reference agent 分级阈值：warning buffer 20K（相对 usable）、error buffer 13K、
   // blocking 3K。usable = effective window - reserved。
-  const model = { limit: { context: 200_000, output: 32_000 } } as any
-  const cfg: any = { compaction: {} }
+  const model = { limit: { context: 200_000, output: 32_000 } } as unknown as UsableModel
+  const cfg = { compaction: {} } as unknown as UsableCfg
 
   it("returns blocking when usage exceeds usable - 3K", () => {
     const u = usable({ cfg, model, outputTokenMax: 32_000 }) // 200_000 - 32_000 = 168_000

@@ -12,15 +12,21 @@ function minimalRequest(): LLMRequest {
     model: { providerID: "deepseek", modelID: "deepseek-v4-flash" },
     stop: undefined,
     output: undefined,
-  } as any
+  } as unknown as LLMRequest
 }
 
-function runUsage(json: string): any {
-  const decoded = Schema.decodeUnknownSync(protocol.stream.event as any)(json) as any
+// effect v4 beta 的 Schema/Stream 泛型在测试粘合层无法精确对齐（beta 豁免项的衍生），
+// 统一经 unknown 桥接；断言侧仍拿到 protocol 的 finish 事件完整类型。
+type Halt = NonNullable<typeof protocol.stream.onHalt>
+
+function runUsage(json: string) {
+  const eventSchema = protocol.stream.event as unknown as Parameters<typeof Schema.decodeUnknownSync>[0]
+  const decoded = Schema.decodeUnknownSync(eventSchema)(json)
   const initial = protocol.stream.initial(minimalRequest())
-  const [state] = Effect.runSync(protocol.stream.step(initial, decoded) as any) as any
-  const finishEvents = protocol.stream.onHalt?.(state) ?? []
-  return finishEvents.find((e: any) => e.type === "finish")
+  const stepEffect = protocol.stream.step(initial, decoded) as unknown as Parameters<typeof Effect.runSync>[0]
+  const [state] = Effect.runSync(stepEffect) as unknown as readonly [unknown]
+  const finishEvents = (protocol.stream.onHalt?.(state as unknown as Parameters<Halt>[0]) ?? []) as ReturnType<Halt>
+  return finishEvents.find((e) => e.type === "finish")
 }
 
 test("DeepSeek prompt_cache_hit_tokens maps to cacheReadInputTokens", () => {

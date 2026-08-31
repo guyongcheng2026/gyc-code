@@ -14,10 +14,10 @@ function toolPart(callID: string, tool: string): SessionV1.Part {
     callID,
     tool,
     state: { status: "completed", input: {}, output: "x".repeat(1000), title: "t", metadata: {}, time: { start: 0, end: 1 } },
-  } as any
+  } as unknown as SessionV1.Part
 }
 function userMsg(id: string): SessionV1.Part {
-  return { type: "text", id, text: "hi", synthetic: false } as any
+  return { type: "text", id, text: "hi", synthetic: false } as unknown as SessionV1.Part
 }
 
 test("thresholds are exported and sane", () => {
@@ -29,7 +29,7 @@ test("selectMicrocompactParts returns empty when usage is below threshold", () =
   const msgs = [
     { info: { role: "user", id: "u1" }, parts: [userMsg("u1")] },
     { info: { role: "assistant", id: "a1" }, parts: [toolPart("c1", "bash")] },
-  ] as any
+  ] as unknown as Parameters<typeof selectMicrocompactParts>[0]
   expect(selectMicrocompactParts(msgs, 100_000, 200_000)).toEqual([])
 })
 
@@ -37,7 +37,7 @@ test("selectMicrocompactParts marks middle tool outputs when usage >= threshold"
   const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
     parts: [i % 2 === 1 ? toolPart(`c${i}`, "bash") : userMsg(`u${i}`)],
-  })) as any
+  })) as unknown as Parameters<typeof selectMicrocompactParts>[0]
   const selected = selectMicrocompactParts(msgs, 180_000, 200_000)
   // Cache prefix (first 20 messages) and last 5 messages are protected.
   expect(selected.length).toBeGreaterThan(0)
@@ -50,9 +50,9 @@ test("selectMicrocompactParts never touches the cache prefix or the tail", () =>
   const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
     parts: [i % 2 === 1 ? toolPart(`c${i}`, "bash") : userMsg(`u${i}`)],
-  })) as any
+  })) as unknown as Parameters<typeof selectMicrocompactParts>[0]
   const selected = selectMicrocompactParts(msgs, 190_000, 200_000)
-  const selectedIDs = new Set(selected.map((p: any) => p.callID))
+  const selectedIDs = new Set(selected.map((p) => p.callID))
   // First CACHE_PREFIX_KEEP messages must be intact.
   for (let i = 0; i < CACHE_PREFIX_KEEP && i < msgs.length; i++) {
     const msg = msgs[i]
@@ -73,7 +73,7 @@ test("selectMicrocompactParts protects skill tool outputs", () => {
   const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
     parts: [i % 2 === 1 ? toolPart(`c${i}`, "skill") : userMsg(`u${i}`)],
-  })) as any
+  })) as unknown as Parameters<typeof selectMicrocompactParts>[0]
   const selected = selectMicrocompactParts(msgs, 180_000, 200_000)
   expect(selected.length).toBe(0) // all skill outputs are protected
 })
@@ -82,7 +82,7 @@ function toolMsg(id: string, at: number, tool = "read") {
   return {
     info: { role: "assistant", id, time: { created: at, completed: at } },
     parts: [
-      { type: "tool", tool, state: { status: "completed", time: { start: at, end: at } } } as any,
+      { type: "tool", tool, state: { status: "completed", time: { start: at, end: at } } } as unknown as SessionV1.Part,
     ],
   }
 }
@@ -132,7 +132,7 @@ describe("selectTimeBasedParts", () => {
 
   it("returns empty when there are no completed tool parts", () => {
     const msgs = [{ info: { role: "user", id: "u0" }, parts: [] }]
-    expect(selectTimeBasedParts(msgs as any, { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
+    expect(selectTimeBasedParts(msgs as unknown as Parameters<typeof selectTimeBasedParts>[0], { now, gapMinutes: 60, keepRecent: 1 })).toEqual([])
   })
 
   it("fires at the gap boundary (inclusive)", () => {
