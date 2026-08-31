@@ -28,12 +28,12 @@ describe("安全模式降级通道", () => {
 		}
 	})
 
-	test("P3-3：backendChoice 默认 fallback，env 显式覆盖", () => {
+	test("默认 backendChoice = auto（OpenTUI 优先），env 显式覆盖", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
-			// P3-3 默认 fallback（CLI 主入口走自研）
+			// 默认 auto：OpenTUI 完整界面优先，失败降级安全模式
 			delete process.env.GYC_TUI_BACKEND
-			expect(backendChoice()).toBe("fallback")
+			expect(backendChoice()).toBe("auto")
 			// 显式值：auto / opentui / fallback
 			process.env.GYC_TUI_BACKEND = "auto"
 			expect(backendChoice()).toBe("auto")
@@ -41,20 +41,20 @@ describe("安全模式降级通道", () => {
 			expect(backendChoice()).toBe("opentui")
 			process.env.GYC_TUI_BACKEND = "fallback"
 			expect(backendChoice()).toBe("fallback")
-			// 非法值回落默认 fallback
+			// 非法值回落默认 auto
 			process.env.GYC_TUI_BACKEND = "garbage"
-			expect(backendChoice()).toBe("fallback")
+			expect(backendChoice()).toBe("auto")
 		} finally {
 			if (saved === undefined) delete process.env.GYC_TUI_BACKEND
 			else process.env.GYC_TUI_BACKEND = saved
 		}
 	})
 
-	test("P3-3：isExplicitFallback 默认 true（fallback 是默认）", () => {
+	test("isExplicitFallback 默认 false（默认 auto 非显式 fallback）", () => {
 		const saved = process.env.GYC_TUI_BACKEND
 		try {
 			delete process.env.GYC_TUI_BACKEND
-			expect(isExplicitFallback()).toBe(true) // P3-3: default = fallback
+			expect(isExplicitFallback()).toBe(false) // default = auto
 			process.env.GYC_TUI_BACKEND = "auto"
 			expect(isExplicitFallback()).toBe(false)
 			process.env.GYC_TUI_BACKEND = "opentui"

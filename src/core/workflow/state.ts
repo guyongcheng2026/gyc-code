@@ -7,7 +7,7 @@
  *   （成功推进 / 失败重试 / onFailure 跳转 / 终止失败）
  */
 import { Effect, Schema } from "effect"
-import { parse as parseJsonc, printParseErrorCode } from "jsonc-parser"
+import { parse as parseJsonc, printParseErrorCode, type ParseError } from "jsonc-parser"
 import {
   WorkflowDef as WorkflowDefSchema,
   WorkflowRunStep as WorkflowRunStepSchema,
@@ -23,12 +23,12 @@ export class DefinitionError extends Schema.TaggedErrorClass<DefinitionError>()(
 /** 解析工作流定义（支持 JSON / JSONC，缺省 name 用文件名补齐） */
 export const parseDefinition = (name: string, text: string): Effect.Effect<WorkflowDef, DefinitionError> =>
   Effect.gen(function* () {
-    const errors: unknown[] = []
+    const errors: ParseError[] = []
     const value = parseJsonc(text, errors, { allowTrailingComma: true })
     if (errors.length > 0) {
       return yield* Effect.fail(
         new DefinitionError({
-          message: `工作流 ${name} 解析失败: ${errors.map((e) => printParseErrorCode(e.error)).join(", ")}`,
+          message: `工作流 ${name} 解析失败: ${errors.map((e: ParseError) => printParseErrorCode(e.error)).join(", ")}`,
         }),
       )
     }
@@ -62,32 +62,32 @@ export type TransitionResult =
  *   为步骤 id 则跳转（中间步骤标记 skipped），否则终止失败
  */
 export const transitionAfterStep = (
-  input: { steps: WorkflowRunStep[]; index: number; stepDef: WorkflowStepDef; def: WorkflowDef; outcome: StepOutcome },
+  input: { steps: readonly WorkflowRunStep[]; index: number; stepDef: WorkflowStepDef; def: WorkflowDef; outcome: StepOutcome },
   now = Date.now(),
 ): TransitionResult => {
-  const { steps, index, stepDef, def, outcome } = input
+  const { steps: inputSteps, index, stepDef, def, outcome } = input
   if (outcome.ok) {
-    const nextSteps = steps.map((s, i) =>
+    const nextSteps = inputSteps.map((s, i) =>
       i === index ? new WorkflowRunStepSchema({ ...s, status: "done", summary: outcome.summary, timeEnded: now }) : s,
-    )
+    ) as WorkflowRunStep[]
     return { kind: "next", steps: nextSteps, currentStepIndex: index + 1 }
   }
 
-  const stepState = steps[index]!
+  const stepState = inputSteps[index]!
   const retries = stepState.retries ?? 0
   const maxRetry = stepDef.retry ?? 0
   if (retries < maxRetry) {
-    const retrySteps = steps.map((s, i) =>
+    const retrySteps = inputSteps.map((s, i) =>
       i === index ? new WorkflowRunStepSchema({ ...s, status: "pending", retries: retries + 1 }) : s,
-    )
+    ) as WorkflowRunStep[]
     return { kind: "retry", steps: retrySteps }
   }
 
-  const failedSteps = steps.map((s, i) =>
+  const failedSteps = inputSteps.map((s, i) =>
     i === index
       ? new WorkflowRunStepSchema({ ...s, status: "failed", retries, error: outcome.error ?? "", timeEnded: now })
       : s,
-  )
+  ) as WorkflowRunStep[]
   const policy = stepDef.onFailure ?? "stop"
   if (policy === "continue") {
     return { kind: "next", steps: failedSteps, currentStepIndex: index + 1 }
@@ -97,7 +97,7 @@ export const transitionAfterStep = (
     if (targetIndex >= 0) {
       const jumped = failedSteps.map((s, i) =>
         i > index && i < targetIndex ? new WorkflowRunStepSchema({ ...s, status: "skipped", timeEnded: now }) : s,
-      )
+      ) as WorkflowRunStep[]
       return { kind: "jump", steps: jumped, currentStepIndex: targetIndex }
     }
   }

@@ -121,7 +121,7 @@ const CompactCommand = effectCmd({
           .run(sql.raw(`UPDATE part SET data = '${JSON.stringify(data).replace(/'/g, "''")}' WHERE id = '${row.id.replace(/'/g, "''")}'`))
           .pipe(Effect.orDie)
         truncated++
-        freedBytes += output.length - state.output.length
+        freedBytes += output.length - output.length
       }
       offset += PART_BATCH
       if (rows.length < PART_BATCH) break

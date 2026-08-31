@@ -433,7 +433,7 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           return
         }
         state.pending = false
-        void writeJsonAtomicLogged(
+        void writeJsonAtomic(
           filePath,
           {
             pinned: sessionStore.pinned,

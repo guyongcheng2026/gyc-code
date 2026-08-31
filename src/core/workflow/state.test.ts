@@ -77,7 +77,7 @@ describe("transitionAfterStep 状态机", () => {
 
   it("失败未达 retry 上限：原地重试并递增次数", () => {
     const t = transitionAfterStep(
-      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", retry: 2 }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败" } },
+      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", retry: 2 }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败", summary: "" } },
       NOW,
     )
     expect(t.kind).toBe("retry")
@@ -87,7 +87,7 @@ describe("transitionAfterStep 状态机", () => {
 
   it("失败达上限且默认 stop：终止失败", () => {
     const t = transitionAfterStep(
-      { steps: runSteps([{ stepId: "a", retries: 1 }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", retry: 1 }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败" } },
+      { steps: runSteps([{ stepId: "a", retries: 1 }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", retry: 1 }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败", summary: "" } },
       NOW,
     )
     expect(t.kind).toBe("fail")
@@ -98,7 +98,7 @@ describe("transitionAfterStep 状态机", () => {
 
   it("失败达上限且 continue：标记 failed 后继续下一步", () => {
     const t = transitionAfterStep(
-      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", onFailure: "continue" }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败" } },
+      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", onFailure: "continue" }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败", summary: "" } },
       NOW,
     )
     expect(t.kind).toBe("next")
@@ -109,7 +109,7 @@ describe("transitionAfterStep 状态机", () => {
 
   it("失败达上限且跳转到指定步骤：中间步骤标记 skipped", () => {
     const t = transitionAfterStep(
-      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }, { stepId: "c" }]), index: 0, stepDef: step({ id: "a", onFailure: "c" }), def: def([step({ id: "a" }), step({ id: "b" }), step({ id: "c" })]), outcome: { ok: false, error: "失败" } },
+      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }, { stepId: "c" }]), index: 0, stepDef: step({ id: "a", onFailure: "c" }), def: def([step({ id: "a" }), step({ id: "b" }), step({ id: "c" })]), outcome: { ok: false, error: "失败", summary: "" } },
       NOW,
     )
     expect(t.kind).toBe("jump")
@@ -121,7 +121,7 @@ describe("transitionAfterStep 状态机", () => {
 
   it("跳转目标不存在：回退为终止失败", () => {
     const t = transitionAfterStep(
-      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", onFailure: "zzz" }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败" } },
+      { steps: runSteps([{ stepId: "a" }, { stepId: "b" }]), index: 0, stepDef: step({ id: "a", onFailure: "zzz" }), def: def([step({ id: "a" }), step({ id: "b" })]), outcome: { ok: false, error: "失败", summary: "" } },
       NOW,
     )
     expect(t.kind).toBe("fail")

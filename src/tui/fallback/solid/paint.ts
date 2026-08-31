@@ -1,4 +1,5 @@
 import type { CellStyle, Screen } from "../screen"
+import { charWidth } from "../char-width"
 import type { ElementNode, FallbackNode, LayoutRect } from "./nodes"
 
 /**
@@ -22,21 +23,6 @@ import type { ElementNode, FallbackNode, LayoutRect } from "./nodes"
 export interface StyledSpan {
 	readonly text: string
 	readonly style: CellStyle
-}
-
-const charWidth = (ch: string): number => {
-	const code = ch.codePointAt(0)
-	if (code === undefined) return 1
-	if (code < 0x20) return 0
-	if (code >= 0x4e00 && code <= 0x9fff) return 2
-	if (code >= 0x3400 && code <= 0x4dbf) return 2
-	if (code >= 0xff01 && code <= 0xff60) return 2
-	if (code >= 0x3040 && code <= 0x30ff) return 2
-	if (code >= 0xac00 && code <= 0xd7af) return 2
-	if (code >= 0x1f300 && code <= 0x1f9ff) return 2
-	if (code >= 0x1f3fb && code <= 0x1f3ff) return 2
-	if (code >= 0x200d) return 2
-	return 1
 }
 
 export function textDisplayWidth(text: string): number {

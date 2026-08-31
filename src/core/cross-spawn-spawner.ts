@@ -367,9 +367,26 @@ export const make = Effect.gen(function* () {
     ) => {
       const signal = opts?.killSignal ?? "SIGTERM"
       if (Predicate.isUndefined(opts?.forceKillAfter)) return f(command, proc, signal)
+      // P0-7 fix: After SIGKILL, reap the zombie process by awaiting exit
       return Effect.timeoutOrElse(f(command, proc, signal), {
         duration: opts.forceKillAfter,
-        orElse: () => f(command, proc, "SIGKILL"),
+        orElse: () =>
+          // SIGKILL the entire process group (-pid) and wait for exit
+          Effect.sync(() => {
+            try { if (proc.pid) process.kill(-proc.pid, "SIGKILL") } catch {}
+            try { if (proc.pid) process.kill(proc.pid, "SIGKILL") } catch {}
+          }).pipe(
+            // Wait for the process to actually exit (reap zombie)
+            Effect.flatMap(() =>
+              proc.exitCode !== null && proc.signalCode !== null
+                ? Effect.void
+                : Effect.tryPromise({ try: () => new Promise<void>((resolve) => {
+                    const timer = setTimeout(resolve, 1000)
+                    proc.once("exit", () => { clearTimeout(timer); resolve() })
+                  }), catch: () => ({ _tag: "WaitError" as const })
+                  })
+            )
+          ),
       })
     }
 

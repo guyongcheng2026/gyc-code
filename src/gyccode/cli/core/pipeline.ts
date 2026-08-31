@@ -2,6 +2,7 @@
 // 单轮 run / 交互 default / 附着 attach 共享同一执行逻辑
 
 import { createGyccodeClient, type GyccodeClient, type CommandV2Info } from "@gyccode/protocol/v2"
+import type { PermissionRule } from "@gyccode/protocol/v2/gen/types.gen"
 import { Filesystem } from "@/util/filesystem"
 import { pathToFileURL } from "url"
 import path from "path"
@@ -161,35 +162,37 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
 
   if (cont) {
     const list = await sdk.session.list()
-    const base = list.data?.find(item => !item.parentID)
+    const sessions = list.data ?? []
+    const base = sessions.find(item => !item.parentID)
     if (!base) return undefined
-    let targetID = base.id
+    const baseSession = base!
+    let targetID = baseSession.id
     if (fork) {
-      const forked = await sdk.session.fork({ sessionID: base.id })
-      targetID = forked.data?.id ?? base.id
+      const forked = await sdk.session.fork({ sessionID: baseSession.id })
+      targetID = forked.data?.id ?? baseSession.id
     }
-    return { id: targetID, title: base.title, directory: base.directory }
+    return { id: targetID, title: baseSession.title, directory: baseSession.directory }
   }
 
   // 新建会话
-  const permissionRules = [
-    { permission: "question", action: "deny", pattern: "*" },
-    { permission: "plan_enter", action: "deny", pattern: "*" },
-    { permission: "plan_exit", action: "deny", pattern: "*" },
+  const permissionRules: PermissionRule[] = [
+    { permission: "question", action: "deny" as const, pattern: "*" },
+    { permission: "plan_enter", action: "deny" as const, pattern: "*" },
+    { permission: "plan_exit", action: "deny" as const, pattern: "*" },
   ]
-  const model = parseModelInput(input.model)
+  const model: { providerID: string; modelID: string; variant?: string } | undefined = parseModelInput(input.model)
+  const modelConfig = model ? { id: model.modelID, providerID: model.providerID, variant: (model.variant ?? input.variant) } : undefined
   const created = await sdk.session.create({
     title: input.title,
     agent: input.agent,
-    model: model ? { providerID: model.providerID, id: model.modelID, variant: input.variant } : undefined,
+    model: modelConfig,
     permission: permissionRules,
   })
   const id = created.data?.id
   if (!id) {
-    // 暴露服务端错误明细，避免只显示笼统提示拖慢排障（对齐 interactive.ts 先例）
     throw new Error(`Failed to create session: ${created.error ? JSON.stringify(created.error) : "未知错误（无返回数据）"}`)
   }
-  return { id, title: created.data?.title, directory: created.data?.directory }
+  return { id, title: created.data?.title ?? "", directory: created.data?.directory }
 }
 
 // 执行单轮对话或命令
@@ -233,7 +236,7 @@ export async function executeTurn(ctx: ExecutionContext): Promise<string | undef
   const model = parseModelInput(input.model)
   const result = await sdk.session.prompt({
     sessionID,
-    model: model ? { providerID: model.providerID, id: model.modelID, variant: input.variant } : undefined,
+    model: model ? { providerID: model.providerID, modelID: model.modelID } : undefined,
     agent: input.agent,
     variant: input.variant,
     parts: [...fileParts, { type: "text", text: input.message ?? "" }],
@@ -283,7 +286,7 @@ export async function runPipeline(input: PipelineInput): Promise<PipelineResult>
     }
 
     await executeTurn(ctx)
-    return { sessionID: session.id, exitCode: process.exitCode ?? 0 }
+    return { sessionID: session.id, exitCode: (process.exitCode ?? 0) as number }
   } finally {
     cleanup?.()
   }

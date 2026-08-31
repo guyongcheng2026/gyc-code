@@ -2,9 +2,11 @@
 
 import {
   type GyccodeClient,
+  type Session,
   type SessionV2Info,
   type Message,
   type Part,
+  type PermissionRule,
 } from "@gyccode/protocol/v2"
 
 export type SessionMessageEntry = { info: Message; parts: Array<Part> }
@@ -14,7 +16,7 @@ export interface SessionManagerOptions {
   defaultAgent?: string
   defaultModel?: string
   defaultVariant?: string
-  permissionRules?: Array<{ permission: string; action: string; pattern: string }>
+  permissionRules?: Array<{ permission: string; action: "allow" | "deny" | "ask"; pattern: string }>
 }
 
 export interface SessionSummary {
@@ -32,7 +34,7 @@ export class SessionManager {
   private defaultAgent: string
   private defaultModel?: string
   private defaultVariant?: string
-  private permissionRules: Array<{ permission: string; action: string; pattern: string }>
+  private permissionRules: Array<{ permission: string; action: "allow" | "deny" | "ask"; pattern: string }>
 
   constructor(options: SessionManagerOptions) {
     this.sdk = options.sdk
@@ -40,10 +42,10 @@ export class SessionManager {
     this.defaultModel = options.defaultModel
     this.defaultVariant = options.defaultVariant
     this.permissionRules = options.permissionRules ?? [
-      { permission: "question", action: "deny", pattern: "*" },
-      { permission: "plan_enter", action: "deny", pattern: "*" },
-      { permission: "plan_exit", action: "deny", pattern: "*" },
-    ]
+      { permission: "question", action: "deny" as const, pattern: "*" },
+      { permission: "plan_enter", action: "deny" as const, pattern: "*" },
+      { permission: "plan_exit", action: "deny" as const, pattern: "*" },
+    ] as const
   }
 
   // 创建新会话
@@ -62,7 +64,7 @@ export class SessionManager {
   }
 
   // 获取会话详情
-  async get(sessionId: string): Promise<SessionV2Info | undefined> {
+  async get(sessionId: string): Promise<Session | undefined> {
     const result = await this.sdk.session.get({ sessionID: sessionId }).catch(() => undefined)
     return result?.data
   }
@@ -111,7 +113,7 @@ export class SessionManager {
 
   // 重命名会话
   async rename(sessionId: string, title: string): Promise<boolean> {
-    const result = await this.sdk.session.rename({ sessionID: sessionId, title })
+    const result = await this.sdk.session.update({ sessionID: sessionId, title })
     return !result.error
   }
 
@@ -123,8 +125,28 @@ export class SessionManager {
 
   // 导出会话
   async export(sessionId: string, format: "json" | "markdown" = "json"): Promise<string | undefined> {
-    const result = await this.sdk.session.export({ sessionID: sessionId, format })
-    return result.data?.content
+    const session = await this.get(sessionId)
+    if (!session) return undefined
+    const messagesResult = await this.sdk.session.messages({ sessionID: sessionId })
+    const messages = messagesResult.data ?? []
+    if (format === "json") {
+      return JSON.stringify({ session, messages }, null, 2)
+    }
+    let md = `# ${session.title || session.id}\n\n`
+    for (const msg of messages) {
+      const time = new Date(msg.info.time?.created || 0).toLocaleString()
+      md += `## ${msg.info.role} (${time})\n\n`
+      for (const part of msg.parts) {
+        if (part.type === "text" && part.text) {
+          md += `${part.text}\n\n`
+        } else if (part.type === "tool") {
+          md += `**Tool: ${part.tool}**\n\n\`\`\`json\n${JSON.stringify(part.state.input, null, 2)}\n\`\`\`\n\n`
+        } else if (part.type === "reasoning" && part.text) {
+          md += `*Reasoning:* ${part.text}\n\n`
+        }
+      }
+    }
+    return md
   }
 
   // 获取会话消息
@@ -149,15 +171,15 @@ export class SessionManager {
     return !result.error
   }
 
-  // 获取会话权限
-  async getPermissions(sessionId: string): Promise<Array<{ permission: string; action: string; pattern: string }> | undefined> {
-    const result = await this.sdk.session.permission.list({ sessionID: sessionId })
-    return result.data
+  // 获取会话权限（从会话数据中读取）
+  async getPermissions(sessionId: string): Promise<PermissionRule[] | undefined> {
+    const session = await this.get(sessionId)
+    return session?.permission
   }
 
   // 设置会话权限
-  async setPermissions(sessionId: string, rules: Array<{ permission: string; action: string; pattern: string }>): Promise<boolean> {
-    const result = await this.sdk.session.permission.update({ sessionID: sessionId, rules })
+  async setPermissions(sessionId: string, rules: PermissionRule[]): Promise<boolean> {
+    const result = await this.sdk.session.update({ sessionID: sessionId, permission: rules })
     return !result.error
   }
 

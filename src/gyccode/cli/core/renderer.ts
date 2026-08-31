@@ -36,7 +36,7 @@ export class StreamRenderer {
 
   async render(
     messagePromise: Promise<unknown>,
-    events: AsyncIterable<unknown>
+    events: Awaited<ReturnType<GyccodeClient["event"]["subscribe"]>>
   ): Promise<string | undefined> {
     const completed = streamLoop({
       client: this.client,
@@ -60,7 +60,8 @@ export class StreamRenderer {
 // JSON 格式化器
 export class JsonFormatter {
   static formatEvent(event: unknown): string {
-    return JSON.stringify({ ...event, timestamp: Date.now() }) + "\n"
+    const obj = event && typeof event === "object" ? event as Record<string, unknown> : {}
+    return JSON.stringify({ ...obj, timestamp: Date.now() }) + "\n"
   }
 
   static formatError(error: unknown): string {

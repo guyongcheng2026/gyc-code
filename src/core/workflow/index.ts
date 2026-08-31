@@ -1,6 +1,6 @@
 export * as WorkflowV2 from "./index"
 
-import { Context, Duration, Effect, Layer, Schema, Stream } from "effect"
+import { Context, Duration, Effect, Fiber, Layer, Schema, Stream } from "effect"
 import { eq } from "drizzle-orm"
 import {
   WorkflowRun as WorkflowRunSchema,
@@ -42,21 +42,23 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Wor
   id: Schema.String,
 }) {}
 
-export type Error = NotFoundError | DefinitionError
+import type { EffectDrizzleQueryError } from "drizzle-orm/effect-core/errors"
+
+export type Error = NotFoundError | DefinitionError | FSUtil.Error | EffectDrizzleQueryError
 
 export interface Interface {
   /** 列出指定目录可用的工作流定义 */
-  readonly defs: (directory: string) => Effect.Effect<WorkflowDef[]>
+  readonly defs: (directory: string) => Effect.Effect<WorkflowDef[], Error>
   /** 读取单个工作流定义 */
-  readonly def: (name: string, directory: string) => Effect.Effect<WorkflowDef | undefined>
+  readonly def: (name: string, directory: string) => Effect.Effect<WorkflowDef | undefined, Error>
   /** 启动一次工作流运行（立即开始执行首个步骤） */
-  readonly start: (input: { workflow: string; sessionID: string; directory: string }) => Effect.Effect<WorkflowRun>
+  readonly start: (input: { workflow: string; sessionID: string; directory: string }) => Effect.Effect<WorkflowRun, Error>
   /** 查询一次运行 */
-  readonly get: (runID: string) => Effect.Effect<WorkflowRun | undefined>
+  readonly get: (runID: string) => Effect.Effect<WorkflowRun | undefined, Error>
   /** 列出运行（可按目录过滤） */
-  readonly list: (directory?: string) => Effect.Effect<WorkflowRun[]>
+  readonly list: (directory?: string) => Effect.Effect<WorkflowRun[], Error>
   /** 终止运行 */
-  readonly abort: (runID: string) => Effect.Effect<void, NotFoundError>
+  readonly abort: (runID: string) => Effect.Effect<void, Error>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/v2/Workflow") {}
@@ -68,8 +70,8 @@ const loadFromDir = (dir: string, fs: FSUtil.Interface) =>
   Effect.gen(function* () {
     const exists = yield* fs.existsSafe(dir)
     if (!exists) return [] as WorkflowDef[]
-    const files = yield* Glob.scan(join2(dir, "*.json")).pipe(Effect.orElseSucceed(() => [] as string[]))
-    const jsonc = yield* Glob.scan(join2(dir, "*.jsonc")).pipe(Effect.orElseSucceed(() => [] as string[]))
+    const files = yield* Effect.promise(() => Glob.scan(join2(dir, "*.json"))).pipe(Effect.orElseSucceed(() => [] as string[]))
+    const jsonc = yield* Effect.promise(() => Glob.scan(join2(dir, "*.jsonc"))).pipe(Effect.orElseSucceed(() => [] as string[]))
     const result: WorkflowDef[] = []
     for (const file of [...files, ...jsonc]) {
       const name = file.split(/[\\/]/).pop()!.replace(/\.(jsonc?|yaml|yml)$/i, "")
@@ -111,28 +113,33 @@ const layer = Layer.effect(
     const updateRun = (
       runID: string,
       patch: Partial<Pick<WorkflowRun, "status" | "currentStepIndex" | "steps" | "error" | "timeUpdated">>,
-    ) => db.update(WorkflowRunTable).set({ ...patch, time_updated: Date.now() }).where(eq(WorkflowRunTable.id, runID))
+    ) => db.update(WorkflowRunTable).set({ ...patch, time_updated: Date.now(), steps: patch.steps as any }).where(eq(WorkflowRunTable.id, runID))
 
     const readRun = (runID: string) =>
       db.select().from(WorkflowRunTable).where(eq(WorkflowRunTable.id, runID)).limit(1).pipe(
         Effect.map((rows) => (rows.length > 0 ? decodeRun(rows[0]!) : undefined)),
+        Effect.orDie,
       )
 
-    const stepFailedSince = (sessionID: string, after: number) =>
+    const stepFailedSince = (sessionID: string, after: number): Effect.Effect<boolean> =>
       events
         .durable({ aggregateID: sessionID, after })
         .pipe(Stream.runCollect, Effect.map((items) => items.some((item) => item.type === "session.next.step.failed")))
 
     const lastAssistantSummary = (sessionID: string) =>
-      sessions.context(sessionID).pipe(
+      sessions.context(sessionID as any).pipe(
         Effect.map((messages) => {
           for (let i = messages.length - 1; i >= 0; i--) {
             const message = messages[i]!
             if (message.type !== "assistant") continue
-            const text = message.content
-              .filter((part) => part.type === "text" && typeof part.text === "string")
-              .map((part) => part.text as string)
-              .join("")
+            const parts = message.content as ReadonlyArray<{ type: string; text?: unknown }>
+            let text = ""
+            for (const part of parts) {
+              if (part.type === "text" && typeof part.text === "string") {
+                text += part.text
+              }
+            }
+            if (text.length > SUMMARY_MAX) text = text.slice(0, SUMMARY_MAX)
             if (text.length > 0) return text.slice(0, SUMMARY_MAX)
           }
           return ""
@@ -150,11 +157,11 @@ const layer = Layer.effect(
         yield* updateRun(run.id, { steps: nextSteps })
 
         const promptText = [step.prompt, step.verify ? `\n\n验证要求：${step.verify}\n完成后请说明验证结论与结果摘要。` : ""].join("")
-        yield* sessions.prompt({ sessionID: run.sessionID, prompt: { text: promptText } })
+        yield* sessions.prompt({ sessionID: run.sessionID as any, prompt: { text: promptText } })
 
         const deadline = Date.now() + Duration.toMillis(STEP_TIMEOUT)
         for (;;) {
-          const active = yield* sessions.active
+          const active = yield* (sessions.active as Effect.Effect<ReadonlySet<string>>) as Effect.Effect<Set<string>>
           if (!active.has(run.sessionID)) {
             const failed = yield* stepFailedSince(run.sessionID, cursor)
             if (failed) {
@@ -174,7 +181,7 @@ const layer = Layer.effect(
         }
       })
 
-    const patchSteps = (runID: string, run: WorkflowRun, steps: WorkflowRunStep[]) => updateRun(runID, { steps })
+    const patchSteps = (runID: string, run: WorkflowRun, steps: WorkflowRunStep[]) => updateRun(runID, { steps: steps as any })
 
     /** 驱动一次运行直至结束（进程内 fiber） */
     const drive = (runID: string) =>
@@ -196,21 +203,25 @@ const layer = Layer.effect(
             const stepDef = def.steps[index]!
             const outcome = yield* executeStep(run, stepDef)
             const transition = transitionAfterStep({ steps: run.steps, index, stepDef, def, outcome })
+            const transitionSteps: WorkflowRunStep[] = []
+            for (const step of transition.steps) {
+              transitionSteps.push(step)
+            }
             if (transition.kind === "next") {
-              yield* patchSteps(runID, run, transition.steps)
+              yield* patchSteps(runID, run, transitionSteps)
               yield* updateRun(runID, { currentStepIndex: transition.currentStepIndex })
               continue
             }
             if (transition.kind === "retry") {
-              yield* patchSteps(runID, run, transition.steps)
+              yield* patchSteps(runID, run, transitionSteps)
               continue
             }
             if (transition.kind === "jump") {
-              yield* patchSteps(runID, run, transition.steps)
+              yield* patchSteps(runID, run, transitionSteps)
               yield* updateRun(runID, { currentStepIndex: transition.currentStepIndex })
               continue
             }
-            yield* patchSteps(runID, run, transition.steps)
+            yield* patchSteps(runID, run, transitionSteps)
             yield* updateRun(runID, { status: "failed", error: transition.error })
             return
           }
@@ -220,9 +231,9 @@ const layer = Layer.effect(
       })
 
     return Service.of({
-      defs: (directory) => loadDefs(directory),
-      def: (name, directory) => loadDef(name, directory),
-      start: ({ workflow, sessionID, directory }) =>
+      defs: (directory: string): Effect.Effect<WorkflowDef[], Error> => loadDefs(directory),
+      def: (name: string, directory: string): Effect.Effect<WorkflowDef | undefined, Error> => loadDef(name, directory),
+      start: ({ workflow, sessionID, directory }: { workflow: string; sessionID: string; directory: string }): Effect.Effect<WorkflowRun, Error> =>
         Effect.gen(function* () {
           const def = yield* loadDef(workflow, directory)
           if (!def) return yield* Effect.fail(new DefinitionError({ message: `工作流定义不存在: ${workflow}` }))
@@ -238,28 +249,28 @@ const layer = Layer.effect(
             timeCreated: Date.now(),
             timeUpdated: Date.now(),
           })
-          yield* db.insert(WorkflowRunTable).values({
+          yield* db.insert(WorkflowRunTable).values([{
             id: run.id,
             workflow: run.workflow,
             session_id: run.sessionID,
             directory: run.directory,
             status: run.status,
             current_step_index: run.currentStepIndex,
-            steps: run.steps,
-          })
+            steps: run.steps as any,
+          }])
           if (!activeDrivers.has(runID)) {
             activeDrivers.add(runID)
-            yield* Effect.forkDaemon(drive(runID))
+            yield* Effect.forkChild(drive(runID))
           }
           return run
         }),
-      get: (runID) => readRun(runID),
-      list: (directory) =>
+      get: (runID: string): Effect.Effect<WorkflowRun | undefined, Error> => readRun(runID),
+      list: (directory?: string): Effect.Effect<WorkflowRun[], Error> =>
         db.select().from(WorkflowRunTable).pipe(
           Effect.map((rows) => rows.map((row) => decodeRun(row))),
           Effect.map((runs) => (directory ? runs.filter((r) => r.directory === directory) : runs)),
         ),
-      abort: (runID) =>
+      abort: (runID: string): Effect.Effect<void, Error> =>
         Effect.gen(function* () {
           const run = yield* readRun(runID)
           if (!run) return yield* Effect.fail(new NotFoundError({ id: runID }))

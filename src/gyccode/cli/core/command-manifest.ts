@@ -1,5 +1,5 @@
 // 自动生成，勿手动编辑
-// 生成时间: 2026-08-27T13:59:52.815Z
+// 生成时间: 2026-08-29T04:42:32.893Z
 
 export interface CommandManifest {
   version: string
@@ -26,7 +26,7 @@ export interface CommandSpec {
 
 export const commandManifest: CommandManifest = {
   "version": "1.0",
-  "generatedAt": "2026-08-27T13:59:52.815Z",
+  "generatedAt": "2026-08-29T04:42:32.893Z",
   "commands": [
     {
       "name": "add-dir",
@@ -420,6 +420,20 @@ export const commandManifest: CommandManifest = {
       "executor": "builtin",
       "aliases": [],
       "requiresSession": true
+    },
+    {
+      "name": "renderer",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "config",
+      "tuiOnly": true,
+      "executor": "builtin"
+    },
+    {
+      "name": "renderer.select",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "system",
+      "executor": "builtin",
+      "tuiOnly": false
     },
     {
       "name": "rewind",
@@ -987,6 +1001,20 @@ export const commandManifest: CommandManifest = {
       "aliases": [],
       "requiresSession": true
     },
+    "renderer": {
+      "name": "renderer",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "config",
+      "tuiOnly": true,
+      "executor": "builtin"
+    },
+    "renderer.select": {
+      "name": "renderer.select",
+      "description": "选择渲染器（opentui / fallback）",
+      "category": "system",
+      "executor": "builtin",
+      "tuiOnly": false
+    },
     "rewind": {
       "name": "rewind",
       "description": "回退到历史某点",
@@ -1177,6 +1205,7 @@ export const commandManifest: CommandManifest = {
       "logout",
       "mode.lock",
       "release_notes",
+      "renderer.select",
       "status",
       "switch",
       "title.toggle",
@@ -1239,6 +1268,7 @@ export const commandManifest: CommandManifest = {
       "memory",
       "output-style",
       "release-notes",
+      "renderer",
       "themes",
       "thinking",
       "timestamps",

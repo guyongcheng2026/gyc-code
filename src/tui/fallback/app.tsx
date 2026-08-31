@@ -70,19 +70,21 @@ export function FallbackApp(props: FallbackAppProps): JSX.Element {
 	}
 
 	const handleSubmit = (text: string) => {
-		pushLocal({ id: `u-${Date.now()}`, label: "你", text, kind: "user" })
 		if (props.chat) {
+			// 会话引擎桥接时 UI 统一读 chat.rows()：send 内部回显用户消息，
+			// assistant 回复经事件流追加；本地回显仅无 bridge 时兜底。
 			props.chat.send(text)
-		} else {
-			setTimeout(() => {
-				pushLocal({
-					id: `a-${Date.now()}`,
-					label: "回显",
-					text: `已收到 ${text.length} 字符（无会话引擎，本地回显模式）`,
-					kind: "system",
-				})
-			}, 200)
+			return
 		}
+		pushLocal({ id: `u-${Date.now()}`, label: "你", text, kind: "user" })
+		setTimeout(() => {
+			pushLocal({
+				id: `a-${Date.now()}`,
+				label: "回显",
+				text: `已收到 ${text.length} 字符（无会话引擎，本地回显模式）`,
+				kind: "system",
+			})
+		}, 200)
 	}
 
 	const handleKey = (key: Key): void => {

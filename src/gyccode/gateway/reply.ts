@@ -119,7 +119,7 @@ function resolveNodeTaskEntry(cwd: string): string {
 }
 
 /** 双杀兜底：先 SIGTERM，5s 后 SIGKILL，确保子进程必然退出、Promise 必然落定。 */
-function armKillTimer(kill: (sig?: unknown) => unknown, timeoutMs: number): ReturnType<typeof setTimeout> {
+function armKillTimer(kill: (sig?: NodeJS.Signals | number) => unknown, timeoutMs: number): ReturnType<typeof setTimeout> {
   const timer = setTimeout(() => {
     try {
       kill()

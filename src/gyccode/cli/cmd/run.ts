@@ -1,4 +1,4 @@
-﻿import type { PermissionV1 } from "@gyccode/core/v1/permission"
+import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { readStdin } from "../../../core/util/read-stdin"
 import { FSUtil } from "@gyccode/core/fs-util"
 // CLI entry point for `gyccode run`.
@@ -609,7 +609,7 @@ export const RunCommand = effectCmd({
       // （watcher/location services/UTF8 守护轮询），event loop 不空会让
       // 进程在会话结束后永久挂起（实测 RSS 260MB 悬挂数分钟）。
       async function exitWhenFlushed() {
-        await new Promise<void>((resolve) => process.stdout.write("", resolve))
+        await new Promise<void>((resolve) => process.stdout.write("", () => resolve()))
         // 让出事件循环数拍，等待错误路径下进行中的 libuv async handle
         // 关闭完成，避免 process.exit 触发 uv_async_send 断言崩溃
         // （Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)）。

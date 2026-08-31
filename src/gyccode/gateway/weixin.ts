@@ -36,7 +36,7 @@ const acquireSendSlot = async (accountId: string): Promise<() => void> => {
   })
   sendGate.set(
     accountId,
-    previous.then(() => new Promise<void>((resolve) => setTimeout(resolve, SEND_MIN_INTERVAL_MS))).then(() => release),
+    previous.then(() => new Promise<void>((resolve) => setTimeout(resolve, SEND_MIN_INTERVAL_MS))).then(() => { release(); }),
   )
   await previous
   return () => {
@@ -251,10 +251,10 @@ export class WeixinAdapter implements GatewayAdapter {
         const ctxToken = await this.contextToken(chatId)
         if (ctxToken) message.msg.context_token = ctxToken
         let attempt = 0
-        let response: Awaited<ReturnType<typeof apiPost>>
+        let response: GatewayError | IlinkBaseResponse
         for (;;) {
           response = await apiPost(config, ENDPOINT_SEND, message, SEND_TIMEOUT_MS).catch(
-            (cause: GatewayError) => cause as unknown as GatewayError,
+            (cause: GatewayError) => cause,
           )
           if (response instanceof GatewayError) {
             lastError = response
@@ -292,7 +292,7 @@ export class WeixinAdapter implements GatewayAdapter {
     const stored = await readJson<{ accountId?: string; buf?: string }>("sync-buf.json")
     let syncBuf = stored?.accountId === this.config!.accountId ? (stored.buf ?? "") : ""
     while (this.running && !abort.aborted) {
-      const response = await apiPost(this.config!, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
+      const response: GatewayError | IlinkPollResponse = await apiPost(this.config!, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
         (cause: GatewayError) => cause,
       )
       if (response instanceof GatewayError) {

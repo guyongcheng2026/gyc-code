@@ -8,12 +8,12 @@ import type { Part, ToolPart } from "@gyccode/protocol/v2"
  * 可消费的最小会话模型：ChatRow 流 + send()。
  *
  * 事件策略（最小可用）：
- * - message.updated：记录 messageID → role（user 消息的 part 跳过——本地已回显）
- * - message.part.updated：按 part.id upsert 行；text/tool/reasoning 有内容，
- *   其余类型（step-start/finish、snapshot、patch、agent、retry、compaction）
- *   以占位行呈现或忽略
- * - 流式 delta 事件（session.next.text.delta 等）忽略——part.updated 携带
- *   累计文本，足够驱动流式观感
+ * - session.next.text.delta / .ended：v2 异步调度路径的回复事件（实测
+ *   server 回复流式文本走 session.next.*，而非 message.part.updated）；
+ *   delta 增量累积驱动流式观感，ended 携带完整文本兜底对齐。
+ * - message.updated / message.part.updated：兼容旧事件源（部分场景仍发）。
+ * - send 走 v2 session.prompt（/api/session/:id/prompt，异步调度 + 事件流）；
+ *   v1 的 session.prompt 流式返回不产生异步事件，且路由在 worker 内不存在。
  */
 
 export interface ChatRow {
@@ -49,10 +49,14 @@ export interface ChatBridgeOptions {
 export interface ChatClientLike {
 	session: {
 		create: (input: { directory?: string }) => Promise<{ data?: { id: string }; error?: unknown }>
-		prompt: (
-			input: { sessionID: string; parts: Array<{ type: "text"; text: string }> },
-			options?: { throwOnError?: boolean },
-		) => Promise<unknown>
+	}
+	v2: {
+		session: {
+			prompt: (
+				input: { sessionID: string; prompt: { text: string } },
+				options?: { throwOnError?: boolean },
+			) => Promise<unknown>
+		}
 	}
 }
 
@@ -64,6 +68,14 @@ interface PartUpdatedEvent {
 interface MessageUpdatedEvent {
 	type: "message.updated"
 	properties: { sessionID: string; info: { id: string; role: string } }
+}
+interface TextDeltaEvent {
+	type: "session.next.text.delta"
+	properties: { sessionID: string; assistantMessageID: string; textID: string; delta: string }
+}
+interface TextEndedEvent {
+	type: "session.next.text.ended"
+	properties: { sessionID: string; assistantMessageID: string; textID: string; text: string }
 }
 
 /** wire 事件外壳（GlobalEvent = { directory, payload }）。 */
@@ -80,6 +92,18 @@ const isPartUpdated = (e: unknown): e is PartUpdatedEvent =>
 	typeof e === "object" && e !== null && (e as PartUpdatedEvent).type === "message.part.updated" && typeof (e as PartUpdatedEvent).properties?.part === "object"
 const isMessageUpdated = (e: unknown): e is MessageUpdatedEvent =>
 	typeof e === "object" && e !== null && (e as MessageUpdatedEvent).type === "message.updated" && typeof (e as MessageUpdatedEvent).properties?.info?.role === "string"
+const isTextDelta = (e: unknown): e is TextDeltaEvent =>
+	typeof e === "object" &&
+	e !== null &&
+	(e as TextDeltaEvent).type === "session.next.text.delta" &&
+	typeof (e as TextDeltaEvent).properties?.textID === "string" &&
+	typeof (e as TextDeltaEvent).properties?.delta === "string"
+const isTextEnded = (e: unknown): e is TextEndedEvent =>
+	typeof e === "object" &&
+	e !== null &&
+	(e as TextEndedEvent).type === "session.next.text.ended" &&
+	typeof (e as TextEndedEvent).properties?.textID === "string" &&
+	typeof (e as TextEndedEvent).properties?.text === "string"
 
 function partToRow(part: Part): ChatRow | undefined {
 	switch (part.type) {
@@ -119,6 +143,9 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 	const roles = new Map<string, string>()
 	let sessionID: string | undefined
 	let offEvents: (() => void) | undefined
+	// 流式文本累积：textID -> 已到达文本（session.next.text.delta 增量）
+	const textStreams = new Map<string, string>()
+	let localSeq = 0
 
 	const upsert = (row: ChatRow) => {
 		setRows((prev) => {
@@ -148,6 +175,21 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 					n += 1
 				}
 			}
+			return
+		}
+		if (isTextDelta(event)) {
+			const p = event.properties
+			if (sessionID !== undefined && p.sessionID !== sessionID) return
+			const text = (textStreams.get(p.textID) ?? "") + p.delta
+			textStreams.set(p.textID, text)
+			upsert({ id: `t-${p.textID}`, label: "助手", text, kind: "assistant" })
+			return
+		}
+		if (isTextEnded(event)) {
+			const p = event.properties
+			if (sessionID !== undefined && p.sessionID !== sessionID) return
+			textStreams.delete(p.textID)
+			upsert({ id: `t-${p.textID}`, label: "助手", text: p.text, kind: "assistant" })
 			return
 		}
 		if (!isPartUpdated(event)) return
@@ -182,13 +224,15 @@ export async function createChatBridge(options: ChatBridgeOptions): Promise<Chat
 	}
 
 	const send = (text: string) => {
+		// 本地回显用户消息（UI 统一读 chat.rows()，assistant 事件按 textID 追加）
+		upsert({ id: `u-${Date.now()}-${localSeq++}`, label: "你", text, kind: "user" })
 		void (async () => {
 			const id = await ensureSession()
 			if (id === undefined) return
-			const res = (await client.session.prompt(
+			const res = (await client.v2.session.prompt(
 				{
 					sessionID: id,
-					parts: [{ type: "text", text }],
+					prompt: { text },
 				},
 				{ throwOnError: false },
 			)) as { error?: { message?: string } } | undefined

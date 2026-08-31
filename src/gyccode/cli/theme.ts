@@ -282,7 +282,7 @@ export const Typography: Record<string, string> =
         strikethroughOff: "\x1b[29m",
       }
 
-export type CliTheme = typeof TokyoNight
+export type CliThemeType = typeof TokyoNight
 
 /** 兼容导出：当前主题（东京夜） */
 export const currentTheme = theme

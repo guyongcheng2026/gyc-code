@@ -19,16 +19,17 @@ export type TuiBackendChoice = "opentui" | "fallback" | "auto"
 
 /**
  * 解析最终渲染后端选择。
- * 优先级：环境变量 GYC_TUI_BACKEND > 配置文件 configRenderer > 默认 "fallback"（P3-3）。
+ * 优先级：环境变量 GYC_TUI_BACKEND > 配置文件 configRenderer > 默认 "auto"。
+ * auto = OpenTUI 优先，创建/运行失败时自动降级（安全模式），保证兜底可用。
  * @param configRenderer 来自 TuiConfig.renderer（可选：auto/opentui/fallback）
  */
 export function backendChoice(configRenderer?: "auto" | "opentui" | "fallback"): TuiBackendChoice {
 	const envValue = process.env.GYC_TUI_BACKEND
 	if (envValue === "opentui" || envValue === "fallback" || envValue === "auto") return envValue
 	if (configRenderer === "opentui" || configRenderer === "fallback") return configRenderer
-	if (configRenderer === "auto") return "fallback" // auto 也走 fallback 默认
-	// P3-3：CLI 主入口默认走自研 fallback（v0.0.1 灰度切回）
-	return "fallback"
+	if (configRenderer === "auto") return "auto"
+	// 默认 auto：OpenTUI 完整界面优先，失败时降级安全模式兜底
+	return "auto"
 }
 
 /** 是否允许失败时自动降级到安全模式（opentui 显式禁用）。 */

@@ -125,7 +125,7 @@ const layer = Layer.effectDiscard(
             { type: "text", text: output.output },
             { type: "text", text: modelOutput(output) },
           ],
-          execute: (input, context) =>
+          execute: (input, context): Effect.Effect<typeof Output.Type, ToolFailure, never> =>
             Effect.gen(function* () {
               const source = {
                 type: "tool" as const,
@@ -151,18 +151,20 @@ const layer = Layer.effectDiscard(
               if (enforcement?.block_external_paths && externalDirectories.length > 0) {
                 // allow_paths 单条解析失败不再整体报错（此前会被 mapError 吞成笼统错误）：
                 // 跳过无效条目并在 warnings 显式列出，合法条目照常生效
-                const allowPathEntries = yield* Effect.forEach(
+                const allowPathEntries = (yield* Effect.forEach(
                   enforcement.allow_paths ?? [],
                   (value) =>
                     fs.resolve(value).pipe(
                       Effect.map((resolved) => [value, resolved] as const),
-                      Effect.catchAll(() => Effect.succeed([value, undefined] as const)),
+                      Effect.catchCause(() => Effect.succeed([value, undefined] as const)),
                     ),
-                )
+                )) as unknown as readonly [string, string | undefined][]
                 const allowedRoots = allowPathEntries
-                  .filter((entry): entry is readonly [string, string] => entry[1] !== undefined)
+                  .filter<[string, string]>((entry): entry is [string, string] => entry[1] !== undefined)
                   .map((entry) => entry[1])
-                invalidAllowPaths = allowPathEntries.filter((entry) => entry[1] === undefined).map(([value]) => value)
+                invalidAllowPaths = allowPathEntries
+                  .filter<[string, undefined]>((entry): entry is [string, undefined] => entry[1] === undefined)
+                  .map(([value]) => value)
                 const blocked = blockedExternalPaths(externalDirectories, allowedRoots)
                 if (blocked.length > 0)
                   return yield* Effect.fail(

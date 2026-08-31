@@ -16,7 +16,7 @@ const ENV_FILES = [
   join(homedir(), ".codex", ".env"),
   join(process.cwd(), ".env"),
 ]
-// 禁止注入的危险环境变量（影响子进程行为、安全边界）
+// 绂佹娉ㄥ叆鐨勫嵄闄╃幆澧冨彉閲忥紙褰卞搷瀛愯繘绋嬭涓恒€佸畨鍏ㄨ竟鐣岋級
 const BLOCKLISTED_ENVS = new Set([
   "PATH",
   "NODE_OPTIONS",
@@ -42,9 +42,9 @@ for (const file of ENV_FILES) {
   if (!existsSync(file)) continue
   for (const rawLine of readFileSync(file, "utf-8").split(/\r?\n/)) {
     const line = rawLine.trim()
-    if (!line || line.startsWith("#")) continue // 跳过空行和注释
-    // 支持行内注释：KEY=value # comment 或 KEY=value#comment
-    // 找到第一个不在引号内的 # 字符
+    if (!line || line.startsWith("#")) continue // 璺宠繃绌鸿鍜屾敞閲?
+    // 鏀寔琛屽唴娉ㄩ噴锛欿EY=value # comment 鎴?KEY=value#comment
+    // 鎵惧埌绗竴涓笉鍦ㄥ紩鍙峰唴鐨?# 瀛楃
     let hashIdx = -1
     let inQuote = false
     let quoteChar = ""
@@ -65,9 +65,9 @@ for (const file of ENV_FILES) {
     const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(cleanLine)
     if (!m || process.env[m[1]] !== undefined) continue
     const key = m[1]
-    if (BLOCKLISTED_ENVS.has(key)) continue // 阻断危险环境变量注入
-    // 贪婪 (.*) 会吞掉行尾空白，先 trim；再按 dotenv 惯例剥离成对首尾引号
-    // （API_KEY="sk-xxx" → sk-xxx），否则引号会原样进入环境变量导致认证失败
+    if (BLOCKLISTED_ENVS.has(key)) continue // 闃绘柇鍗遍櫓鐜鍙橀噺娉ㄥ叆
+    // 璐┆ (.*) 浼氬悶鎺夎灏剧┖鐧斤紝鍏?trim锛涘啀鎸?dotenv 鎯緥鍓ョ鎴愬棣栧熬寮曞彿
+    // 锛圓PI_KEY="sk-xxx" 鈫?sk-xxx锛夛紝鍚﹀垯寮曞彿浼氬師鏍疯繘鍏ョ幆澧冨彉閲忓鑷磋璇佸け璐?
     let value = m[2].trim()
     if (
       value.length >= 2 &&
@@ -78,17 +78,17 @@ for (const file of ENV_FILES) {
     process.env[key] = value
   }
 }
-// Windows conhost 默认按系统 ANSI 代码页（如 936/GBK）解码 UTF-8 字节流，
-// 导致 TUI 底部 spinner（Braille 字符）与中文状态文本显示为乱码。启动时
-// 将控制台输出代码页切换为 UTF-8（65001），幂等且对 Windows Terminal 无副作用。
+// Windows conhost 榛樿鎸夌郴缁?ANSI 浠ｇ爜椤碉紙濡?936/GBK锛夎В鐮?UTF-8 瀛楄妭娴侊紝
+// 瀵艰嚧 TUI 搴曢儴 spinner锛圔raille 瀛楃锛変笌涓枃鐘舵€佹枃鏈樉绀轰负涔辩爜銆傚惎鍔ㄦ椂
+// 灏嗘帶鍒跺彴杈撳嚭浠ｇ爜椤靛垏鎹负 UTF-8锛?5001锛夛紝骞傜瓑涓斿 Windows Terminal 鏃犲壇浣滅敤銆?
 win32InstallUtf8ConsoleGuard()
 tuiTiming("entry module evaluated (static imports done)")
-// 注意：禁止对 stdin/stdout/stderr 调用 setEncoding。
-// 1) Windows 控制台 TTY 上 stdin.setEncoding 会触发 libuv 断言崩溃
-//    （Assertion failed: 0, file src\win\req-inl.h）；
-// 2) OpenTUI 的 StdinParser 依赖原始字节流（Buffer）解析键盘事件，
-//    设置编码后 data 事件变为 string，中文输入、/命令选择、模型切换全部失效。
-// 乱码问题由 win32InstallUtf8ConsoleGuard() 运行期守护切换控制台代码页 65001 解决。
+// 娉ㄦ剰锛氱姝㈠ stdin/stdout/stderr 璋冪敤 setEncoding銆?
+// 1) Windows 鎺у埗鍙?TTY 涓?stdin.setEncoding 浼氳Е鍙?libuv 鏂█宕╂簝
+//    锛圓ssertion failed: 0, file src\win\req-inl.h锛夛紱
+// 2) OpenTUI 鐨?StdinParser 渚濊禆鍘熷瀛楄妭娴侊紙Buffer锛夎В鏋愰敭鐩樹簨浠讹紝
+//    璁剧疆缂栫爜鍚?data 浜嬩欢鍙樹负 string锛屼腑鏂囪緭鍏ャ€?鍛戒护閫夋嫨銆佹ā鍨嬪垏鎹㈠叏閮ㄥけ鏁堛€?
+// 涔辩爜闂鐢?win32InstallUtf8ConsoleGuard() 杩愯鏈熷畧鎶ゅ垏鎹㈡帶鍒跺彴浠ｇ爜椤?65001 瑙ｅ喅銆?
 import { UI } from "./cli/ui"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { FormatError } from "./cli/error"
@@ -139,8 +139,8 @@ const COMMANDS: Record<string, CommandLoader> = {
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.
-// Derived from COMMANDS by keeping the first key for each unique loader — aliases
-// (e.g. `auth`→providers, `plug`→plugin) share a loader reference and are skipped.
+// Derived from COMMANDS by keeping the first key for each unique loader 鈥?aliases
+// (e.g. `auth`鈫抪roviders, `plug`鈫抪lugin) share a loader reference and are skipped.
 // Single source of truth: the list cannot drift when commands or aliases change.
 const COMMAND_KEYS = (() => {
   const seen = new Set<CommandLoader>()
@@ -219,11 +219,11 @@ if (isHelp) {
   }
   cli.command("db", "database tools")
 } else if (first && COMMANDS[first]) {
-  // 显式 `gyc tui`：OpenTUI 经 koffi 支持 Node，直接注册执行（无需 dist-bun Bun 产物）。
+  // 鏄惧紡 `gyc tui`锛歄penTUI 缁?koffi 鏀寔 Node锛岀洿鎺ユ敞鍐屾墽琛岋紙鏃犻渶 dist-bun Bun 浜х墿锛夈€?
   await registerCommand(cli, COMMANDS[first]!)
 } else {
-  // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）；
-  // 使用新的统一交互核心模块
+  // Default: 绾?CLI锛?0锛夈€備紶娑堟伅鍒欓潪浜や簰鍗曡疆锛屾棤鍙傛暟杩涘叆閫愯瀵硅瘽锛圢ode 鐩磋窇锛夛紱
+  // 浣跨敤鏂扮殑缁熶竴浜や簰鏍稿績妯″潡
   const { effectCmd } = await import("./cli/effect-cmd")
   const { readStdin } = await import("../core/util/read-stdin")
   const { Filesystem } = await import("./util/filesystem")
@@ -231,7 +231,7 @@ if (isHelp) {
   cli.command(
     effectCmd({
       command: "$0 [message..]",
-      describe: "gyc 默认入口：传消息则非交互单轮；无参数进入逐行对话；--tui 进入全屏 TUI",
+      describe: "gyc 榛樿鍏ュ彛锛氫紶娑堟伅鍒欓潪浜や簰鍗曡疆锛涙棤鍙傛暟杩涘叆閫愯瀵硅瘽锛?-tui 杩涘叆鍏ㄥ睆 TUI",
       instance: (args) => !args.attach,
       directory: (args) => (args.dir && !args.attach ? pathResolve(process.cwd(), args.dir) : process.cwd()),
       builder: (yargs: Argv) =>
@@ -342,71 +342,71 @@ if (isHelp) {
         message = [message, piped].filter(Boolean).join("\n")
 
         if (args.attach) {
-          // --attach 模式：连接远程服务器，使用 runPipeline
+          // --attach 妯″紡锛氳繛鎺ヨ繙绋嬫湇鍔″櫒锛屼娇鐢?runPipeline
           const { runPipeline } = yield* Effect.promise(() => import("./cli/core"))
           const result = yield* Effect.promise(() => runPipeline({
             message: message || undefined,
-            command: args.command,
-            commandArgs: [...args.message, ...(args["--"] || [])].join(" "),
-            files: args.file,
-            model: args.model,
-            variant: args.variant,
-            agent: args.agent,
+            command: (args as any).command,
+            commandArgs: [(args as any).message, ...((args as any)["--"] || [])].join(" "),
+            files: (args as any).file,
+            model: (args as any).model,
+            variant: (args as any).variant,
+            agent: (args as any).agent,
             thinking,
             auto,
-            sessionID: args.session,
-            continue: args.continue,
-            fork: args.fork,
+            sessionID: (args as any).session,
+            continue: (args as any).continue,
+            fork: (args as any).fork,
             directory,
-            attachUrl: args.attach,
+            attachUrl: (args as any).attach,
             attachHeaders: {
-              Authorization: args.password || args.username ? `Basic ${btoa(`${args.username || "gyccode"}:${args.password || ""}`)}` : undefined,
+              Authorization: args.password || (args as any).username ? `Basic ${btoa(`${args.username || "gyccode"}:${(args as any).password || ""}`)}` : undefined,
             },
             pipedInput: piped,
           }))
           if (result.error) die(result.error)
           process.exitCode = result.exitCode
-          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
+          // 鍗曡疆瀹屾垚锛歠lush 鍚庢樉寮忛€€鍑猴紝瀹炰緥鍐?watcher/瀹氭椂鍣ㄥ彞鏌勪細鎸備綇 event loop
           yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", resolve)))
           process.exit(result.exitCode)
           return
         }
 
-        // 交互模式或单轮模式
+        // 浜や簰妯″紡鎴栧崟杞ā寮?
         if (message.trim()) {
-          // 有消息：单轮执行
+          // 鏈夋秷鎭細鍗曡疆鎵ц
           const { runPipeline } = yield* Effect.promise(() => import("./cli/core"))
           const result = yield* Effect.promise(() => runPipeline({
             message,
-            files: args.file,
-            model: args.model,
-            variant: args.variant,
-            agent: args.agent,
+            files: (args as any).file,
+            model: (args as any).model,
+            variant: (args as any).variant,
+            agent: (args as any).agent,
             thinking,
             auto,
-            sessionID: args.session,
-            continue: args.continue,
-            fork: args.fork,
+            sessionID: (args as any).session,
+            continue: (args as any).continue,
+            fork: (args as any).fork,
             directory,
           }))
           if (result.error) die(result.error)
           process.exitCode = result.exitCode
-          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
+          // 鍗曡疆瀹屾垚锛歠lush 鍚庢樉寮忛€€鍑猴紝瀹炰緥鍐?watcher/瀹氭椂鍣ㄥ彞鏌勪細鎸備綇 event loop
           yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", resolve)))
           process.exit(result.exitCode)
         } else {
-          // 无消息：进入交互式循环（惰性加载 cli/core，纯单轮命令不背载交互模块）
+          // 鏃犳秷鎭細杩涘叆浜や簰寮忓惊鐜紙鎯版€у姞杞?cli/core锛岀函鍗曡疆鍛戒护涓嶈儗杞戒氦浜掓ā鍧楋級
           const { runInteractiveLoop } = yield* Effect.promise(() => import("./cli/core"))
           yield* Effect.promise(() => runInteractiveLoop({
             directory,
-            model: args.model,
-            variant: args.variant,
-            agent: args.agent,
+            model: (args as any).model,
+            variant: (args as any).variant,
+            agent: (args as any).agent,
             thinking,
             auto,
-            sessionId: args.session,
-            continue: args.continue,
-            fork: args.fork,
+            sessionID: (args as any).session,
+            continue: (args as any).continue,
+            fork: (args as any).fork,
           }))
         }
       }),
