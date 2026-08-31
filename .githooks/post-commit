@@ -1,5 +1,7 @@
 #!/bin/sh
 # gyc-code auto-sync: push to GitHub (via gh-proxy), then append sync work log to Obsidian vault
+# 兼容两种安装位置（.githooks/ 或 .git/hooks/）：一律以 git 仓库根解析脚本路径。
+ROOT="$(git rev-parse --show-toplevel)"
 git push origin HEAD >/dev/null 2>&1
-node "$(dirname "$0")/../scripts/worklog-sync.mjs" >/dev/null 2>&1
+node "$ROOT/scripts/worklog-sync.mjs" >/dev/null 2>&1
 exit 0

@@ -1,5 +1,5 @@
 // 自动生成，勿手动编辑
-// 生成时间: 2026-08-29T04:42:32.893Z
+// 生成时间: 2026-08-31T13:25:00.782Z
 
 export interface CommandManifest {
   version: string
@@ -26,7 +26,7 @@ export interface CommandSpec {
 
 export const commandManifest: CommandManifest = {
   "version": "1.0",
-  "generatedAt": "2026-08-29T04:42:32.893Z",
+  "generatedAt": "2026-08-31T13:25:00.782Z",
   "commands": [
     {
       "name": "add-dir",

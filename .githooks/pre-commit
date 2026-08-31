@@ -1,0 +1,6 @@
+#!/bin/sh
+# UTF-8 乱码防线：阻止 GBK 双重编码损坏的文件进入提交（P0-1 复发防护，2026-08-31）
+# 检测逻辑见 scripts/check-mojibake.mjs；豁免 gen 产物。
+# 兼容两种安装位置（.githooks/ 或 .git/hooks/）：一律以 git 仓库根解析脚本路径。
+ROOT="$(git rev-parse --show-toplevel)"
+exec node "$ROOT/scripts/check-mojibake.mjs" --staged

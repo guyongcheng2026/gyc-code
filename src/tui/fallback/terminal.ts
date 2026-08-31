@@ -6,8 +6,10 @@ import { renderBudget, type RenderBudget } from "./capability"
 const DEFAULT_BUDGET: RenderBudget = { maxFps: 60, mouseEnabled: true, kittyKeyboard: true }
 
 /**
- * 鑷爺 fallback 娓叉煋鍣細缁堢鎶借薄涓庡抚璋冨害銆? *
- * TerminalBackend 鍙敞鍏ワ細ProcessBackend 缁戝畾鐪熷疄 stdout/stdin锛? * MemoryBackend 渚涙祴璇曚笌鏃?TTY 鍦烘櫙浣跨敤銆侳allbackRenderer 璐熻矗甯у悎骞? * 锛堝悓涓€ tick 鍐呭娆?present 鍙緭鍑轰竴娆★級涓?resize 鍏ㄩ噺閲嶇粯銆? */
+ * 自研 fallback 渲染器：终端抽象与帧调度。
+ * TerminalBackend 可注入：ProcessBackend 绑定真实 stdout/stdin；MemoryBackend 供测试与非 TTY 场景使用。
+ * FallbackRenderer 负责帧合并（同一 tick 内多次 present 只输出一次）与 resize 全量重绘。
+ */
 
 export interface TerminalBackend {
 	write(data: string): void
@@ -16,7 +18,7 @@ export interface TerminalBackend {
 	setRawMode(on: boolean): void
 	onResize(cb: () => void): () => void
 	onInput(cb: (chunk: string) => void): () => void
-	/** 鍚敤 SGR 1003 mouse tracking銆傝繑鍥炲彇娑堝嚱鏁?*/
+	/** 启用 SGR 1003 mouse tracking。返回取消函数。*/
 	onMouse?(cb: (event: MouseEvent) => void): () => void
 	start(): void
 	stop(): void
@@ -223,7 +225,7 @@ export class FallbackRenderer {
 		this.renderBudget = budget
 	}
 
-	/** 娓叉煋鍣ㄦ槸鍚﹀凡閿€姣侊紙瀵归綈 RendererBackend.isDestroyed 濂戠害锛夈€?*/
+	/** 渲染器是否已销毁（对齐 RendererBackend.isDestroyed 契约）。*/
 	get isDestroyed(): boolean {
 		return !this.started
 	}
@@ -236,14 +238,17 @@ export class FallbackRenderer {
 		return this.screen
 	}
 
-	/** 璁㈤槄缁堢 resize 浜嬩欢锛堝澶栨毚闇诧紝渚涙娊璞″眰浣跨敤锛夈€?*/
+	/** 订阅终端 resize 事件（对外暴露，供抽象层使用）。*/
 	onResize(cb: () => void): () => void {
 		return this.backend.onResize(cb)
 	}
 
 	/**
-	 * 娉ㄥ唽 resize 閲嶇粯閽╁瓙锛圫1 slice 2锛氭秷闄ゆ棫甯冨眬闂抚锛夈€?	 *
-	 * 鏃犻挬瀛愭椂 handleResize 鐩存帴杈撳嚭 resize 鍚庣殑鏃у唴瀹癸紙甯冨眬鏈洿鏂帮紝鍙劅鐭?	 * 闂抚锛夛紱鏈夐挬瀛愭椂鍏堟墽琛岄挬瀛愶紙娑堣垂鑰呴噸甯冨眬閲嶅啓 Screen 鍐呭锛夛紝鍐嶅叏閲?	 * 杈撳嚭鈥斺€斿缁堣緭鍑烘柊甯冨眬锛屾棤鍙屽抚銆?	 */
+	 * 注册 resize 重绘钩子（S1 slice 2：消除旧布局闪帧）。
+	 *
+	 * 无钩子时 handleResize 直接输出 resize 后的旧内容（布局未更新，可感知闪帧）；
+	 * 有钩子时先执行钩子（消费者重布局重写 Screen 内容），再全量输出——始终输出新布局，无双帧。
+	 */
 	setResizeRepaint(cb: () => void): void {
 		this.resizeRepaint = cb
 	}
@@ -267,7 +272,7 @@ export class FallbackRenderer {
 		this.flushFull()
 	}
 
-	/** 鎻愪氦涓€甯э細鍚堝苟鍚?tick 澶氭璋冪敤锛屽紓姝ヨ緭鍑哄閲忋€侳PS 鑺傛祦锛坧lain TTY 10fps / 鏍囧噯 60fps锛夈€?*/
+	/** 提交一帧：合并同一 tick 多次调用，异步输出增量。FPS 节流（plain TTY 10fps / 标准 60fps）。*/
 	present(mutate: (screen: Screen) => void): void {
 		mutate(this.screen)
 		this.pendingFlush = true
@@ -276,7 +281,7 @@ export class FallbackRenderer {
 		queueMicrotask(() => {
 			this.scheduled = false
 			if (!this.started) return
-			// FPS 鑺傛祦锛歜udget.maxFps=0 琛ㄧず涓嶉檺棰戯紱>0 鏃舵渶灏忓抚闂撮殧 = 1000/maxFps ms
+			// FPS 节流：budget.maxFps=0 表示不限频；>0 时最小帧间隔 = 1000/maxFps ms
 			if (this.renderBudget.maxFps > 0) {
 				const minInterval = 1000 / this.renderBudget.maxFps
 				const elapsed = performance.now() - this.lastFrameTime
@@ -320,7 +325,8 @@ export class FallbackRenderer {
 		this.screen.resize(this.backend.getWidth(), this.backend.getHeight())
 		this.prevScreen = undefined
 		if (this.resizeRepaint) {
-			// 鏈夋秷璐硅€呴挬瀛愶細鍏堥噸甯冨眬閲嶅啓鍐呭锛屽啀杈撳嚭锛堟棤闂抚锛?			this.screen.clear()
+			// 有消费者钩子：先重布局重写内容，再输出（无闪帧）
+			this.screen.clear()
 			try {
 				this.resizeRepaint()
 			} catch {

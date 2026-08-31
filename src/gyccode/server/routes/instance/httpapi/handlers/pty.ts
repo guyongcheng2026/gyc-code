@@ -10,7 +10,7 @@ import { LocationServiceMap, locationServiceMapLayer } from "@gyccode/core/locat
 import { Location } from "@gyccode/core/location"
 import { AbsolutePath } from "@gyccode/core/schema"
 import { Shell } from "@gyccode/core/shell"
-import { CorsConfig, isAllowedRequestOrigin, type CorsOptions } from "@gyccode/server/cors"
+import { CorsConfig, isAllowedRequestOrigin, type CorsOptions } from "@/server/shared/cors"
 import {
   PTY_CONNECT_TICKET_QUERY,
   PTY_CONNECT_TOKEN_HEADER,

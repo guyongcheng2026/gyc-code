@@ -45,7 +45,7 @@ const REDACTED = "<redacted>"
 //
 // `SENSITIVE_NAME` is used as both a substring matcher (for free-form header
 // names like `Authorization` / `X-API-Key`) and as the body-field alternation
-// list. `SHORT_QUERY_NAME` covers anchored short keys like `?key=鈥 / `?sig=鈥
+// list. `SHORT_QUERY_NAME` covers anchored short keys like `?key=…` / `?sig=…`
 // that are too generic to redact substring-style without false positives.
 const SENSITIVE_NAME_SOURCE =
   "authorization|api[-_]?key|access[-_]?token|refresh[-_]?token|id[-_]?token|token|secret|credential|signature|x-amz-signature"
@@ -281,9 +281,9 @@ const statusError =
   (response: HttpClientResponse.HttpClientResponse) =>
     Effect.gen(function* () {
       if (response.status < 400) return response
-      // 闄愬埗閿欒鍝嶅簲浣撹鍙栧ぇ灏忥紙鏈€澶?BODY_LIMIT 瀛楄妭锛夛紝閬垮厤瓒呭ぇ閿欒椤垫拺鐖嗗唴瀛?
+      // 限制错误响应体读取大小（最多 BODY_LIMIT 字节），避免超大错误页撑爆内存
       const limitedStream = response.stream.pipe(
-        Stream.takeWhile((_: Uint8Array, i: number) => i < BODY_LIMIT), // 绠€鍖栵細鍙栧墠 N 涓?chunk
+        Stream.takeWhile((_: Uint8Array, i: number) => i < BODY_LIMIT), // 简化：取前 N 个 chunk
         Stream.map((chunk: Uint8Array) => chunk.slice(0, Math.max(0, BODY_LIMIT - chunk.length))),
       )
       const bodyBytes = yield* Stream.runCollect(limitedStream).pipe(
@@ -334,7 +334,7 @@ const toHttpError = (redactedNames: ReadonlyArray<string | RegExp>) => (error: u
     })
 
   if (Cause.isTimeoutError(error)) {
-    // 瓒呮椂閿欒搴斿彲閲嶈瘯锛屼娇鐢?ProviderInternalReason锛坮etryable=true锛夎涔夋浛浠?
+    // 超时错误应可重试，使用 ProviderInternalReason（retryable=true）语义替代
     return new LLMError({
       module: "RequestExecutor",
       method: "execute",

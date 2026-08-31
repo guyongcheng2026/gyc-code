@@ -30,7 +30,6 @@
         "@gyccode/llm": "workspace:*",
         "@gyccode/protocol": "workspace:*",
         "@gyccode/schema": "workspace:*",
-        "@gyccode/server": "workspace:*",
         "@gyccode/tui": "workspace:*",
         "@gyccode/ui": "workspace:*",
         "@koromix/koffi-win32-x64": "3.1.5",
@@ -197,9 +196,6 @@
     },
     "src/schema": {
       "name": "@gyccode/schema",
-    },
-    "src/server": {
-      "name": "@gyccode/server",
     },
     "src/tui": {
       "name": "@gyccode/tui",
@@ -507,8 +503,6 @@
     "@gyccode/protocol": ["@gyccode/protocol@workspace:src/protocol"],
 
     "@gyccode/schema": ["@gyccode/schema@workspace:src/schema"],
-
-    "@gyccode/server": ["@gyccode/server@workspace:src/server"],
 
     "@gyccode/tui": ["@gyccode/tui@workspace:src/tui"],
 

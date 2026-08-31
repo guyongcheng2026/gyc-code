@@ -1,6 +1,6 @@
 import { build } from "bun"
 import { spawnSync } from "node:child_process"
-import { rmSync, cpSync, existsSync, readdirSync } from "node:fs"
+import { rmSync, cpSync, existsSync, readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import os from "node:os"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
@@ -35,6 +35,10 @@ const SHARED = {
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
   format: "esm",
   splitting: true,
+  // 构建期 define 注入（P2-3）：版本号以 package.json 为单一事实来源（消除
+  // 双源漂移），并注入构建目标运行时标记供诊断（GYC_RUNTIME 已是构建参数）。
+  // 注：GYCCODE_* 行为开关不走 define——它们是用户运行时环境变量
+  // （effect/runtime-flags.ts），构建期固化会破坏运行时可配置语义。
   // Provider factory SDKs are externalized and resolved at runtime from
   // node_modules (installed alongside the CLI) or via Npm.add on-demand
   // install. This keeps dist slim: 25+ provider factories would otherwise each
@@ -73,7 +77,10 @@ const SHARED = {
     "ai-gateway-provider",
     "@aws-sdk/credential-providers",
   ],
-  define: { GYCCODE_VERSION: '"0.0.1"' },
+  define: {
+    GYCCODE_VERSION: JSON.stringify(JSON.parse(readFileSync("package.json", "utf-8")).version),
+    GYCCODE_BUILD_TARGET: JSON.stringify(runtime),
+  },
   plugins: [solidPlugin],
   minify: true,
 }

@@ -1,4 +1,7 @@
 // gyc-code 协议客户端 v1（兼容入口）
+// ⚠️ FROZEN（2026-08-31）：v1 已冻结——仅允许存量消费（webapp sdk.ts 与插件宿主），
+//    新功能一律使用 @gyccode/protocol/v2（API 覆盖完整且为协议基线）。
+//    webapp v1→v2 迁移清单见 docs/PROTOCOL-V1-V2-MIGRATION.md，迁移完成后本入口退役。
 // 源自 opencode SDK（MIT License，版权归 opencode 项目保留），本地化改造：
 // 去除 @opencode-ai/sdk 外部依赖，仅保留历史 client 入口，供插件宿主使用。
 export * from "./gen/types.gen.js"

@@ -35,7 +35,6 @@
         "@gyccode/llm",
         "@gyccode/protocol",
         "@gyccode/schema",
-        "@gyccode/server",
         "@gyccode/tui",
         "@gyccode/ui"
       ]

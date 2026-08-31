@@ -13,7 +13,7 @@
   },
   "main": "./src/gyccode/index.ts",
   "scripts": {
-    "postinstall": "node scripts/apply-opentui-patch.cjs && node scripts/apply-opentui-ffi-patch.cjs && node scripts/apply-opentui-orphan-patch.cjs",
+    "postinstall": "node scripts/apply-opentui-patch.cjs && node scripts/apply-opentui-ffi-patch.cjs && node scripts/apply-opentui-orphan-patch.cjs && node scripts/install-hooks.mjs",
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
     "start": "bun dist/index.js",
@@ -49,7 +49,6 @@
     "@gyccode/llm": "workspace:*",
     "@gyccode/protocol": "workspace:*",
     "@gyccode/schema": "workspace:*",
-    "@gyccode/server": "workspace:*",
     "@gyccode/tui": "workspace:*",
     "@gyccode/ui": "workspace:*",
     "@koromix/koffi-win32-x64": "3.1.5",
@@ -209,7 +208,6 @@
     "src/llm",
     "src/protocol",
     "src/schema",
-    "src/server",
     "src/tui",
     "src/ui",
     "src/webapp"

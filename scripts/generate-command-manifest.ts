@@ -91,7 +91,7 @@ function extractTuiCommands(): CommandSpec[] {
 }
 
 function extractCliCommands(): CommandSpec[] {
-  const defaultTs = readFileSync(join(ROOT, "src/gyccode/cli/cmd/default.ts"), "utf-8")
+  const defaultTs = readFileSync(join(ROOT, "src/gyccode/cli/core/slash-specs.ts"), "utf-8")
   const specs: CommandSpec[] = []
 
   // 从 SLASH_SPECS 提取
