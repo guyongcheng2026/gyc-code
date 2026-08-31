@@ -180,7 +180,7 @@ const live: Layer.Layer<
               metadata: typeof result === "object" ? result?.metadata : undefined,
               title: typeof result === "object" ? result?.title : undefined,
             }
-          } catch (e: any) {
+          } catch (e: unknown) {
             bridge.fork(
               Effect.logError("workflow tool execution failed", {
                 toolName,

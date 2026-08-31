@@ -19,6 +19,7 @@ export const DynamicProviderPlugin = define({
         const mod = yield* Effect.promise(async () => {
           return (await import(
             installedPath.startsWith("file://") ? installedPath : pathToFileURL(installedPath).href
+          // 动态加载的第三方 provider 模块导出形状各异，只能宽化接收
           )) as Record<string, (options: any) => any>
         }).pipe(Effect.orDie)
         const match = Object.keys(mod).find((name) => name.startsWith("create"))

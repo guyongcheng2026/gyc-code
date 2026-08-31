@@ -9,6 +9,9 @@ import type { JSX as SolidJSX } from "solid-js"
  * babel universal 产物直接 import 运行时函数（见 index.ts）；
  * 本模块主要服务 TS 的 jsxImportSource 类型检查（fallback 目录的 .tsx
  * 文件头部标注 jsxImportSource pragma 指向本模块，见 tsconfig paths）。
+ *
+ * 运行时函数签名中的 any 与 Solid 官方 jsx-runtime 一致：babel 转译产物
+ * 以任意组件 props 调用 jsx/jsxDEV，通用入口无法收窄（各处已 eslint-disable 标注）。
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

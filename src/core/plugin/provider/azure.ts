@@ -1,8 +1,17 @@
 import { Effect } from "effect"
+import type { LanguageModelV3 } from "@ai-sdk/provider"
 import { define } from "../internal"
 import { ProviderV2 } from "../../provider"
 
-function selectLanguage(sdk: any, modelID: string, useChat: boolean) {
+// @ai-sdk/azure 工厂返回实例的最小结构（与 provider.ts 的 BundledSDK 同形）
+type AzureSDK = {
+  languageModel(modelId: string): LanguageModelV3
+  chat?: (modelId: string) => LanguageModelV3
+  responses?: (modelId: string) => LanguageModelV3
+  messages?: (modelId: string) => LanguageModelV3
+}
+
+function selectLanguage(sdk: AzureSDK, modelID: string, useChat: boolean) {
   if (useChat && sdk.chat) return sdk.chat(modelID)
   if (sdk.responses) return sdk.responses(modelID)
   if (sdk.messages) return sdk.messages(modelID)

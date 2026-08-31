@@ -3,6 +3,8 @@ import type { Provider as ProviderV2, Model as ModelV2, Auth } from "@gyccode/pr
 import type { BunShell } from "./shell.js";
 import { type ToolDefinition } from "./tool.js";
 export * from "./tool.js";
+// 本目录为插件公共 API 声明（面向 JS 插件作者）。其中的 any（如 ProviderContext.options、
+// 工具/hook 的自由参数）是刻意的 API 宽容性设计：宿主不校验插件侧自由配置的形状。
 export type ProviderContext = {
     source: "env" | "config" | "custom" | "api";
     info: Provider;

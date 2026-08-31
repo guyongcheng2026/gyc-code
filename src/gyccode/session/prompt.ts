@@ -425,7 +425,7 @@ const layer = Layer.effect(
           callID: part.callID,
           extra: { bypassAgentCheck: true, promptOps },
           messages: msgs,
-          metadata: (val: { title?: string; metadata?: Record<string, any> }) =>
+          metadata: (val: { title?: string; metadata?: Record<string, unknown> }) =>
             Effect.gen(function* () {
               part = yield* sessions.updatePart({
                 ...part,
@@ -433,7 +433,7 @@ const layer = Layer.effect(
                 state: { ...part.state, ...val },
               } satisfies SessionV1.ToolPart)
             }),
-          ask: (req: any) =>
+          ask: (req: Omit<PermissionV1.AskInput, "sessionID" | "ruleset">) =>
             permission
               .ask({
                 ...req,

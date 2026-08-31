@@ -8,6 +8,8 @@ import type { SessionID, MessageID } from "../session/schema"
 import * as Truncate from "./truncate"
 import { Agent } from "@/agent/agent"
 
+// any 为方差擦除所必需：具体工具的 metadata 接口需满足此约束并保留自有字段访问，
+// 改为 unknown 会破坏泛型 M 上的属性读取（如 result.metadata.truncated）。
 interface Metadata {
   [key: string]: any
 }

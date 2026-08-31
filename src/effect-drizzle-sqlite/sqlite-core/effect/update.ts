@@ -1,4 +1,7 @@
 /* oxlint-disable */
+// 本目录镜像 drizzle-orm sqlite-core 的 Effect 适配实现；any 均为上游同款
+// 类型级占位（如 .values() 无 returning 时的 DrizzleTypeError 错误分支），
+// 上游 stable 后随 drizzle-orm/effect-core 同步，不单独类型化。
 import type * as Effect from "effect/Effect"
 import { applyEffectWrapper, type QueryEffectHKTBase } from "drizzle-orm/effect-core/query-effect"
 import { entityKind, is } from "drizzle-orm/entity"

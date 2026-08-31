@@ -606,7 +606,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           await removeReaction(commentType)
         }
       }
-    } catch (e: any) {
+    } catch (e) {
       exitCode = 1
       console.error(e instanceof Error ? e.message : String(e))
       let msg = e

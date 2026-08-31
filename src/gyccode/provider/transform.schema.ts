@@ -160,7 +160,7 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
       ].some((key) => key in node)
     }
 
-    const sanitizeGemini = (obj: any): any => {
+    const sanitizeGemini = (obj: unknown): unknown => {
       if (obj === null || typeof obj !== "object") {
         return obj
       }
@@ -169,7 +169,7 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
         return obj.map(sanitizeGemini)
       }
 
-      const result: any = {}
+      const result: Record<string, unknown> = {}
       for (const [key, value] of Object.entries(obj)) {
         if (key === "enum" && Array.isArray(value)) {
           // Convert all enum values to strings
@@ -207,7 +207,8 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
 
       // Filter required array to only include fields that exist in properties
       if (result.type === "object" && result.properties && Array.isArray(result.required)) {
-        result.required = result.required.filter((field: any) => field in result.properties)
+        const properties = result.properties as Record<string, unknown>
+        result.required = result.required.filter((field: unknown) => typeof field === "string" && field in properties)
       }
 
       if (result.type === "array" && !hasCombiner(result)) {
@@ -216,7 +217,7 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
         }
         // Ensure items has a type only when it's still schema-empty.
         if (isPlainObject(result.items) && !hasSchemaIntent(result.items)) {
-          result.items.type = "string"
+          ;(result.items as Record<string, unknown>).type = "string"
         }
       }
 
@@ -229,7 +230,7 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
       return result
     }
 
-    schema = sanitizeGemini(schema)
+    schema = sanitizeGemini(schema) as typeof schema
   }
 
   return schema

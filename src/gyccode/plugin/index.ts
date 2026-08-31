@@ -38,6 +38,7 @@ type State = {
 
 // Hook names that follow the (input, output) => Promise<void> trigger pattern
 type TriggerName = {
+  // any 在此为条件类型方差检测所必需（unknown 会因逆协变拒绝具体参数的 hook 签名）
   [K in keyof Hooks]-?: NonNullable<Hooks[K]> extends (input: any, output: any) => Promise<void> ? K : never
 }[keyof Hooks]
 

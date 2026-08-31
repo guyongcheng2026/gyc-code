@@ -5,6 +5,8 @@ export type GlobalEvent = {
   directory?: string
   project?: string
   workspace?: string
+  // payload 为异构事件总线载体（session/provider/update 等各类事件），
+  // 且 emit 时会就地补写 id 字段，统一结构化类型会破坏全部发布方。
   payload: any
 }
 

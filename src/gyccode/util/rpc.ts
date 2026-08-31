@@ -7,6 +7,8 @@ type NodeWorkerPort = {
   postMessage(data: string): void
 }
 
+// any 在此为方差擦除所必需：handler 实参类型各异（unknown 会因逆协变
+// 拒绝具体参数类型的实现），具体类型由 client<T> 泛型在调用侧保证。
 type Definition = {
   [method: string]: (input: any) => any
 }
@@ -59,7 +61,8 @@ export function client<T extends Definition>(target: {
   onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null
   on?: (event: "message", listener: (data: string) => void) => void
 }, hooks?: { onActivity?: () => void }) {
-  const pending = new Map<number, { resolve: (result: any) => void; reject: (error: Error) => void }>()
+  const pending = new Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>()
+  // any 为方差擦除所必需：on<Data> 注册的具体 handler 无法赋给 (data: unknown) => void
   const listeners = new Map<string, Set<(data: any) => void>>()
   let id = 0
   const onMessage = (data: string) => {

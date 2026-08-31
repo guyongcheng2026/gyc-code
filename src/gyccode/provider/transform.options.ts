@@ -235,6 +235,8 @@ const SLUG_OVERRIDES: Record<string, string> = {
   amazon: "bedrock",
 }
 
+// options 为透传给各 @ai-sdk 工厂的自由格式选项（每个 SDK 期望的形状不同），
+// 改为 unknown 会让全部透传点报错；形状校验由各 SDK 自行完成。
 export function providerOptions(model: Provider.Model, options: { [x: string]: any }) {
   const usesOpenAIReasoningGate =
     model.api.npm === "@ai-sdk/openai" ||

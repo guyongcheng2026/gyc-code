@@ -1,4 +1,8 @@
 /* oxlint-disable */
+// 本目录镜像 drizzle-orm sqlite-core 的 Effect 适配实现。其中的 any 均为上游同款惯例：
+// 1) 查询方法的重载实现签名（QueryEffectKind 泛型映射无法在实现签名中精确表达，any 是唯一合法写法）；
+// 2) cache.get 返回的任意形状行数组（消费侧已 as unknown as A 显式转换）。
+// 上游 stable 后随 drizzle-orm/effect-core 同步，不单独类型化。
 import * as Cause from "effect/Cause"
 import * as Effect from "effect/Effect"
 import type { SqlError } from "effect/unstable/sql/SqlError"
