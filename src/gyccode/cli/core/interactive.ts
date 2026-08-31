@@ -296,22 +296,29 @@ async function handleSlashEntry(
     // 动态命令：通过 session.command 执行
     try {
       const { streamLoop } = await import("../cmd/run/stream-cli")
-      const events = await ctx.sdk.event.subscribe()
-      const completed = streamLoop({
-        client: ctx.sdk,
-        events,
-        sessionID: ctx.sessionId,
-        format: "default",
-        thinking: ctx.input.thinking,
-        auto: ctx.input.auto,
-        onSubagent: (info) => {
-          ctx.subagents.push({ ...info, at: new Date().toLocaleTimeString() })
-          if (ctx.subagents.length > 100) ctx.subagents.splice(0, ctx.subagents.length - 100)
-        },
-      })
-      const result = await ctx.sdk.session.command({ sessionID: ctx.sessionId, command: cmd, arguments: args })
-      if (result.error) UI.error(JSON.stringify(result.error))
-      await completed
+      // 动态命令轮次同样每轮新建 SSE 订阅：轮次结束（含异常路径）必须 abort，
+      // 否则底层连接仅 releaseLock 不 cancel，长驻 REPL 内反复执行动态命令会累积泄漏
+      const sseAbort = new AbortController()
+      const events = await ctx.sdk.event.subscribe({ signal: sseAbort.signal })
+      try {
+        const completed = streamLoop({
+          client: ctx.sdk,
+          events,
+          sessionID: ctx.sessionId,
+          format: "default",
+          thinking: ctx.input.thinking,
+          auto: ctx.input.auto,
+          onSubagent: (info) => {
+            ctx.subagents.push({ ...info, at: new Date().toLocaleTimeString() })
+            if (ctx.subagents.length > 100) ctx.subagents.splice(0, ctx.subagents.length - 100)
+          },
+        })
+        const result = await ctx.sdk.session.command({ sessionID: ctx.sessionId, command: cmd, arguments: args })
+        if (result.error) UI.error(JSON.stringify(result.error))
+        await completed
+      } finally {
+        sseAbort.abort()
+      }
     } catch (e) {
       UI.error(String(e))
     }

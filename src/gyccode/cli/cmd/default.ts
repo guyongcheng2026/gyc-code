@@ -167,8 +167,9 @@ function runStreamLoop(
   sessionID: string,
   input: CliInput,
   subagents: SubagentRecord[],
+  sseAbort: AbortController,
 ): Promise<string | undefined> {
-  return sdk.event.subscribe().then((events) =>
+  return sdk.event.subscribe({ signal: sseAbort.signal }).then((events) =>
     streamLoop({
       client: sdk,
       events,
@@ -194,20 +195,27 @@ function runStreamLoop(
 
 async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, input: CliInput, subagents: SubagentRecord[]) {
   const fileParts = await resolveFileParts(input.files ?? [], input.directory, { skipMissing: true })
-  const completed = runStreamLoop(sdk, sessionID, input, subagents)
-  const result = await sdk.session.prompt({
-    sessionID,
-    model: parseModelInput(input.model),
-    variant: input.variant,
-    parts: [...fileParts, { type: "text", text }],
-  })
-  if (result.error) {
-    UI.error(formatRunError(result.error))
-    return
+  // 单轮同样通过 sseAbort 管理订阅生命周期：进程级一次性调用下等价于退出时回收，
+  // 但保持与斜杠命令路径一致的清理语义，避免测试/attach 路径下连接悬挂。
+  const sseAbort = new AbortController()
+  try {
+    const completed = runStreamLoop(sdk, sessionID, input, subagents, sseAbort)
+    const result = await sdk.session.prompt({
+      sessionID,
+      model: parseModelInput(input.model),
+      variant: input.variant,
+      parts: [...fileParts, { type: "text", text }],
+    })
+    if (result.error) {
+      UI.error(formatRunError(result.error))
+      return
+    }
+    // streamLoop 已负责把会话错误（如限流/认证失败）渲染到 UI，并在收到
+    // session.error 后提前结束事件消费；这里只需等待其完成即可恢复正常提示符。
+    await completed
+  } finally {
+    sseAbort.abort()
   }
-  // streamLoop 已负责把会话错误（如限流/认证失败）渲染到 UI，并在收到
-  // session.error 后提前结束事件消费；这里只需等待其完成即可恢复正常提示符。
-  await completed
 }
 
 // 渲染启动欢迎界面：对齐主流 AI CLI 的提示行布局——
@@ -352,13 +360,17 @@ async function runSlashCommand(
   const dynamic = dynamicCommands.get(command)
   if (dynamic) {
     // 动态命令（内置 init/review、技能、项目命令、MCP 命令）：经 session.command 服务端执行。
+    // 每轮新建 SSE 订阅：轮次结束（含异常路径）必须 abort，避免长驻交互循环内累积连接泄漏
+    const sseAbort = new AbortController()
     try {
-      const completed = runStreamLoop(sdk, sessionID, input, subagents)
+      const completed = runStreamLoop(sdk, sessionID, input, subagents, sseAbort)
       const result = await sdk.session.command({ sessionID, command: dynamic.name, arguments: args })
       if (result.error) UI.error(formatRunError(result.error))
       await completed
     } catch (e) {
       UI.error(formatRunError(e))
+    } finally {
+      sseAbort.abort()
     }
     return "continue"
   }
