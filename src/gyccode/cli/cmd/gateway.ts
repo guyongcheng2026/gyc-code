@@ -55,9 +55,17 @@ export function tryAcquireLock(): number | null {
 export function releaseLock(fd: number | null): void {
   const lockFile = join(homedir(), ".gyc", "data", "weixin", "gateway.lock")
   if (fd !== null) {
-    try { closeSync(fd) } catch {}
+    try {
+      closeSync(fd)
+    } catch {
+      // 句柄可能已关闭，失败无需处理
+    }
   }
-  try { unlinkSync(lockFile) } catch {}
+  try {
+    unlinkSync(lockFile)
+  } catch {
+    // 锁文件可能已被删除，失败无需处理
+  }
 }
 
 /**

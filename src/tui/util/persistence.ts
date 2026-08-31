@@ -73,6 +73,8 @@ export async function writeJsonAtomicLogged(filePath: string, value: unknown, la
         path.join(Path.log, "gyccode.log"),
         `timestamp=${new Date().toISOString()} level=Warn run=main persistence-write-failed label=${label} file=${filePath} message=${JSON.stringify(message)}\n`,
       )
-    } catch {}
+    } catch {
+      // 写日志本身失败时不能再抛，否则会掩盖原始错误
+    }
   }
 }

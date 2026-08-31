@@ -357,6 +357,7 @@ const layer = Layer.effect(
               after,
             })
           }),
+          // 单个 LSP 客户端故障（如服务崩溃）不应影响 touchFile 主流程
         ).catch(() => {}),
       )
     })

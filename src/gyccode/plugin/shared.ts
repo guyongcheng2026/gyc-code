@@ -16,7 +16,9 @@ export function isDeprecatedPlugin(spec: string) {
 function parse(spec: string) {
   try {
     return npa(spec)
-  } catch {}
+  } catch {
+    // 非法 npm spec 返回 undefined，调用方已用可选链兜底
+  }
 }
 
 export function parsePluginSpecifier(spec: string) {

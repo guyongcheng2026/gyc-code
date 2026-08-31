@@ -102,7 +102,9 @@ export async function runFallbackSafeMode(options: SafeModeOptions): Promise<boo
 		const { watchTerminalClose } = await import("../terminal-win32")
 		const watcher = options.watchClose ?? watchTerminalClose
 		offWatchClose = watcher(() => app.stop())
-	} catch {}
+	} catch {
+		// 关闭检测在非 Windows 或缺少依赖时不可用，属可选增强
+	}
 	await new Promise<void>((resolve) => {
 		const timer = setInterval(() => {
 			if (app.isDone) {

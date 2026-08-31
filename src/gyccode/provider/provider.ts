@@ -865,7 +865,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
                 delete body.max_tokens
                 init = { ...init, body: JSON.stringify(body) }
               }
-            } catch {}
+            } catch {
+              // 请求体非 JSON 时保持原样发送，无需字段转换
+            }
           }
 
           const response = await fetch(url, init)
@@ -882,7 +884,9 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
                   { status: 200, headers: new Headers({ "content-type": "application/json" }) },
                 )
               }
-            } catch {}
+            } catch {
+              // 400 响应体非 JSON，按原样抛出由上层处理
+            }
           }
 
           if (response.body && response.headers.get("content-type")?.includes("text/event-stream")) {

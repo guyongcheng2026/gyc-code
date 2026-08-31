@@ -85,7 +85,8 @@ export class Subscription {
 
     try {
       // Idle is queued after the turn's events, and this subscription awaits each update in order.
-      void waiter.promise.catch(() => {})
+      // waiter 在取消/断开时会 reject，属正常信号传递，无需处理
+    void waiter.promise.catch(() => {})
       const response = await request()
       await waiter.promise
       return response
@@ -149,6 +150,7 @@ export class Subscription {
 
   private async run() {
     while (!this.abort.signal.aborted) {
+      // consume 抛错代表事件流断开，此处吞掉后由下方 sleep 1s 触发重连，属预期重连机制
       await this.consume().catch(() => {})
       this.disconnected()
       if (!this.abort.signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000))
@@ -166,7 +168,10 @@ export class Subscription {
     for await (const event of events.stream) {
       if (this.abort.signal.aborted) return
       if (!event.payload) continue
-      await this.handle(event.payload).catch(() => {})
+      // 单个事件处理失败不应中断整个事件循环，但需留痕便于定位
+      await this.handle(event.payload).catch((e) => {
+        console.error(`[acp] 处理事件失败：${String(e)}`)
+      })
     }
   }
 

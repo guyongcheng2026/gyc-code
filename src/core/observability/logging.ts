@@ -111,6 +111,7 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
         try {
           const info = await stat(file)
           if (info.size > MAX_LOG_BYTES) {
+            // 日志轮转时旧文件可能已被占用或不存在，失败不阻断写入
             await rename(file, `${file}.1`).catch(() => {})
           }
         } catch {

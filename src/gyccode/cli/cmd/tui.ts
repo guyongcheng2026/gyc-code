@@ -226,6 +226,7 @@ export const TuiThreadCommand = cmd({
                 `timestamp=${new Date().toISOString()} level=Error run=main worker-exit code=${code} restart=${restarts}/${MAX_WORKER_RESTARTS} delay=${delayMs}ms\n`,
               ),
             )
+            // 写日志本身失败不能再抛，否则会掩盖 worker 退出原因
             .catch(() => {})
           if (restarts > MAX_WORKER_RESTARTS) return
           setTimeout(() => {
@@ -235,7 +236,10 @@ export const TuiThreadCommand = cmd({
             if (currentWorker) return
             try {
               spawnWorker()
-            } catch {}
+            } catch (e) {
+              // worker 重启失败必须留痕，否则 TUI 静默无响应且无任何线索
+              console.error(`[tui] worker 重启失败：${String(e)}`)
+            }
           }, delayMs).unref?.()
         })
         return worker
@@ -259,7 +263,10 @@ export const TuiThreadCommand = cmd({
       })
       tuiTiming("worker rpc ready")
       const reload = () => {
-        ensureWorker().call("reload", undefined).catch(() => {})
+        // reload 失败需留痕，否则 SIGUSR2 触发后界面无变化且无从排查
+        ensureWorker().call("reload", undefined).catch((e) => {
+          console.error(`[tui] 重载失败：${String(e)}`)
+        })
       }
       process.on("SIGUSR2", reload)
 
@@ -282,7 +289,9 @@ export const TuiThreadCommand = cmd({
             void appendFile(
               path.join(Global.Path.log, "gyccode.log"),
               `timestamp=${new Date().toISOString()} level=Info run=main worker-idle-unloaded\n`,
-            ).catch(() => {})
+            )
+            // 写日志本身失败不能再抛，忽略
+            .catch(() => {})
           }, 60_000)
         : undefined
       idleTimer?.unref?.()
@@ -293,6 +302,7 @@ export const TuiThreadCommand = cmd({
         process.off("SIGUSR2", reload)
         if (idleTimer) clearInterval(idleTimer)
         if (currentWorker && currentClient) {
+          // 优雅关闭超时/失败属预期（进程即将退出），忽略
           await withTimeout(currentClient.call("shutdown", undefined), 5000).catch(() => {})
         }
         currentWorker?.terminate()
@@ -343,6 +353,7 @@ export const TuiThreadCommand = cmd({
       }
 
       setTimeout(() => {
+        // 后台检查升级失败不影响当前会话，忽略
         ensureWorker().call("checkUpgrade", { directory: cwd }).catch(() => {})
       }, 1000).unref?.()
 
@@ -380,11 +391,4 @@ export const TuiThreadCommand = cmd({
         await stop()
       }
     } finally {
-      try {
-        unguard?.()
-      } catch {}
-    }
-    process.exit(0)
-  },
-})
-// scratch
+      try

@@ -280,7 +280,10 @@ function createThemeInstaller(
     await Flock.withLock(`tui-theme:${dest}`, async () => {
       const save = async () => {
         plugin.themes[name] = info
-        await PluginMeta.setTheme(plugin.id, name, info).catch(() => {})
+        // 主题元数据持久化失败会导致主题设置重启后丢失，需留痕
+        await PluginMeta.setTheme(plugin.id, name, info).catch((e: unknown) => {
+          console.error(`[plugin] 保存主题元数据失败：${String(e)}`)
+        })
       }
 
       const exists = hasTheme(name)
@@ -309,12 +312,18 @@ function createThemeInstaller(
       }
 
       if (exists || !(await Filesystem.exists(dest))) {
-        await Filesystem.write(dest, text).catch(() => {})
+        // 主题文件写入失败会导致主题无法加载，需留痕
+        await Filesystem.write(dest, text).catch((e: unknown) => {
+          console.error(`[plugin] 写入主题文件失败：${String(e)}`)
+        })
       }
 
       upsertTheme(name, data)
       await save()
-    }).catch(() => {})
+    }).catch((e: unknown) => {
+      // 主题安装整体失败，恢复到默认主题而非中断启动
+      console.error(`[plugin] 安装主题失败：${String(e)}`)
+    })
   }
 }
 
@@ -689,6 +698,7 @@ async function resolveExternalPlugins(list: ConfigPlugin.Origin[], wait: () => P
     items: list,
     kind: "tui",
     wait: async () => {
+      // 等待插件就绪失败不阻断调用方，忽略
       await wait().catch(() => {})
     },
     finish: async (loaded, origin, retry) => {

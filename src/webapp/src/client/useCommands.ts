@@ -33,6 +33,7 @@ export function useCommands(directory?: string) {
         v2(directory)
           .v2.command.list()
           .then((res) => apply(res.data))
+          // 命令列表拉取失败时保持已有命令，不阻断界面渲染
           .catch(() => {}),
       )
     return () => {

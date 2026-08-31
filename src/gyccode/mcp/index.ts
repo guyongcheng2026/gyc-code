@@ -588,7 +588,9 @@ const layer = Layer.effect(
                     for (const dpid of pids ?? []) {
                       try {
                         process.kill(dpid, "SIGTERM")
-                      } catch {}
+                      } catch {
+                        // 子进程可能已退出，发送信号失败无需处理
+                      }
                     }
                   }
                   yield* Effect.tryPromise(() => client.close()).pipe(Effect.ignore)

@@ -271,6 +271,7 @@ const layer = Layer.effect(
               await fsNode.writeFile(path.join(Global.Path.config, "config.json"), JSON.stringify(result, null, 2))
               await fsNode.unlink(legacy)
             })
+            // legacy 配置迁移失败时保留原文件，下次启动会重试
             .catch(() => {}),
         )
       }

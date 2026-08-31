@@ -297,6 +297,7 @@ export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () =
                 `timestamp=${new Date().toISOString()} level=Info run=main terminal-close-detected consecutive=${consecutiveFailures}\n`,
               ),
             )
+            // 写日志本身失败不能再抛，忽略
             .catch(() => {})
           onClose()
         }

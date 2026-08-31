@@ -106,7 +106,9 @@ export class Completer {
             items.push({ label: "@" + agent.id, detail: agent.description ?? "", insertText: "@" + agent.id + " ", kind: "agent" })
           }
         }
-      } catch {}
+      } catch {
+        // 拉取 agent 列表失败时降级为不补全 agent，不阻断输入
+      }
     }
 
     return items.slice(0, 30)
@@ -177,7 +179,9 @@ export class Completer {
         })),
       ]
       this.setCache("dynamic-commands", items)
-    } catch {}
+    } catch {
+      // 拉取动态命令失败时降级为仅缓存内置项，不阻断补全
+    }
   }
 
   private getCache(key: string): CompletionItem[] | null {

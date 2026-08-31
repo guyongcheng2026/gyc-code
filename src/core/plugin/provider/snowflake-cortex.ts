@@ -15,7 +15,9 @@ export function cortexFetch(upstream: FetchLike = fetch) {
           delete body.max_tokens
           init = { ...init, body: JSON.stringify(body) }
         }
-      } catch {}
+      } catch {
+        // 请求体非 JSON 时保持原样发送，无需字段转换
+      }
     }
 
     const response = await upstream(url, init)
@@ -34,7 +36,9 @@ export function cortexFetch(upstream: FetchLike = fetch) {
             { status: 200, headers: new Headers({ "content-type": "application/json" }) },
           )
         }
-      } catch {}
+      } catch {
+        // 400 响应体非 JSON，按原样抛出由上层处理
+      }
     }
 
     // Cortex returns role:"" in streaming deltas; the AI SDK schema requires "assistant"

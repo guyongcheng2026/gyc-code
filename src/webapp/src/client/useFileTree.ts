@@ -40,8 +40,13 @@ export function useFileTree(directory?: string) {
   }, [directory])
 
   useEffect(() => {
-    void loadRoot().catch(() => {})
-    void loadStatus().catch(() => {})
+    // 文件树/git 状态加载失败时保持空树，不阻断界面渲染
+    void loadRoot().catch((e) => {
+      console.error("[useFileTree] 加载文件树失败", e)
+    })
+    void loadStatus().catch((e) => {
+      console.error("[useFileTree] 加载 git 状态失败", e)
+    })
   }, [loadRoot, loadStatus])
 
   return { state, toggle, reload: loadRoot }

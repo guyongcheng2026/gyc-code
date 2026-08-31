@@ -109,7 +109,9 @@ async function readLine(prompt: string): Promise<string> {
     rl.close()
     try {
       process.stdin.pause()
-    } catch {}
+    } catch {
+      // stdin 可能已被销毁，暂停失败无需处理
+    }
   }
 }
 
@@ -803,7 +805,9 @@ async function runSlashCommand(
         try {
           const { unlink } = await import("node:fs/promises")
           await unlink(tmpFile)
-        } catch {}
+        } catch {
+          // 临时文件删除失败不影响主流程，忽略
+        }
         if (!content.trim()) {
           process.stdout.write("编辑器内容为空，已取消。\n")
           return "continue"
@@ -1039,7 +1043,10 @@ async function interactiveLoop(input: CliInput) {
     for (const item of res.data?.data ?? []) {
       if (item.name) dynamicCommands.set(item.name, item)
     }
-  } catch {}
+  } catch (e) {
+    // 拉取失败时降级为仅内置命令，但必须留痕，否则用户只看到"命令不存在"无从排查
+    console.error(`[default] 拉取动态命令失败，已降级为仅内置命令：${String(e)}`)
+  }
   const commandCandidates = () => {
     const names = new Set<string>()
     for (const cmd of SLASH_COMMANDS) names.add(cmd)
@@ -1379,7 +1386,9 @@ async function interactiveLoop(input: CliInput) {
   const cancelTerminalWatch = watchTerminalClose(() => {
     try {
       process.stdin.setRawMode(false)
-    } catch {}
+    } catch {
+      // 终端可能已关闭，恢复原始模式失败无需处理
+    }
     process.exit(0)
   })
   try {

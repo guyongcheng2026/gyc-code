@@ -88,7 +88,10 @@ export class Handler {
     }
 
     if (permission.permission === "edit") {
-      await this.writeProposedEdit(session.id, permission.metadata).catch(() => {})
+      // 写入建议编辑失败需留痕，否则用户看不到待确认的改动且无从排查
+      await this.writeProposedEdit(session.id, permission.metadata).catch((e) => {
+        console.error(`[acp] 写入建议编辑失败：${String(e)}`)
+      })
     }
 
     await this.reply(permission.id, reply, session.cwd)

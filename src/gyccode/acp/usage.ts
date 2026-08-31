@@ -216,7 +216,9 @@ const layer = Layer.effect(
               cost: { amount: totalSessionCost(messages), currency: "USD" },
             },
           })
-          .catch(() => {}),
+          .catch((e) => {
+            console.error(`[acp] 上报会话用量失败：${String(e)}`)
+          }),
       )
     })
 

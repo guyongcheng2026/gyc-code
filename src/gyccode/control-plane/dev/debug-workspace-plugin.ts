@@ -18,7 +18,9 @@ async function waitForHealth(port: number) {
       if (response.ok) {
         return
       }
-    } catch {}
+    } catch {
+      // 服务尚未启动时会持续失败，属轮询等待的正常状态
+    }
 
     await sleep(250)
   }

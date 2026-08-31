@@ -253,7 +253,10 @@ export async function DigitalOceanAuthPlugin(input: PluginInput): Promise<Hooks>
                 path: { id: "digitalocean" },
                 body: { type: "api", key: ctx.auth.key, metadata: updated },
               })
-              .catch(() => {})
+              .catch(() => {
+                // 保存更新后的元数据失败会导致下次重新拉取，必须留痕
+                console.error("[digitalocean] 保存 auth 元数据失败")
+              })
           } else if (result.status === 401 || result.status === 403) {
           } else if (result.status !== 0) {
           }

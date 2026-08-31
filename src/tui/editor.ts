@@ -66,6 +66,7 @@ export async function openEditor(input: { value: string; renderer: CliRenderer; 
     })
     return (await readFile(file, "utf8")) || undefined
   } finally {
+    // 临时文件可能已被清理，删除失败不阻断
     await rm(file, { force: true }).catch(() => {})
     input.renderer.currentRenderBuffer.clear()
     input.renderer.resume()

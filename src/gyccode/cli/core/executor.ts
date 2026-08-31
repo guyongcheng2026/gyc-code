@@ -480,7 +480,12 @@ registerBuiltinCommand("editor", async (ctx) => {
 
     const { Filesystem } = await import("@/util/filesystem")
     const content = await Filesystem.readText(tmpFile).catch(() => "")
-    try { const { unlink } = await import("node:fs/promises"); await unlink(tmpFile) } catch {}
+    try {
+      const { unlink } = await import("node:fs/promises")
+      await unlink(tmpFile)
+    } catch {
+      // 临时文件可能已被清理，删除失败无需处理
+    }
 
     if (!content.trim()) { console.log("编辑器内容为空，已取消"); return "continue" }
 

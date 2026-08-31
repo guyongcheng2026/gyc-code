@@ -422,7 +422,11 @@ export async function readLine(prompt: string): Promise<string> {
     return await rl.question(prompt)
   } finally {
     rl.close()
-    try { process.stdin.pause() } catch {}
+    try {
+      process.stdin.pause()
+    } catch {
+      // stdin 可能已被销毁，暂停失败无需处理
+    }
   }
 }
 

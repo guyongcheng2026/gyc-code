@@ -9,6 +9,7 @@ export async function upgrade() {
   const config = await AppRuntime.runPromise(Config.Service.use((cfg) => cfg.getGlobal()))
   if (config.autoupdate === false || Flag.GYCCODE_DISABLE_AUTOUPDATE) return
   const method = await Installation.method()
+  // 离线或 CDN 不可达时获取最新版本失败，静默跳过自动更新
   const latest = await Installation.latest(method).catch(() => {})
   if (!latest) return
 
@@ -49,5 +50,6 @@ export async function upgrade() {
         },
       }),
     )
+    // 升级失败不影响当前会话（下次启动会再次尝试），忽略
     .catch(() => {})
 }

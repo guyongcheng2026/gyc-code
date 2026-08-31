@@ -47,6 +47,7 @@ export async function read() {
     } catch {
       // Fall through to text clipboard.
     } finally {
+      // 临时文件可能已被清理，删除失败不阻断
       await rm(file, { force: true }).catch(() => {})
     }
   }

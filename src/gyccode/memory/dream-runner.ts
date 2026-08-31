@@ -19,6 +19,7 @@ async function atomicWriteFile(filePath: string, content: string): Promise<void>
     await rename(tmpPath, filePath)
   } catch (error) {
     // 不遗留半写的 .tmp 孤儿文件
+    // 临时文件可能已被清理，删除失败不阻断
     await rm(tmpPath, { force: true }).catch(() => {})
     throw error
   }

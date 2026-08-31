@@ -293,8 +293,13 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                   ...(oauth.accountId && { accountId: oauth.accountId }),
                 },
               })
-              .catch(() => {})
-          } catch {}
+              .catch(() => {
+              // 保存刷新后的 token 失败会导致用户下次需重新登录，必须留痕
+              console.error("[snowflake-cortex] 保存刷新后的 OAuth token 失败")
+            })
+          } catch (e) {
+            console.error(`[snowflake-cortex] token 刷新失败：${String(e)}`)
+          }
         }
 
         return {
@@ -330,7 +335,10 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                           ...(accountId && { accountId }),
                         },
                       })
-                      .catch(() => {})
+                      .catch(() => {
+                        // 保存刷新后的凭证失败会导致用户下次需重新登录，必须留痕
+                        console.error("[snowflake-cortex] 保存刷新后的 OAuth 凭证失败")
+                      })
                     return {
                       access: tokens.access_token,
                       refresh: refreshedRefresh,
@@ -371,7 +379,9 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                     delete parsed.max_tokens
                     body = JSON.stringify(parsed)
                   }
-                } catch {}
+                } catch {
+                  // 请求体非 JSON 时保持原样发送，无需转换
+                }
               }
 
               return { ...init, headers, body }
@@ -390,7 +400,9 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                       { status: 200, headers: new Headers({ "content-type": "application/json" }) },
                     )
                   }
-                } catch {}
+                } catch {
+                  // 400 响应体非 JSON，按原样抛出由上层处理
+                }
               }
 
               if (response.body && response.headers.get("content-type")?.includes("text/event-stream")) {
@@ -479,9 +491,4 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
         {
           type: "api",
           label: "Paste PAT or bearer token manually",
-          prompts: prompts.filter((item) => item.key === "account"),
-        },
-      ],
-    },
-  }
-}
+         

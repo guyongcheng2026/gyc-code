@@ -157,7 +157,9 @@ export async function CopilotAuthPlugin(input: PluginInput): Promise<Hooks> {
                     isAgent: !(last?.role === "user" && hasNonToolCalls) || imgMsg(last),
                   }
                 }
-              } catch {}
+              } catch {
+                // 请求体解析失败时按非视觉/非代理处理，下方 return 提供兜底
+              }
               return { isVision: false, isAgent: false }
             })
 

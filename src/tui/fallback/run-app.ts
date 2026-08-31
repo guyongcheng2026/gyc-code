@@ -42,7 +42,9 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 		done = true
 		try {
 			flushSync()
-		} catch {}
+		} catch {
+			// 刷新失败不阻断退出流程，忽略
+		}
 		disposeTree?.()
 		renderer.stop()
 	}

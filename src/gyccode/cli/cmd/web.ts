@@ -85,11 +85,12 @@ export const WebCommand = effectCmd({
         )
       }
 
-      // Open localhost in browser
+      // Open localhost in browser（无 GUI 环境打开失败属正常，服务已启动）
       open(localhostUrl).catch(() => {})
     } else {
       const displayUrl = server.url.toString()
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
+      // 同上：无 GUI 环境打开失败不阻断
       open(displayUrl).catch(() => {})
     }
 

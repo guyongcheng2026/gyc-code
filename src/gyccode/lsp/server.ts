@@ -672,6 +672,7 @@ export const Zls: Info = {
       }
 
       if (platform !== "win32") {
+        // 二进制文件可能不存在或只读，chmod 失败不阻断启动
         await fs.chmod(bin, 0o755).catch(() => {})
       }
     }
@@ -1055,6 +1056,7 @@ export const Clangd: Info = {
       await fs.chmod(bin, 0o755).catch(() => {})
     }
 
+    // 旧软链可能不存在，删除失败不阻断；新建软链失败由后续启动报错暴露
     await fs.unlink(path.join(Global.Path.bin, "clangd")).catch(() => {})
     await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch(() => {})
 
@@ -1348,6 +1350,7 @@ export const KotlinLS: Info = {
       if (!ok) return
       await fs.rm(archivePath, { force: true })
       if (process.platform !== "win32") {
+        // 启动脚本可能不存在，chmod 失败不阻断
         await fs.chmod(launcherScript, 0o755).catch(() => {})
       }
     }
@@ -1678,6 +1681,7 @@ export const TerraformLS: Info = {
       }
 
       if (platform !== "win32") {
+        // 二进制文件可能不存在或只读，chmod 失败不阻断启动
         await fs.chmod(bin, 0o755).catch(() => {})
       }
     }
@@ -1763,6 +1767,7 @@ export const TexLab: Info = {
       }
 
       if (platform !== "win32") {
+        // 二进制文件可能不存在或只读，chmod 失败不阻断启动
         await fs.chmod(bin, 0o755).catch(() => {})
       }
     }
@@ -1942,6 +1947,7 @@ export const Tinymist: Info = {
       }
 
       if (platform !== "win32") {
+        // 二进制文件可能不存在或只读，chmod 失败不阻断启动
         await fs.chmod(bin, 0o755).catch(() => {})
       }
     }

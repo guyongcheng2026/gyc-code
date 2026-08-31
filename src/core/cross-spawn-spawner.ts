@@ -373,8 +373,17 @@ export const make = Effect.gen(function* () {
         orElse: () =>
           // SIGKILL the entire process group (-pid) and wait for exit
           Effect.sync(() => {
-            try { if (proc.pid) process.kill(-proc.pid, "SIGKILL") } catch {}
-            try { if (proc.pid) process.kill(proc.pid, "SIGKILL") } catch {}
+            // 进程可能已自行退出，kill 失败无需处理
+            try {
+              if (proc.pid) process.kill(-proc.pid, "SIGKILL")
+            } catch {
+              // 进程组已退出
+            }
+            try {
+              if (proc.pid) process.kill(proc.pid, "SIGKILL")
+            } catch {
+              // 进程已退出
+            }
           }).pipe(
             // Wait for the process to actually exit (reap zombie)
             Effect.flatMap(() =>

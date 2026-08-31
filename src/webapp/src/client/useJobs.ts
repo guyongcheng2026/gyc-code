@@ -29,7 +29,10 @@ export function useJobs(directory?: string) {
     return fetch(url)
       .then((res) => (res.ok ? (res.json() as Promise<JobItem[]>) : Promise.resolve([] as JobItem[])))
       .then((data) => setJobs(data))
-      .catch(() => {})
+      .catch((e) => {
+        // 任务列表拉取失败时保留上一次结果，留痕便于排查
+        console.error("[useJobs] 拉取任务列表失败", e)
+      })
   }, [directory])
 
   useEffect(() => {

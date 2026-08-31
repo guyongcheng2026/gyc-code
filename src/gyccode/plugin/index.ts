@@ -245,8 +245,11 @@ const layer = Layer.effect(
           if (event.location?.directory !== ctx.directory) return Effect.void
           return Effect.sync(() => {
             for (const hook of hooks) {
+              // 单个插件 hook 抛错不应影响其他插件与事件分发，但需留痕
               void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
-                .catch(() => {})
+                .catch((e: unknown) => {
+                  console.error(`[plugin] 事件 hook 执行失败：${String(e)}`)
+                })
             }
           })
         })

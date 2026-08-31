@@ -41,7 +41,9 @@ export function start() {
       for (const name of stale.slice(0, Math.max(0, stale.length - 1))) {
         rmSync(path.join(Global.Path.log, name), { force: true })
       }
-    } catch {}
+    } catch {
+      // 旧快照清理失败不阻断本次快照写入，忽略
+    }
     await Promise.resolve()
       .then(() => writeHeapSnapshot(file))
       .catch((error) => console.error(`[heap] 堆快照写入失败: ${String(error)}`))

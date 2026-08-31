@@ -260,7 +260,10 @@ export async function XaiAuthPlugin(input: PluginInput, options: XaiAuthPluginOp
                           expires: refreshedExpires,
                         },
                       })
-                      .catch(() => {})
+                      .catch(() => {
+                        // 保存刷新后的凭证失败会导致用户下次需重新登录，必须留痕
+                        console.error("[xai] 保存刷新后的 OAuth 凭证失败")
+                      })
                     return { access: tokens.access_token, refresh: refreshedRefresh, expires: refreshedExpires }
                   })
                   .finally(() => {

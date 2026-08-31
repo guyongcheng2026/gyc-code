@@ -34,6 +34,7 @@ const logWorkerCrash = (() => {
           `timestamp=${new Date().toISOString()} level=Error run=worker ${kind} message=${detail}\n`,
         ),
       )
+      // 写日志本身失败不能再抛，否则会掩盖原始错误
       .catch(() => {})
   }
 })()
@@ -173,6 +174,7 @@ export const rpc = {
   async checkUpgrade(input: { directory: string }) {
     await ensureWarmInstance()
     const { upgrade } = await importMod<typeof import("@/cli/upgrade")>("@/cli/upgrade")
+    // 后台检查升级失败不影响当前会话，忽略
     await upgrade().catch(() => {})
   },
   async reload() {
@@ -217,5 +219,6 @@ const LOW_MEM_PREWARM_CUTOFF = 1536 * 1024 * 1024
 if (os.freemem() > LOW_MEM_PREWARM_CUTOFF) {
   void ensureWarmInstance()
     .then(() => tuiTiming("instance warm (APIs ready)"))
+    // 预热失败不影响首次请求时再初始化，忽略
     .catch(() => {})
 }

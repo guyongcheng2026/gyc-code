@@ -686,7 +686,9 @@ function makeUsageService(sdk: GyccodeClient) {
             cost: { amount: UsageService.totalSessionCost(messages), currency: "USD" },
           },
         })
-        .catch(() => {}),
+        .catch((e) => {
+          console.error(`[acp] 上报会话用量失败：${String(e)}`)
+        }),
     )
   })
 
@@ -703,7 +705,10 @@ function replayMessages(subscription: ACPEvent.Subscription | undefined, message
   if (!subscription) return Effect.void
   return Effect.promise(async () => {
     for (const message of messages) {
-      await subscription.replayMessage(message).catch(() => {})
+      // 单条消息重放失败不应中断其余消息，但需留痕
+      await subscription.replayMessage(message).catch((e) => {
+        console.error(`[acp] 重放消息失败：${String(e)}`)
+      })
     }
   })
 }

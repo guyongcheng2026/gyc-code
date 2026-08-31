@@ -97,6 +97,7 @@ const layer = Layer.effect(
         Effect.tap((subscription) => Effect.sync(() => subscriptions.push(subscription))),
         Effect.timeout(SUBSCRIBE_TIMEOUT_MS),
         Effect.catchCause((cause) => {
+          // 订阅超时后需释放已建立的订阅，unsubscribe 失败无需处理
           pending.then((subscription) => subscription.unsubscribe()).catch(() => {})
           return Effect.logError("failed to subscribe", { directory, cause: Cause.pretty(cause) })
         }),
