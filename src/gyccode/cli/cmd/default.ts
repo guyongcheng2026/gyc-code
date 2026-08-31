@@ -4,7 +4,6 @@
 //   1. 传消息或 stdin 管道 → 非交互单轮（复用 RunCommand.handler，行为与 `gyc run` 完全一致）。
 //   2. 无参数且 stdout 为 TTY → 逐行对话（node:readline，Node 直跑，不依赖 OpenTUI）。
 import path from "path"
-import { pathToFileURL } from "url"
 import type { Argv } from "yargs"
 import { Effect } from "effect"
 import { UI } from "../ui"
@@ -23,6 +22,7 @@ import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { RunCommand } from "./run"
 import { writeClipboardOsc52, writeCopyTempFile } from "./run/copy.shared"
 import { watchTerminalClose } from "@gyccode/tui/terminal-win32"
+import { parseModelInput, resolveFileParts } from "../core/pipeline"
 
 function formatRunError(error: unknown) {
   return FormatError(error) ?? FormatUnknownError(error)
@@ -47,12 +47,6 @@ type CliInput = {
 }
 
 type SubagentRecord = SubagentInfo & { at: string }
-
-function parseModelInput(value: string | undefined): { providerID: string; modelID: string } | undefined {
-  if (!value) return undefined
-  const [providerID, ...rest] = value.split("/")
-  return { providerID, modelID: rest.join("/") }
-}
 
 // 状态行模型标签：短模型名 + 推理档位（如 deepseek-v4-flash high）。
 function shortModelLabel(id: string, variant: string | undefined): string {
@@ -165,25 +159,6 @@ function createStreamInteractive(): NonNullable<Parameters<typeof streamLoop>[0]
   }
 }
 
-// 把 --file 附加文件解析为 file part（本地路径引用，复用 run 单轮的文件语义）。
-async function resolveFileParts(files: string[], directory?: string): Promise<Array<{ type: "file"; url: string; filename: string; mime: string }>> {
-  const parts: Array<{ type: "file"; url: string; filename: string; mime: string }> = []
-  for (const filePath of files) {
-    const resolved = path.resolve(directory ?? process.cwd(), filePath)
-    if (!(await Filesystem.exists(resolved))) {
-      process.stdout.write(`文件不存在：${filePath}\n`)
-      continue
-    }
-    parts.push({
-      type: "file",
-      url: pathToFileURL(resolved).href,
-      filename: path.basename(resolved),
-      mime: "text/plain",
-    })
-  }
-  return parts
-}
-
 // 订阅事件流并渲染到 stdout，同时收集子代理（task 工具）状态供 /subagents 使用。
 function runStreamLoop(
   sdk: GyccodeClient,
@@ -216,7 +191,7 @@ function runStreamLoop(
 // 一轮对话：订阅事件流 → prompt → 流式渲染直到 idle。
 
 async function runTurn(sdk: GyccodeClient, sessionID: string, text: string, input: CliInput, subagents: SubagentRecord[]) {
-  const fileParts = await resolveFileParts(input.files ?? [], input.directory)
+  const fileParts = await resolveFileParts(input.files ?? [], input.directory, { skipMissing: true })
   const completed = runStreamLoop(sdk, sessionID, input, subagents)
   const result = await sdk.session.prompt({
     sessionID,

@@ -71,19 +71,35 @@ export interface ExecutionContext {
   subagents: Array<{ type: string; description?: string; status: string; at: string }>
 }
 
-// 模型输入解析
-export function parseModelInput(value: string | undefined): { providerID: string; modelID: string } | undefined {
+// 模型输入解析：provider/model[:variant] → { providerID, modelID, variant? }
+export function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
   if (!value) return undefined
   const [providerID, ...rest] = value.split("/")
-  return { providerID, modelID: rest.join("/") }
+  const modelPart = rest.join("/")
+  if (!modelPart) return { providerID, modelID: "" }
+  const [modelID, variant] = modelPart.split(":")
+  return { providerID, modelID, variant }
 }
 
-// 文件附件解析
-export async function resolveFileParts(files: string[], directory?: string, attachMode = false): Promise<Array<{ type: "file"; url: string; filename: string; mime: string }>> {
+export interface ResolveFilePartsOptions {
+  /** 远程 attach 模式：读取文件字节编 base64 内联发送 */
+  attachMode?: boolean
+  /** REPL/批量路径复用：缺失文件跳过并提示，而非抛错（与原 default/executor 语义一致） */
+  skipMissing?: boolean
+}
+
+// 文件附件解析（公共实现：run 单轮 / default 交互 / executor 斜杠命令三处共用）
+export async function resolveFileParts(files: string[], directory?: string, options: ResolveFilePartsOptions = {}): Promise<Array<{ type: "file"; url: string; filename: string; mime: string }>> {
+  const attachMode = options.attachMode ?? false
+  const skipMissing = options.skipMissing ?? false
   const parts: Array<{ type: "file"; url: string; filename: string; mime: string }> = []
   for (const filePath of files) {
     const resolved = path.resolve(directory ?? process.cwd(), filePath)
     if (!(await Filesystem.exists(resolved))) {
+      if (skipMissing) {
+        console.error(`文件不存在：${filePath}`)
+        continue
+      }
       throw new Error(`文件不存在: ${filePath}`)
     }
     const stat = Filesystem.stat(resolved)
@@ -199,8 +215,7 @@ export async function resolveSession(sdk: GyccodeClient, input: PipelineInput): 
     { permission: "plan_exit", action: "deny" as const, pattern: "*" },
   ]
   const model = parseModelInput(input.model)
-  // parseModelInput 返回类型不含 variant，model.variant 恒为 undefined，直接取 input.variant
-  const modelConfig = model ? { id: model.modelID, providerID: model.providerID, variant: input.variant } : undefined
+  const modelConfig = model ? { id: model.modelID, providerID: model.providerID, variant: model.variant ?? input.variant } : undefined
   const created = await sdk.session.create({
     title: input.title,
     agent: input.agent,
@@ -251,11 +266,11 @@ export async function executeTurn(ctx: ExecutionContext): Promise<string | undef
     return "builtin"
   }
 
-  const fileParts = await resolveFileParts(input.files ?? [], input.directory, !!input.attachUrl)
+  const fileParts = await resolveFileParts(input.files ?? [], input.directory, { attachMode: !!input.attachUrl })
   const model = parseModelInput(input.model)
   const result = await sdk.session.prompt({
     sessionID,
-    model: model ? { providerID: model.providerID, modelID: model.modelID } : undefined,
+    model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant } : undefined,
     agent: input.agent,
     variant: input.variant,
     parts: [...fileParts, { type: "text", text: input.message ?? "" }],

@@ -5,7 +5,7 @@ import { RawInputHandler, readLine } from "./input"
 import { SlashMenu, CommandPalette } from "./menu"
 import { IHistoryManager, createHistoryManager } from "./history"
 import { Completer } from "./completer"
-import { createLocalSdk, fetchDynamicCommands } from "./pipeline"
+import { createLocalSdk, fetchDynamicCommands, parseModelInput } from "./pipeline"
 import { type GyccodeClient } from "@gyccode/protocol/v2"
 import { UI } from "../ui"
 import { executeBuiltinCommand, ExecutorContext } from "./executor"
@@ -390,7 +390,7 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
   const { resolveFileParts } = await import("./pipeline")
   const { streamLoop } = await import("../cmd/run/stream-cli")
 
-  const fileParts = await resolveFileParts(ctx.input.files ?? [], ctx.directory)
+  const fileParts = await resolveFileParts(ctx.input.files ?? [], ctx.directory, { skipMissing: true })
   const events = await ctx.sdk.event.subscribe()
   const completed = streamLoop({
     client: ctx.sdk,
@@ -447,10 +447,4 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
   await completed
 }
 
-function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
-  if (!value) return undefined
-  const [providerID, ...rest] = value.split("/")
-  const modelPart = rest.join("/")
-  const [modelID, variant] = modelPart.split(":")
-  return { providerID, modelID, variant }
-}
+

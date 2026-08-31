@@ -8,6 +8,7 @@ import { IHistoryManager } from "./history"
 import { UI } from "../ui"
 import { readLine } from "./input"
 import { TokyoNight, Typography } from "../theme"
+import { parseModelInput, resolveFileParts } from "./pipeline"
 
 export interface ExecutorContext {
   sdk: GyccodeClient
@@ -543,14 +544,7 @@ registerBuiltinCommand("history", async (ctx, args) => {
   return "continue"
 }, ["hist"])
 
-// 辅助函数
-function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
-  if (!value) return undefined
-  const [providerID, ...rest] = value.split("/")
-  const modelPart = rest.join("/")
-  const [modelID, variant] = modelPart.split(":")
-  return { providerID, modelID, variant }
-}
+
 
 async function selectFromList(title: string, items: Array<{ label: string; value: string }>): Promise<string | undefined> {
   if (items.length === 0) return undefined
@@ -601,7 +595,7 @@ async function selectFromList(title: string, items: Array<{ label: string; value
 
 // 执行一轮对话（复用 pipeline）
 async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
-  const fileParts = await resolveFileParts(ctx.input.files ?? [], ctx.directory)
+  const fileParts = await resolveFileParts(ctx.input.files ?? [], ctx.directory, { skipMissing: true })
   const { streamLoop } = await import("../cmd/run/stream-cli")
 
   const events = await ctx.sdk.event.subscribe()
@@ -660,17 +654,7 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
   await completed
 }
 
-async function resolveFileParts(files: string[], directory?: string) {
-  const { pathToFileURL } = await import("url")
-  const { Filesystem } = await import("@/util/filesystem")
-  const parts = []
-  for (const filePath of files) {
-    const resolved = path.resolve(directory ?? process.cwd(), filePath)
-    if (!(await Filesystem.exists(resolved))) continue
-    parts.push({ type: "file" as const, url: pathToFileURL(resolved).href, filename: path.basename(resolved), mime: "text/plain" })
-  }
-  return parts
-}
+
 
 const HELP_TEXT = [
   "gyc 纯 CLI 交互模式",
