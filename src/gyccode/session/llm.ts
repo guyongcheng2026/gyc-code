@@ -181,16 +181,18 @@ const live: Layer.Layer<
               title: typeof result === "object" ? result?.title : undefined,
             }
           } catch (e: unknown) {
+            const errMsg = e instanceof Error ? e.message : String(e)
+            const errStack = e instanceof Error ? e.stack : undefined
             bridge.fork(
               Effect.logError("workflow tool execution failed", {
                 toolName,
                 requestID: _requestID,
                 "session.id": input.sessionID,
-                error: e.message ?? String(e),
-                stack: e instanceof Error ? e.stack : undefined,
+                error: errMsg,
+                stack: errStack,
               }),
             )
-            return { result: "", error: e.message ?? String(e) }
+            return { result: "", error: errMsg }
           }
         }
 

@@ -98,7 +98,7 @@ export function client<T extends Definition>(target: {
       const requestId = id++
       hooks?.onActivity?.()
       return new Promise((resolve, reject) => {
-        pending.set(requestId, { resolve, reject })
+        pending.set(requestId, { resolve: resolve as (result: unknown) => void, reject: reject as (error: Error) => void })
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
     },

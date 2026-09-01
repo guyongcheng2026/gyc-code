@@ -438,7 +438,6 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           {
             pinned: sessionStore.pinned,
           },
-          "session",
         )
       }
 

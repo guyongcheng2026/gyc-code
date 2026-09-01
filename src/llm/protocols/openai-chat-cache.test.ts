@@ -20,12 +20,12 @@ function minimalRequest(): LLMRequest {
 type Halt = NonNullable<typeof protocol.stream.onHalt>
 
 function runUsage(json: string) {
-  const eventSchema = protocol.stream.event as unknown as Parameters<typeof Schema.decodeUnknownSync>[0]
-  const decoded = Schema.decodeUnknownSync(eventSchema)(json)
+  const eventFn = protocol.stream.event as unknown as { parse: (input: unknown) => unknown }
+  const decoded = eventFn.parse(json)
   const initial = protocol.stream.initial(minimalRequest())
-  const stepEffect = protocol.stream.step(initial, decoded) as unknown as Parameters<typeof Effect.runSync>[0]
+  const stepEffect = protocol.stream.step(initial, decoded as never) as unknown as Parameters<typeof Effect.runSync>[0]
   const [state] = Effect.runSync(stepEffect) as unknown as readonly [unknown]
-  const finishEvents = (protocol.stream.onHalt?.(state as unknown as Parameters<Halt>[0]) ?? []) as ReturnType<Halt>
+  const finishEvents = (protocol.stream.onHalt?.(state as never) ?? []) as ReturnType<Halt>
   return finishEvents.find((e) => e.type === "finish")
 }
 
@@ -42,7 +42,7 @@ test("DeepSeek prompt_cache_hit_tokens maps to cacheReadInputTokens", () => {
       prompt_cache_hit_tokens: 9800,
       prompt_cache_miss_tokens: 200,
     },
-  }))
+  }))!
   expect(finish).toBeDefined()
   expect(finish.usage?.cacheReadInputTokens).toBe(9800)
   expect(finish.usage?.inputTokens).toBe(10000)
@@ -61,7 +61,7 @@ test("OpenAI-native cached_tokens still maps correctly", () => {
       total_tokens: 10500,
       prompt_tokens_details: { cached_tokens: 9000 },
     },
-  }))
+  }))!
   expect(finish).toBeDefined()
   expect(finish.usage?.cacheReadInputTokens).toBe(9000)
   expect(finish.usage?.inputTokens).toBe(10000)

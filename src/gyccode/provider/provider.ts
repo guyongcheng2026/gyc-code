@@ -69,6 +69,11 @@ type BundledSDK = {
   chat?: (modelId: string) => LanguageModelV3
   responses?: (modelId: string) => LanguageModelV3
   messages?: (modelId: string) => LanguageModelV3
+  // GitHub Copilot 专用扩展
+  workflowChat?: (modelId: string, opts: Record<string, unknown>) => LanguageModelV3 & {
+    selectedModelRef?: string
+  }
+  agenticChat?: (modelId: string, opts: Record<string, unknown>) => LanguageModelV3
 }
 
 // 各 provider 工厂（createAnthropic/createOpenAI/...）的选项类型互不相同且由第三方 SDK 定义，
@@ -86,7 +91,7 @@ const BUNDLED_PROVIDERS: Record<string, () => Promise<(opts: any) => BundledSDK>
   "@ai-sdk/openai-compatible": () => import("@ai-sdk/openai-compatible").then((m) => m.createOpenAICompatible),
   "@openrouter/ai-sdk-provider": () => import("@openrouter/ai-sdk-provider").then((m) => m.createOpenRouter),
   "@ai-sdk/gateway": () => import("@ai-sdk/gateway").then((m) => m.createGateway),
-  "gitlab-ai-provider": () => import("gitlab-ai-provider").then((m) => m.createGitLab),
+  "gitlab-ai-provider": () => import("gitlab-ai-provider").then((m) => m.createGitLab as (opts: any) => BundledSDK),
   "@ai-sdk/github-copilot": () =>
     import("@gyccode/core/github-copilot/copilot-provider").then((m) => m.createOpenaiCompatible),
   "venice-ai-sdk-provider": () => import("venice-ai-sdk-provider").then((m) => m.createVenice),
@@ -116,10 +121,10 @@ type CustomDep = {
 }
 
 function selectAzureLanguageModel(sdk: BundledSDK, modelID: string, useChat: boolean) {
-  if (useChat && sdk.chat) return sdk.chat(modelID)
-  if (sdk.responses) return sdk.responses(modelID)
-  if (sdk.messages) return sdk.messages(modelID)
-  if (sdk.chat) return sdk.chat(modelID)
+  if (useChat && sdk.chat) return sdk.chat!(modelID)
+  if (sdk.responses) return sdk.responses!(modelID)
+  if (sdk.messages) return sdk.messages!(modelID)
+  if (sdk.chat) return sdk.chat!(modelID)
   return sdk.languageModel(modelID)
 }
 
@@ -167,7 +172,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses(modelID)
+          return sdk.responses!(modelID)
         },
         options: { headerTimeout: OPENAI_HEADER_TIMEOUT_DEFAULT },
       }),
@@ -175,14 +180,14 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses(modelID)
+          return sdk.responses!(modelID)
         },
       }),
     xai: () =>
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses(modelID)
+          return sdk.responses!(modelID)
         },
         options: {},
       }),
@@ -196,8 +201,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             if (model.api.endpoint === "chat" && sdk.chat) return sdk.chat(modelID)
           }
           const match = /^gpt-(\d+)/.exec(modelID)
-          if (match && Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")) return sdk.responses(modelID)
-          return sdk.chat(modelID)
+          if (match && Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")) return sdk.responses!(modelID)
+          return sdk.chat!(modelID)
         },
         options: {},
       }),
@@ -551,7 +556,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         autoload: !!envServiceKey,
         options: envServiceKey ? { deploymentId, resourceGroup } : {},
         async getModel(sdk: BundledSDK, modelID: string) {
-          return sdk(modelID)
+          return sdk.languageModel(modelID)
         },
       }
     }),
@@ -608,7 +613,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             const sdkModelID = isWorkflowModel(modelID) ? modelID : "duo-workflow"
             const workflowDefinition =
               typeof options?.workflowDefinition === "string" ? options.workflowDefinition : undefined
-            const model = sdk.workflowChat(sdkModelID, {
+            const model = sdk.workflowChat!(sdkModelID, {
               featureFlags,
               workflowDefinition,
             })
@@ -617,7 +622,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             }
             return model
           }
-          return sdk.agenticChat(modelID, {
+          return sdk.agenticChat!(modelID, {
             aiGatewayHeaders,
             featureFlags,
           })
@@ -1865,7 +1870,7 @@ const layer = Layer.effect(
       const wireID = strip1mSuffix(model.api.id)
       return yield* EffectPromise.refineRejection(
         async () => {
-          const sdk = await resolveSDK(model, s, envs)
+          const sdk = (await resolveSDK(model, s, envs)) as BundledSDK
           const language = s.modelLoaders[model.providerID]
             ? await s.modelLoaders[model.providerID](
                 sdk,
@@ -1999,7 +2004,7 @@ const layer = Layer.effect(
       if (!model) return yield* new NoModelsError({ providerID: provider.id })
       return {
         providerID: provider.id,
-        modelID: model.id,
+        modelID: ModelV2.ID.make(model.id),
       }
     })
 

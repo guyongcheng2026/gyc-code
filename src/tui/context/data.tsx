@@ -80,7 +80,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
     // 抛 TypeError（uncaughtException 击穿 TUI 主进程）。先补齐节点再写叶子。
     function setLocationLeaf(key: string, field: keyof LocationData, value: unknown) {
       if (!store.location[key]) setStore("location", key, {})
-      setStore("location", key, field, value)
+      ;(setStore as (path: string, k: string, f: keyof LocationData, v: unknown) => void)("location", key, field, value)
     }
 
     const sdk = useSDK()

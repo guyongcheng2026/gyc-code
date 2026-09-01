@@ -4,7 +4,7 @@ import { resetTruncationDecisions, toModelMessages } from "./message-v2"
 // 从被测函数签名反推 mock 类型，避免 any
 type TestWithParts = Parameters<typeof toModelMessages>[0]
 type TestModel = Parameters<typeof toModelMessages>[1]
-type TestModelMsg = ReturnType<typeof toModelMessages>[number]
+type TestModelMsg = Awaited<ReturnType<typeof toModelMessages>>[number]
 
 const model = {
   providerID: "test-provider",
@@ -98,14 +98,13 @@ function userTextMsg(id: string, text: string) {
 function findUserTexts(modelMsgs: TestModelMsg[]): string[] {
   return modelMsgs
     .filter((m) => m.role === "user")
-    .map((m) =>
-      Array.isArray(m.content)
-        ? m.content
-            .filter((p): p is { type: "text"; text: string } => "type" in p && p.type === "text")
-            .map((p) => p.text)
-            .join("\n")
-        : "",
-    )
+    .map((m) => {
+      if (!Array.isArray(m.content)) return ""
+      const texts = m.content
+        .filter((p): p is { type: "text"; text: string } => typeof p === "object" && p !== null && "type" in p && (p as { type?: string }).type === "text")
+        .map((p) => (p as { text: string }).text)
+      return texts.join("\n")
+    })
 }
 
 test("集成：injectMemories 只注入最新 user 消息，历史 user 字节不变（P0-1）", async () => {
