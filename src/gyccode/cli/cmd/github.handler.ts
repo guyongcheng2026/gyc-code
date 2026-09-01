@@ -609,11 +609,11 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
     } catch (e) {
       exitCode = 1
       console.error(e instanceof Error ? e.message : String(e))
-      let msg = e
+      let msg: string | Error = e instanceof Error ? e : String(e)
       if (e instanceof Process.RunFailedError) {
         msg = e.stderr.toString()
       } else if (e instanceof Error) {
-        msg = e.message
+        msg = e
       }
       if (isUserEvent) {
         await createComment(`${msg}${footer()}`)

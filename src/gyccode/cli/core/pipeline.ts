@@ -164,7 +164,7 @@ export async function fetchDynamicCommands(sdk: GyccodeClient, directory: string
   try {
     const res = await sdk.v2.command.list({ location: { directory } })
     for (const item of res.data?.data ?? []) {
-      if (item.name && (item as { source?: string }).source !== "skill") {
+      if (item.name) {
         commands.set(item.name, item)
       }
     }
@@ -236,7 +236,7 @@ export async function executeTurn(ctx: ExecutionContext): Promise<string | undef
   // SSE 订阅生命周期：轮次结束（含异常路径）显式 abort——SDK 的 SSE 封装在
   // 消费结束后仅 releaseLock 不 cancel 底层连接，不 abort 会泄漏至 GC 兜底
   const sseAbort = new AbortController()
-  const events = await sdk.event.subscribe({ signal: sseAbort.signal })
+  const events = await sdk.event.subscribe()
   try {
     const completed = streamLoop({
       client: sdk,
@@ -274,9 +274,8 @@ export async function executeTurn(ctx: ExecutionContext): Promise<string | undef
     const model = parseModelInput(input.model)
     const result = await sdk.session.prompt({
       sessionID,
-      model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant } : undefined,
+      model: model ? { providerID: model.providerID, modelID: model.modelID } : undefined,
       agent: input.agent,
-      variant: input.variant,
       parts: [...fileParts, { type: "text", text: input.message ?? "" }],
     })
     if (result.error) throw new Error(JSON.stringify(result.error))

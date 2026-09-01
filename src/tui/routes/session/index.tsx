@@ -1734,7 +1734,7 @@ export function Session() {
 function CollapsedMessage(props: { message: { id: string; role: string }; parts: Part[] }) {
   const { theme } = useTheme()
   const summary = createMemo(() => {
-    const text = props.parts.find((p) => p.type === "text" && !p.synthetic)?.text?.trim()
+    const text = (props.parts.find((p): p is TextPart => p.type === "text" && !p.synthetic) ?? { text: "" }).text.trim()
     const raw = text ? stripAnsi(text).replace(/\s+/g, " ").slice(0, 90) : ""
     return raw || (props.message.role === "user" ? "用户消息" : "助手消息")
   })

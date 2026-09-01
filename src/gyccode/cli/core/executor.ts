@@ -605,9 +605,9 @@ async function executeTurn(ctx: ExecutorContext, text: string): Promise<void> {
 
   // 斜杠命令轮次同样每轮新建 SSE 订阅，结束必须 abort 释放底层连接
   const sseAbort = new AbortController()
-  const events = await ctx.sdk.event.subscribe({ signal: sseAbort.signal })
+  const events = await ctx.sdk.event.subscribe()
   try {
-    await runStreamTurn(ctx, text, { streamLoop, events, sseAbort })
+    await runStreamTurn(ctx, text, { streamLoop, events, sseAbort, fileParts })
   } finally {
     sseAbort.abort()
   }
@@ -620,9 +620,10 @@ async function runStreamTurn(
     streamLoop: typeof import("../cmd/run/stream-cli")["streamLoop"]
     events: Awaited<ReturnType<ExecutorContext["sdk"]["event"]["subscribe"]>>
     sseAbort: AbortController
+    fileParts: Awaited<ReturnType<typeof resolveFileParts>>
   },
 ): Promise<void> {
-  const { streamLoop, events } = deps
+  const { fileParts, streamLoop, events } = deps
   const completed = streamLoop({
     client: ctx.sdk,
     events,
@@ -669,9 +670,8 @@ async function runStreamTurn(
   const model = parseModelInput(ctx.input.model)
   const result = await ctx.sdk.session.prompt({
     sessionID: ctx.sessionId,
-    model: model ? { providerID: model.providerID, modelID: model.modelID, variant: model.variant ?? ctx.input.variant } as { providerID: string; modelID: string; variant?: string } : undefined,
+    model: model ? { providerID: model.providerID, modelID: model.modelID } : undefined,
     agent: ctx.input.agent,
-    variant: ctx.input.variant,
     parts: [...fileParts, { type: "text" as const, text }],
   })
   if (result.error) { UI.error(JSON.stringify(result.error)); return }

@@ -58,7 +58,6 @@ export class SlashMenu {
     for (const [name, info] of this.dynamicCommands) {
       if (seen.has(name)) continue
       seen.add(name)
-      if (info.source === "skill") continue
       entries.push({
         label: "/" + name + (info.source === "mcp" ? ":mcp" : ""),
         fill: "/" + name,
@@ -268,7 +267,6 @@ export class CommandPalette {
     for (const [name, info] of this.dynamicCommands) {
       if (seen.has(name)) continue
       seen.add(name)
-      if (info.source === "skill") continue
       entries.push({
         label: "/" + name + (info.source === "mcp" ? ":mcp" : ""),
         fill: "/" + name,
