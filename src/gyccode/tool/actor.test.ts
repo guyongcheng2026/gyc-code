@@ -40,7 +40,7 @@ describe("actor Parameters Schema", () => {
   })
 
   test("接受 send 操作（execute 阶段明确报不支持）", () => {
-    expect(decode({ operation: { action: "send", to_actor_id: "x", content: "c" } })).toBe(true)
+    expect(decode({ operation: { action: "send" } })).toBe(true)
   })
 
   test("接受 shell 脚本字符串形态", () => {

@@ -14,16 +14,29 @@ export interface PeerMessage {
   read: boolean
 }
 
-// F2-P0 修复：原版用模块级 messageCounter (++) + Map 内部 push/splice
-// 是非原子的，多 fiber 并发下 ID 碰撞、list 元素丢失。改用：
-//   1. crypto.randomUUID() 生成 ID，零碰撞风险
-//   2. 不可变 .concat().slice(-500) 替代 in-place push/splice，
-//      虽仍是 Map.set，但不再依赖旧的数组引用
-const inbox = new Map<string, PeerMessage[]>()
+const INBOX_CAP = 500
+// P0-1 修复：原版 inbox 是裸 Map，enqueue/read 内部使用 in-place push/splice。
+// 现改为不可变更新（concat + slice 重建新数组）替代 in-place 修改：
+//   1. 任何 reader 看到的 list 是不可变引用，不会读到「被改一半」的状态。
+//   2. Set O(1) 替代 Array.includes O(n²)（P0-2）。
+// 注：peer.execute 是同步无 await，JS 单线程事件循环下 get→set 序列本身原子；
+// 不可变更新主要价值是消除「读到 list 内部状态被并发修改」的隐性耦合。
+const inbox: { current: Map<string, PeerMessage[]> } = { current: new Map() }
 
 function enqueue(msg: PeerMessage) {
-  const list = (inbox.get(msg.to) ?? []).concat([msg]).slice(-500)
-  inbox.set(msg.to, list)
+  const list = (inbox.current.get(msg.to) ?? []).concat([msg]).slice(-INBOX_CAP)
+  inbox.current.set(msg.to, list)
+}
+
+function readMessages(target: string, from: string | undefined, limit: number, markRead: boolean): PeerMessage[] {
+  const list = inbox.current.get(target) ?? []
+  const matched = list.filter((m) => !from || m.from === from)
+  const slice = matched.slice(-limit)
+  if (markRead && slice.length > 0) {
+    const sliceSet = new Set(slice)
+    inbox.current.set(target, list.map((m) => (sliceSet.has(m) ? { ...m, read: true } : m)))
+  }
+  return slice
 }
 
 const SendInput = Schema.Struct({
@@ -45,12 +58,12 @@ export const PeerSendTool = Tool.define<typeof SendInput, {}, never>(
       "Send a direct message to another agent (peer DM). The recipient retrieves it via `peer_read`. Messages are stored in memory (cleared on restart).",
     parameters: SendInput,
     execute: (params: Schema.Schema.Type<typeof SendInput>, ctx: Tool.Context) => {
-      // P2-14 修复：运行时非空校验（Schema 4.0 缺 minLength，故下沉到 execute 层）
-      if (params.content.length === 0) {
+      // R1-3 修复：to 字段也做非空校验，避免 inbox 出现 "" 空 key 桶
+      if (params.content.length === 0 || params.to.length === 0) {
         return Effect.succeed({
           title: "peer_send failed",
-          metadata: { error: "content must be non-empty" },
-          output: "Error: peer_send: content must be non-empty",
+          metadata: { error: "to and content must be non-empty" },
+          output: "Error: peer_send: to and content must be non-empty",
         })
       }
       const msg: PeerMessage = {
@@ -78,21 +91,13 @@ export const PeerReadTool = Tool.define<typeof ReadInput, {}, never>(
       "Read peer messages addressed to this session. Returns up to `limit` messages (default 20), optionally filtered by sender. Marks them as read by default.",
     parameters: ReadInput,
     execute: (params: Schema.Schema.Type<typeof ReadInput>, ctx: Tool.Context) => {
-      // P1-9 修复：增加 to 过滤器，允许查询发件箱或特定收件人
       const target = params.to ?? ctx.sessionID
-      const list = (inbox.get(target) ?? []).filter((m) => !params.from || m.from === params.from)
       const limit = params.limit ?? 20
-      const slice = list.slice(-limit)
-      // P1-8 + P2-15 修复：mark_read 默认 true（P1-8 注释保留 Schema 行为一致性）；
-      // 不可变标记而非 in-place 遍历
       const markRead = params.mark_read ?? true
-      if (markRead) {
-        const updated = list.map((m) => (slice.includes(m) ? { ...m, read: true } : m))
-        inbox.set(target, updated)
-      }
+      const slice = readMessages(target, params.from, limit, markRead)
       return Effect.succeed({
         title: `peer_read (${slice.length})`,
-        metadata: { count: slice.length, total: list.length, target },
+        metadata: { count: slice.length, target },
         output: JSON.stringify(slice, null, 2),
       })
     },

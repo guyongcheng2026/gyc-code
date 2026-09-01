@@ -192,6 +192,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           if (sdk.responses) return sdk.responses(modelID)
           return sdk.languageModel(modelID)
         },
+        options: {},
       }),
     "github-copilot": () =>
       Effect.succeed({
@@ -1875,7 +1876,12 @@ const layer = Layer.effect(
       const wireID = strip1mSuffix(model.api.id)
       return yield* EffectPromise.refineRejection(
         async () => {
+          // P0-5 修复：保留 as BundledSDK 以满足 TypeScript，同时加运行时检查确保
+          // resolveSDK 实际返回的对象有 languageModel 方法，防止类型安全幻觉。
           const sdk = (await resolveSDK(model, s, envs)) as BundledSDK
+          if (typeof (sdk as unknown as Record<string, unknown>)["languageModel"] !== "function") {
+            throw new Error(`provider ${model.providerID} SDK does not implement languageModel()`)
+          }
           const language = s.modelLoaders[model.providerID]
             ? await s.modelLoaders[model.providerID](
                 sdk,

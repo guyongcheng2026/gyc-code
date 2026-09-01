@@ -1962,28 +1962,40 @@ const layer = Layer.effect(
           const sessionID = SessionID.make(task.sessionID)
           const info = yield* sessions.get(sessionID).pipe(Effect.ignore)
           if (info === undefined) {
-            // P1-10 修复：会话消失时提升为 logError，并记录任务完整信息便于排查
-            yield* cronScheduler.remove(task.id).pipe(Effect.ignore)
-            yield* Effect.logError("cron task target session missing, task removed", {
-              id: task.id,
-              sessionID: task.sessionID,
-              cron: task.cron,
-            })
+            // R1-4 修复：remove 失败（并发场景下正常）vs 会话不存在（异常情况）
+            // 分开两个日志级别，避免误诊 remove 的并发失败为 bug
+            let removeFailed = false
+            try {
+              yield* cronScheduler.remove(task.id)
+            } catch {
+              removeFailed = true
+            }
+            if (removeFailed) {
+              yield* Effect.logWarning("cron task session missing, remove failed", { id: task.id })
+            } else {
+              yield* Effect.logError("cron task target session missing, task removed", {
+                id: task.id,
+                sessionID: task.sessionID,
+                cron: task.cron,
+              })
+            }
             return
           }
-          let promptText = `[定时任务 ${task.id}] ${task.prompt}`
+          const shortId = task.id.length > 12 ? task.id.slice(-8) : task.id
+          let promptText = `[定时任务 ${shortId}] ${task.prompt}`
+          // P1-4 修复：scratchpad/lastOutput 长度截断，避免 LLM API 拒绝超长输入
+          const trunc = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}\n... [truncated ${s.length - n} chars]` : s)
           if (task.continuity && task.lastOutput) {
-            promptText += `\n\n[上次执行输出]\n${task.lastOutput}`
+            promptText += `\n\n[上次执行输出]\n${trunc(task.lastOutput, 4000)}`
           }
           if (task.scratchpad) {
-            promptText += `\n\n[任务便签]\n${task.scratchpad}`
+            promptText += `\n\n[任务便签]\n${trunc(task.scratchpad, 2000)}`
           }
-          // P0-3 修复：原版每个 yield 单独 Effect.ignore，任一步失败都被静默吞掉。
-          // 现在所有 fire 流程被统一 Effect.catchCause 包裹，任何失败都进 logError
-          // 且不前进 nextRun（one-shot 任务保留到用户显式 cancel；recurring 重试）。
-          // P0-4 修复：lastOutput 跨任务累计用户备注，不在本层写入 promptText，
-          // 避免把 header 模板当 LLM 输出自我循环。
-          yield* Effect.gen(function* () {
+          // P0-3 改造：每个 fire 流程封装为独立 fireEffect，统一 catchCause 后
+          // forkScoped 异步执行，避免一个任务卡住整个 30s tick 窗口。失败只
+          // 记录到日志，不前进 nextRun（one-shot 保留到用户显式 cancel；recurring 重试）。
+          // P0-4：lastOutput 跨任务累计用户备注，不在本层写入 promptText。
+          const fireEffect = Effect.gen(function* () {
             yield* prompt({
               sessionID,
               parts: [{ type: "text", text: promptText }],
@@ -1999,6 +2011,7 @@ const layer = Layer.effect(
               }),
             ),
           )
+          yield* fireEffect.pipe(Effect.forkScoped)
         }).pipe(Effect.ignore)
       }
     })
