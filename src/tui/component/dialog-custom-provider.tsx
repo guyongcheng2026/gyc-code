@@ -7,6 +7,7 @@ import { useSync } from "../context/sync"
 import { useToast } from "../ui/toast"
 import { useTheme } from "../context/theme"
 import { DialogSelect } from "../ui/dialog-select"
+import { DialogPrompt } from "../ui/dialog-prompt"
 import { DialogModel } from "./dialog-model"
 
 type Props = {
@@ -14,7 +15,9 @@ type Props = {
 }
 
 // 参照 opencode 的「提供商 + LLM」两步连接：选定目录内提供商与模型后，
-// 仅写入 { name, models } 增量配置，API 地址与模型能力由服务端从模型目录自动补全。
+// 写入 { name, models } 增量配置（API 地址与模型能力由服务端从模型目录自动补全），
+// 并将凭据落库（环境变量已有则直接采用，否则提示输入），确保提供商在
+// enabled_providers 白名单之外也能被激活。
 export function DialogCustomProvider(props: Props) {
   const dialog = useDialog()
   const sdk = useSDK()
@@ -23,6 +26,7 @@ export function DialogCustomProvider(props: Props) {
   const { theme } = useTheme()
 
   const [providerID, setProviderID] = createSignal(props.initialProviderID ?? "")
+  const [busy, setBusy] = createSignal(false)
 
   const catalogProvider = createMemo(() =>
     sync.data.provider_next.all.find((provider) => provider.id === providerID()),
@@ -59,9 +63,26 @@ export function DialogCustomProvider(props: Props) {
     )
   })
 
-  async function commit(modelID: string) {
+  function envCredential(provider: { env: string[] }) {
+    return provider.env.map((name) => process.env[name]).find(Boolean)
+  }
+
+  function supportsApiKey(providerID: string) {
+    const methods = sync.data.provider_auth[providerID]
+    if (!methods || methods.length === 0) return true
+    return methods.some((method) => method.type === "api")
+  }
+
+  async function finishConnect(modelID: string, apiKey?: string) {
     const provider = catalogProvider()
     if (!provider) return
+    if (apiKey) {
+      const authResult = await sdk.client.auth.set({ providerID: provider.id, auth: { type: "api", key: apiKey } })
+      if (authResult.error) {
+        toast.show({ variant: "error", message: `保存凭据失败：${JSON.stringify(authResult.error)}` })
+        return
+      }
+    }
     const configResult = await sdk.client.config.update({
       config: { provider: { [provider.id]: { name: provider.name, models: { [modelID]: {} } } } },
     })
@@ -73,6 +94,36 @@ export function DialogCustomProvider(props: Props) {
     await sync.bootstrap()
     toast.show({ variant: "success", message: `已连接 ${provider.name} · ${modelID}` })
     dialog.replace(() => <DialogModel providerID={provider.id} />)
+  }
+
+  function onModelSelected(modelID: string) {
+    const provider = catalogProvider()
+    if (!provider || busy()) return
+    const connected = sync.data.provider_next.connected.includes(provider.id)
+    const credential = envCredential(provider)
+    if (connected || credential) {
+      setBusy(true)
+      void finishConnect(modelID, credential).finally(() => setBusy(false))
+      return
+    }
+    if (!supportsApiKey(provider.id)) {
+      toast.show({
+        variant: "warning",
+        message: `${provider.name} 需要 OAuth 授权，请在提供商列表中选择它完成认证`,
+      })
+      return
+    }
+    dialog.replace(() => (
+      <DialogPrompt
+        title={`输入 ${provider.name} 的 API Key`}
+        placeholder={provider.env[0] ?? "API key"}
+        onConfirm={(value) => {
+          if (!value) return
+          setBusy(true)
+          void finishConnect(modelID, value).finally(() => setBusy(false))
+        }}
+      />
+    ))
   }
 
   onMount(() => {
@@ -101,7 +152,7 @@ export function DialogCustomProvider(props: Props) {
         title={`选择 LLM · ${catalogProvider()?.name ?? ""}`}
         placeholder="输入模型 ID 或名称"
         options={modelOptions()}
-        onSelect={(option) => void commit(option.value)}
+        onSelect={(option) => onModelSelected(option.value)}
         footer={
           <text attributes={TextAttributes.BOLD} fg={theme.text}>
             回车连接该模型
