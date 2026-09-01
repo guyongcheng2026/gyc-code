@@ -1962,9 +1962,13 @@ const layer = Layer.effect(
           const sessionID = SessionID.make(task.sessionID)
           const info = yield* sessions.get(sessionID).pipe(Effect.ignore)
           if (info === undefined) {
-            // 会话已不存在：任务失效，直接清理，避免每轮重复失败
+            // P1-10 修复：会话消失时提升为 logError，并记录任务完整信息便于排查
             yield* cronScheduler.remove(task.id).pipe(Effect.ignore)
-            yield* Effect.logWarning("cron task target session missing, removed", { id: task.id })
+            yield* Effect.logError("cron task target session missing, task removed", {
+              id: task.id,
+              sessionID: task.sessionID,
+              cron: task.cron,
+            })
             return
           }
           let promptText = `[定时任务 ${task.id}] ${task.prompt}`
@@ -1974,13 +1978,27 @@ const layer = Layer.effect(
           if (task.scratchpad) {
             promptText += `\n\n[任务便签]\n${task.scratchpad}`
           }
-          yield* prompt({
-            sessionID,
-            parts: [{ type: "text", text: promptText }],
-          }).pipe(Effect.ignore)
-          yield* cronScheduler.update(task.id, { lastOutput: promptText }).pipe(Effect.ignore)
-          yield* cronScheduler.markFired(task.id).pipe(Effect.ignore)
-          yield* Effect.logInfo("cron task fired", { id: task.id })
+          // P0-3 修复：原版每个 yield 单独 Effect.ignore，任一步失败都被静默吞掉。
+          // 现在所有 fire 流程被统一 Effect.catchCause 包裹，任何失败都进 logError
+          // 且不前进 nextRun（one-shot 任务保留到用户显式 cancel；recurring 重试）。
+          // P0-4 修复：lastOutput 跨任务累计用户备注，不在本层写入 promptText，
+          // 避免把 header 模板当 LLM 输出自我循环。
+          yield* Effect.gen(function* () {
+            yield* prompt({
+              sessionID,
+              parts: [{ type: "text", text: promptText }],
+            })
+            yield* cronScheduler.markFired(task.id)
+            yield* Effect.logInfo("cron task fired", { id: task.id })
+          }).pipe(
+            Effect.catchCause((cause: Cause.Cause<unknown>) =>
+              Effect.logError("cron task fire failed, will retry next tick", {
+                id: task.id,
+                sessionID: task.sessionID,
+                cause,
+              }),
+            ),
+          )
         }).pipe(Effect.ignore)
       }
     })

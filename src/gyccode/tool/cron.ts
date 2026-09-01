@@ -249,7 +249,7 @@ const layer = Layer.effect(
         throw new Error(`Too many scheduled jobs (max ${MAX_JOBS}). Cancel one first.`)
       }
 
-      const id = `cron-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const id = `cron-${crypto.randomUUID()}`
       const task: CronTask = {
         id,
         cron: input.cron,

@@ -172,7 +172,8 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses!(modelID)
+          if (sdk.responses) return sdk.responses(modelID)
+          return sdk.languageModel(modelID)
         },
         options: { headerTimeout: OPENAI_HEADER_TIMEOUT_DEFAULT },
       }),
@@ -180,16 +181,17 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses!(modelID)
+          if (sdk.responses) return sdk.responses(modelID)
+          return sdk.languageModel(modelID)
         },
       }),
     xai: () =>
       Effect.succeed({
         autoload: false,
         async getModel(sdk: BundledSDK, modelID: string, _options?: Record<string, unknown>) {
-          return sdk.responses!(modelID)
+          if (sdk.responses) return sdk.responses(modelID)
+          return sdk.languageModel(modelID)
         },
-        options: {},
       }),
     "github-copilot": () =>
       Effect.succeed({
@@ -201,8 +203,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
             if (model.api.endpoint === "chat" && sdk.chat) return sdk.chat(modelID)
           }
           const match = /^gpt-(\d+)/.exec(modelID)
-          if (match && Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")) return sdk.responses!(modelID)
-          return sdk.chat!(modelID)
+          if (match && Number(match[1]) >= 5 && !modelID.startsWith("gpt-5-mini")) {
+            if (sdk.responses) return sdk.responses(modelID)
+          }
+          if (sdk.chat) return sdk.chat(modelID)
+          return sdk.languageModel(modelID)
         },
         options: {},
       }),

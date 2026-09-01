@@ -89,8 +89,6 @@ const CancelOperation = Schema.Struct({
 
 const SendOperation = Schema.Struct({
   action: Schema.Literals(["send"]).annotate({ description: "NOT supported in gyc-code; use run/spawn instead." }),
-  to_actor_id: Schema.String.annotate({ description: "(unsupported) Intended receiver actor id." }),
-  content: Schema.String.annotate({ description: "(unsupported) Intended message content." }),
 })
 
 const ListOperation = Schema.Struct({
