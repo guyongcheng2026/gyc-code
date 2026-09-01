@@ -25,6 +25,7 @@ import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
 import { BriefTool } from "./brief"
 import { SleepTool } from "./sleep"
+import { PeerSendTool, PeerReadTool } from "./peer"
 import { ToolSearchTool, type SearchToolSource } from "./toolsearch"
 import { ConfigTool } from "./config"
 import * as Tool from "./tool"
@@ -140,6 +141,8 @@ const layer = Layer.effect(
     const patchtool = yield* ApplyPatchTool
     const skilltool = yield* SkillTool
     const brieftool = yield* BriefTool
+    const peersend = yield* PeerSendTool
+    const peerread = yield* PeerReadTool
     const agent = yield* Agent.Service
     const codeMode = flags.experimentalCodeMode
       ? yield* Effect.promise(() => import("./code-mode")).pipe(
@@ -279,6 +282,8 @@ const layer = Layer.effect(
           mcpAuth: Tool.init(mcpAuth),
           brief: Tool.init(brieftool),
           sleep: Tool.init(sleep),
+          peerSend: Tool.init(peersend),
+          peerRead: Tool.init(peerread),
           config: Tool.init(configtool),
           ...(codeModeTool ? { execute: Tool.init(codeModeTool) } : {}),
         })
@@ -326,6 +331,8 @@ const layer = Layer.effect(
             tool.cronDelete,
             tool.cronList,
             tool.mcpAuth,
+            tool.peerSend,
+            tool.peerRead,
           ],
           task: tool.task,
           read: tool.read,

@@ -1967,10 +1967,18 @@ const layer = Layer.effect(
             yield* Effect.logWarning("cron task target session missing, removed", { id: task.id })
             return
           }
+          let promptText = `[定时任务 ${task.id}] ${task.prompt}`
+          if (task.continuity && task.lastOutput) {
+            promptText += `\n\n[上次执行输出]\n${task.lastOutput}`
+          }
+          if (task.scratchpad) {
+            promptText += `\n\n[任务便签]\n${task.scratchpad}`
+          }
           yield* prompt({
             sessionID,
-            parts: [{ type: "text", text: `[定时任务 ${task.id}] ${task.prompt}` }],
+            parts: [{ type: "text", text: promptText }],
           }).pipe(Effect.ignore)
+          yield* cronScheduler.update(task.id, { lastOutput: promptText }).pipe(Effect.ignore)
           yield* cronScheduler.markFired(task.id).pipe(Effect.ignore)
           yield* Effect.logInfo("cron task fired", { id: task.id })
         }).pipe(Effect.ignore)

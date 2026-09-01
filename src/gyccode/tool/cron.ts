@@ -164,10 +164,15 @@ export interface CronTask {
   prompt: string
   recurring: boolean
   durable: boolean
-  nextRun: number // 下次触发的时间戳（ms）
+  nextRun: number
   createdAt: number
-  /** 触发时把 prompt 投递到哪个会话 */
   sessionID: string
+  /** 开启后每次触发时将上次的 lastOutput 注入 prompt 上下文 */
+  continuity?: boolean
+  /** 上次触发的 prompt 内容，用于 continuity 模式去重和延续 */
+  lastOutput?: string
+  /** 每个作业独立的持久化便签本，可存储任意文本 */
+  scratchpad?: string
 }
 
 const CRON_FILE = path.join(Global.Path.data, "scheduled_tasks.json")
@@ -186,7 +191,11 @@ export interface CronSchedulerInterface {
     recurring: boolean
     durable: boolean
     sessionID: string
+    continuity?: boolean
+    scratchpad?: string
   }) => Effect.Effect<CronTask>
+  /** 更新作业的 lastOutput/scratchpad（continuity 用，由触发循环调用） */
+  readonly update: (id: string, patch: { lastOutput?: string; scratchpad?: string }) => Effect.Effect<void>
   readonly list: () => Effect.Effect<CronTask[]>
   readonly remove: (id: string) => Effect.Effect<void>
   /**
@@ -224,6 +233,8 @@ const layer = Layer.effect(
       recurring: boolean
       durable: boolean
       sessionID: string
+      continuity?: boolean
+      scratchpad?: string
     }) {
       const expr = parseCronExpression(input.cron)
       const nextRun = nextCronRunMs(expr, Date.now())
@@ -248,6 +259,8 @@ const layer = Layer.effect(
         nextRun,
         createdAt: Date.now(),
         sessionID: input.sessionID,
+        continuity: input.continuity,
+        scratchpad: input.scratchpad,
       }
 
       if (input.durable) {
@@ -280,6 +293,19 @@ const layer = Layer.effect(
       }
     })
 
+    const update = Effect.fn("CronScheduler.update")(function* (id: string, patch: { lastOutput?: string; scratchpad?: string }) {
+      const session = sessionTasks.get(id)
+      if (session) {
+        sessionTasks.set(id, { ...session, ...patch })
+        return
+      }
+      const durable = yield* readDurable()
+      const idx = durable.findIndex((t) => t.id === id)
+      if (idx === -1) return
+      durable[idx] = { ...durable[idx], ...patch }
+      yield* writeDurable(durable)
+    })
+
     const markFired = Effect.fn("CronScheduler.markFired")(function* (id: string) {
       const session = sessionTasks.get(id)
       if (session) {
@@ -302,7 +328,7 @@ const layer = Layer.effect(
       yield* writeDurable(durable.map((t) => (t.id === id ? { ...t, nextRun: next } : t)))
     })
 
-    return CronSchedulerService.of({ add, list, remove, markFired })
+    return CronSchedulerService.of({ add, list, remove, markFired, update })
   }),
 )
 
@@ -331,6 +357,14 @@ export const Parameters = Schema.Struct({
     description:
       "true = persist to scheduled_tasks.json and survive restarts. false (default) = in-memory only, dies when this session ends. Use true only when the user asks the task to survive across sessions.",
   }),
+  continuity: Schema.optional(SemanticBoolean).annotate({
+    description:
+      "true = each firing includes the previous output as context (enables the task to know what happened last time and avoid duplication). false (default) = stateless, no memory between runs.",
+  }),
+  scratchpad: Schema.optional(Schema.String).annotate({
+    description:
+      "Optional initial text for the task's durable notepad. Persists across runs and can be updated by the task itself.",
+  }),
 })
 
 function parseBoolean(v: unknown): boolean {
@@ -354,8 +388,8 @@ export const ScheduleCronTool = Tool.define<typeof Parameters, Record<string, un
         Effect.gen(function* () {
           const recurring = parseBoolean(params.recurring ?? true)
           const durable = parseBoolean(params.durable ?? false)
+          const continuity = parseBoolean(params.continuity ?? false)
 
-          // 验证 cron 表达式
           parseCronExpression(params.cron)
 
           const task = yield* scheduler.add({
@@ -364,6 +398,8 @@ export const ScheduleCronTool = Tool.define<typeof Parameters, Record<string, un
             recurring,
             durable,
             sessionID: ctx.sessionID,
+            continuity,
+            scratchpad: params.scratchpad,
           })
 
           const where = durable
@@ -371,7 +407,7 @@ export const ScheduleCronTool = Tool.define<typeof Parameters, Record<string, un
             : "Session-only (not written to disk, dies when session ends)"
 
           const output = recurring
-            ? `Scheduled recurring job ${task.id} (${cronToHuman(parseCronExpression(params.cron))}). ${where}. Auto-expires after ${DEFAULT_MAX_AGE_DAYS} days. Use cron_delete to cancel sooner.`
+            ? `Scheduled recurring job ${task.id} (${cronToHuman(parseCronExpression(params.cron))}). ${where}. ${continuity ? "Continuity enabled (previous output injected each run). " : ""}Auto-expires after ${DEFAULT_MAX_AGE_DAYS} days. Use cron_delete to cancel sooner.`
             : `Scheduled one-shot task ${task.id} (${cronToHuman(parseCronExpression(params.cron))}). ${where}. It will fire once then auto-delete.`
 
           return {
@@ -382,6 +418,8 @@ export const ScheduleCronTool = Tool.define<typeof Parameters, Record<string, un
               recurring: task.recurring,
               durable: task.durable,
               nextRun: task.nextRun,
+              continuity: task.continuity,
+              scratchpad: task.scratchpad,
             },
             output,
           }

@@ -93,7 +93,13 @@ const SendOperation = Schema.Struct({
   content: Schema.String.annotate({ description: "(unsupported) Intended message content." }),
 })
 
-const Operation = Schema.Union([RunOperation, SpawnOperation, StatusOperation, WaitOperation, CancelOperation, SendOperation])
+const ListOperation = Schema.Struct({
+  action: Schema.Literals(["list"]).annotate({
+    description: "List all running subagents (actors). Returns their job IDs, titles, status, and started times.",
+  }),
+})
+
+const Operation = Schema.Union([RunOperation, SpawnOperation, StatusOperation, WaitOperation, CancelOperation, SendOperation, ListOperation])
 
 type OperationType = Schema.Schema.Type<typeof Operation>
 type RunLike = Schema.Schema.Type<typeof RunOperation> | Schema.Schema.Type<typeof SpawnOperation>
@@ -209,7 +215,7 @@ function extractFlags(args: string[], names: string[]): { ok: true; flags: Recor
   return { ok: true, flags, rest }
 }
 
-const KNOWN_VERBS = ["run", "spawn", "status", "wait", "cancel", "send"]
+const KNOWN_VERBS = ["run", "spawn", "status", "wait", "cancel", "send", "list"]
 
 function suggestVerb(input: string): string | undefined {
   const distance = (a: string, b: string): number => {
@@ -293,6 +299,11 @@ function parseVerbLine(tokens: string[]): ParseResult {
 
   if (verb === "send") {
     return { ok: false, error: "actor: send is not supported in gyc-code; use run/spawn instead" }
+  }
+
+  if (verb === "list") {
+    if (args.length !== 0) return { ok: false, error: `actor: list: expected 'actor list' with no arguments` }
+    return { ok: true, op: { action: "list" } }
   }
 
   const suggestion = suggestVerb(verb ?? "")
@@ -468,6 +479,26 @@ export const ActorTool = Tool.define(
                   ...(info.output !== undefined ? { result: info.output } : {}),
                   ...(info.error !== undefined ? { error: info.error } : {}),
                 }),
+              }
+            }
+
+            if (op.action === "list") {
+              const allJobs = yield* background.list()
+              const actors = allJobs
+                .filter((j) => j.type === "actor" || j.type === "task")
+                .map((j) => ({
+                  actor_id: j.id,
+                  state: j.status,
+                  status: jobStatusToActorStatus(j.status),
+                  title: j.title,
+                  started_at: j.started_at,
+                  completed_at: j.completed_at,
+                }))
+              const metadata: Metadata = { actorAction: "list" }
+              return {
+                title: `actor list (${actors.length})`,
+                metadata: { ...metadata, count: actors.length },
+                output: JSON.stringify({ count: actors.length, actors }),
               }
             }
 
