@@ -78,7 +78,7 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
       type: "custom",
       title: "其他",
       value: CUSTOM_PROVIDER_OPTION_VALUE,
-      description: "自定义提供商",
+      description: "搜索目录中的提供商与 LLM",
       category: "提供商",
     },
   ]
