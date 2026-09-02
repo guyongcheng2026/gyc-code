@@ -51,6 +51,7 @@ function EditBody(props: { request: PermissionRequest }) {
           height="100%"
           scrollAcceleration={scrollAcceleration()}
           verticalScrollbarOptions={{
+            visible: true,
             trackOptions: {
               backgroundColor: theme.background,
               foregroundColor: theme.borderActive,

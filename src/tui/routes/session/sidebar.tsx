@@ -57,6 +57,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
           flexGrow={1}
           scrollAcceleration={scrollAcceleration()}
           verticalScrollbarOptions={{
+            visible: true,
             trackOptions: {
               backgroundColor: theme.background,
               foregroundColor: theme.borderActive,

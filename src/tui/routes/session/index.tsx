@@ -1525,6 +1525,7 @@ export function Session() {
               <scrollbox
                 ref={(r) => (scroll = r)}
                 verticalScrollbarOptions={{
+                  visible: true,
                   paddingLeft: 1,
                   trackOptions: {
                     backgroundColor: theme.background,
