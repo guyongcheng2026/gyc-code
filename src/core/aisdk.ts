@@ -163,6 +163,24 @@ export const locationLayer = Layer.effect(
     let languageHooks: ((event: LanguageEvent) => Effect.Effect<void> | void)[] = []
     const languages = new Map<string, LanguageModelV3>()
     const sdks = new Map<string, SDK>()
+    const timestamps = new Map<string, number>()
+    const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
+
+    const getWithTTL = <T>(cache: Map<string, T>, key: string): T | undefined => {
+      const ts = timestamps.get(key)
+      if (ts === undefined) return undefined
+      if (Date.now() - ts > CACHE_TTL_MS) {
+        cache.delete(key)
+        timestamps.delete(key)
+        return undefined
+      }
+      return cache.get(key)
+    }
+
+    const setWithTTL = <T>(cache: Map<string, T>, key: string, value: T): void => {
+      cache.set(key, value)
+      timestamps.set(key, Date.now())
+    }
 
     const register = <Event>(
       hooks: () => ((event: Event) => Effect.Effect<void> | void)[],
@@ -207,7 +225,7 @@ export const locationLayer = Layer.effect(
       runLanguage: (event) => run(languageHooks, event),
       language: Effect.fn("AISDK.language")(function* (model) {
         const key = `${model.providerID}/${model.id}/${model.request.variant ?? "default"}`
-        const existing = languages.get(key)
+        const existing = getWithTTL(languages, key)
         if (existing) return existing
         if (model.api.type !== "aisdk")
           return yield* new InitError({
@@ -222,19 +240,19 @@ export const locationLayer = Layer.effect(
           options,
         })
         const sdk =
-          sdks.get(sdkKey) ??
+          getWithTTL(sdks, sdkKey) ??
           (yield* service.runSDK({ model, package: model.api.package, options }).pipe(initError(model.providerID))).sdk
         if (!sdk)
           return yield* new InitError({
             providerID: model.providerID,
             cause: new Error("No AISDK provider plugin returned an SDK"),
           })
-        sdks.set(sdkKey, sdk)
+        setWithTTL(sdks, sdkKey, sdk)
         const result = yield* service.runLanguage({ model, sdk, options }).pipe(initError(model.providerID))
         const language = yield* Effect.sync(() => result.language ?? sdk.languageModel(model.api.id)).pipe(
           initError(model.providerID),
         )
-        languages.set(key, language)
+        setWithTTL(languages, key, language)
         return language
       }),
     })
