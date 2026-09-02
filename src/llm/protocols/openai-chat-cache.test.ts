@@ -3,6 +3,8 @@ import { Effect, Schema } from "effect"
 import { protocol } from "./openai-chat"
 import type { LLMRequest } from "../schema"
 
+const decodeEvent = Schema.decodeSync(protocol.stream.event)
+
 function minimalRequest(): LLMRequest {
   return {
     messages: [{ role: "user", parts: [{ type: "text", id: "t1", text: "hi", synthetic: false }] }],
@@ -20,8 +22,7 @@ function minimalRequest(): LLMRequest {
 type Halt = NonNullable<typeof protocol.stream.onHalt>
 
 function runUsage(json: string) {
-  const eventFn = protocol.stream.event as unknown as { parse: (input: unknown) => unknown }
-  const decoded = eventFn.parse(json)
+  const decoded = decodeEvent(json)
   const initial = protocol.stream.initial(minimalRequest())
   const stepEffect = protocol.stream.step(initial, decoded as never) as unknown as Parameters<typeof Effect.runSync>[0]
   const [state] = Effect.runSync(stepEffect) as unknown as readonly [unknown]

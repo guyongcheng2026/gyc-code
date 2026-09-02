@@ -95,7 +95,11 @@ test("09: Session 系统存在", async () => {
 
 // 10. Server HTTP API
 test("10: Server API 存在", async () => {
-  const files = ["src/server/api.ts", "src/server/handlers/session.ts", "src/server/handlers/message.ts"]
+  const files = [
+    "src/gyccode/server/shared/api.ts",
+    "src/gyccode/server/shared/handlers/session.ts",
+    "src/gyccode/server/shared/handlers/message.ts",
+  ]
   for (const f of files) {
     const stat = await Bun.file(f).exists()
     expect(stat).toBe(true)

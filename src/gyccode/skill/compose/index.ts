@@ -6,8 +6,24 @@ import { Global } from "@gyccode/core/global"
 import { Hash } from "@gyccode/core/util/hash"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { InstallationVersion } from "@gyccode/core/installation/version"
+import { InstallationLocal } from "@gyccode/core/installation/version"
 import { ConfigMarkdown } from "@/config/markdown"
-import { COMPOSE_BUNDLE } from "./bundle.gen"
+
+type ComposeBundle = Record<string, Record<string, string>>
+
+/** Safe bundle loader with fallback for macro/import failures. */
+function safeLoadComposeBundle(): ComposeBundle {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require("./bundle.gen")
+    return (mod.COMPOSE_BUNDLE ?? mod.default?.COMPOSE_BUNDLE ?? {}) as ComposeBundle
+  } catch (cause) {
+    console.warn("[compose] Failed to load COMPOSE_BUNDLE, falling back to empty bundle:", cause)
+    return {}
+  }
+}
+
+const COMPOSE_BUNDLE = safeLoadComposeBundle()
 
 // Compose skill bundle - the built-in compose:* skills that power the
 // Compose mode workflow (Plan->TDD->Execute->Review->Debug->Verify->Merge).
@@ -63,6 +79,11 @@ export const extractComposeSkills = Effect.fn("Skill.compose.extract")(function*
 
   // 内容指纹：bundle 变化（含版本升级、本地开发改动）才重新解压。
   // 此前 local 渠道每次启动都全量重写全部文件，白耗磁盘 IO 并拖慢每次启动。
+  // 本地开发模式（InstallationLocal）下强制重提取，方便快速迭代。
+  if (InstallationLocal) {
+    const existing = yield* fsys.existsSafe(marker)
+    if (existing) yield* fsys.remove(marker)
+  }
   let fingerprint = InstallationVersion
   for (const [skillName, files] of Object.entries(COMPOSE_BUNDLE)) {
     fingerprint += `\0${skillName}`
