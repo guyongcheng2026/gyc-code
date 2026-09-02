@@ -19,6 +19,8 @@ export interface TerminalBackend {
 	onInput(cb: (chunk: string) => void): () => void
 	/** 启用 SGR 1003 mouse tracking。返回取消函数。*/
 	onMouse?(cb: (event: MouseEvent) => void): () => void
+	/** 设置终端窗口标题（OSC 0 序列）。*/
+	setTerminalTitle?(title: string): void
 	start(): void
 	stop(): void
 }
@@ -148,6 +150,10 @@ export class ProcessBackend implements TerminalBackend {
 	start(): void {}
 
 	stop(): void {}
+
+	setTerminalTitle(title: string): void {
+		this.stdout.write(`\x1b]0;${title}\x07`)
+	}
 }
 
 export class MemoryBackend implements TerminalBackend {
@@ -189,6 +195,10 @@ export class MemoryBackend implements TerminalBackend {
 	start(): void {}
 
 	stop(): void {}
+
+	setTerminalTitle(title: string): void {
+		this.output += `\x1b]0;${title}\x07`
+	}
 
 	onInput(cb: (chunk: string) => void): () => void {
 		this.inputCb = cb
@@ -260,6 +270,11 @@ export class FallbackRenderer {
 		return this.backend.getHeight()
 	}
 
+	/** 设置终端窗口标题（OSC 0 序列）。 */
+	setTerminalTitle(title: string): void {
+		this.backend.setTerminalTitle?.(title)
+	}
+
 	start(): void {
 		this.backend.start()
 		this.backend.setRawMode(true)
@@ -303,7 +318,6 @@ export class FallbackRenderer {
 		const delta = this.prevScreen ? renderDelta(this.prevScreen, this.screen) : renderFull(this.screen)
 		if (delta.length > 0) {
 			this.backend.write(delta)
-			this.prevScreen = this.snapshotCurrent()
 		} else if (this.prevScreen !== undefined) {
 			this.prevScreen.syncStampsFrom(this.screen)
 		}
@@ -340,7 +354,12 @@ export class FallbackRenderer {
 		this.prevScreen = this.snapshotCurrent()
 	}
 
-	private snapshotCurrent(): Screen {
-		return this.screen.clone()
+	private snapshotCurrent(): void {
+		if (this.prevScreen === undefined) {
+			// 首帧或 resize 后，创建第一个缓冲
+			this.prevScreen = new Screen(this.screen.width, this.screen.height)
+		}
+		// 使用双缓冲快照，避免深拷贝
+		this.screen.snapshotTo(this.prevScreen)
 	}
 }

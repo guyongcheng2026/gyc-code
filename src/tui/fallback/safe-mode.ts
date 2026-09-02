@@ -98,21 +98,29 @@ export async function runFallbackSafeMode(options: SafeModeOptions): Promise<boo
 	app.run()
 	// 孤儿进程防护：渲染器成功路径上的关闭检测此时未挂载，此处补齐
 	let offWatchClose: (() => void) | undefined
+	let done = false
+	let finishResolve: (() => void) | undefined
+	const finishPromise = new Promise<void>((resolve) => {
+		finishResolve = resolve
+	})
+	const finish = () => {
+		if (done) return
+		done = true
+		try {
+			flushSync()
+		} catch {
+			// 刷新失败不阻断后续流程，忽略
+		}
+		finishResolve?.()
+	}
 	try {
 		const { watchTerminalClose } = await import("../terminal-win32")
 		const watcher = options.watchClose ?? watchTerminalClose
-		offWatchClose = watcher(() => app.stop())
+		offWatchClose = watcher(() => finish())
 	} catch {
 		// 关闭检测在非 Windows 或缺少依赖时不可用，属可选增强
 	}
-	await new Promise<void>((resolve) => {
-		const timer = setInterval(() => {
-			if (app.isDone) {
-				clearInterval(timer)
-				resolve()
-			}
-		}, 100)
-	})
+	await finishPromise
 	offWatchClose?.()
 	return true
 }

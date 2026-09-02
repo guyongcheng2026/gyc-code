@@ -68,12 +68,38 @@ export class Screen {
 	 * 截断回绕、可能恰好撞上旧戳误判"未变"而漏重绘（防御性精度）。
 	 */
 	private rowStamps: Float64Array
+	private dirtyRows: Uint8Array
 
 	constructor(cols: number, rows: number) {
 		this.cols = Math.max(1, Math.floor(cols))
 		this.rows = Math.max(1, Math.floor(rows))
 		this.cells = Array.from({ length: this.cols * this.rows }, () => BLANK)
 		this.rowStamps = new Float64Array(this.rows)
+		this.dirtyRows = new Uint8Array(this.rows)
+	}
+
+	/** 行脏标记：标记指定行已被修改。 */
+	markRowDirty(y: number): void {
+		if (y >= 0 && y < this.rows) {
+			this.dirtyRows[y] = 1
+		}
+	}
+
+	/** 单元格脏标记：标记单元格所在的行已被修改。 */
+	markCellDirty(x: number, y: number): void {
+		if (y >= 0 && y < this.rows) {
+			this.dirtyRows[y] = 1
+		}
+	}
+
+	/** 获取脏行掩码。 */
+	dirtyRowMask(): Uint8Array {
+		return this.dirtyRows
+	}
+
+	/** 重置所有脏标志。 */
+	resetDirty(): void {
+		this.dirtyRows.fill(0)
 	}
 
 	/** 行写戳（差分引擎短路判定用）。 */
@@ -108,6 +134,7 @@ export class Screen {
 		for (let y = 0; y < this.rows; y++) {
 			this.rowStamps[y] = ++stampCounter
 		}
+		this.dirtyRows.fill(0)
 	}
 
 	/**
@@ -134,6 +161,7 @@ export class Screen {
 		const prevStamps = this.rowStamps
 		this.rowStamps = new Float64Array(nr)
 		this.rowStamps.set(prevStamps.subarray(0, Math.min(nr, prevStamps.length)))
+		this.dirtyRows = new Uint8Array(nr)
 		return true
 	}
 
@@ -181,6 +209,7 @@ export class Screen {
 		if (cellEqual(this.cells[idx]!, cell)) return
 		this.cells[idx] = cell
 		this.rowStamps[y] = ++stampCounter
+		this.markCellDirty(x, y)
 	}
 
 	/** 深拷贝当前网格（含行写戳——快照的戳反映该时刻状态）。 */
@@ -188,7 +217,56 @@ export class Screen {
 		const copy = new Screen(this.cols, this.rows)
 		copy.cells = this.cells.map((c) => ({ ...c }))
 		copy.rowStamps = this.rowStamps.slice()
+		copy.dirtyRows = this.dirtyRows.slice()
 		return copy
+	}
+
+	/**
+	 * 双缓冲：将当前屏幕内容复制到目标屏幕，避免深拷贝。
+	 * 使用数组引用交换+清空的方式，比 clone() 的 map/slice 更高效。
+	 * 返回 true 表示尺寸一致可复制，false 表示尺寸不匹配需 fallback 到 clone。
+	 */
+	swapTo(target: Screen): boolean {
+		if (this.cols !== target.cols || this.rows !== target.rows) return false
+		// 交换 cells 数组引用
+		const tmpCells = target.cells
+		target.cells = this.cells
+		this.cells = tmpCells
+		// 交换 rowStamps
+		const tmpStamps = target.rowStamps
+		target.rowStamps = this.rowStamps
+		this.rowStamps = tmpStamps
+		// 清空当前屏幕（供下一帧写入）
+		this.cells.fill(BLANK)
+		for (let y = 0; y < this.rows; y++) {
+			this.rowStamps[y] = ++stampCounter
+		}
+		this.dirtyRows.fill(0)
+		return true
+	}
+
+	/**
+	 * 双缓冲快照：将当前屏幕内容保存到 prevScreen，供下一帧 delta 比较。
+	 * 与 clone() 不同，此方法使用数组引用交换，避免深拷贝开销。
+	 * 注意：此方法不会清空当前屏幕，当前屏幕保留内容供后续使用。
+	 */
+	snapshotTo(prevScreen: Screen): void {
+		if (this.cols !== prevScreen.cols || this.rows !== prevScreen.rows) {
+			// 尺寸不匹配，fallback 到深拷贝
+			prevScreen.cells = this.cells.map((c) => ({ ...c }))
+			prevScreen.rowStamps = this.rowStamps.slice()
+			prevScreen.cols = this.cols
+			prevScreen.rows = this.rows
+			return
+		}
+		// 复制 cells 内容（不交换引用，保留当前屏幕）
+		for (let i = 0; i < this.cells.length; i++) {
+			prevScreen.cells[i] = this.cells[i]!
+		}
+		// 复制 rowStamps
+		prevScreen.rowStamps.set(this.rowStamps)
+		// 复制 dirtyRows
+		prevScreen.dirtyRows.set(this.dirtyRows)
 	}
 
 	/** 每行拼接为纯文本，供快照断言。宽字符占位格输出空串。委托 snapshot.ts 纯函数。*/

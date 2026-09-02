@@ -12,6 +12,7 @@ import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
 import { createCliRenderer, MouseButton } from "@opentui/core"
 import { backendChoice, claimFallbackOnce, isExplicitFallback, shouldUseFallback } from "./fallback/safe-mode"
+import { probeTerminal, renderBudget } from "./fallback/capability"
 import { isRecoverableRejection } from "./util/crash-classify"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
@@ -294,22 +295,24 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
         })
         return { epilogue: exit.epilogue, reason: exit.reason }
       }
+      const probe = probeTerminal()
+      const budget = renderBudget(probe)
       const renderer = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: async () => {
             try {
               const r = await createCliRenderer({
                 externalOutputMode: "passthrough",
-                targetFps: 30,
+                targetFps: budget.maxFps,
                 // S0 P5 基线采集：GYC_TUI_STATS=1 开启帧统计（默认关闭，行为不变），
                 // 供 opentui 端帧耗时与 fallback 引擎对比验收。
                 gatherStats: process.env.GYC_TUI_STATS === "1",
                 exitOnCtrlC: false,
-                useKittyKeyboard: {},
+                useKittyKeyboard: budget.kittyKeyboard ? {} : undefined,
                 autoFocus: false,
                 openConsoleOnError: false,
                 // 骨架期先关闭；配置到达后经 renderer.useMouse setter 运行时补启
-                useMouse: false,
+                useMouse: budget.mouseEnabled,
                 consoleOptions: {
                   keyBindings: [{ name: "y", ctrl: true, action: "copy-selection" }],
                 },

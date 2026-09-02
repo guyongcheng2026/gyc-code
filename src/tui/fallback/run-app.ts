@@ -37,6 +37,10 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 
 	let done = false
 	let disposeTree: (() => void) | undefined
+	let finishResolve: (() => void) | undefined
+	const finishPromise = new Promise<void>((resolve) => {
+		finishResolve = resolve
+	})
 	const finish = () => {
 		if (done) return
 		done = true
@@ -47,6 +51,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 		}
 		disposeTree?.()
 		renderer.stop()
+		finishResolve?.()
 	}
 
 	const { FallbackApp } = await import("./app")
@@ -89,14 +94,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 	// 启用 SGR 鼠标追踪（1006 + 1002 拖动 + 1005 UTF-8 编码）
 	setSgrMouse((d) => backend.write(d))
 
-	await new Promise<void>((resolve) => {
-		const timer = setInterval(() => {
-			if (done) {
-				clearInterval(timer)
-				resolve()
-			}
-		}, 50)
-	})
+	await finishPromise
 	chat?.dispose()
 	offWatchClose()
 	disableMouse((d) => backend.write(d))

@@ -134,8 +134,8 @@ export class FallbackRendererBackend implements RendererBackend {
 		})
 	}
 
-	setTerminalTitle(_title: string) {
-		// fallback 不维护终端标题；保留空实现以符合契约。
+	setTerminalTitle(title: string) {
+		this.renderer.setTerminalTitle(title)
 	}
 
 	set useMouse(_v: boolean) {}
