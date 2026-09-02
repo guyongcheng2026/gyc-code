@@ -150,7 +150,6 @@ const sessionBindingCommands = [
   "session.toggle.timestamps",
   "session.toggle.thinking",
   "session.toggle.actions",
-  "session.toggle.scrollbar",
   "session.toggle.generic_tool_output",
   "session.first",
   "session.last",
@@ -287,7 +286,6 @@ export function Session() {
   const [timestamps, setTimestamps] = kv.signal<"hide" | "show">("timestamps", "hide")
   const [showDetails, setShowDetails] = kv.signal("tool_details_visibility", true)
   const [showAssistantMetadata, _setShowAssistantMetadata] = kv.signal("assistant_metadata_visibility", true)
-  const [showScrollbar, setShowScrollbar] = kv.signal("scrollbar_visible", true)
   const [diffWrapMode] = kv.signal<"word" | "none">("diff_wrap_mode", "word")
   const [_animationsEnabled, _setAnimationsEnabled] = kv.signal("animations_enabled", false)
   const [showGenericToolOutput, setShowGenericToolOutput] = kv.signal("generic_tool_output_visibility", false)
@@ -844,15 +842,6 @@ export function Session() {
       category: "会话",
       run: () => {
         setShowDetails((prev) => !prev)
-        dialog.clear()
-      },
-    },
-    {
-      title: "切换会话滚动条",
-      value: "session.toggle.scrollbar",
-      category: "会话",
-      run: () => {
-        setShowScrollbar((prev) => !prev)
         dialog.clear()
       },
     },
@@ -1537,7 +1526,6 @@ export function Session() {
                 ref={(r) => (scroll = r)}
                 verticalScrollbarOptions={{
                   paddingLeft: 1,
-                  visible: showScrollbar(),
                   trackOptions: {
                     backgroundColor: theme.background,
                     foregroundColor: theme.borderActive,
