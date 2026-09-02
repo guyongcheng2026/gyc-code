@@ -1,6 +1,6 @@
-import { chmod, mkdir, readFile, readdir, stat as statFile, writeFile } from "fs/promises"
+import { chmod, mkdir, readFile, readdir, stat as statFile, writeFile, access } from "fs/promises"
 import { stripBom } from "@gyccode/core/util/text-encoding"
-import { createWriteStream, existsSync, readdirSync, statSync } from "fs"
+import { createWriteStream, readdirSync, statSync } from "fs"
 import { dirname, isAbsolute, join, resolve as pathResolve } from "path"
 import { Readable } from "stream"
 import { pipeline } from "stream/promises"
@@ -8,14 +8,20 @@ import { Glob } from "@gyccode/core/util/glob"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { fileURLToPath } from "url"
 
-// Fast sync version for metadata checks
+// Async version for non-blocking checks
 export async function exists(p: string): Promise<boolean> {
-  return existsSync(p)
+  try {
+    await access(p)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function isDir(p: string): Promise<boolean> {
   try {
-    return statSync(p).isDirectory()
+    const s = await statFile(p)
+    return s.isDirectory()
   } catch {
     return false
   }

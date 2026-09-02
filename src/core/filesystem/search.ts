@@ -36,16 +36,16 @@ export const ripgrepLayer = Layer.effect(
       .find({
         cwd: location.directory,
         pattern: "*",
-        limit: location.vcs ? Number.MAX_SAFE_INTEGER : 100_000,
+        limit: location.vcs ? 500_000 : 100_000,
         onEntry: (entry) =>
           Effect.sync(() => {
             state.files.push(entry.path)
             const parts = entry.path.split("/")
             parts.slice(0, -1).forEach((_, index) => directories.add(parts.slice(0, index + 1).join("/") + path.sep))
-            state.directories = Array.from(directories)
           }),
       })
       .pipe(Effect.orDie, Effect.asVoid, Effect.forkIn(scope))
+    state.directories = Array.from(directories)
     return Service.of({
       glob: (input) =>
         Effect.gen(function* () {

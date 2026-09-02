@@ -6,7 +6,7 @@
 // 用法：node scripts/stability-watch.mjs [--port 4300] [--log stability-log.jsonl]
 //       建议由计划任务/会话 cron 每 30 分钟执行一次。
 import { spawnSync } from "node:child_process"
-import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs"
+import { appendFileSync, existsSync, readFileSync, writeFileSync, statSync, renameSync, unlinkSync } from "node:fs"
 import { join, dirname } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -18,6 +18,27 @@ const PORT = Number(argValue("--port", "4300"))
 const LOG = join(ROOT, argValue("--log", "stability-log.jsonl"))
 const BASE = `http://127.0.0.1:${PORT}`
 const STATE = join(ROOT, "stability-state.json")
+
+const MAX_LOG_SIZE = 512 * 1024
+const MAX_LOG_FILES = 3
+
+function rotateLog() {
+  if (!existsSync(LOG)) return
+  try {
+    const stat = statSync(LOG)
+    if (stat.size < MAX_LOG_SIZE) return
+    for (let i = MAX_LOG_FILES - 1; i >= 1; i--) {
+      const from = `${LOG}.${i}`
+      const to = `${LOG}.${i + 1}`
+      if (existsSync(from)) {
+        if (i + 1 >= MAX_LOG_FILES) unlinkSync(from)
+        else renameSync(from, to)
+      }
+    }
+    renameSync(LOG, `${LOG}.1`)
+  } catch {
+  }
+}
 
 function findBun() {
   const candidates = [
@@ -53,6 +74,7 @@ async function httpOk(path) {
 }
 
 async function main() {
+  rotateLog()
   const now = Date.now()
   const proc = pm2Proc("gyc-stability")
   const alive = proc ? proc.pm2_env?.status === "online" : false

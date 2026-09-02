@@ -179,7 +179,7 @@ export const layerWith = (options?: LayerOptions) =>
     Service,
     Effect.gen(function* () {
       const pubsub = {
-        all: yield* PubSub.unbounded<Payload>(),
+        all: yield* PubSub.bounded<Payload>(1000),
         durable: new Map<string, Set<PubSub.PubSub<void>>>(),
         typed: new Map<string, PubSub.PubSub<Payload>>(),
       }
@@ -192,7 +192,7 @@ export const layerWith = (options?: LayerOptions) =>
         Effect.gen(function* () {
           const existing = pubsub.typed.get(definition.type)
           if (existing) return existing
-          const created = yield* PubSub.unbounded<Payload>()
+          const created = yield* PubSub.bounded<Payload>(500)
           pubsub.typed.set(definition.type, created)
           return created
         })

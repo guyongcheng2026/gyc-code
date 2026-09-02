@@ -94,7 +94,10 @@ export async function highlightCode(code: string, lang: string): Promise<string 
       registered.add(id)
     }
     const html = core.codeToHtml(code, { lang: id, theme })
-    if (cache.size > 300) cache.clear() // 简单容量上限，避免长会话内存增长
+    if (cache.size > 300) {
+      const firstKey = cache.keys().next().value
+      if (firstKey !== undefined) cache.delete(firstKey)
+    }
     cache.set(key, html)
     return html
   } catch {
