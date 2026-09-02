@@ -141,7 +141,7 @@ export interface Interface {
   readonly durable: (input: { readonly aggregateID: string; readonly after?: number }) => Stream.Stream<Payload>
   /** @deprecated Use `all()` and consume the returned stream. */
   readonly listen: (listener: Subscriber) => Effect.Effect<Unsubscribe>
-  readonly project: <D extends Definition>(definition: D, projector: Subscriber<D>) => Effect.Effect<void>
+  readonly project: <D extends Definition>(definition: D, projector: Subscriber<D>) => Effect.Effect<Unsubscribe>
   readonly replay: (
     event: SerializedEvent,
     options?: { readonly publish?: boolean; readonly ownerID?: string; readonly strictOwner?: boolean },
@@ -199,6 +199,20 @@ export const layerWith = (options?: LayerOptions) =>
 
       yield* Effect.addFinalizer(() =>
         Effect.gen(function* () {
+          // Clean up stale durable entries before shutdown
+          const now = Date.now()
+          for (const [aggregateID, timestamp] of durableTimestamps) {
+            if (now - timestamp > DURABLE_STALE_MS) {
+              const wakes = pubsub.durable.get(aggregateID)
+              if (wakes) {
+                for (const wake of wakes) {
+                  yield* PubSub.shutdown(wake)
+                }
+                pubsub.durable.delete(aggregateID)
+                durableTimestamps.delete(aggregateID)
+              }
+            }
+          }
           yield* PubSub.shutdown(pubsub.all)
           yield* Effect.forEach(
             pubsub.durable.values(),
@@ -590,6 +604,9 @@ export const layerWith = (options?: LayerOptions) =>
           ),
         )
 
+      const durableTimestamps = new Map<string, number>()
+      const DURABLE_STALE_MS = 60 * 60 * 1000 // 1 hour
+
       const subscribeDurable = (aggregateID: string) =>
         Effect.gen(function* () {
           const wake = yield* PubSub.sliding<void>(1)
@@ -599,12 +616,16 @@ export const layerWith = (options?: LayerOptions) =>
               const wakes = pubsub.durable.get(aggregateID) ?? new Set()
               wakes.add(wake)
               pubsub.durable.set(aggregateID, wakes)
+              durableTimestamps.set(aggregateID, Date.now())
             }),
             () =>
               Effect.sync(() => {
                 const wakes = pubsub.durable.get(aggregateID)
                 wakes?.delete(wake)
-                if (wakes?.size === 0) pubsub.durable.delete(aggregateID)
+                if (wakes?.size === 0) {
+                  pubsub.durable.delete(aggregateID)
+                  durableTimestamps.delete(aggregateID)
+                }
               }).pipe(Effect.andThen(PubSub.shutdown(wake))),
           )
           return subscription
@@ -640,11 +661,17 @@ export const layerWith = (options?: LayerOptions) =>
           })
         })
 
-      const project = <D extends Definition>(definition: D, projector: Subscriber<D>): Effect.Effect<void> =>
+      const project = <D extends Definition>(definition: D, projector: Subscriber<D>): Effect.Effect<Unsubscribe> =>
         Effect.sync(() => {
+          const wrapped = (event: Payload<D>) => projector(event as Payload<D>)
           const list = projectors.get(definition.type) ?? []
-          list.push((event) => projector(event as Payload<D>))
+          list.push(wrapped)
           projectors.set(definition.type, list)
+          return Effect.sync(() => {
+            const current = projectors.get(definition.type) ?? []
+            const index = current.indexOf(wrapped)
+            if (index >= 0) current.splice(index, 1)
+          })
         })
 
       return Service.of({
