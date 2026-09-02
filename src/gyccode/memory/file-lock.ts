@@ -1,5 +1,4 @@
-import { rename, unlink, stat } from "fs/promises"
-import path from "path"
+import { rename, unlink } from "fs/promises"
 
 const LOCK_TIMEOUT = 5000
 const LOCK_RETRY_INTERVAL = 100

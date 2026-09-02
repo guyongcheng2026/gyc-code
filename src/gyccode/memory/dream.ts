@@ -1,5 +1,4 @@
 ﻿import { Effect } from "effect"
-import { readMemories, writeMemoryFile } from "./memory-bridge"
 
 export interface DreamConfig {
   /** Hours between dreams */

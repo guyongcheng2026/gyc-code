@@ -1,7 +1,6 @@
 import type { Session as SDKSession, Message, Part } from "@gyccode/protocol/v2"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { Session } from "@/session/session"
-import { MessageV2 } from "../../session/message-v2"
 import { CliError, effectCmd } from "../effect-cmd"
 import { Database } from "@gyccode/core/database/database"
 import { SessionTable, MessageTable, PartTable } from "@gyccode/core/session/sql"

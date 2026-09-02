@@ -175,7 +175,6 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
 
       const provider = await promptProvider()
       const model = await promptModel()
-      //const key = await promptKey()
 
       await addWorkflowFiles()
       printNextSteps()
@@ -492,7 +491,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         await runLocalEffect(sessionShare.share(session.id))
         return session.id.slice(-8)
       })()
-      console.log("gyccode session", session.id)
 
       // Handle event types:
       // REPO_EVENTS (schedule, workflow_dispatch): no issue/PR context, output to logs/PR only
@@ -510,8 +508,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         const { dirty, uncommittedChanges, switched } = await branchIsDirty(head, branch)
         if (switched) {
           // Agent switched branches (likely created its own branch/PR)
-          console.log("Agent managed its own branch, skipping infrastructure push/PR")
-          console.log("Response:", response)
         } else if (dirty) {
           const summary = await summarize(response)
           // workflow_dispatch has an actor for co-author attribution, schedule does not
@@ -528,8 +524,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           } else {
             console.log("Skipped PR creation (no new commits)")
           }
-        } else {
-          console.log("Response:", response)
         }
       } else if (
         ["pull_request", "pull_request_review_comment"].includes(context.eventName) ||
@@ -756,7 +750,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       const mdMatches = prompt.matchAll(/!?\[.*?\]\((https:\/\/github\.com\/user-attachments\/[^)]+)\)/gi)
       const tagMatches = prompt.matchAll(/<img .*?src="(https:\/\/github\.com\/user-attachments\/[^"]+)" \/>/gi)
       const matches = [...mdMatches, ...tagMatches].sort((a, b) => a.index - b.index)
-      console.log("Images", JSON.stringify(matches, null, 2))
 
       let offset = 0
       for (const m of matches) {
@@ -824,7 +817,6 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           if (evt.type !== MessageV2.Event.PartUpdated.type) return Effect.void
           const data = evt.data as EventV2.Data<typeof MessageV2.Event.PartUpdated>
           if (data.part.sessionID !== session.id) return Effect.void
-          //if (evt.properties.part.messageID === messageID) return
           const part = data.part
 
           if (part.type === "tool" && part.state.status === "completed") {

@@ -1,6 +1,5 @@
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import type { FileTreeState, TreeNode } from "../state/fileTreeReducer"
-import { useFileTree } from "../client/useFileTree"
 
 const STATUS_MARK: Record<string, string> = { added: "A", deleted: "D", modified: "M" }
 

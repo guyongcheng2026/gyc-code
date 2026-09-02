@@ -3,7 +3,7 @@
 
 import { CompletionItem } from "./interactive-types"
 import { commandManifest } from "./command-manifest"
-import { createGyccodeClient, type GyccodeClient } from "@gyccode/protocol/v2"
+import { type GyccodeClient } from "@gyccode/protocol/v2"
 import { Filesystem } from "@/util/filesystem"
 import path from "path"
 

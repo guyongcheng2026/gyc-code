@@ -2,7 +2,7 @@
 // 复用 TUI autocomplete 的核心逻辑（fuzzysort 配置）
 
 import fuzzysort from "fuzzysort"
-import { MenuEntry, SlashCommandSpec } from "./interactive-types"
+import { MenuEntry } from "./interactive-types"
 import { commandManifest } from "./command-manifest"
 import { TokyoNight, Typography } from "../theme"
 

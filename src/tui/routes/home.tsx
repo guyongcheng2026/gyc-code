@@ -12,7 +12,6 @@ import { useEditorContext } from "../context/editor"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTuiConfig } from "../config"
 import { HomeSessionDestinationProvider } from "./home/session-destination"
-import { useTheme } from "../context/theme"
 
 let once = false
 const placeholder = {

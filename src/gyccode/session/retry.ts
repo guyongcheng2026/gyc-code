@@ -1,7 +1,6 @@
 import type { NamedError } from "@gyccode/core/util/error"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { Cause, Clock, Duration, Effect, Schedule } from "effect"
-import { MessageV2 } from "./message-v2"
 import { iife } from "@/util/iife"
 import { isRecord } from "@/util/record"
 

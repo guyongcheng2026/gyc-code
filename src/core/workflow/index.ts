@@ -1,6 +1,6 @@
 export * as WorkflowV2 from "./index"
 
-import { Context, Duration, Effect, Fiber, Layer, Schema, Stream } from "effect"
+import { Context, Duration, Effect, Layer, Schema, Stream } from "effect"
 import { eq } from "drizzle-orm"
 import {
   WorkflowRun as WorkflowRunSchema,

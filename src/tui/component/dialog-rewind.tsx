@@ -6,7 +6,6 @@ import { useSync } from "../context/sync"
 import { useRoute } from "../context/route"
 import { useSDK } from "../context/sdk"
 import { useToast } from "../ui/toast"
-import { Token } from "@/util/token"
 import type { UserMessage } from "@gyccode/protocol/v2"
 import { DialogConfirm } from "../ui/dialog-confirm"
 

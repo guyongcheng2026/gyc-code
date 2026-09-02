@@ -1,5 +1,5 @@
 ﻿import { Effect } from "effect"
-import { readMemories, writeMemoryFile, type MemoryEntry } from "./memory-bridge"
+import { writeMemoryFile, type MemoryEntry } from "./memory-bridge"
 
 export interface ExtractionConfig {
   /** Minimum turns before triggering extraction */

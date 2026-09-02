@@ -4,7 +4,6 @@ import * as Tool from "./tool"
 import DESCRIPTION from "./cron.txt"
 import { Global } from "@gyccode/core/global"
 import { FSUtil } from "@gyccode/core/fs-util"
-import { InstanceState } from "@/effect/instance-state"
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 
 // ─── Cron 表达式解析 ──────────────────────────────────────────

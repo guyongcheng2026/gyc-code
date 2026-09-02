@@ -1,7 +1,6 @@
 import type { AgentSideConnection, Usage } from "@agentclientprotocol/sdk"
 import type { AssistantMessage as GycCodeAssistantMessage, Message } from "@gyccode/protocol/v2"
 import { InstanceRef } from "@/effect/instance-ref"
-import { InstanceBootstrap } from "@/project/bootstrap"
 import { InstanceStore } from "@/project/instance-store"
 import { makeGlobalNode, Node } from "@gyccode/core/effect/app-node"
 import { LayerNode } from "@gyccode/core/effect/layer-node"

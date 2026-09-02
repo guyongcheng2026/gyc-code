@@ -1,6 +1,5 @@
 import { ENTER_SEQ, LEAVE_SEQ, renderDelta, renderFull } from "./diff"
 import { Screen } from "./screen"
-import { renderScreenToLines } from "./snapshot"
 import { renderBudget, type RenderBudget } from "./capability"
 
 const DEFAULT_BUDGET: RenderBudget = { maxFps: 60, mouseEnabled: true, kittyKeyboard: true }
