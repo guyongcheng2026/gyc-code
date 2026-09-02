@@ -130,6 +130,12 @@ export const TuiThreadCommand = cmd({
         return
       }
 
+      if (args["dangerously-skip-permissions"]) {
+        console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
+        console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
+        console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
+      }
+
       // Resolve relative --project paths from PWD, then use the real cwd after
       // chdir so the thread and worker share the same directory key.
       const next = resolveThreadDirectory(args.project)

@@ -59,12 +59,6 @@ const layer = Layer.effect(
     const decode = Schema.decodeUnknownOption(Info)
 
     const all = Effect.fn("Auth.all")(function* () {
-      if (process.env.GYCCODE_AUTH_CONTENT) {
-        try {
-          return JSON.parse(process.env.GYCCODE_AUTH_CONTENT)
-        } catch (err) {}
-      }
-
       const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
       return Record.filterMap(data, (value) => Result.fromOption(decode(value), () => undefined))
     })
@@ -81,7 +75,6 @@ const layer = Layer.effect(
       yield* fsys
         .writeJson(file, { ...data, [norm]: info }, 0o600)
         .pipe(Effect.mapError(fail("Failed to write auth data")))
-      // 同步数据库凭据表：provider 可用性判断（catalog available 基于 integration connections）依赖 credential 表
       if (info.type === "api") {
         yield* credentials.create({
           integrationID: Integration.ID.make(norm),
@@ -101,7 +94,6 @@ const layer = Layer.effect(
       delete data[key]
       delete data[norm]
       yield* fsys.writeJson(file, data, 0o600).pipe(Effect.mapError(fail("Failed to write auth data")))
-      // 同步删除数据库凭据表记录
       const stored = yield* credentials.list(Integration.ID.make(norm))
       for (const credential of stored) {
         yield* credentials.remove(credential.id)

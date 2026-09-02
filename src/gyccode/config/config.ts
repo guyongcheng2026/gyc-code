@@ -489,7 +489,6 @@ const layer = Layer.effect(
               { concurrency: 2 },
             )
             if (Option.isSome(tokenOpt)) {
-              process.env["GYCCODE_CONSOLE_TOKEN"] = tokenOpt.value
               yield* env.set("GYCCODE_CONSOLE_TOKEN", tokenOpt.value)
             }
 

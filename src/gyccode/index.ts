@@ -9,6 +9,7 @@ import { join, dirname, resolve as pathResolve, isAbsolute as pathIsAbsolute } f
 import { fileURLToPath } from "url"
 import { win32InstallUtf8ConsoleGuard } from "@gyccode/tui/terminal-win32"
 import { tuiTiming } from "@gyccode/tui/util/timing"
+import dotenv from "dotenv"
 
 // Load API keys from ~/.gyc/.env (fallback: ~/.codex/.env for existing setups) and project .env.
 const ENV_FILES = [
@@ -18,63 +19,67 @@ const ENV_FILES = [
 ]
 // 禁止注入的危险环境变量（影响子进程行为、安全边界）
 const BLOCKLISTED_ENVS = new Set([
+  // PATH 相关
   "PATH",
+  "PATHEXT",
+  
+  // Node.js 相关
   "NODE_OPTIONS",
   "NODE_EXTRA_CA_CERTS",
+  "NODE_PATH",
+  
+  // SSL/TLS 证书
   "SSL_CERT_FILE",
   "SSL_CERT_DIR",
   "REQUESTS_CA_BUNDLE",
   "CURL_CA_BUNDLE",
+  "CA_BUNDLE",
+  
+  // Python 相关
   "PYTHONPATH",
   "PYTHONHOME",
+  "PYTHONSTARTUP",
+  
+  // 动态链接库（Linux/macOS）
   "LD_PRELOAD",
   "LD_LIBRARY_PATH",
   "DYLD_INSERT_LIBRARIES",
   "DYLD_LIBRARY_PATH",
+  
+  // Shell 配置
   "PS1",
   "PS2",
+  "PS3",
   "PS4",
   "IFS",
   "ENV",
   "BASH_ENV",
+  "PROMPT_COMMAND",
+  
+  // 临时目录
+  "TMPDIR",
+  "TMP",
+  "TEMP",
+  
+  // 用户主目录
+  "HOME",
+  "USERPROFILE",
+  
+  // 其他危险变量
+  "PROMPT",
+  "HISTFILE",
+  "HISTSIZE",
+  "HISTFILESIZE",
 ])
+
 for (const file of ENV_FILES) {
   if (!existsSync(file)) continue
-  for (const rawLine of readFileSync(file, "utf-8").split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line || line.startsWith("#")) continue // 跳过空行和注释
-    // 支持行内注释：KEY=value # comment 或 KEY=value#comment
-    // 找到第一个不在引号内的 # 字符
-    let hashIdx = -1
-    let inQuote = false
-    let quoteChar = ""
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i]
-      if (!inQuote && (ch === '"' || ch === "'")) {
-        inQuote = true
-        quoteChar = ch
-      } else if (inQuote && ch === quoteChar) {
-        inQuote = false
-        quoteChar = ""
-      } else if (!inQuote && ch === "#") {
-        hashIdx = i
-        break
-      }
-    }
-    const cleanLine = hashIdx >= 0 ? line.slice(0, hashIdx).trim() : line
-    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(cleanLine)
-    if (!m || process.env[m[1]] !== undefined) continue
-    const key = m[1]
-    if (BLOCKLISTED_ENVS.has(key)) continue // 阻断危险环境变量注入
-    // 贪婪 (.*) 会吞掉行尾空白，先 trim；再按 dotenv 惯例剥离成对首尾引号
-    // （API_KEY="sk-xxx" → sk-xxx），否则引号会原样进入环境变量导致认证失败
-    let value = m[2].trim()
-    if (
-      value.length >= 2 &&
-      ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
-    ) {
-      value = value.slice(1, -1)
-    }
+  const result = dotenv.config({ path: file, override: false })
+  if (result.error) continue
+  
+  for (const [key, value] of Object.entries(result.parsed || {})) {
+    if (process.env[key] !== undefined) continue
+    if (BLOCKLISTED_ENVS.has(key)) continue
     process.env[key] = value
   }
 }
@@ -318,6 +323,12 @@ if (isHelp) {
         const die = (message: string): never => {
           UI.error(message)
           process.exit(1)
+        }
+
+        if (args["dangerously-skip-permissions"]) {
+          console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
+          console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
+          console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
         }
 
         let message = [...args.message, ...(args["--"] || [])]

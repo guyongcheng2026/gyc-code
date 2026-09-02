@@ -4,6 +4,7 @@
 import { readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
+import { createFileLock } from "./file-lock"
 
 const MEMORY_PATH = path.join(
   process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
@@ -78,55 +79,63 @@ export async function writeMemoryFile(
   entry: MemoryEntry,
   append = true,
 ): Promise<void> {
-  const existing = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8")).catch(() => "")
+  const fileLock = createFileLock(MEMORY_PATH)
+  
+  await fileLock.withLock(async () => {
+    const existing = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8")).catch(() => "")
 
-  if (!append) {
-    await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
-    return
-  }
+    if (!append) {
+      await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
+      return
+    }
 
-  // Dedup: skip if normalized content already exists in the file.
-  const normalizedNew = normalizeForDedupe(entry.value)
-  const existingBlocks = existing.split(SEP).filter(Boolean)
-  const isDuplicate = existingBlocks.some(
-    (block) => normalizeForDedupe(stripKeyHeader(block)) === normalizedNew,
-  )
-  if (isDuplicate) return
+    // Dedup: skip if normalized content already exists in the file.
+    const normalizedNew = normalizeForDedupe(entry.value)
+    const existingBlocks = existing.split(SEP).filter(Boolean)
+    const isDuplicate = existingBlocks.some(
+      (block) => normalizeForDedupe(stripKeyHeader(block)) === normalizedNew,
+    )
+    if (isDuplicate) return
 
-  // Cap enforcement: FIFO-evict oldest entries when at capacity.
-  let blocks = existingBlocks
-  if (blocks.length >= MEMORY_MAX_ENTRIES) {
-    blocks = blocks.slice(blocks.length - MEMORY_MAX_ENTRIES + 1)
-  }
+    // Cap enforcement: FIFO-evict oldest entries when at capacity.
+    let blocks = existingBlocks
+    if (blocks.length >= MEMORY_MAX_ENTRIES) {
+      blocks = blocks.slice(blocks.length - MEMORY_MAX_ENTRIES + 1)
+    }
 
-  const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
-  const content = [...blocks, newBlock].join(SEP) + SEP
-  await atomicWriteFile(MEMORY_PATH, content)
+    const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
+    const content = [...blocks, newBlock].join(SEP) + SEP
+    await atomicWriteFile(MEMORY_PATH, content)
+  })
 }
 
 /** Compact memories: dedup existing entries and enforce the cap. */
 export async function syncMemories(): Promise<MemoryEntry[]> {
-  const entries = await readMemories()
-  if (entries.length === 0) return entries
+  const fileLock = createFileLock(MEMORY_PATH)
+  
+  return await fileLock.withLock(async () => {
+    const entries = await readMemories()
+    if (entries.length === 0) return entries
 
-  // Dedup by normalized content, keeping the first occurrence.
-  const seen = new Set<string>()
-  const unique: MemoryEntry[] = []
-  for (const entry of entries) {
-    const normalized = normalizeForDedupe(stripKeyHeader(entry.value))
-    if (seen.has(normalized)) continue
-    seen.add(normalized)
-    unique.push(entry)
-  }
+    // Dedup by normalized content, keeping the first occurrence.
+    const seen = new Set<string>()
+    const unique: MemoryEntry[] = []
+    for (const entry of entries) {
+      const normalized = normalizeForDedupe(stripKeyHeader(entry.value))
+      if (seen.has(normalized)) continue
+      seen.add(normalized)
+      unique.push(entry)
+    }
 
-  // Enforce cap: keep the most recent entries.
-  const capped = unique.length > MEMORY_MAX_ENTRIES ? unique.slice(unique.length - MEMORY_MAX_ENTRIES) : unique
+    // Enforce cap: keep the most recent entries.
+    const capped = unique.length > MEMORY_MAX_ENTRIES ? unique.slice(unique.length - MEMORY_MAX_ENTRIES) : unique
 
-  // readMemories returns value = full block (header line included),
-  // so write the values back as-is without prepending another header.
-  const content = capped.map((e) => e.value).join(SEP) + SEP
-  await atomicWriteFile(MEMORY_PATH, content)
-  return capped
+    // readMemories returns value = full block (header line included),
+    // so write the values back as-is without prepending another header.
+    const content = capped.map((e) => e.value).join(SEP) + SEP
+    await atomicWriteFile(MEMORY_PATH, content)
+    return capped
+  })
 }
 
 /** 记忆注入系统提示的字符预算（与 MCP 指令预算一致，4KB） */
