@@ -4,7 +4,7 @@
 // - 涓流（token 间隔 ≥ 窗口）：立即排空，逐 token 直出，首字延迟趋近 0
 // - 洪泛：按固定窗口合并为一次 store 写，避免每 token 触发整块 markdown
 //   重解析（tree-sitter WASM），这正是旧版 30ms 固定攒批的初衷
-export const DELTA_FLUSH_MS = 16
+export const DELTA_FLUSH_MS = 30
 
 export function nextFlushDelayMs(lastFlushAt: number, now: number, intervalMs = DELTA_FLUSH_MS): number {
   const elapsed = now - lastFlushAt

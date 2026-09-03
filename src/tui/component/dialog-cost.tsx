@@ -83,6 +83,17 @@ export function DialogCost() {
     return t.input + t.output + t.reasoning + t.cacheRead + t.cacheWrite
   })
 
+  const cacheHitRate = createMemo(() => {
+    const t = totals()
+    const denom = t.input + t.cacheRead
+    if (denom === 0) return { rate: 0, hitTokens: 0, missTokens: 0 }
+    return {
+      rate: t.cacheRead / denom,
+      hitTokens: t.cacheRead,
+      missTokens: t.input,
+    }
+  })
+
   const cost = createMemo(() =>
     messages().reduce((sum, item) => sum + (item.role === "assistant" ? item.cost : 0), 0),
   )
@@ -155,6 +166,7 @@ export function DialogCost() {
         <text fg={theme.textMuted}>reasoning {totals().reasoning.toLocaleString()}</text>
         <text fg={theme.textMuted}>cache read {totals().cacheRead.toLocaleString()}</text>
         <text fg={theme.textMuted}>cache write {totals().cacheWrite.toLocaleString()}</text>
+        <text fg={theme.accent}>cache hit {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {totals().input.toLocaleString()}）</text>
       </box>
 
       <box>

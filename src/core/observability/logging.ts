@@ -7,7 +7,7 @@ import { runID } from "./shared"
 // Cap the on-disk log so a long-running (24h+) session cannot grow it without
 // bound. The newest log is always "gyccode.log"; when it exceeds the cap it is
 // rotated to "gyccode.log.1" (previous rotated copies are discarded).
-const MAX_LOG_BYTES = 10 * 1024 * 1024
+const MAX_LOG_BYTES = 5 * 1024 * 1024
 const ROTATE_CHECK_INTERVAL_MS = 5000
 // Serialize appends so log lines stay ordered (fire-and-forget would interleave).
 let writeQueue: Promise<void> = Promise.resolve()

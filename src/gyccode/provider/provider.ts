@@ -1,4 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { createModelQueryCache } from "@gyccode/core/util/ttl-cache"
 import { wrapSSE } from "@gyccode/core/aisdk"
 import os from "os"
 import { ConfigV1 } from "@gyccode/core/v1/config/config"
@@ -1146,7 +1147,7 @@ export interface Interface {
 }
 
 interface State {
-  models: Map<string, LanguageModelV3>
+  models: ReturnType<typeof createModelQueryCache<string, LanguageModelV3>>
   providers: Record<ProviderV2.ID, Info>
   catalog: Record<ProviderV2.ID, Info>
   sdk: Map<string, BundledSDK>
@@ -1331,7 +1332,7 @@ const layer = Layer.effect(
         const database = mapValues(catalog, toPublicInfo)
 
         const providers: Record<ProviderV2.ID, Info> = {} as Record<ProviderV2.ID, Info>
-        const languages = new Map<string, LanguageModelV3>()
+        const languages = createModelQueryCache<string, LanguageModelV3>()
         const modelLoaders: {
           [providerID: string]: CustomModelLoader
         } = {}

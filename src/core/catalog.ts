@@ -1,7 +1,7 @@
 export * as Catalog from "./catalog"
 
 import { makeLocationNode } from "./effect/app-node"
-import { Array, Context, Effect, Layer, Option, Order, pipe, Schema } from "effect"
+import { Array, Context, Effect, Layer, Option, Order, pipe } from "effect"
 import { Catalog } from "@gyccode/schema/catalog"
 import { ModelV2 } from "./model"
 import { ProviderV2 } from "./provider"
@@ -10,6 +10,7 @@ import { Policy } from "./policy"
 import { State } from "./state"
 import { Integration } from "./integration"
 import { Config } from "./config"
+import { PolicyActions } from "./policy-actions"
 
 export type ProviderRecord = {
   provider: ProviderV2.MutableInfo
@@ -18,7 +19,7 @@ export type ProviderRecord = {
 
 export type DefaultModel = { providerID: ProviderV2.ID; modelID: ModelV2.ID }
 
-export const PolicyActions = Schema.Literals(["provider.use"])
+export { PolicyActions }
 
 export const Event = Catalog.Event
 

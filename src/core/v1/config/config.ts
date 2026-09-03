@@ -82,7 +82,7 @@ export const Info = Schema.Struct({
       enabled: Schema.optional(Schema.Boolean).annotate({
         description: "Enable automatic small model selection heuristic for simple tasks (default: true)",
       }),
-      max_age_months: Schema.optional(Schema.NonNegativeInt).annotate({
+      max_age_months: Schema.optional(NonNegativeInt).annotate({
         description: "Maximum model age in months for small model candidates (default: 18)",
       }),
       cost_weight: Schema.optional(Schema.Finite).annotate({
@@ -260,10 +260,10 @@ export const Info = Schema.Struct({
       session_cost_usd: Schema.optional(Schema.Finite).annotate({
         description: "Maximum cost per session in USD (default: unlimited). Triggers warning when exceeded.",
       }),
-      session_tokens_total: Schema.optional(Schema.NonNegativeInt).annotate({
+      session_tokens_total: Schema.optional(NonNegativeInt).annotate({
         description: "Maximum total tokens per session (input+output+reasoning). Triggers warning when exceeded.",
       }),
-      step_output_tokens: Schema.optional(Schema.NonNegativeInt).annotate({
+      step_output_tokens: Schema.optional(NonNegativeInt).annotate({
         description: "Maximum output tokens per LLM step (default: model limit). Triggers forced stop when exceeded.",
       }),
       alert_threshold: Schema.optional(Schema.Finite).annotate({
