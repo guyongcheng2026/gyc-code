@@ -1,0 +1,22 @@
+{
+  "id": "gyc-doc-generation",
+  "name": "文档生成智能体",
+  "main": "agent.md",
+  "description": "从代码、提交历史、PR 描述、架构决策自动生成 API 文档、架构文档、变更日志、迁移指南",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "documentation",
+  "dependencies": ["api-design", "clean-code"],
+  "mcp_servers": ["mempalace", "github"],
+  "usage": [
+    "每次合并自动更新 API 文档 (OpenAPI/Swagger)",
+    "Release 时自动生成 CHANGELOG.md",
+    "架构重大变更时生成 ADR (Architecture Decision Record)",
+    "手动触发：/gyc-doc-generation <类型: api|changelog|adr|readme> [范围]"
+  ],
+  "status": "active",
+  "tags": ["documentation", "openapi", "changelog", "adr", "api-docs"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/doc-generation",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

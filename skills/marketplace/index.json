@@ -1,0 +1,53 @@
+{
+  "name": "gyc-code-skills-marketplace",
+  "version": "1.0.0",
+  "description": "gyc-code 技能市场本地注册表",
+  "lastUpdated": "2026-09-03T08:49:00.000Z",
+  "skills": [
+    {
+      "id": "gyc-code-review",
+      "name": "代码审查智能体",
+      "version": "1.0.0",
+      "description": "基于 clean-code、design-patterns、security 最佳实践的深度代码审查",
+      "category": "development",
+      "author": "gyc-code",
+      "tags": ["code-review", "quality", "security"],
+      "dependencies": ["clean-code", "design-patterns", "security-framework"],
+      "mcp_servers": ["mempalace", "github"],
+      "status": "active",
+      "license": "MIT",
+      "localPath": "src/gyccode/skills/code-review",
+      "publishedAt": "2026-09-03T08:49:00.000Z"
+    },
+    {
+      "id": "gyc-test-generation",
+      "name": "测试生成智能体",
+      "version": "1.0.0",
+      "description": "根据代码自动生成单元测试和集成测试",
+      "category": "testing",
+      "author": "gyc-code",
+      "tags": ["testing", "unit-test", "tdd"],
+      "dependencies": [],
+      "mcp_servers": [],
+      "status": "active",
+      "license": "MIT",
+      "localPath": "src/gyccode/skills/test-generation",
+      "publishedAt": "2026-09-03T08:49:00.000Z"
+    },
+    {
+      "id": "gyc-doc-generation",
+      "name": "文档生成智能体",
+      "version": "1.0.0",
+      "description": "根据代码和注释自动生成 API 文档和 README",
+      "category": "documentation",
+      "author": "gyc-code",
+      "tags": ["documentation", "api-docs", "readme"],
+      "dependencies": [],
+      "mcp_servers": [],
+      "status": "active",
+      "license": "MIT",
+      "localPath": "src/gyccode/skills/doc-generation",
+      "publishedAt": "2026-09-03T08:49:00.000Z"
+    }
+  ]
+}

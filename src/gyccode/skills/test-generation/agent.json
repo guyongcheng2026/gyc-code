@@ -1,0 +1,21 @@
+{
+  "id": "gyc-test-generation",
+  "name": "测试用例生成智能体",
+  "main": "agent.md",
+  "description": "基于需求文档、代码变更、历史缺陷自动生成单元/集成/E2E 测试，遵循 TDD 红绿重构循环",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "testing",
+  "dependencies": ["clean-code", "tdd-bdd", "test-case"],
+  "mcp_servers": ["mempalace", "github"],
+  "usage": [
+    "新建文件时自动生成对应测试骨架",
+    "修改核心逻辑时增量生成测试用例",
+    "手动触发：/gyc-test-generation <文件路径> [--type=unit|integration|e2e]"
+  ],
+  "status": "active",
+  "tags": ["testing", "tdd", "unit-test", "integration-test", "coverage"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/test-generation",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

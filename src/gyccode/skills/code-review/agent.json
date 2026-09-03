@@ -1,0 +1,21 @@
+{
+  "id": "gyc-code-review",
+  "name": "代码审查智能体",
+  "main": "agent.md",
+  "description": "基于 clean-code、design-patterns、security 最佳实践的深度代码审查，输出分级问题报告",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": ["clean-code", "design-patterns", "security-framework"],
+  "mcp_servers": ["mempalace", "github"],
+  "usage": [
+    "安装后自动加载，无需手动调用",
+    "在代码变更时自动触发审查",
+    "手动触发：/gyc-code-review <文件路径或目录>"
+  ],
+  "status": "active",
+  "tags": ["code-review", "quality", "security", "best-practices"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/code-review",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

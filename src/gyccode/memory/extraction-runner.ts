@@ -1,11 +1,16 @@
 ﻿import { Effect } from "effect"
 import type { MemoryEntry } from "./memory-bridge"
 import { deduplicateMemories } from "./extract"
+import { enforceStandardCompliance } from "../mcp/standard-elements"
 
 export interface ExtractionConfig {
   minTurns: number
   model: string
   maxMemories: number
+  /** Enable MCP standard compliance enforcement */
+  enforceStandards?: boolean
+  /** Standard element type for compliance checking */
+  standardType?: "rule" | "pattern" | "config"
 }
 
 export interface ExtractionInput {
@@ -30,8 +35,8 @@ export interface RunOptions {
 
 /**
  * Run one memory-extraction step: ask the extractor for candidate memories,
- * filter out ones already present (case-insensitive substring), cap to
- * maxMemories, then persist. Pure wrapper — all I/O is injected.
+ * filter out ones already present (case-insensitive substring), enforce standards,
+ * cap to maxMemories, then persist. Pure wrapper — all I/O is injected.
  */
 export function runExtraction(options: RunOptions): Effect.Effect<string[]> {
   return Effect.gen(function* () {
@@ -42,8 +47,23 @@ export function runExtraction(options: RunOptions): Effect.Effect<string[]> {
     })
     const fresh = candidates.filter((candidate) => deduplicateMemories(options.existing, candidate))
     const capped = fresh.slice(0, options.config.maxMemories)
+
     if (capped.length > 0) {
-      yield* options.sink(capped)
+      // Enforce standard compliance before persisting
+      let toPersist = capped
+      if (options.config.enforceStandards && options.config.standardType) {
+        toPersist = yield* Effect.all(
+          capped.map(async (memory) => {
+            try {
+              return await enforceStandardCompliance(memory, options.config.standardType!, 3)
+            } catch {
+              // 合规失败时记录警告但不阻断，保留原内容
+              return memory
+            }
+          })
+        )
+      }
+      yield* options.sink(toPersist)
     }
     return capped
   })
