@@ -4,7 +4,7 @@ import { GlobalBus } from "@/bus/global"
 import { serviceUse } from "@gyccode/core/effect/service-use"
 import { WorkspaceContext } from "@/control-plane/workspace-context"
 import { InstanceRef } from "@/effect/instance-ref"
-import { runDisposers } from "@/effect/instance-registry"
+import { disposeInstance } from "@/effect/instance-registry"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { Context, Deferred, Duration, Effect, Exit, Layer, Scope } from "effect"
 import { type InstanceContext } from "./instance-context"
@@ -93,7 +93,7 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
 
     const disposeContext = Effect.fn("InstanceStore.disposeContext")(function* (ctx: InstanceContext) {
       yield* Effect.logInfo("disposing instance", { directory: ctx.directory })
-      yield* Effect.promise(() => runDisposers(ctx.directory))
+      yield* Effect.promise(() => disposeInstance(ctx.directory))
       yield* emitDisposed({ directory: ctx.directory, project: ctx.project.id })
     })
 
@@ -134,7 +134,7 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
             yield* Effect.logInfo("reloading instance", { directory: directory })
             if (previous) {
               yield* Deferred.await(previous.deferred).pipe(Effect.ignore)
-              yield* Effect.promise(() => runDisposers(directory))
+              yield* Effect.promise(() => disposeInstance(directory))
               yield* emitDisposed({ directory, project: input.project?.id })
             }
             yield* completeLoad(directory, input, entry)
