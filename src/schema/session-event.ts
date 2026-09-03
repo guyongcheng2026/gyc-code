@@ -520,6 +520,21 @@ export const DurableDefinitions = Event.inventory(
   RevertEvent.Committed,
 )
 
+export namespace Budget {
+  export const Warning = Event.define({
+    type: "session.next.budget.warning",
+    ...options,
+    schema: {
+      ...Base,
+      kind: Schema.Literals(["cost", "tokens", "output_tokens"]),
+      current: Schema.Finite,
+      limit: Schema.Finite,
+      message: Schema.String,
+    },
+  })
+  export type Warning = typeof Warning.Type
+}
+
 export const Definitions = Event.inventory(
   AgentSwitched,
   ModelSwitched,
@@ -556,6 +571,7 @@ export const Definitions = Event.inventory(
   RevertEvent.Staged,
   RevertEvent.Cleared,
   RevertEvent.Committed,
+  Budget.Warning,
 )
 
 export const Durable = Schema.Union(DurableDefinitions, { mode: "oneOf" })

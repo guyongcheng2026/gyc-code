@@ -338,6 +338,104 @@ const layer = Layer.effect(
                 files,
               }),
             )
+            // Token budget enforcement: check configured limits and emit warnings
+            const configEntries = yield* config.entries()
+            const budgetConfig = Config.latest(configEntries, "token_budget")
+            if (budgetConfig) {
+              const session = yield* getSession(sessionID)
+              const alertThreshold = budgetConfig.alert_threshold ?? 0.8
+              // Check session cost budget
+              if (budgetConfig.session_cost_usd !== undefined && session.cost > 0) {
+                const costPct = session.cost / budgetConfig.session_cost_usd
+                if (costPct >= 1) {
+                  yield* withPublication(
+                    events.publish(SessionEvent.Budget.Warning, {
+                      sessionID: session.id,
+                      timestamp: yield* DateTime.now,
+                      kind: "cost",
+                      current: session.cost,
+                      limit: budgetConfig.session_cost_usd,
+                      message: `Session cost $${session.cost.toFixed(4)} exceeded budget $${budgetConfig.session_cost_usd.toFixed(4)}`,
+                    }),
+                  )
+                } else if (costPct >= alertThreshold) {
+                  yield* withPublication(
+                    events.publish(SessionEvent.Budget.Warning, {
+                      sessionID: session.id,
+                      timestamp: yield* DateTime.now,
+                      kind: "cost",
+                      current: session.cost,
+                      limit: budgetConfig.session_cost_usd,
+                      message: `Session cost $${session.cost.toFixed(4)} approaching budget $${budgetConfig.session_cost_usd.toFixed(4)} (${Math.round(costPct * 100)}%)`,
+                    }),
+                  )
+                }
+              }
+              // Check session token budget
+              if (budgetConfig.session_tokens_total !== undefined) {
+                const totalTokens = session.tokens.input + session.tokens.output + session.tokens.reasoning
+                const tokenPct = totalTokens / budgetConfig.session_tokens_total
+                if (tokenPct >= 1) {
+                  yield* withPublication(
+                    events.publish(SessionEvent.Budget.Warning, {
+                      sessionID: session.id,
+                      timestamp: yield* DateTime.now,
+                      kind: "tokens",
+                      current: totalTokens,
+                      limit: budgetConfig.session_tokens_total,
+                      message: `Session tokens ${totalTokens.toLocaleString()} exceeded budget ${budgetConfig.session_tokens_total.toLocaleString()}`,
+                    }),
+                  )
+                } else if (tokenPct >= alertThreshold) {
+                  yield* withPublication(
+                    events.publish(SessionEvent.Budget.Warning, {
+                      sessionID: session.id,
+                      timestamp: yield* DateTime.now,
+                      kind: "tokens",
+                      current: totalTokens,
+                      limit: budgetConfig.session_tokens_total,
+                      message: `Session tokens ${totalTokens.toLocaleString()} approaching budget ${budgetConfig.session_tokens_total.toLocaleString()} (${Math.round(tokenPct * 100)}%)`,
+                    }),
+                  )
+                }
+              }
+              // Check step output token budget
+              if (budgetConfig.step_output_tokens !== undefined && stepSettlement.tokens.output > budgetConfig.step_output_tokens) {
+                yield* withPublication(
+                  events.publish(SessionEvent.Budget.Warning, {
+                    sessionID: session.id,
+                    timestamp: yield* DateTime.now,
+                    kind: "output_tokens",
+                    current: stepSettlement.tokens.output,
+                    limit: budgetConfig.step_output_tokens,
+                    message: `Step output tokens ${stepSettlement.tokens.output.toLocaleString()} exceeded limit ${budgetConfig.step_output_tokens.toLocaleString()}`,
+                  }),
+                )
+              }
+              // Cost alert webhook: fire-and-forget HTTP POST to configured URL
+              if (budgetConfig.webhook_url) {
+                const payload = JSON.stringify({
+                  type: "budget_warning",
+                  session_id: session.id,
+                  cost: session.cost,
+                  tokens: session.tokens,
+                  model: { provider: model.provider, id: model.id },
+                  timestamp: Date.now(),
+                })
+                const headers: Record<string, string> = {
+                  "Content-Type": "application/json",
+                  ...budgetConfig.webhook_headers,
+                }
+                Effect.tryPromise(() =>
+                  fetch(budgetConfig.webhook_url!, {
+                    method: "POST",
+                    headers,
+                    body: payload,
+                    signal: AbortSignal.timeout(5000),
+                  }),
+                ).pipe(Effect.catch(() => Effect.void)).pipe(Effect.forkScoped)
+              }
+            }
           }
           if (publisher.hasProviderError())
             yield* withPublication(publisher.failUnsettledTools("Tool execution interrupted"))

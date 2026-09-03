@@ -77,6 +77,24 @@ export const Info = Schema.Struct({
   small_model: Schema.optional(Schema.String).annotate({
     description: "Small model to use for tasks like title generation in the format of provider/model",
   }),
+  small_model_heuristic: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean).annotate({
+        description: "Enable automatic small model selection heuristic for simple tasks (default: true)",
+      }),
+      max_age_months: Schema.optional(Schema.NonNegativeInt).annotate({
+        description: "Maximum model age in months for small model candidates (default: 18)",
+      }),
+      cost_weight: Schema.optional(Schema.Finite).annotate({
+        description: "Weight for cost in small model scoring (0-1, default: 0.8). Higher = prefer cheaper models.",
+      }),
+      age_weight: Schema.optional(Schema.Finite).annotate({
+        description: "Weight for recency in small model scoring (0-1, default: 0.2). Higher = prefer newer models.",
+      }),
+    }),
+  ).annotate({
+    description: "Small model auto-selection heuristic. When enabled, simple tasks (title generation, etc.) automatically use cheaper, smaller models to reduce cost.",
+  }),
   default_agent: Schema.optional(Schema.String).annotate({
     description:
       "Default agent to use when none is specified. Must be a primary agent. Falls back to 'build' if not set or if the specified agent is invalid.",
@@ -210,6 +228,21 @@ export const Info = Schema.Struct({
           }),
         }),
       ),
+      checkpoint_budgets: Schema.optional(
+        Schema.Struct({
+          system_memory_tokens: Schema.optional(NonNegativeInt).annotate({
+            description: "Maximum tokens for system MEMORY.md context (default: 2000). Prevents context bloat from large memory files.",
+          }),
+          session_checkpoint_tokens: Schema.optional(NonNegativeInt).annotate({
+            description: "Maximum tokens for session checkpoint.md (default: 4000). Limits checkpoint size to avoid exponential cost growth.",
+          }),
+          context_overview_tokens: Schema.optional(NonNegativeInt).annotate({
+            description: "Maximum tokens for context overview (default: 3000). Bounds the context summary size.",
+          }),
+        }),
+      ).annotate({
+        description: "Per-section token budgets for checkpoint and context files. Prevents context bloat that causes exponential cost growth in long sessions.",
+      }),
     }),
   ),
   token_counting: Schema.optional(
@@ -222,6 +255,30 @@ export const Info = Schema.Struct({
       }),
     }),
   ),
+  token_budget: Schema.optional(
+    Schema.Struct({
+      session_cost_usd: Schema.optional(Schema.Finite).annotate({
+        description: "Maximum cost per session in USD (default: unlimited). Triggers warning when exceeded.",
+      }),
+      session_tokens_total: Schema.optional(Schema.NonNegativeInt).annotate({
+        description: "Maximum total tokens per session (input+output+reasoning). Triggers warning when exceeded.",
+      }),
+      step_output_tokens: Schema.optional(Schema.NonNegativeInt).annotate({
+        description: "Maximum output tokens per LLM step (default: model limit). Triggers forced stop when exceeded.",
+      }),
+      alert_threshold: Schema.optional(Schema.Finite).annotate({
+        description: "Cost threshold (0-1) that triggers a warning event (default: 0.8 = 80% of budget).",
+      }),
+      webhook_url: Schema.optional(Schema.String).annotate({
+        description: "Webhook URL for cost/token budget alerts. POST JSON payload when threshold exceeded.",
+      }),
+      webhook_headers: Schema.optional(Schema.Record(Schema.String, Schema.String)).annotate({
+        description: "Custom headers for cost alert webhook requests (e.g. Authorization).",
+      }),
+    }),
+  ).annotate({
+    description: "Token budget and cost limits per session. Helps prevent runaway costs and token consumption.",
+  }),
   llm: Schema.optional(
     Schema.Struct({
       output_token_max: Schema.optional(PositiveInt).annotate({

@@ -175,13 +175,20 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
     if (name === "cost") {
       const t = info?.tokens
       const cost = info?.cost
+      const totalTokens = t ? t.input + t.output + t.reasoning : 0
+      const costPerToken = totalTokens > 0 && cost ? cost / totalTokens : 0
+      const cacheSavings = t && t.cache.read > 0 ? `(缓存节省 ~${Math.round(t.cache.read * costPerToken * 100) / 100 || 0})` : ""
       showNotice(
         [
-          ...(cost !== undefined ? [`费用:   $${cost.toFixed(4)}`] : ["费用:   暂无数据"]),
+          ...(cost !== undefined ? [`费用:   $${cost.toFixed(4)}${cacheSavings}`] : ["费用:   暂无数据"]),
           ...(t
-            ? [`Token:  输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning}`, `缓存:   读 ${t.cache.read} / 写 ${t.cache.write}`]
+            ? [
+                `Token:  输入 ${t.input} · 输出 ${t.output} · 推理 ${t.reasoning}`,
+                `缓存:   读 ${t.cache.read} / 写 ${t.cache.write}`,
+                totalTokens > 0 ? `均价:   $${(costPerToken * 1_000_000).toFixed(2)}/M tokens` : "",
+              ]
             : ["Token:  暂无数据"]),
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
       )
       return
     }

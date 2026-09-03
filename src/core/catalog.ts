@@ -9,6 +9,7 @@ import { EventV2 } from "./event"
 import { Policy } from "./policy"
 import { State } from "./state"
 import { Integration } from "./integration"
+import { Config } from "./config"
 
 export type ProviderRecord = {
   provider: ProviderV2.MutableInfo
@@ -67,6 +68,8 @@ const layer = Layer.effect(
     const events = yield* EventV2.Service
     const policy = yield* Policy.Service
     const integrations = yield* Integration.Service
+    const config = yield* Config.Service
+    const configEntries = yield* config.entries()
 
     const available = (provider: ProviderV2.Info, integration: Integration.Info | undefined) => {
       if (provider.disabled) return false
@@ -239,6 +242,10 @@ const layer = Layer.effect(
           if (!record) return
           const provider = record.provider
 
+          // 小模型启发式配置：从 config 读取，有默认值
+          const heuristicConfig = configEntries.small_model_heuristic ?? {}
+          if (heuristicConfig.enabled === false) return
+
           // TODO: Remove these provider-specific assumptions once model syncing reliably reports available deployments.
           if (providerID === ProviderV2.ID.azure || providerID === ProviderV2.ID.make("azure-cognitive-services")) {
             return
@@ -248,6 +255,14 @@ const layer = Layer.effect(
             const gpt5Nano = record.models.get(ModelV2.ID.make("gpt-5-nano"))
             if (gpt5Nano?.enabled && gpt5Nano.status === "active") return projectModel(gpt5Nano, provider)
           }
+
+          const maxAge = heuristicConfig.max_age_months ?? 18
+          const costW = heuristicConfig.cost_weight ?? 0.8
+          const ageW = heuristicConfig.age_weight ?? 0.2
+          // 确保权重和为 1
+          const totalWeight = costW + ageW
+          const normalizedCostW = totalWeight > 0 ? costW / totalWeight : 0.8
+          const normalizedAgeW = totalWeight > 0 ? ageW / totalWeight : 0.2
 
           const candidates = pipe(
             Array.fromIterable(record.models.values()),
@@ -265,7 +280,7 @@ const layer = Layer.effect(
               age: (Date.now() - model.time.released) / (1000 * 60 * 60 * 24 * 30),
               small: SMALL_MODEL_RE.test(`${model.id} ${model.family ?? ""} ${model.name}`.toLowerCase()),
             })),
-            Array.filter((item) => item.cost > 0 && item.age <= 18),
+            Array.filter((item) => item.cost > 0 && item.age <= maxAge),
           )
 
           const pick = (items: typeof candidates) => {
@@ -273,7 +288,10 @@ const layer = Layer.effect(
             const maxAge = Math.max(...items.map((item) => item.age), 0.01)
             return pipe(
               items,
-              Array.sortWith((item) => (item.cost / maxCost) * 0.8 + (item.age / maxAge) * 0.2, Order.Number),
+              Array.sortWith(
+                (item) => (item.cost / maxCost) * normalizedCostW + (item.age / maxAge) * normalizedAgeW,
+                Order.Number,
+              ),
               Array.map((item) => projectModel(item.model, provider)),
               Array.head,
             )
@@ -301,4 +319,4 @@ export const locationLayer = layer.pipe(
   Layer.provideMerge(Policy.locationLayer),
 )
 
-export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Policy.node, Integration.node] })
+export const node = makeLocationNode({ service: Service, layer, deps: [EventV2.node, Policy.node, Integration.node, Config.node] })

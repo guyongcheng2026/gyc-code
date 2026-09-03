@@ -165,10 +165,12 @@ const layer = Layer.effect(
       Global.Path.cache,
       source === "https://models.opencode.ai" ? "models.json" : `models-${Hash.fast(source)}.json`,
     )
-    // TTL 24h（2026-08-27 修正，原 5min）：上游目录日更频率远低于 5 分钟，
-    // 短 TTL 导致每次启动 TUI 都重新下载并全量重写 4.3MB——无谓的网络流量
-    // 与磁盘写放大（磁盘发热贡献源之一）。强制刷新走 `gyc models --refresh`。
-    const ttl = Duration.hours(24)
+    // TTL 5min：对齐 opencode 定价缓存策略，确保价格变动（如模型降价/调价）即时生效，
+    // 避免按旧价计费。上游 models.dev 本身已是小时级更新频率，5min 冗余刷新
+    // 的成本（~1KB 条件 GET）远低于按旧价多扣费的风险。
+    // 超 200K context 分级定价、免费模型策略等高价值信息均来自此数据源。
+    // 强制刷新走 `gyc models --refresh`。
+    const ttl = Duration.minutes(5)
     const lockKey = `models-dev:${filepath}`
 
     const fresh = Effect.fnUntraced(function* () {
@@ -280,7 +282,8 @@ const layer = Layer.effect(
 
     if (!Flag.GYCCODE_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
       // Schedule.spaced runs the effect once, then waits between completions.
-      yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced("60 minutes")), Effect.ignore))
+      // 对齐 5min TTL，每 10min 后台刷新一次（含 TTL 余量，避免启动时立即触发）
+      yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced("10 minutes")), Effect.ignore))
     }
 
     return Service.of({ get, refresh })
