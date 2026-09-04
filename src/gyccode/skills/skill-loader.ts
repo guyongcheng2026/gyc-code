@@ -66,7 +66,7 @@ export const loadSkill = (skillPath: string): Effect.Effect<SkillInfo, Error> =>
 
     // 验证 agent.md 存在
     yield* Effect.promise(() => stat(agentMdPath)).pipe(
-      Effect.catchAll(() => Effect.fail(new Error(`Missing agent.md: ${agentMdPath}`)))
+      Effect.catch(() => Effect.fail(new Error(`Missing agent.md: ${agentMdPath}`)))
     )
 
     // 构建子目录路径
@@ -97,7 +97,7 @@ export const loadSkill = (skillPath: string): Effect.Effect<SkillInfo, Error> =>
 
 // 使用 Effect.match 替代 Effect.either
 const loadSkillEither = (skillPath: string) =>
-  Effect.matchEffect(loadSkill(skillPath), {
+  Effect.match(loadSkill(skillPath), {
     onFailure: (error) => ({ _tag: "Left" as const, left: error }),
     onSuccess: (value) => ({ _tag: "Right" as const, right: value }),
   })

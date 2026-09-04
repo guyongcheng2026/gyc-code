@@ -122,6 +122,7 @@ export function update(adapter: Adapter, event: SessionEvent.Event) {
           }),
         )
       },
+      "session.next.budget.warning": () => Effect.void,
       "session.next.moved": () => Effect.void,
       "session.cwd": () => Effect.void,
       "session.goal": () => Effect.void,

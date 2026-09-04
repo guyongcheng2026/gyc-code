@@ -47,7 +47,9 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
 
   function makeRoomFor(size: number): void {
     evictExpired()
-    while (cache.size >= maxSize || totalSize + size > maxSize * 10) {
+    // cache.size > 0 保护：单条 value 的 size 超过预算（size > maxSize * 10）时，
+    // 清空缓存后仍会满足 totalSize + size > maxSize * 10，若无保护将死循环。
+    while ((cache.size >= maxSize || totalSize + size > maxSize * 10) && cache.size > 0) {
       evictLru()
     }
   }
@@ -72,6 +74,10 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
     set(key: K, value: V): void {
       const size = sizeOf(value)
       makeRoomFor(size)
+      // 同键覆盖：先扣除旧 entry 已计入的 size，否则 totalSize 虚高，
+      // 且 delete/evict 时只减一次导致 totalSize 永不回落（缓存被提前清空）。
+      const prev = cache.get(key)
+      if (prev) totalSize -= prev.size
       const entry: CacheEntry<V> = {
         value,
         expiresAt: Date.now() + ttlMs,

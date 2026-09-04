@@ -1,5 +1,6 @@
 import { Effect, Layer, Ref, Context } from "effect"
 import { SkillInfo, SkillLoadResult, loadAllSkills, getSkill, getActiveSkills, resolveDependencies, loadKnowledgeBase, loadRules, loadTemplates, KnowledgeEntry, RuleEntry } from "./skill-loader.js"
+export type { SkillInfo, KnowledgeEntry, RuleEntry } from "./skill-loader.js"
 import { AgentJson } from "./agent-schema.js"
 
 export interface SkillRegistry {
@@ -18,7 +19,7 @@ export interface SkillRegistry {
   readonly refresh: () => Effect.Effect<void, never>
 }
 
-export const SkillRegistryService = Context.GenericTag<SkillRegistry>("SkillRegistryService")
+export class SkillRegistryService extends Context.Service<SkillRegistryService, SkillRegistry>()("@gyccode/SkillRegistry") {}
 
 const makeSkillRegistry = Effect.gen(function* () {
   const stateRef = yield* Ref.make<SkillLoadResult | null>(null)
@@ -29,14 +30,14 @@ const makeSkillRegistry = Effect.gen(function* () {
     return result
   })
 
-  const getSkill = (id: string) =>
+  const getSkillById = (id: string) =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return undefined
       return getSkill(state.skills, id)
     })
 
-  const getActiveSkills = () =>
+  const getAllActiveSkills = () =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return []
@@ -51,14 +52,14 @@ const makeSkillRegistry = Effect.gen(function* () {
       return skills
     })
 
-  const resolveDependencies = (skillIds: string[]) =>
+  const resolveSkillDependencies = (skillIds: string[]) =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return { ordered: [], missing: skillIds, circular: [] }
       return resolveDependencies(state.skills, skillIds)
     })
 
-  const loadKnowledgeBase = (skillId: string) =>
+  const loadSkillKnowledgeBase = (skillId: string) =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return []
@@ -67,7 +68,7 @@ const makeSkillRegistry = Effect.gen(function* () {
       return yield* loadKnowledgeBase(skill)
     })
 
-  const loadRules = (skillId: string) =>
+  const loadSkillRules = (skillId: string) =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return []
@@ -76,7 +77,7 @@ const makeSkillRegistry = Effect.gen(function* () {
       return yield* loadRules(skill)
     })
 
-  const loadTemplates = (skillId: string) =>
+  const loadSkillTemplates = (skillId: string) =>
     Effect.gen(function* () {
       const state = yield* Ref.get(stateRef)
       if (!state) return new Map()
@@ -89,13 +90,13 @@ const makeSkillRegistry = Effect.gen(function* () {
 
   return {
     loadAll,
-    getSkill,
-    getActiveSkills,
+    getSkill: getSkillById,
+    getActiveSkills: getAllActiveSkills,
     getSkillsByCategory,
-    resolveDependencies,
-    loadKnowledgeBase,
-    loadRules,
-    loadTemplates,
+    resolveDependencies: resolveSkillDependencies,
+    loadKnowledgeBase: loadSkillKnowledgeBase,
+    loadRules: loadSkillRules,
+    loadTemplates: loadSkillTemplates,
     refresh,
   }
 })

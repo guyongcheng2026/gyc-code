@@ -244,7 +244,7 @@ const layer = Layer.effect(
           const provider = record.provider
 
           // 小模型启发式配置：从 config 读取，有默认值
-          const heuristicConfig = configEntries.small_model_heuristic ?? {}
+          const heuristicConfig = Config.latest(configEntries, "small_model_heuristic") ?? {}
           if (heuristicConfig.enabled === false) return
 
           // TODO: Remove these provider-specific assumptions once model syncing reliably reports available deployments.

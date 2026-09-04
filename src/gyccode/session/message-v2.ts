@@ -407,11 +407,15 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
     return { type: "json", value: output as never }
   }
 
-  // 预计算最新 user 消息索引：记忆只注入该消息（tail 增量），历史 user 消息字节不变，
-  // 保证 prompt-cache 前缀稳定（对齐 CH 99.9% 机制）。
-  let lastUserIdx = -1
+  // 预计算第一条 user 消息索引：日期/记忆只注入该消息（前缀固定增量），
+  // 使注入内容在连续请求间字节稳定（对齐 CH 99.9% 机制：注入位置不逐轮游走，
+  // 否则每轮都会在"上一条最新 user 消息"处折断缓存前缀，实测 CH 99.3% 的主要泄漏源）。
+  let firstUserIdx = -1
   for (let i = 0; i < input.length; i++) {
-    if (input[i].info.role === "user") lastUserIdx = i
+    if (input[i].info.role === "user") {
+      firstUserIdx = i
+      break
+    }
   }
   for (let i = 0; i < input.length; i++) {
     const msg = input[i]
@@ -460,8 +464,9 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
           })
         }
       }
-      // 日期/记忆 tail 注入：仅追加到最新 user 消息，历史 user 消息不含 → 前缀字节稳定
-      if (i === lastUserIdx) {
+      // 日期/记忆前缀固定注入：仅追加到第一条 user 消息（历史 user 消息不含 →
+      // 注入位置不再逐轮游走，前缀字节稳定）
+      if (i === firstUserIdx) {
         if (options?.injectDate && options.injectDate.trim() !== "") {
           userMessage.parts.push({ type: "text", text: options.injectDate })
         }

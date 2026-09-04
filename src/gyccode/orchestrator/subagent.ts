@@ -2,7 +2,7 @@
 // 支持复杂任务分解、并行执行、结果聚合
 
 import { Effect, Context, Layer } from "effect"
-import { SkillInfo, SkillRegistryService } from "../skills/skill-registry"
+import { SkillInfo, SkillRegistry, SkillRegistryService } from "../skills/skill-registry"
 import { z } from "zod"
 
 export interface SubAgentSpec {
@@ -115,7 +115,7 @@ function topologicalSort(tasks: SubAgentSpec[]): SubAgentSpec[][] {
 }
 
 /** 创建子智能体执行器 */
-export function createSubAgentExecutor(skillRegistry: SkillRegistryService): SubAgentExecutor {
+export function createSubAgentExecutor(skillRegistry: SkillRegistry): SubAgentExecutor {
   const execute = (task: SubAgentTask): Effect.Effect<SubAgentResult> =>
     Effect.gen(function* () {
       const startTime = Date.now()
@@ -128,7 +128,7 @@ export function createSubAgentExecutor(skillRegistry: SkillRegistryService): Sub
           yield* Effect.try({
             try: () => task.spec.inputSchema.parse(task.input),
             catch: (e) => new Error(`Input validation failed: ${e}`),
-          })
+          }).pipe(Effect.orDie)
 
           // 获取技能
           const skill = yield* skillRegistry.getSkill(task.spec.skillId)
@@ -144,7 +144,7 @@ export function createSubAgentExecutor(skillRegistry: SkillRegistryService): Sub
           yield* Effect.try({
             try: () => task.spec.outputSchema.parse(output),
             catch: (e) => new Error(`Output validation failed: ${e}`),
-          })
+          }).pipe(Effect.orDie)
 
           return {
             taskId: task.spec.id,
@@ -179,13 +179,13 @@ export function createSubAgentExecutor(skillRegistry: SkillRegistryService): Sub
     Effect.try({
       try: () => schema.parse(input),
       catch: (e) => new Error(`Input validation failed: ${e}`),
-    })
+    }).pipe(Effect.asVoid, Effect.orDie)
 
   const validateOutput = (output: unknown, schema: z.ZodSchema) =>
     Effect.try({
       try: () => schema.parse(output),
       catch: (e) => new Error(`Output validation failed: ${e}`),
-    })
+    }).pipe(Effect.asVoid, Effect.orDie)
 
   return { execute, validateInput, validateOutput }
 }
@@ -211,7 +211,7 @@ function simulateSkillExecution(skill: SkillInfo, input: unknown, context: Recor
 }
 
 /** 创建编排引擎 */
-export function createOrchestrator(skillRegistry: SkillRegistryService): Orchestrator {
+export function createOrchestrator(skillRegistry: SkillRegistry): Orchestrator {
   const executor = createSubAgentExecutor(skillRegistry)
 
   const createPlan = (name: string, description: string, tasks: SubAgentSpec[]): OrchestrationPlan => {
@@ -444,10 +444,7 @@ export const PREDEFINED_PLANS = {
 }
 
 /** Effect Layer for Orchestrator */
-export class OrchestratorService extends Context.Tag("OrchestratorService")<
-  OrchestratorService,
-  Orchestrator
->() {}
+export class OrchestratorService extends Context.Service<OrchestratorService, Orchestrator>()("@gyccode/Orchestrator") {}
 
 export const OrchestratorLive = Layer.effect(
   OrchestratorService,

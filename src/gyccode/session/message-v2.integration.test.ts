@@ -107,7 +107,7 @@ function findUserTexts(modelMsgs: TestModelMsg[]): string[] {
     })
 }
 
-test("集成：injectMemories 只注入最新 user 消息，历史 user 字节不变（P0-1）", async () => {
+test("集成：injectMemories 只注入第一条 user 消息，其余 user 字节不变（前缀固定，CH 99.9%）", async () => {
   const msgs = [
     userTextMsg("u1", "first message"),
     {
@@ -118,18 +118,18 @@ test("集成：injectMemories 只注入最新 user 消息，历史 user 字节�
   ]
   const withMem = await toModelMessages(msgs as unknown as TestWithParts, model, { injectMemories: "<memories>fact A</memories>" })
   const texts = findUserTexts(withMem)
-  // u1（历史）不变；u2（最新 user）追加记忆
-  expect(texts[0]).toBe("first message")
-  expect(texts[1]).toContain("second message")
-  expect(texts[1]).toContain("<memories>fact A</memories>")
-  // 换一份记忆重新序列化：u1 仍不变（前缀字节稳定），仅最新 user 尾部变化
+  // u1（第一条 user）追加记忆（前缀固定注入）；u2 不含记忆
+  expect(texts[0]).toContain("first message")
+  expect(texts[0]).toContain("<memories>fact A</memories>")
+  expect(texts[1]).toBe("second message")
+  // 换一份记忆重新序列化：u2 仍不变；u1 注入随内容变化（记忆会话级固定时也不会变）
   const withMem2 = await toModelMessages(msgs as unknown as TestWithParts, model, { injectMemories: "<memories>fact B</memories>" })
   const texts2 = findUserTexts(withMem2)
-  expect(texts2[0]).toBe("first message")
-  expect(texts2[1]).toContain("fact B")
+  expect(texts2[0]).toContain("fact B")
+  expect(texts2[1]).toBe("second message")
   // 不注入 → 无记忆内容
   const noMem = await toModelMessages(msgs as any, model, {})
-  expect(findUserTexts(noMem)[1]).toBe("second message")
+  expect(findUserTexts(noMem)[0]).toBe("first message")
 })
 
 test("集成：maxUserTextChars 截断超大 user 文本（P1-3）", async () => {
@@ -143,22 +143,22 @@ test("集成：maxUserTextChars 截断超大 user 文本（P1-3）", async () =>
   expect(findUserTexts(full)[0]).toBe(big)
 })
 
-test("集成：injectDate 同 tail 模式，只影响最新 user，历史字节不变（跟进1）", async () => {
+test("集成：injectDate 前缀固定模式，只影响第一条 user，其余 user 字节不变（跟进1）", async () => {
   const msgs = [
     userTextMsg("u1", "first"),
     userTextMsg("u2", "second"),
   ]
   const withDate = await toModelMessages(msgs as any, model, { injectDate: "Today's date: 2026-08-13\n" })
   const texts = findUserTexts(withDate)
-  expect(texts[0]).toBe("first")
-  expect(texts[1]).toContain("second")
-  expect(texts[1]).toContain("Today's date: 2026-08-13")
-  // 跨天（日期变化）：u1 仍不变，仅最新 user 尾部变化
+  expect(texts[0]).toContain("first")
+  expect(texts[0]).toContain("Today's date: 2026-08-13")
+  expect(texts[1]).toBe("second")
+  // 跨天（日期变化）：u1 注入变化（每天一次），u2 仍不变
   const nextDay = await toModelMessages(msgs as any, model, { injectDate: "Today's date: 2026-08-14\n" })
   const texts2 = findUserTexts(nextDay)
-  expect(texts2[0]).toBe("first")
-  expect(texts2[1]).toContain("2026-08-14")
+  expect(texts2[0]).toContain("2026-08-14")
+  expect(texts2[1]).toBe("second")
   // 不注入 → 无日期
   const noDate = await toModelMessages(msgs as any, model, {})
-  expect(findUserTexts(noDate)[1]).toBe("second")
+  expect(findUserTexts(noDate)[0]).toBe("first")
 })

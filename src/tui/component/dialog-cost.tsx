@@ -85,12 +85,13 @@ export function DialogCost() {
 
   const cacheHitRate = createMemo(() => {
     const t = totals()
-    const denom = t.input + t.cacheRead
-    if (denom === 0) return { rate: 0, hitTokens: 0, missTokens: 0 }
+    // 全量输入 = miss(input) + cache.read + cache.write；CH = read / 全量输入
+    const totalInput = t.input + t.cacheRead + t.cacheWrite
+    if (totalInput === 0) return { rate: 0, hitTokens: 0, totalInput: 0 }
     return {
-      rate: t.cacheRead / denom,
+      rate: t.cacheRead / totalInput,
       hitTokens: t.cacheRead,
-      missTokens: t.input,
+      totalInput,
     }
   })
 
@@ -166,7 +167,7 @@ export function DialogCost() {
         <text fg={theme.textMuted}>reasoning {totals().reasoning.toLocaleString()}</text>
         <text fg={theme.textMuted}>cache read {totals().cacheRead.toLocaleString()}</text>
         <text fg={theme.textMuted}>cache write {totals().cacheWrite.toLocaleString()}</text>
-        <text fg={theme.accent}>cache hit {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {totals().input.toLocaleString()}）</text>
+        <text fg={theme.accent}>cache hit {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {cacheHitRate().totalInput.toLocaleString()}）</text>
       </box>
 
       <box>

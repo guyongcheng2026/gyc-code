@@ -3,6 +3,7 @@ import { Headers, HttpClientRequest } from "effect/unstable/http"
 import { Auth } from "../auth"
 import { Framing, type Framing as FramingDef } from "../framing"
 import type { Transport, TransportPrepareInput } from "./index"
+import { Endpoint } from "../endpoint"
 import * as ProviderShared from "../../protocols/shared"
 import { mergeJsonRecords, type LLMRequest } from "../../schema"
 import { TransportReason, LLMError } from "../../schema/errors"
@@ -88,7 +89,7 @@ const bodyWithOverlay = <Body>(body: Body, request: LLMRequest, encodeBody: (bod
 export const jsonRequestParts = <Body>(input: JsonRequestInput<Body>) =>
   Effect.gen(function* () {
     const url = applyQuery(
-      renderEndpoint(input.endpoint, { request: input.request, body: input.body }).toString(),
+      Endpoint.render(input.endpoint, { request: input.request, body: input.body }).toString(),
       input.request.http?.query,
     )
     const body = yield* bodyWithOverlay(input.body, input.request, input.encodeBody)

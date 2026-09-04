@@ -1653,11 +1653,12 @@ const layer = Layer.effect(
               sys.mcp(agent, session.permission),
               sys.memory(memoryQuery, sessionID),
             ])
-            // modelMsgs 依赖 memories（记忆 tail 注入），故与上方解耦后单独计算
+            // modelMsgs 依赖 memories（记忆前缀固定注入），故与上方解耦后单独计算
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
               toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
               toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
-              // 日期/记忆 tail 注入：追加到最新 user 消息末尾，历史前缀字节稳定
+              // 日期/记忆前缀固定注入：追加到第一条 user 消息末尾，注入位置不逐轮游走，
+              // 连续请求间前缀字节稳定（对齐 CH 99.9% 机制）
               injectDate: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
               injectMemories: memories ?? undefined,
               // 用户文本上限：与聚合预算同档，限制病态大粘贴的每轮增量
@@ -1670,10 +1671,10 @@ const layer = Layer.effect(
             buildStaticPrompt(skills)
             buildSemiStaticPrompt(env, mcpInstructions)
             buildDynamicPrompt(instructions)
-            // 日期与记忆注入最新 user 消息而非 system：DeepSeek 对 system 消息要求
+            // 日期与记忆注入第一条 user 消息而非 system：DeepSeek 对 system 消息要求
             // 字节完全一致（任何位置变化都会使整个前缀缓存失效）；日期/记忆放 user
-            // 增量处，跨天/跨检索只影响当轮增量，不破坏历史前缀（对齐参考实现
-            // CH 99.9% 机制：system 字节稳定是缓存命中的前提）。
+            // 前缀固定处（第一条 user 消息），跨天只影响该消息一次，不破坏后续轮次
+            // 的历史前缀（对齐参考实现 CH 99.9% 机制：system 字节稳定是缓存命中的前提）。
             const format = lastUser.format ?? { type: "text" as const }
             const system = shardCache.buildSystem(format.type === "json_schema" ? [STRUCTURED_OUTPUT_SYSTEM_PROMPT] : [])
             const result = yield* handle.process({

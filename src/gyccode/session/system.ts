@@ -63,8 +63,10 @@ const layer = Layer.effect(
 
     // 会话级记忆缓存：同一会话内固定记忆注入，避免随每条消息的检索 query
     // 变化破坏系统提示的字节稳定性（prompt-cache 前缀友好）。
+    // TTL 取 24h（会话通常 <24h，等同会话级固定）：短 TTL（30min）会在过期后
+    // 重算记忆，使第一条 user 消息的注入内容变化，进而整段折断前缀缓存。
     const memoryCache = new Map<string, { time: number; value: string | undefined }>()
-    const MEMORY_CACHE_TTL_MS = 30 * 60 * 1000
+    const MEMORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
     const MEMORY_CACHE_MAX = 64
 
     return Service.of({

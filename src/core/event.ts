@@ -663,7 +663,7 @@ export const layerWith = (options?: LayerOptions) =>
 
       const project = <D extends Definition>(definition: D, projector: Subscriber<D>): Effect.Effect<Unsubscribe> =>
         Effect.sync(() => {
-          const wrapped = (event: Payload<D>) => projector(event as Payload<D>)
+          const wrapped: Subscriber = (event: Payload<Definition>) => projector(event as Payload<D>)
           const list = projectors.get(definition.type) ?? []
           list.push(wrapped)
           projectors.set(definition.type, list)

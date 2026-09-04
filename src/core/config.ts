@@ -10,7 +10,7 @@ import { FSUtil } from "./fs-util"
 import { Global } from "./global"
 import { Location } from "./location"
 import { Policy } from "./policy"
-import { AbsolutePath } from "./schema"
+import { AbsolutePath, NonNegativeInt } from "./schema"
 import { ConfigAgent } from "./config/agent"
 import { ConfigAttachments } from "./config/attachments"
 import { ConfigCompaction } from "./config/compaction"
@@ -109,6 +109,44 @@ export class Info extends Schema.Class<Info>("Config.Info")({
   }),
   experimental: ConfigExperimental.Experimental.pipe(Schema.optional),
   providers: Schema.Record(Schema.String, ConfigProvider.Info).pipe(Schema.optional),
+  token_budget: Schema.Struct({
+    session_cost_usd: Schema.optional(Schema.Finite).annotate({
+      description: "Maximum cost per session in USD (default: unlimited). Triggers warning when exceeded.",
+    }),
+    session_tokens_total: Schema.optional(NonNegativeInt).annotate({
+      description: "Maximum total tokens per session (input+output+reasoning). Triggers warning when exceeded.",
+    }),
+    step_output_tokens: Schema.optional(NonNegativeInt).annotate({
+      description: "Maximum output tokens per LLM step (default: model limit). Triggers forced stop when exceeded.",
+    }),
+    alert_threshold: Schema.optional(Schema.Finite).annotate({
+      description: "Cost threshold (0-1) that triggers a warning event (default: 0.8 = 80% of budget).",
+    }),
+    webhook_url: Schema.optional(Schema.String).annotate({
+      description: "Webhook URL for cost/token budget alerts. POST JSON payload when threshold exceeded.",
+    }),
+    webhook_headers: Schema.optional(Schema.Record(Schema.String, Schema.String)).annotate({
+      description: "Custom headers for cost alert webhook requests (e.g. Authorization).",
+    }),
+  })
+    .pipe(Schema.optional)
+    .annotate({ description: "Token budget and cost limits per session." }),
+  small_model_heuristic: Schema.Struct({
+    enabled: Schema.optional(Schema.Boolean).annotate({
+      description: "Enable automatic small model selection heuristic for simple tasks (default: true)",
+    }),
+    max_age_months: Schema.optional(NonNegativeInt).annotate({
+      description: "Maximum model age in months for small model candidates (default: 18)",
+    }),
+    cost_weight: Schema.optional(Schema.Finite).annotate({
+      description: "Weight of cost in small model scoring (default: 0.5)",
+    }),
+    age_weight: Schema.optional(Schema.Finite).annotate({
+      description: "Weight of model age in small model scoring (default: 0.5)",
+    }),
+  })
+    .pipe(Schema.optional)
+    .annotate({ description: "Automatic small model selection heuristic." }),
 }) {}
 
 export class Document extends Schema.Class<Document>("Config.Document")({
