@@ -106,11 +106,7 @@ export async function runFallbackSafeMode(options: SafeModeOptions): Promise<boo
 	const finish = () => {
 		if (done) return
 		done = true
-		try {
-			flushSync()
-		} catch {
-			// 刷新失败不阻断后续流程，忽略
-		}
+		// （移除对未定义 flushSync 的调用：该回退通道不依赖 Solid/React，无需同步冲刷）
 		finishResolve?.()
 	}
 	try {

@@ -473,7 +473,9 @@ const layer: Layer.Layer<Service, never, AccountRepo.Service | HttpClient.HttpCl
       orgs,
       config,
       token,
-      login,
+      // login 底层跨多步网络/解析可能产生原始 AccountTransportError|Error，
+      // 在接口接入点统一映射到 AccountError，与 Service.Interface 声明一致
+      login: (url: string) => mapAccountServiceError("Failed to start device login")(login(url)),
       poll,
     })
   }),

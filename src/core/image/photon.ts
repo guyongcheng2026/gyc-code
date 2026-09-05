@@ -1,5 +1,5 @@
 // @ts-ignore Bun's static file import is embedded by `bun build --compile`; some consumers also declare *.wasm.
-import photonWasm from "@silvia-odwyer/photon-node/photon_rs_bg.wasm" with { type: "file" }
+import photonWasmRaw from "@silvia-odwyer/photon-node/photon_rs_bg.wasm" with { type: "file" }
 import { Effect } from "effect"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -7,6 +7,10 @@ import { FileSystem } from "../filesystem"
 import { DecodeError, ResizerUnavailableError, SizeError } from "../image"
 
 const JPEG_QUALITIES = [80, 85, 70, 55, 40]
+
+// `with { type: "file" }` 在运行时把 .wasm 解析成文件路径字符串，但 TS 的默认 *.wasm 声明是模块类型，
+// 这里显式规整为 string，供 path/URL 计算使用。
+const photonWasm = photonWasmRaw as unknown as string
 
 export const make = Effect.gen(function* () {
   ;(globalThis as typeof globalThis & { __GYCCODE_PHOTON_WASM_PATH?: string }).__GYCCODE_PHOTON_WASM_PATH =

@@ -35,6 +35,8 @@ describe("maybeDream", () => {
         state: { lastDreamAt: 0, sessionsSinceDream: 4, memoryCount: 0 },
         memoryCount: 10,
         memories: "m1\nm2",
+        // 这些单测注入的是最小化伪 LLM 输出，不满足真实校验门，故测非校验路径
+        useValidation: false,
         synthesizer: ({ prompt }) =>
           Effect.sync(() => {
             expect(prompt).toContain("m1")
@@ -60,6 +62,8 @@ describe("maybeDream", () => {
         state: { lastDreamAt: longAgo, sessionsSinceDream: 0, memoryCount: 0 },
         memoryCount: 10,
         memories: "m",
+        // 伪输出不满足真实校验门，测非校验路径
+        useValidation: false,
         synthesizer: () => Effect.sync(() => "## Topic Clusters\n- x"),
         writeMemory: (v) =>
           Effect.sync(() => {

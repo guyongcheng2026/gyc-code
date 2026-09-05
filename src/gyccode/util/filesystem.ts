@@ -139,7 +139,7 @@ export async function writeStream(
   mode?: number,
 ): Promise<void> {
   const dir = dirname(p)
-  if (!existsSync(dir)) {
+  if (!(await exists(dir))) {
     await mkdir(dir, { recursive: true })
   }
 

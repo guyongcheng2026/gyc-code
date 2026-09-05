@@ -35,10 +35,10 @@ export interface ComplianceViolation {
 }
 
 export interface StandardElementsClient {
-  fetchStandards: (type: StandardElementType, filters?: Record<string, string>) => Effect.Effect<StandardElement[]>
-  fetchById: (id: string) => Effect.Effect<StandardElement | null>
-  checkCompliance: (content: string, type: StandardElementType, context?: Record<string, unknown>) => Effect.Effect<ComplianceCheckResult>
-  enforceStandards: (content: string, type: StandardElementType, maxRetries?: number) => Effect.Effect<string>
+  fetchStandards: (type: StandardElementType, filters?: Record<string, string>) => Effect.Effect<StandardElement[], Error>
+  fetchById: (id: string) => Effect.Effect<StandardElement | null, Error>
+  checkCompliance: (content: string, type: StandardElementType, context?: Record<string, unknown>) => Effect.Effect<ComplianceCheckResult, Error>
+  enforceStandards: (content: string, type: StandardElementType, maxRetries?: number) => Effect.Effect<string, Error>
 }
 
 /** MemPalace MCP 客户端配置 */
@@ -279,7 +279,8 @@ async function callMcpServer(method: string, params: Record<string, unknown>): P
 
 /** 创建标准元素客户端 */
 export function createStandardElementsClient(config: MemPalaceConfig): StandardElementsClient {
-  return {
+  // 具名 client：方法内部相互调用需引用它而非 this（箭头函数没有自己的 this）
+  const client: StandardElementsClient = {
     fetchStandards: (type, filters) =>
       Effect.gen(function* () {
         const cacheKey = getCacheKey(type, filters)
@@ -309,7 +310,7 @@ export function createStandardElementsClient(config: MemPalaceConfig): StandardE
 
     checkCompliance: (content, type, context) =>
       Effect.gen(function* () {
-        const standards = yield* this.fetchStandards(type)
+        const standards = yield* client.fetchStandards(type)
         const violations: ComplianceViolation[] = []
         const suggestions: string[] = []
 
@@ -367,7 +368,7 @@ export function createStandardElementsClient(config: MemPalaceConfig): StandardE
         let currentContent = content
 
         for (let attempt = 0; attempt < maxRetries; attempt++) {
-          const check = yield* this.checkCompliance(currentContent, type)
+          const check = yield* client.checkCompliance(currentContent, type)
 
           if (check.compliant) {
             return currentContent
@@ -400,6 +401,8 @@ export function createStandardElementsClient(config: MemPalaceConfig): StandardE
         throw new Error(`Standard compliance failed after ${maxRetries} retries`)
       }),
   }
+
+  return client
 }
 
 /** 默认客户端实例 */

@@ -258,7 +258,7 @@ export interface ValidatedDreamOptions {
   readonly memoryCount: number
   readonly memories: string
   readonly config?: DreamConfig
-  readonly synthesizer: (prompt: string) => Effect.Effect<string>
+  readonly synthesizer: (input: { prompt: string }) => Effect.Effect<string>
   readonly writeMemory: (value: string) => Effect.Effect<void>
 }
 

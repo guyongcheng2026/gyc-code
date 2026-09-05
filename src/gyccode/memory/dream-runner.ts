@@ -95,11 +95,11 @@ export function maybeDream(options: MaybeDreamOptions): Effect.Effect<DreamState
       writeMemory: enforceStandards
         ? (value: string) =>
             Effect.gen(function* () {
-              // Enforce standard compliance before writing
+              // Enforce standard compliance before writing; on failure keep original (never error out)
               const compliantValue = yield* Effect.tryPromise({
                 try: () => enforceStandardCompliance(value, "rule", 3),
                 catch: () => value, // 合规失败时保留原值
-              })
+              }).pipe(Effect.orElseSucceed(() => value))
               yield* options.writeMemory(compliantValue)
             })
         : options.writeMemory,
@@ -126,7 +126,7 @@ export function maybeDream(options: MaybeDreamOptions): Effect.Effect<DreamState
       finalSummary = yield* Effect.tryPromise({
         try: () => enforceStandardCompliance(result.summary, "rule", 3),
         catch: () => result.summary,
-      })
+      }).pipe(Effect.orElseSucceed(() => result.summary))
     }
 
     yield* options.writeMemory(finalSummary)
@@ -135,7 +135,13 @@ export function maybeDream(options: MaybeDreamOptions): Effect.Effect<DreamState
       actionItemCount: result.actionItemCount,
       qualityScore: result.qualityScore,
     })
-    return { lastDreamAt: Date.now(), sessionsSinceDream: 0, memoryCount: options.memoryCount, lastDreamQuality: result.qualityScore }
+    return {
+      lastDreamAt: Date.now(),
+      sessionsSinceDream: 0,
+      memoryCount: options.memoryCount,
+      lastDreamQuality: result.qualityScore,
+      retryCount: 0,
+    }
   })
 }
 

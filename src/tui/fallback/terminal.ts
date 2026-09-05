@@ -351,7 +351,8 @@ export class FallbackRenderer {
 
 	private flushFull(): void {
 		this.backend.write(renderFull(this.screen))
-		this.prevScreen = this.snapshotCurrent()
+		// snapshotCurrent 内部已把当前帧快照写入 this.prevScreen（void），不要再取返回值赋值
+		this.snapshotCurrent()
 	}
 
 	private snapshotCurrent(): void {

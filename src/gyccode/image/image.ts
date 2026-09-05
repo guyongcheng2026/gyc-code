@@ -2,10 +2,13 @@ import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { Config } from "@/config/config"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import type { MessageV2 } from "@/session/message-v2"
-import photonWasm from "@silvia-odwyer/photon-node/photon_rs_bg.wasm" with { type: "file" }
+import photonWasmRaw from "@silvia-odwyer/photon-node/photon_rs_bg.wasm" with { type: "file" }
 import { Context, Effect, Layer, Schema } from "effect"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
+
+// `with { type: "file" }` 运行时为文件路径字符串；TS 的 *.wasm 默认声明是模块类型，显式规整为 string。
+const photonWasm = photonWasmRaw as unknown as string
 
 const MAX_BASE64_BYTES = 5 * 1024 * 1024
 const MAX_WIDTH = 2000

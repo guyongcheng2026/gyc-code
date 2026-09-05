@@ -52,15 +52,15 @@ export function runExtraction(options: RunOptions): Effect.Effect<string[]> {
       // Enforce standard compliance before persisting
       let toPersist = capped
       if (options.config.enforceStandards && options.config.standardType) {
-        toPersist = yield* Effect.all(
-          capped.map(async (memory) => {
-            try {
-              return await enforceStandardCompliance(memory, options.config.standardType!, 3)
-            } catch {
-              // 合规失败时记录警告但不阻断，保留原内容
-              return memory
-            }
-          })
+        toPersist = yield* Effect.forEach(
+          capped,
+          (memory) =>
+            Effect.tryPromise({
+              try: () => enforceStandardCompliance(memory, options.config.standardType!, 3),
+              // 合规失败以原文兜底（不把合规错误外溢、也不中断其它条目的处理）
+              catch: () => memory,
+            }).pipe(Effect.orElseSucceed(() => memory)),
+          { concurrency: "unbounded" },
         )
       }
       yield* options.sink(toPersist)
