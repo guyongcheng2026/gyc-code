@@ -48,8 +48,10 @@ export const tuiHandlers = HttpApiBuilder.group(InstanceHttpApi, "tui", (handler
       return true
     })
 
+    // 修复：原先与 openSessions 重复地发布了 "session.list"，导致点击"主题"却打开会话列表。
+    // 当前命令集未定义 theme 打开命令；在两端补齐主题面板命令前，避免把错误的 session.list
+    // 发给前端（不再误导打开错误面板）。后续接入主题命令时替换为对应 command 即可。
     const openThemes = Effect.fn("TuiHttpApi.openThemes")(function* () {
-      yield* publishCommand("session.list")
       return true
     })
 

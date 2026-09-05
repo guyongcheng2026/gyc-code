@@ -94,6 +94,8 @@ export class RawInputHandler extends EventEmitter {
   private cursorVisible = true
   private pendingChunks: Buffer[] = []
   private escapeTimer: NodeJS.Timeout | null = null
+  // 稳定的 onData 绑定实例：start()/stop() 需用同一引用，否则 off() 匹配不上导致监听泄漏
+  private onDataBound = this.onData.bind(this)
 
   constructor(stdin: NodeJS.ReadableStream, stdout: NodeJS.WritableStream, options: RawInputOptions) {
     super()
@@ -112,7 +114,7 @@ export class RawInputHandler extends EventEmitter {
   async start(): Promise<void> {
     this.enableRawMode()
     this.render()
-    this.stdin.on("data", this.onData.bind(this))
+    this.stdin.on("data", this.onDataBound)
   }
 
   stop(): void {
@@ -122,7 +124,7 @@ export class RawInputHandler extends EventEmitter {
     }
     this.pendingChunks = []
     this.disableRawMode()
-    this.stdin.off("data", this.onData.bind(this))
+    this.stdin.off("data", this.onDataBound)
   }
 
   private enableRawMode(): void {
@@ -147,6 +149,17 @@ export class RawInputHandler extends EventEmitter {
 
   private get isTTY(): boolean {
     return typeof (this.stdin as NodeJS.WriteStream).isTTY === "boolean"
+  }
+
+  /** 把按键转成 KeyEvent 交给上层 onKeyDown；返回 true 表示上层已消费该键 */
+  private dispatchKey(key: KeyEvent): boolean {
+    // 仅在调用方提供了 onKeyDown 时才上抛；未提供时保持原有默认行为（向后兼容）
+    if (!this.options.onKeyDown) return false
+    return this.options.onKeyDown(key) === true
+  }
+
+  private makeKey(name: string, raw: Buffer, ctrl = false): KeyEvent {
+    return { sequence: raw.toString("utf-8"), name, ctrl, shift: false, meta: false, raw }
   }
 
   private onData(chunk: Buffer, forced = false): void {
@@ -210,8 +223,15 @@ export class RawInputHandler extends EventEmitter {
         return
       }
 
-      // Enter
+      // 单个 Escape：交给上层（命令面板/斜杠菜单关闭用），未消费则保持"忽略"
+      if (code === 27) {
+        if (this.dispatchKey(this.makeKey("escape", Buffer.from([code])))) return
+        continue
+      }
+
+      // Enter / Return：先给上层；菜单/面板未打开时上层返回 false，回落默认提交
       if (code === 13 || code === 10) {
+        if (this.dispatchKey(this.makeKey("return", Buffer.from([code])))) continue
         const value = this.state.buffer
         // 提交行定格为对话记录并换行；清空 buffer，避免屏幕残影"删不掉"
         this.state.buffer = ""
@@ -231,10 +251,17 @@ export class RawInputHandler extends EventEmitter {
         return
       }
 
-      // Tab - 补全
+      // Tab - 先给上层（菜单内 Tab 消费则吞掉），未消费走补全
       if (code === 9 && this.options.onTab) {
+        if (this.dispatchKey(this.makeKey("tab", Buffer.from([code])))) return
         this.handleTab()
         return
+      }
+
+      // Ctrl+字母（Ctrl+P 命令面板 / Ctrl+R 历史搜索 等）：交给上层；未消费保持"忽略"
+      if (code >= 1 && code <= 26) {
+        if (this.dispatchKey(this.makeKey(String.fromCharCode(96 + code), Buffer.from([code]), true))) return
+        continue
       }
 
       // 可打印字符
@@ -254,12 +281,29 @@ export class RawInputHandler extends EventEmitter {
   private handleEscapeSequence(chunk: Buffer): void {
     const seq = chunk.toString("utf-8")
 
-    // 方向键
-    if (seq === "\x1b[A" || seq === "\x1bOA") { // Up
+    // 方向键 / Home / End：先交给上层（斜杠菜单/命令面板导航已消费则返回），未消费再回落默认
+    const arrowKeys: Array<[string, string]> = [
+      ["\x1b[A", "up"], ["\x1bOA", "up"],
+      ["\x1b[B", "down"], ["\x1bOB", "down"],
+      ["\x1b[C", "right"], ["\x1bOC", "right"],
+      ["\x1b[D", "left"], ["\x1bOD", "left"],
+      ["\x1b[H", "home"], ["\x1bOH", "home"],
+      ["\x1b[F", "end"], ["\x1bOF", "end"],
+    ]
+    for (const [s, name] of arrowKeys) {
+      if (seq === s) {
+        if (this.dispatchKey(this.makeKey(name, Buffer.from(s, "utf-8")))) return
+        break
+      }
+    }
+
+    // Up（未消费默认：命令历史）
+    if (seq === "\x1b[A" || seq === "\x1bOA") {
       this.historyPrev()
       return
     }
-    if (seq === "\x1b[B" || seq === "\x1bOB") { // Down
+    // Down（未消费默认：命令历史）
+    if (seq === "\x1b[B" || seq === "\x1bOB") {
       this.historyNext()
       return
     }

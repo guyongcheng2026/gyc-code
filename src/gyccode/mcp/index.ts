@@ -300,7 +300,8 @@ const layer = Layer.effect(
         ? [
             {
               name: "WebSocket",
-              transport: new WSTransport({ headers: mcp.headers }),
+              // 必须在构造期就传入 url：SDK Client.connect 只调 start()，WS 无 url 必然连接失败
+              transport: new WSTransport({ url: url.href, headers: mcp.headers }),
             },
           ]
         : [

@@ -571,17 +571,9 @@ async function selectFromList(title: string, items: Array<{ label: string; value
   }
 
   return new Promise((resolve) => {
-    const finish = (value: string | undefined) => {
-      stdin.removeAllListeners("data")
-      stdin.setRawMode(false)
-      stdin.pause()
-      process.stdout.write("\r\x1b[J")
-      resolve(value)
-    }
-
-    stdin.setRawMode(true)
-    stdin.resume()
-    stdin.on("data", (chunk) => {
+    // 命名的 data 监听器：finish() 只 off() 自己，绝不 removeAllListeners，
+    // 否则会把 RawInputHandler 在 start() 注册的常驻监听一并清掉 -> 选中后会话后续输入失效
+    const onData = (chunk: any) => {
       const bytes = typeof chunk === "string" ? Buffer.from(chunk, "utf8") : chunk
       const str = bytes.toString("utf8")
       if (str === "\x1b[A" || str === "\x1bOA") { index = (index - 1 + items.length) % items.length; render(); return }
@@ -593,7 +585,18 @@ async function selectFromList(title: string, items: Array<{ label: string; value
         else if (ch === 13 || ch === 10) { finish(items[index]?.value); return }
         else if (ch >= 48 && ch <= 57) { const n = ch - 48; if (n >= 1 && n <= items.length) { index = n - 1; render(); } }
       }
-    })
+    }
+    const finish = (value: string | undefined) => {
+      stdin.off("data", onData)
+      stdin.setRawMode(false)
+      stdin.pause()
+      process.stdout.write("\r\x1b[J")
+      resolve(value)
+    }
+
+    stdin.setRawMode(true)
+    stdin.resume()
+    stdin.on("data", onData)
     render()
   })
 }

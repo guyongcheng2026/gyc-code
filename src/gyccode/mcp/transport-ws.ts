@@ -3,6 +3,7 @@ import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 
 export interface WSTransportOptions {
+  url?: string
   headers?: Record<string, string>
   timeout?: number
 }
@@ -22,7 +23,11 @@ export class WSTransport implements Transport {
   private socket: WebSocket | undefined
   private url: string | undefined
 
-  constructor(private options: WSTransportOptions = {}) {}
+  constructor(private options: WSTransportOptions = {}) {
+    // 允许在构造期注入 url（SDK 的 Client.connect 只会调用 start()，不会调用 connect(url)）。
+    // 若未注入，调用方可先显式 connect(url) 再交给 SDK。
+    if (options.url) this.url = options.url
+  }
 
   connect(url: string): Promise<void> {
     this.url = url

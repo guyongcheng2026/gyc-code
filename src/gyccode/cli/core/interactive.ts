@@ -351,21 +351,8 @@ async function handleHistorySearch(ctx: ExecutorContext, history: IHistoryManage
   }
 
   return new Promise((resolve) => {
-    const finish = (selectedEntry?: string) => {
-      rl.close()
-      process.stdin.setRawMode(false)
-      process.stdin.pause()
-      process.stdout.write("\n")
-      if (selectedEntry) {
-        // 将选中的历史条目填入输入行
-        // 这里需要访问 inputHandler，简化处理
-      }
-      resolve()
-    }
-
-    process.stdin.setRawMode(true)
-    process.stdin.resume()
-    process.stdin.on("data", (chunk: Buffer) => {
+    // 命名的 data 监听器：finish() 需用同一引用 off()，否则退出后仍残留监听导致泄漏
+    const onData = (chunk: Buffer) => {
       const str = chunk.toString("utf8")
       for (const char of str) {
         const code = char.charCodeAt(0)
@@ -391,7 +378,24 @@ async function handleHistorySearch(ctx: ExecutorContext, history: IHistoryManage
           history.search(query, 10).then(r => { results = r; selected = 0; render() })
         }
       }
-    })
+    }
+
+    const finish = (selectedEntry?: string) => {
+      process.stdin.off("data", onData)
+      rl.close()
+      process.stdin.setRawMode(false)
+      process.stdin.pause()
+      process.stdout.write("\n")
+      if (selectedEntry) {
+        // 将选中的历史条目填入输入行
+        // 这里需要访问 inputHandler，简化处理
+      }
+      resolve()
+    }
+
+    process.stdin.setRawMode(true)
+    process.stdin.resume()
+    process.stdin.on("data", onData)
     render()
   })
 }

@@ -6,6 +6,52 @@ import path from "path"
 import { homedir } from "os"
 import { createFileLock } from "./file-lock"
 
+// 简单读写锁：写锁互斥，读可并发（共享 ESM 模块单线程执行，原子性由 JS 事件循环保证）。
+// 多 writer 场景（syncMemories / writeMemoryFile）已由外层 FileLock 保护。
+// 此锁专门保护 readMemoriesCached 的缓存读写竞争：读操作之间可并发，缓存失效时串行写。
+class RWLock {
+  private _writing = false
+  private _readWaitQueue = 0
+  private _readResolve: Array<() => void> = []
+
+  async read<T>(fn: () => T | Promise<T>): Promise<T> {
+    if (!this._writing) {
+      try {
+        return await fn()
+      } finally {
+        // no-op: 读操作不修改锁状态
+      }
+    }
+    // 等待写锁释放后作为读者进入
+    return new Promise<T>((resolve) => {
+      this._readResolve.push(async () => {
+        resolve(await fn())
+      })
+      this._readWaitQueue++
+    })
+  }
+
+  async write<T>(fn: () => T | Promise<T>): Promise<T> {
+    // 等待所有排队的读者完成
+    while (this._readWaitQueue > 0) {
+      await new Promise<void>((r) => setTimeout(r, 10))
+    }
+    this._writing = true
+    try {
+      return await fn()
+    } finally {
+      this._writing = false
+      // 唤醒排队的读者
+      const waiting = this._readResolve.splice(0)
+      for (const resolve of waiting) {
+        this._readWaitQueue++
+        resolve()
+        this._readWaitQueue--
+      }
+    }
+  }
+}
+
 const MEMORY_PATH = path.join(
   process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
@@ -38,7 +84,8 @@ export async function readMemories(): Promise<MemoryEntry[]> {
       value: block.trim(),
       tags: block.match(/#\w+/g) || [],
     }))
-  } catch {
+  } catch (error) {
+    console.warn("[memory-bridge] readMemories failed:", error instanceof Error ? error.message : String(error))
     return []
   }
 }
@@ -86,6 +133,7 @@ export async function writeMemoryFile(
 
     if (!append) {
       await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
+      invalidateMemoryCache()
       return
     }
 
@@ -106,6 +154,7 @@ export async function writeMemoryFile(
     const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
     const content = [...blocks, newBlock].join(SEP) + SEP
     await atomicWriteFile(MEMORY_PATH, content)
+    invalidateMemoryCache()
   })
 }
 
@@ -134,6 +183,7 @@ export async function syncMemories(): Promise<MemoryEntry[]> {
     // so write the values back as-is without prepending another header.
     const content = capped.map((e) => e.value).join(SEP) + SEP
     await atomicWriteFile(MEMORY_PATH, content)
+    invalidateMemoryCache()
     return capped
   })
 }
@@ -142,21 +192,33 @@ export async function syncMemories(): Promise<MemoryEntry[]> {
 export const MEMORY_INJECTION_BUDGET = 4_096
 
 // 模块级缓存：记忆文件 mtime/size 未变时复用，避免每轮请求重复读盘（低 IO）
+// 读写锁保护缓存一致性：读操作并发，写操作串行且写时阻塞读。
+const cacheRWLock = new RWLock()
 let cachedStat: { mtimeMs: number; size: number } | undefined
 let cachedEntries: MemoryEntry[] | undefined
 
 async function readMemoriesCached(): Promise<MemoryEntry[]> {
-  try {
-    const fileStat = await stat(MEMORY_PATH)
-    if (cachedStat && cachedStat.mtimeMs === fileStat.mtimeMs && cachedStat.size === fileStat.size) {
-      return cachedEntries ?? []
+  return cacheRWLock.read(async () => {
+    try {
+      const fileStat = await stat(MEMORY_PATH)
+      if (cachedStat && cachedStat.mtimeMs === fileStat.mtimeMs && cachedStat.size === fileStat.size) {
+        return cachedEntries ?? []
+      }
+      const entries = await readMemories()
+      cachedStat = { mtimeMs: fileStat.mtimeMs, size: fileStat.size }
+      cachedEntries = entries
+      return entries
+    } catch (error) {
+      console.warn("[memory-bridge] readMemoriesCached failed:", error instanceof Error ? error.message : String(error))
+      return []
     }
-    cachedStat = { mtimeMs: fileStat.mtimeMs, size: fileStat.size }
-    cachedEntries = await readMemories()
-    return cachedEntries
-  } catch {
-    return []
-  }
+  })
+}
+
+/** 使缓存失效（写入操作后调用） */
+export function invalidateMemoryCache(): void {
+  cachedStat = undefined
+  cachedEntries = undefined
 }
 
 function tokenizeForSearch(input: string): string[] {

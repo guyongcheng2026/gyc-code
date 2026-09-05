@@ -41,11 +41,18 @@ export const ripgrepLayer = Layer.effect(
           Effect.sync(() => {
             state.files.push(entry.path)
             const parts = entry.path.split("/")
-            parts.slice(0, -1).forEach((_, index) => directories.add(parts.slice(0, index + 1).join("/") + path.sep))
+            // 目录应实时追加进 state.directories（find 据此做模糊匹配），不能只在此刻一次性快照：
+            // 后台 fork 的异步扫描尚未完成时快照必定为空，导致目录搜索恒空。
+            parts.slice(0, -1).forEach((_, index) => {
+              const dir = parts.slice(0, index + 1).join("/") + path.sep
+              if (!directories.has(dir)) {
+                directories.add(dir)
+                state.directories.push(dir)
+              }
+            })
           }),
       })
       .pipe(Effect.orDie, Effect.asVoid, Effect.forkIn(scope))
-    state.directories = Array.from(directories)
     return Service.of({
       glob: (input) =>
         Effect.gen(function* () {

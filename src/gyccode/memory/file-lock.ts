@@ -1,7 +1,9 @@
-import { rename, unlink } from "fs/promises"
+import { unlink } from "fs/promises"
 
 const LOCK_TIMEOUT = 5000
 const LOCK_RETRY_INTERVAL = 100
+// 锁文件若早于该时长未被更新，视为持有者已崩溃/被杀遗留的陈旧锁
+const LOCK_STALE_MS = 30_000
 
 export class FileLock {
   private lockPath: string
@@ -17,29 +19,38 @@ export class FileLock {
 
     while (Date.now() - startTime < LOCK_TIMEOUT) {
       try {
-        const tmpPath = `${this.lockPath}.tmp.${lockId}`
         const { writeFile } = await import("fs/promises")
-        await writeFile(tmpPath, lockId, "utf-8")
-        
-        try {
-          await rename(tmpPath, this.lockPath)
-          this.acquired = true
-          return true
-        } catch (error: any) {
-          if (error.code === "EEXIST") {
-            await unlink(tmpPath).catch(() => {})
-            await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_INTERVAL))
-            continue
-          }
-          await unlink(tmpPath).catch(() => {})
-          throw error
+        // flag:"wx" = O_CREAT|O_EXCL：目标已存在时原子返回 EEXIST。
+        // 这是跨平台真正的排他建锁（POSIX/Windows 的 rename 会原子覆盖目标、永不会抛 EEXIST，
+        // 旧实现因此完全不具备互斥性）。
+        await writeFile(this.lockPath, lockId, { encoding: "utf-8", flag: "wx" })
+        this.acquired = true
+        return true
+      } catch (error: any) {
+        if (error?.code === "EEXIST") {
+          // 被占用：先清理可能存在的陈旧锁（持有者崩溃/被杀遗留），再等一拍重试
+          await this.clearIfStale()
+          await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_INTERVAL))
+          continue
         }
-      } catch (error) {
         await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_INTERVAL))
       }
     }
 
     return false
+  }
+
+  /** 锁文件已陈旧（mtime 早于 LOCK_STALE_MS）则删除，避免崩溃遗留导致永久死锁 */
+  private async clearIfStale(): Promise<void> {
+    try {
+      const { stat } = await import("fs/promises")
+      const st = await stat(this.lockPath)
+      if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
+        await unlink(this.lockPath).catch(() => {})
+      }
+    } catch {
+      // stat 失败（如锁刚被删除）→ 无需清理
+    }
   }
 
   async release(): Promise<void> {
