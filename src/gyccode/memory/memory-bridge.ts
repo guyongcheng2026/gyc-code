@@ -30,26 +30,6 @@ class RWLock {
       this._readWaitQueue++
     })
   }
-
-  async write<T>(fn: () => T | Promise<T>): Promise<T> {
-    // 等待所有排队的读者完成
-    while (this._readWaitQueue > 0) {
-      await new Promise<void>((r) => setTimeout(r, 10))
-    }
-    this._writing = true
-    try {
-      return await fn()
-    } finally {
-      this._writing = false
-      // 唤醒排队的读者
-      const waiting = this._readResolve.splice(0)
-      for (const resolve of waiting) {
-        this._readWaitQueue++
-        resolve()
-        this._readWaitQueue--
-      }
-    }
-  }
 }
 
 const MEMORY_PATH = path.join(
