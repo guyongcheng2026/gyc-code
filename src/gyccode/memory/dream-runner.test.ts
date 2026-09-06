@@ -8,7 +8,7 @@ describe("maybeDream", () => {
     let written: string | undefined
     const next = await Effect.runPromise(
       maybeDream({
-        state: { lastDreamAt: 0, sessionsSinceDream: 3, memoryCount: 0 },
+        state: { lastDreamAt: 0, sessionsSinceDream: 3, memoryCount: 0, retryCount: 0 },
         memoryCount: 10,
         memories: "m1\nm2",
         synthesizer: ({ prompt }) =>
@@ -32,7 +32,7 @@ describe("maybeDream", () => {
     let written: string | undefined
     const next = await Effect.runPromise(
       maybeDream({
-        state: { lastDreamAt: 0, sessionsSinceDream: 4, memoryCount: 0 },
+        state: { lastDreamAt: 0, sessionsSinceDream: 4, memoryCount: 0, retryCount: 0 },
         memoryCount: 10,
         memories: "m1\nm2",
         // 这些单测注入的是最小化伪 LLM 输出，不满足真实校验门，故测非校验路径
@@ -59,7 +59,7 @@ describe("maybeDream", () => {
     let written: string | undefined
     const next = await Effect.runPromise(
       maybeDream({
-        state: { lastDreamAt: longAgo, sessionsSinceDream: 0, memoryCount: 0 },
+        state: { lastDreamAt: longAgo, sessionsSinceDream: 0, memoryCount: 0, retryCount: 0 },
         memoryCount: 10,
         memories: "m",
         // 伪输出不满足真实校验门，测非校验路径

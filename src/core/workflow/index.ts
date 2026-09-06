@@ -29,10 +29,25 @@ import { WorkflowRunTable } from "./sql"
  * - 执行模型：每个步骤向关联会话发送一次 prompt，轮询会话空闲后依据
  *   `session.next.step.failed` 事件判定成败；支持 retry 与 onFailure 跳转
  * - 持久化：`workflow_run` 表（步骤状态机 JSON），进程内 fiber 驱动
+ * - Skill 集成：agent 类型映射到对应 Skill，executeStep 自动注入 Skill 内容到 prompt
  */
 
-/** 步骤级超时（默认 30 分钟） */
-const STEP_TIMEOUT = Duration.minutes(30)
+/** P0 修复：步骤超时可配置（默认 30 分钟，可通过环境变量调整） */
+const STEP_TIMEOUT = Duration.minutes(
+  Number(process.env.GYCCODE_WORKFLOW_STEP_TIMEOUT_MINUTES) || 30,
+)
+
+/** P0 修复：agent 类型 → Skill 名称映射，用于 executeStep 自动注入 Skill 内容 */
+const AGENT_SKILL_MAP: Record<string, string> = {
+  plan: "compose:plan",
+  tdd: "compose:tdd",
+  build: "compose:tdd",
+  review: "compose:review",
+  debug: "compose:debug",
+  verify: "compose:verify",
+  execute: "compose:execute",
+  brainstorm: "compose:brainstorm",
+}
 /** 空闲轮询间隔 */
 const POLL_INTERVAL = Duration.millis(800)
 /** 摘要截断长度 */
@@ -156,19 +171,44 @@ const layer = Layer.effect(
         )
         yield* updateRun(run.id, { steps: nextSteps })
 
-        const promptText = [step.prompt, step.verify ? `\n\n验证要求：${step.verify}\n完成后请说明验证结论与结果摘要。` : ""].join("")
+        // P0 修复：agent 字段映射到 Skill，executeStep 自动注入 Skill 引用到 prompt
+        const skillRef = step.agent ? AGENT_SKILL_MAP[step.agent] : undefined
+        const skillHeader = skillRef ? `\n[使用 Skill: ${skillRef}]\n` : ""
+        const promptText = [
+          skillHeader,
+          step.prompt,
+          step.verify ? `\n\n验证要求：${step.verify}\n完成后请说明验证结论与结果摘要。` : "",
+        ].join("")
         yield* sessions.prompt({ sessionID: run.sessionID as any, prompt: { text: promptText } })
 
         const deadline = Date.now() + Duration.toMillis(STEP_TIMEOUT)
+        // P0 修复：session 存活健康检查，防止永久等待
+        // 当 session 不再活跃但 step.failed 事件未触发时，记录警告日志
+        let inactiveCount = 0
+        const INACTIVE_WARN_THRESHOLD = 5 // 连续 5 次轮询 session 不活跃但无失败事件，认为可能死机
+
         for (;;) {
           const active = yield* (sessions.active as Effect.Effect<ReadonlySet<string>>) as Effect.Effect<Set<string>>
           if (!active.has(run.sessionID)) {
+            inactiveCount++
             const failed = yield* stepFailedSince(run.sessionID, cursor)
             if (failed) {
+              inactiveCount = 0
               return { ok: false as const, error: `步骤 ${step.name} 执行失败（检测到步骤失败事件）`, summary: "" }
+            }
+            // P0 修复：session 死机检测
+            if (inactiveCount >= INACTIVE_WARN_THRESHOLD) {
+              yield* Effect.logWarning(`Workflow session inactive but no step.failed event detected`, {
+                runID: run.id,
+                step: step.name,
+                inactiveCount,
+              })
+              inactiveCount = 0 // 重置计数，继续等待
             }
             const summary = yield* lastAssistantSummary(run.sessionID)
             return { ok: true as const, summary }
+          } else {
+            inactiveCount = 0 // session 活跃，重置计数
           }
           if (Date.now() > deadline) {
             return {

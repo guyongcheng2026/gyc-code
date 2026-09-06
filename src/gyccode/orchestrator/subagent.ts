@@ -330,7 +330,7 @@ export const PREDEFINED_PLANS = {
         skillId: "gyc-code-generation",
         name: "生成数据模型",
         description: `生成 ${entityName} 实体模型`,
-        inputSchema: z.object({ entityName: z.string(), fields: z.record(z.string()) }),
+        inputSchema: z.object({ entityName: z.string(), fields: z.record(z.string(), z.string()) }),
         outputSchema: z.object({ modelCode: z.string(), filePath: z.string() }),
         timeoutMs: 30000,
         retryCount: 2,

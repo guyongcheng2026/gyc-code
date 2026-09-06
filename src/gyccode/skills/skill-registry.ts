@@ -117,12 +117,18 @@ export const SkillRegistryTest = (initialState: SkillLoadResult) =>
         resolveDependencies: (skillIds: string[]) =>
           Effect.succeed(state ? resolveDependencies(state.skills, skillIds) : { ordered: [], missing: skillIds, circular: [] }),
         loadKnowledgeBase: (skillId: string) =>
-          Effect.succeed(state?.skills.get(skillId) ? loadKnowledgeBase(state.skills.get(skillId)!) : Promise.resolve([])),
+          state?.skills.get(skillId)
+            ? loadKnowledgeBase(state.skills.get(skillId)!)
+            : Effect.succeed([]),
         loadRules: (skillId: string) =>
-          Effect.succeed(state?.skills.get(skillId) ? loadRules(state.skills.get(skillId)!) : Promise.resolve([])),
+          state?.skills.get(skillId)
+            ? loadRules(state.skills.get(skillId)!)
+            : Effect.succeed([]),
         loadTemplates: (skillId: string) =>
-          Effect.succeed(state?.skills.get(skillId) ? loadTemplates(state.skills.get(skillId)!) : Promise.resolve(new Map())),
-        refresh: Effect.sync(() => { state = { skills: new Map(), manifest: { skills: [], lastUpdated: new Date().toISOString(), version: "1.0.0" }, errors: [] } }),
+          state?.skills.get(skillId)
+            ? loadTemplates(state.skills.get(skillId)!)
+            : Effect.succeed(new Map()),
+        refresh: () => Effect.sync(() => { state = { skills: new Map(), manifest: { skills: [], lastUpdated: new Date().toISOString(), version: "1.0.0" }, errors: [] } }),
       }
     })()
   )

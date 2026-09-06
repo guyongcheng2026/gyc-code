@@ -66,8 +66,15 @@ process.on("unhandledRejection", onUnhandledRejection)
 process.on("uncaughtException", onUncaughtException)
 
 // Subscribe to global events and forward them via RPC
-GlobalBus.on("event", (event) => {
+// P0 修复：存储 listener 引用，允许进程退出时清理，防止 Worker 重建后幽灵事件
+const globalEventListener = (event: unknown) => {
   Rpc.emit("global.event", event)
+}
+GlobalBus.on("event", globalEventListener)
+
+// Worker 退出时注销监听器
+process.on("exit", () => {
+  GlobalBus.off("event", globalEventListener)
 })
 
 let server: Listener | undefined

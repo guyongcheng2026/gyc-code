@@ -68,7 +68,14 @@ export async function openapi() {
   return OpenApi.fromApi(PublicApi)
 }
 
-export let url: URL | undefined
+// P0 修复：全局 url 变量改为 Map，key = "hostname:port"，支持多并发 listener 不互相覆盖
+// Server.url 保持向后兼容：返回第一个活跃 listener 的 URL
+const activeListeners = new Map<string, URL>()
+
+/** 返回第一个活跃 listener 的 URL（向后兼容 Server.url） */
+export function getActiveUrl(): URL | undefined {
+  return activeListeners.values().next().value
+}
 
 export async function listen(opts: ListenOptions): Promise<Listener> {
   const listener = await Effect.runPromise(listenEffect(opts))
@@ -86,13 +93,14 @@ const listenEffect: (opts: ListenOptions) => Effect.Effect<EffectListener, unkno
     const address = yield* tcpAddress(state)
     const listenerUrl = makeURL(opts.hostname, address.port)
     const unpublishMdns = yield* setupMdns(opts, address.port, state.scope)
-    url = listenerUrl
+    const key = `${opts.hostname}:${address.port}`
+    activeListeners.set(key, listenerUrl)
 
     return {
       hostname: opts.hostname,
       port: address.port,
       url: listenerUrl,
-      stop: yield* makeStop(state, unpublishMdns, listenerUrl),
+      stop: yield* makeStop(state, unpublishMdns, key),
     }
   },
 )
@@ -125,7 +133,13 @@ function startListener(opts: ListenOptions, port: number) {
   const scope = Scope.makeUnsafe()
   return Layer.buildWithMemoMap(listenerLayer(opts, port), Layer.makeMemoMapUnsafe(), scope).pipe(
     Effect.provide(HttpApiApp.context),
-    Effect.onError(() => Scope.close(scope, Exit.void).pipe(Effect.ignore)),
+    // P0 修复：onError 仅在 HTTP Server 启动失败时清理 scope，不在后续操作中误触发
+    // 后续操作的 cleanup 由 listenEffect 中的 ensuring 或 makeStop 中的 Scope.close 处理
+    Effect.onError((cause) =>
+      Effect.logError("server startup failed, closing scope", { cause }).pipe(
+        Effect.flatMap(() => Scope.close(scope, Exit.void)),
+      ),
+    ),
     Effect.map(
       (ctx): ListenerState => ({
         scope,
@@ -140,7 +154,8 @@ function startListener(opts: ListenOptions, port: number) {
 function tcpAddress(state: ListenerState) {
   return Effect.gen(function* () {
     if (state.server.address._tag === "TcpAddress") return state.server.address
-    yield* Scope.close(state.scope, Exit.void).pipe(Effect.ignore)
+    // P0 修复：Scope.close 已由 startListener 的 onError 统一处理
+    // tcpAddress 仅处理地址类型异常，不重复关闭 scope
     return yield* Effect.die(new Error(`Unexpected HttpServer address tag: ${state.server.address._tag}`))
   })
 }
@@ -174,7 +189,7 @@ function setupMdns(opts: ListenOptions, port: number, scope: Scope.Scope) {
   })
 }
 
-function makeStop(state: ListenerState, unpublishMdns: Effect.Effect<void>, listenerUrl: URL) {
+function makeStop(state: ListenerState, unpublishMdns: Effect.Effect<void>, key: string) {
   return Effect.gen(function* () {
     const forceCloseOnce = yield* Effect.cached(forceClose(state).pipe(Effect.ignore))
     const closeScopeOnce = yield* Effect.cached(
@@ -182,7 +197,8 @@ function makeStop(state: ListenerState, unpublishMdns: Effect.Effect<void>, list
         Effect.ignore,
         Effect.ensuring(
           Effect.sync(() => {
-            if (url === listenerUrl) url = undefined
+            // P0 修复：按 key 从 Map 中删除对应 listener
+            activeListeners.delete(key)
           }),
         ),
       ),

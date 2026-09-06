@@ -138,14 +138,14 @@ const layer = Layer.effect(
           bridge.fork(events.publish(Session.Event.Error, { error: new NamedError.Unknown({ message }).toObject() }))
         }
 
-        const { Server } = yield* Effect.promise(() => import("../server/server"))
+        const { getActiveUrl, Default } = yield* Effect.promise(() => import("../server/server"))
 
-        const serverUrl = Server.url
+        const serverUrl = getActiveUrl()
         const client = createGyccodeClient({
           baseUrl: serverUrl?.toString() ?? "http://localhost:4096",
           directory: ctx.directory,
           headers: ServerAuth.headers(),
-          ...(serverUrl ? {} : { fetch: (input: string | URL | Request, init?: RequestInit) => Server.Default().app.request(input, init) }),
+          ...(serverUrl ? {} : { fetch: (input: string | URL | Request, init?: RequestInit) => Default().app.request(input, init) }),
         })
         const cfg = yield* config.get()
         const input: PluginInput = {
@@ -159,7 +159,7 @@ const layer = Layer.effect(
             },
           },
           get serverUrl(): URL {
-            return Server.url ?? new URL("http://localhost:4096")
+            return getActiveUrl() ?? new URL("http://localhost:4096")
           },
           // @ts-expect-error
           $: typeof Bun === "undefined" ? undefined : Bun.$,

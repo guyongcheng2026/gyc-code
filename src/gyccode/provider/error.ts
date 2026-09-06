@@ -81,7 +81,8 @@ function json(input: unknown) {
   if (typeof input === "string") {
     try {
       const result = JSON.parse(input)
-      if (result && typeof result === "object") return result
+      // P2 修复：显式排除 null（typeof null === "object"）
+      if (result !== null && typeof result === "object") return result
       return undefined
     } catch {
       return undefined

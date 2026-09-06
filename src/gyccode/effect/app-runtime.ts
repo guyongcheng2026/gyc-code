@@ -55,6 +55,68 @@ import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { AppNodeBuilderV1 } from "./app-node-builder-v1"
 import { SessionProjector } from "@gyccode/core/session/projector"
 
+// AppLayer 包含 43 个服务，冷启动时全量实例化。
+// CoreLayer: run 命令必需的基础服务子集 (~15 个)
+// HeavyLayer: 完整服务集 (~28 个可选服务)
+export const CoreLayer = AppNodeBuilderV1.build(
+  LayerNode.group([
+    Npm.node,
+    FSUtil.node,
+    Database.node,
+    Auth.node,
+    Account.node,
+    Config.node,
+    Git.node,
+    Storage.node,
+    Snapshot.node,
+    Permission.node,
+    ToolRegistry.node,
+    Format.node,
+    Truncate.node,
+    RuntimeFlags.node,
+    InstanceStore.node,
+    Project.node,
+    Vcs.node,
+    Command.node,
+  ]),
+)
+
+export const HeavyLayer = AppNodeBuilderV1.build(
+  LayerNode.group([
+    Plugin.node,
+    ModelsDev.node,
+    Provider.node,
+    ProviderAuth.node,
+    Agent.node,
+    Skill.node,
+    Discovery.node,
+    Question.node,
+    Todo.node,
+    Session.node,
+    SessionProjector.node,
+    SessionStatus.node,
+    BackgroundJob.node,
+    EventV2Bridge.node,
+    SessionRunState.node,
+    SessionProcessor.node,
+    SessionCompaction.node,
+    SessionRevert.node,
+    SessionSummary.node,
+    SessionPrompt.node,
+    Instruction.node,
+    LLM.node,
+    LSP.node,
+    MCP.node,
+    McpAuth.node,
+    Workspace.node,
+    Worktree.node,
+    Installation.node,
+    ShareNext.node,
+    SessionShare.node,
+  ]),
+)
+
+// TODO: run 命令应仅加载 CoreLayer，HeavyLayer 按需注入
 export const AppLayer = AppNodeBuilderV1.build(
   LayerNode.group([
     Npm.node,

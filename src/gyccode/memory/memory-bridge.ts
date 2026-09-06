@@ -1,7 +1,7 @@
 // Memory bridge — gyc-cli 跨会话记忆文件读写（双向同步）
 // Based on @yunguang/memory UnifiedMemoryManager
 
-import { readFile, rename, rm, stat, writeFile } from "fs/promises"
+import { mkdir, readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
 import { createFileLock } from "./file-lock"
@@ -32,18 +32,32 @@ class RWLock {
   }
 }
 
-const MEMORY_PATH = path.join(
+// P1 修复：跨会话记忆按项目隔离
+// 基于 process.cwd() 生成项目隔离路径，避免不同项目记忆相互污染
+function getMemoryDir(): string {
+  const base = process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
+  const memDir = path.join(base, "memory")
+  const projectKey = getProjectKey()
+  return path.join(memDir, projectKey)
+}
+
+function getProjectKey(): string {
+  const cwd = process.cwd()
+  const parts = cwd.replace(/\\/g, "/").split("/").filter(Boolean)
+  const name = parts[parts.length - 1] || "default"
+  return name.replace(/[^a-zA-Z0-9_-]/g, "_")
+}
+
+const MEMORY_DIR = getMemoryDir()
+const LEGACY_DIR = path.join(
   process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
-  "gyccode_memory.md",
 )
 
+const MEMORY_PATH = path.join(MEMORY_DIR, "gyccode_memory.md")
+
 // 兼容旧文件名：读取时新文件缺失则回退旧文件，写入始终写新名
-const LEGACY_MEMORY_PATH = path.join(
-  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
-  "memory",
-  "hermes_gyccode_memory.md",
-)
+const LEGACY_MEMORY_PATH = path.join(LEGACY_DIR, "hermes_gyccode_memory.md")
 
 export interface MemoryEntry {
   key: string
@@ -107,8 +121,11 @@ export async function writeMemoryFile(
   append = true,
 ): Promise<void> {
   const fileLock = createFileLock(MEMORY_PATH)
-  
+
   await fileLock.withLock(async () => {
+    // P1 修复：首次写入前确保目录存在
+    await mkdir(MEMORY_DIR, { recursive: true }).catch(() => {})
+
     const existing = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8")).catch(() => "")
 
     if (!append) {
@@ -141,8 +158,10 @@ export async function writeMemoryFile(
 /** Compact memories: dedup existing entries and enforce the cap. */
 export async function syncMemories(): Promise<MemoryEntry[]> {
   const fileLock = createFileLock(MEMORY_PATH)
-  
+
   return await fileLock.withLock(async () => {
+    // P1 修复：首次写入前确保目录存在
+    await mkdir(MEMORY_DIR, { recursive: true }).catch(() => {})
     const entries = await readMemories()
     if (entries.length === 0) return entries
 
@@ -304,11 +323,21 @@ export async function searchMemories(query: string, limit = 20): Promise<MemoryE
   scored.sort((a, b) => b.score - a.score)
   const result = scored.slice(0, limit).map((item) => item.entry)
 
-  if (searchCache.size >= SEARCH_CACHE_MAX) {
-    const oldest = searchCache.keys().next().value
-    if (oldest !== undefined) searchCache.delete(oldest)
+  // P1 修复：先清理所有过期条目，再清理最老的（而非只删一个最老的）
+  const now = Date.now()
+  for (const [key, { time }] of searchCache.entries()) {
+    if (now - time >= SEARCH_CACHE_TTL_MS) searchCache.delete(key)
   }
-  searchCache.set(cacheKey, { time: Date.now(), entries: result })
+  // 仍超容时再删除最老的
+  if (searchCache.size >= SEARCH_CACHE_MAX) {
+    let oldestKey: string | undefined
+    let oldestTime = Infinity
+    for (const [key, { time }] of searchCache.entries()) {
+      if (time < oldestTime) { oldestTime = time; oldestKey = key }
+    }
+    if (oldestKey !== undefined) searchCache.delete(oldestKey)
+  }
+  searchCache.set(cacheKey, { time: now, entries: result })
   return result
 }
 

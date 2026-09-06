@@ -387,3 +387,39 @@ export async function getSkillMemoryStats(skillId: string): Promise<Record<Knowl
 
   return stats
 }
+
+/** P0 修复：Skill 记忆集成 — 获取指定 skill 的分层记忆，格式化为 prompt 片段
+ *
+ * 用法：在 session prompt 注入时调用此函数，将 skill 相关记忆加入上下文。
+ * 示例：
+ *   const skillMemories = await getSkillMemoriesForPrompt("compose:tdd", "implement feature")
+ *   // → "## compose:tdd 相关记忆\n- 规则：始终先写测试\n..."
+ */
+export async function getSkillMemoriesForPrompt(
+  skillId: string,
+  query: string,
+  options: {
+    layers?: KnowledgeLayer[]
+    limit?: number
+    maxChars?: number
+  } = {},
+): Promise<string> {
+  const { layers = ["public", "private", "rule", "model", "template"], limit = 10, maxChars = 2000 } = options
+
+  const entries = await searchLayeredMemories(skillId, query, { layers, limit })
+  if (entries.length === 0) return ""
+
+  // Format as markdown list
+  const lines: string[] = [`## ${skillId} 相关记忆`]
+  let totalLen = lines[0]!.length + 2
+
+  for (const entry of entries) {
+    const text = stripKeyHeader(entry.value)
+    const line = `- [${entry.layer}] ${text}`
+    if (totalLen + line.length > maxChars) break
+    lines.push(line)
+    totalLen += line.length + 1
+  }
+
+  return lines.join("\n")
+}

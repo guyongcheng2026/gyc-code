@@ -78,7 +78,17 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 // 冷却期内跳过，冷却结束仍会重试，瞬态故障可自愈。
 const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
 const extractionCooldowns = new Map<string, number>()
+
+// P1 修复：清理过期条目，释放内存
+const cleanupExpiredCooldowns = () => {
+  const now = Date.now()
+  for (const [key, expiry] of extractionCooldowns.entries()) {
+    if (now >= expiry) extractionCooldowns.delete(key)
+  }
+}
+
 const recordExtractionFailure = (sessionID: string) => {
+  cleanupExpiredCooldowns() // P1 修复：每次写入前清理过期条目
   if (extractionCooldowns.size >= 1000) {
     const oldest = extractionCooldowns.keys().next().value
     if (oldest !== undefined) extractionCooldowns.delete(oldest)
@@ -1386,6 +1396,8 @@ const layer = Layer.effect(
           // Non-blocking: failures never interrupt the main loop.
           const memoryCfg = (yield* config.get()).memory?.extraction
           if (memoryCfg?.enabled !== false && step % (memoryCfg?.min_turns ?? 3) === 0) {
+            // P1 修复：检查前先清理过期条目，避免过期条目占用 cap 空间
+            cleanupExpiredCooldowns()
             const coolingDown = Date.now() < (extractionCooldowns.get(sessionID) ?? 0)
             yield* Effect.gen(function* () {
               if (coolingDown) {

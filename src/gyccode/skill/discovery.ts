@@ -171,4 +171,6 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | Path.Path | HttpClient
 
 export const node = LayerNode.make({ service: Service, layer: layer, deps: [FSUtil.node, path, httpClient] })
 
+// 自引用命名空间导出：方便模块外部通过 Discovery.Service / Discovery.node 访问
+// 与 ./index.ts 的 export * from "./discovery" 配合使用
 export * as Discovery from "./discovery"

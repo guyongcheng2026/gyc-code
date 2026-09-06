@@ -135,8 +135,6 @@ export function schema(model: Provider.Model, schema: JSONSchema7): JSONSchema7 
 
   // Convert integer enums to string enums for Google/Gemini
   if (model.providerID === "google" || model.api.id.includes("gemini")) {
-    const isPlainObject = (node: unknown): node is Record<string, any> =>
-      typeof node === "object" && node !== null && !Array.isArray(node)
     const hasCombiner = (node: unknown) =>
       isPlainObject(node) && (Array.isArray(node.anyOf) || Array.isArray(node.oneOf) || Array.isArray(node.allOf))
     const hasSchemaIntent = (node: unknown) => {

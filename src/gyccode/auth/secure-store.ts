@@ -108,7 +108,19 @@ async function del(key: string): Promise<void> {
 }
 
 export const SecureStore: SecureStoreInterface = {
-  get: (key: string) => Effect.tryPromise(() => get(key), (e) => new SecureStoreError("Failed to get credential", e)),
-  set: (key: string, value: string) => Effect.tryPromise(() => set(key, value), (e) => new SecureStoreError("Failed to set credential", e)),
-  delete: (key: string) => Effect.tryPromise(() => del(key), (e) => new SecureStoreError("Failed to delete credential", e)),
+  get: (key: string) =>
+    Effect.tryPromise({
+      try: () => get(key),
+      catch: (e) => new SecureStoreError("Failed to get credential", e),
+    }),
+  set: (key: string, value: string) =>
+    Effect.tryPromise({
+      try: () => set(key, value),
+      catch: (e) => new SecureStoreError("Failed to set credential", e),
+    }),
+  delete: (key: string) =>
+    Effect.tryPromise({
+      try: () => del(key),
+      catch: (e) => new SecureStoreError("Failed to delete credential", e),
+    }),
 }
