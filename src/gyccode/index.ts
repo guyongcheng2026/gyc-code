@@ -458,3 +458,8 @@ try {
   }
   process.exitCode = 1
 }
+
+// 命令完成后显式退出：Effect 运行时与实例内 watcher/定时器句柄会挂住 event loop，
+// 仅设 process.exitCode 无法让进程退出（曾致 stats/models/plugin list 等命令输出完成后进程挂起）。
+// 与单轮命令（line 381/406）的既有退出模式一致；交互式 TUI/循环在 handler 内自行退出，不受影响。
+process.exit(process.exitCode ?? 0)

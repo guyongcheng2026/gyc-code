@@ -232,18 +232,16 @@ export const PluginCommand = effectCmd({
       const fsMod = yield* Effect.promise(() => import("fs/promises"))
       const { Global } = yield* Effect.promise(() => import("@gyccode/core/global"))
       const dir = pathMod.join(Global.Path.data, ".gyc", "plugins", "cache")
-      try {
-        const files = yield* Effect.promise(() => fsMod.readdir(dir))
-        const tgzs = files.filter((f) => f.endsWith(".tgz")).sort()
-        if (!tgzs.length) {
-          UI.println("暂无通过市场安装的插件")
-          return
-        }
-        UI.empty()
-        for (const f of tgzs) UI.println(f)
-      } catch {
+      // readdir 失败（目录不存在等）时降级为空列表。
+      // 注意：Effect fiber 失败不走 JS try/catch，必须在 promise 内捕获，否则 ENOENT 会漏到顶层。
+      const files = yield* Effect.promise(() => fsMod.readdir(dir).catch(() => [] as string[]))
+      const tgzs = files.filter((f) => f.endsWith(".tgz")).sort()
+      if (!tgzs.length) {
         UI.println("暂无通过市场安装的插件")
+        return
       }
+      UI.empty()
+      for (const f of tgzs) UI.println(f)
       return
     }
 

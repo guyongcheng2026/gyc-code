@@ -1,6 +1,6 @@
 import { build } from "bun"
 import { spawnSync } from "node:child_process"
-import { rmSync, cpSync, existsSync, readdirSync, readFileSync } from "node:fs"
+import { rmSync, cpSync, existsSync, readdirSync, readFileSync, renameSync } from "node:fs"
 import { join } from "node:path"
 import os from "node:os"
 import solidPlugin from "./scripts/bun-solid-plugin.ts"
@@ -100,23 +100,43 @@ if (lowMem && process.env.GYCCODE_BUILD_CHILD === "1") {
   SHARED.splitting = false
 }
 
-// bun build 不清空 outdir，先清掉旧产物避免多轮构建残留叠加（曾致 dist 虚高 54MB/985 文件）。
+// 构建到临时目录（dist.tmp），成功后原子替换旧 dist：
+// 1) 全新临时目录天然无多轮构建残留（曾致 dist 虚高 54MB/985 文件，原先靠先 rmSync 解决）；
+// 2) 构建失败时旧 dist 保持可用，避免"先清空后构建"导致 dist 丢失的雪崩
+//    （2026-09-06 TUI 故障：node-fetch 损坏 → 构建失败 → dist 被清空 → bin/gyc 回退 Bun 源码模式瘫痪）。
 async function buildOnce(targetRuntime, outdir) {
+  const tmpOutdir = outdir + ".tmp"
+  rmSync(tmpOutdir, { recursive: true, force: true })
+  try {
+    await build({
+      ...SHARED,
+      outdir: tmpOutdir,
+      target: targetRuntime === "node" ? "node" : "bun",
+      // bun 目标附加 "bun" 条件：@opentui/* 等包在 Bun 下解析 bun 版产物
+      // （与 dev 命令 --conditions=browser 的行为一致，bun 条件是 Bun 默认附加）。
+      conditions: targetRuntime === "node" ? ["node", "browser"] : ["browser", "bun"],
+    })
+    // 复制 @opentui/core 运行时依赖的 parser.worker.js 和 assets 目录
+    // OpenTUI 通过 new URL("./parser.worker.js", import.meta.url) 动态加载，
+    // 不经过打包器，构建时需显式复制到 dist 根目录。
+    copyOpentuiAssets(tmpOutdir)
+    // 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
+    await Bun.write(process.cwd() + `/${tmpOutdir}/RUNTIME`, runtime)
+  } catch (e) {
+    // 构建失败：清理半成品临时目录，旧 dist 原样保留
+    rmSync(tmpOutdir, { recursive: true, force: true })
+    throw e
+  }
+  // 原子替换：Windows renameSync 要求目标不存在，先删旧 dist 再 rename
+  // （中间窗口仅微秒级，远小于"先清空后构建"的整个构建时长）
   rmSync(outdir, { recursive: true, force: true })
-  await build({
-    ...SHARED,
-    outdir,
-    target: targetRuntime === "node" ? "node" : "bun",
-    // bun 目标附加 "bun" 条件：@opentui/* 等包在 Bun 下解析 bun 版产物
-    // （与 dev 命令 --conditions=browser 的行为一致，bun 条件是 Bun 默认附加）。
-    conditions: targetRuntime === "node" ? ["node", "browser"] : ["browser", "bun"],
-  })
-  // 复制 @opentui/core 运行时依赖的 parser.worker.js 和 assets 目录
-  // OpenTUI 通过 new URL("./parser.worker.js", import.meta.url) 动态加载，
-  // 不经过打包器，构建时需显式复制到 dist 根目录。
-  copyOpentuiAssets(outdir)
-  // 写运行时标记，供 bin/gyc 按运行时选择产物（node 目标由 Node 直跑，bun 目标由 Bun 进程内加载）。
-  await Bun.write(process.cwd() + `/${outdir}/RUNTIME`, runtime)
+  try {
+    renameSync(tmpOutdir, outdir)
+  } catch {
+    // Windows 下 bun 进程可能持有 tmpOutdir 文件句柄导致 rename EPERM（-4048），回退到逐文件复制
+    cpSync(tmpOutdir, outdir, { recursive: true })
+  }
+  rmSync(tmpOutdir, { recursive: true, force: true })
   console.log(`build done: ${outdir} (${targetRuntime})`)
 }
 
