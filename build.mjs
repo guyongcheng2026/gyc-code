@@ -31,10 +31,22 @@ if (process.env.GYCCODE_BUILD_CHILD !== "1") {
   }
 }
 
+// splitting 默认关闭（2026-09-06 事故）：Bun 打包器 splitting 分块会改变模块
+// 初始化顺序，LayerNode 依赖数组在循环 import 下出现 undefined 元素，导致
+// Effect Layer 解析崩溃（Cannot read properties of undefined (reading 'name')，
+// CLI/TUI 全链路瘫痪；dev 源码模式正常，仅 dist 复现）。如需开启设
+// GYCCODE_BUILD_SPLITTING=1。附带收益：关闭 splitting 绕开 breakOutputIntoPieces
+// 在低内存机器（可用 <1.2GB）的 OOM panic（exit 3/9），dist 体积略增、动态导入
+// 仍保持惰性求值。
+const splitting = process.env.GYCCODE_BUILD_SPLITTING === "1"
+if (!splitting) {
+  console.log("[build] splitting=off（默认，防 LayerNode 循环初始化崩溃；GYCCODE_BUILD_SPLITTING=1 可开启）")
+}
+
 const SHARED = {
   entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
   format: "esm",
-  splitting: true,
+  splitting,
   // 构建期 define 注入（P2-3）：版本号以 package.json 为单一事实来源（消除
   // 双源漂移），并注入构建目标运行时标记供诊断（GYC_RUNTIME 已是构建参数）。
   // 注：GYCCODE_* 行为开关不走 define——它们是用户运行时环境变量
@@ -85,19 +97,10 @@ const SHARED = {
   minify: true,
 }
 
-// 低内存构建模式：Bun 打包器的 splitting 分块输出阶段
-// （breakOutputIntoPieces）在 4GB 机器系统 commit 紧张时（如可用 <1GB）
-// 会 OOM panic（exit 3/9）。关闭 splitting 后两个入口各自内联完整产物
-// （dist 体积约翻倍、动态导入仍保持惰性求值），绕开分块输出阶段，
-// 构建内存峰值显著下降。
-// GYCCODE_BUILD_LOW_MEM=1 手动开启；可用物理内存 <1.2GB 时自动降级。
+// 低内存提示：可用物理内存 <1.2GB 时 Bun 打包器可能 OOM panic（exit 3/9）。
 const lowMemAuto = os.freemem() < 1.2 * 1024 * 1024 * 1024
-const lowMem = process.env.GYCCODE_BUILD_LOW_MEM === "1" || lowMemAuto
-if (lowMem && process.env.GYCCODE_BUILD_CHILD === "1") {
-  console.log(
-    `[build] 低内存模式${lowMemAuto ? `（自动触发：可用 ${Math.round(os.freemem() / 1024 / 1024)}MB < 1.2GB）` : "（GYCCODE_BUILD_LOW_MEM=1）"}：关闭 splitting，dist 体积将增大`,
-  )
-  SHARED.splitting = false
+if (lowMemAuto && process.env.GYCCODE_BUILD_CHILD === "1") {
+  console.log(`[build] 低内存模式（自动触发：可用 ${Math.round(os.freemem() / 1024 / 1024)}MB < 1.2GB）：dist 体积将增大`)
 }
 
 // 构建到临时目录（dist.tmp），成功后原子替换旧 dist：
