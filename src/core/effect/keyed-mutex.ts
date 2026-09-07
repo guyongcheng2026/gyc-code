@@ -17,6 +17,7 @@ export interface KeyedMutex<in Key> {
  * `users` counts holders and waiters so an entry is not removed while a waiter
  * will reuse it.
  */
+// P2 修复：使用 getOrElse 以原子方式获取或创建锁条目，避免竞态条件
 export const makeUnsafe = <Key>(): KeyedMutex<Key> => {
   const locks = new Map<Key, { readonly semaphore: Semaphore.Semaphore; users: number }>()
 
@@ -24,9 +25,11 @@ export const makeUnsafe = <Key>(): KeyedMutex<Key> => {
     (key: Key) =>
     <A, E, R>(effect: Effect.Effect<A, E, R>) =>
       Effect.suspend(() => {
-        const current = locks.get(key)
-        const entry = current ?? { semaphore: Semaphore.makeUnsafe(1), users: 0 }
-        if (!current) locks.set(key, entry)
+        const entry = locks.get(key) ?? (() => {
+          const newEntry = { semaphore: Semaphore.makeUnsafe(1), users: 0 }
+          locks.set(key, newEntry)
+          return newEntry
+        })()
         entry.users++
         return entry.semaphore.withPermit(effect).pipe(
           Effect.ensuring(

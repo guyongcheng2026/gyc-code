@@ -226,14 +226,15 @@ const layer = Layer.effect(
             reply: input.reply,
           })
 
+          // P2 修复：避免在迭代过程中修改 Map，先收集要删除的 ID
           if (input.reply === "reject") {
             yield* Deferred.fail(
               existing.deferred,
               input.message ? new CorrectedError({ feedback: input.message }) : new DeclinedError(),
             )
             pending.delete(input.requestID)
-            for (const [id, item] of pending) {
-              if (item.request.sessionID !== existing.request.sessionID) continue
+            const toReject = [...pending.entries()].filter(([, item]) => item.request.sessionID === existing.request.sessionID)
+            for (const [id, item] of toReject) {
               yield* events.publish(Event.Replied, {
                 sessionID: item.request.sessionID,
                 requestID: item.request.id,

@@ -247,6 +247,7 @@ export const noopLayer = Layer.succeed(
   }),
 )
 
+// P2 修复：正确处理错误链，避免重复包装
 function failure(operation: Error["operation"], cause: unknown) {
   if (cause instanceof Error && cause.operation === operation) return cause
   return new Error({

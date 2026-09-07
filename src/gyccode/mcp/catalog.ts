@@ -31,13 +31,14 @@ export async function paginate<T, R extends { nextCursor?: string }>(
   const cursors = new Set<string>()
   let cursor: string | undefined
 
-  for (let page = 0; page < MAX_LIST_PAGES; page++) {
-    const page = await list(cursor)
-    result.push(...items(page))
-    if (page.nextCursor === undefined) return result
-    if (cursors.has(page.nextCursor)) throw new Error(`MCP list returned duplicate cursor: ${page.nextCursor}`)
-    cursors.add(page.nextCursor)
-    cursor = page.nextCursor
+  for (let attempt = 0; attempt < MAX_LIST_PAGES; attempt++) {
+    // P0 修复：使用 attempt 作为循环计数器，pageResult 作为 API 返回值
+    const pageResult = await list(cursor)
+    result.push(...items(pageResult))
+    if (pageResult.nextCursor === undefined) return result
+    if (cursors.has(pageResult.nextCursor)) throw new Error(`MCP list returned duplicate cursor: ${pageResult.nextCursor}`)
+    cursors.add(pageResult.nextCursor)
+    cursor = pageResult.nextCursor
   }
 
   throw new Error(`MCP list exceeded ${MAX_LIST_PAGES} pages`)

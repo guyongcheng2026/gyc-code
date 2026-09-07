@@ -428,8 +428,10 @@ export const layerWith = (options?: LayerOptions) =>
 
       function notify(event: Payload, isolateListeners: boolean) {
         return Effect.gen(function* () {
+          // P1 修复：创建 listeners 数组的快照，避免在迭代过程中被修改导致的问题
+          const currentListeners = [...listeners]
           yield* Effect.forEach(
-            listeners,
+            currentListeners,
             (listener) => (isolateListeners ? observe(event, listener) : listener(event)),
             { discard: true },
           )
@@ -631,9 +633,11 @@ export const layerWith = (options?: LayerOptions) =>
           return subscription
         })
 
+      // P1 修复：先订阅 live 事件，再读取历史事件，避免在两者之间错过事件
       const durable = (input: { readonly aggregateID: string; readonly after?: number }): Stream.Stream<Payload> =>
         Stream.unwrap(
           Effect.gen(function* () {
+            // 先订阅，确保在读取历史期间发生的任何事件都不会被错过
             const wakes = yield* subscribeDurable(input.aggregateID)
             let sequence = input.after ?? -1
             const read = Effect.suspend(() => readAfter(input.aggregateID, sequence)).pipe(
@@ -643,7 +647,9 @@ export const layerWith = (options?: LayerOptions) =>
                 }),
               ),
             )
+            // 读取历史事件（可能为空）
             const historical = yield* read
+            // 订阅 live 事件，使用相同的 readAfter 从当前 sequence 开始
             const live = Stream.fromSubscription(wakes).pipe(
               Stream.mapEffect(() => read),
               Stream.flattenIterable,

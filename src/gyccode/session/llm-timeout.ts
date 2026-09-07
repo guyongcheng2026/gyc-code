@@ -1,4 +1,4 @@
-import { Duration, Effect, Stream } from "effect"
+import { Duration, Effect, Option, Stream } from "effect"
 
 /**
  * Idle timeout for LLM streaming responses.
@@ -87,7 +87,7 @@ export function streamWithIdleTimeout<A, E, R>(
 /**
  * Fail fast when the stream produces no *first* event within `duration`.
  * Pulls the first chunk under a timeout, then replays it and continues with
- * the remaining pull (no idle reset here — the outer idle timeout owns that).
+ * the remaining pull (no idle reset here - the outer idle timeout owns that).
  * Prevents a stalled provider connection from blocking the run loop for the
  * full idle window.
  */
@@ -98,12 +98,16 @@ export function withFirstEventTimeout<A, E, R>(
   return Stream.unwrap(
     Effect.gen(function* () {
       const pull = yield* Stream.toPull(stream)
-      // timeout fails (TimeoutError) and interrupts the pull when no first
-      // event arrives; on success the first chunk is replayed and the rest
-      // continues via the same pull.
-      const first = yield* Effect.timeout(pull, duration)
+      // P0 修复：Effect.timeout 返回 Option<A>，需要使用 timeoutOption 并正确处理 none 情况
+      const first = yield* Effect.timeoutOption(pull, duration)
       // fromPull expects an Effect that yields the pull (not the pull itself)
-      return Stream.concat(Stream.fromIterable(first), Stream.fromPull(Effect.sync(() => pull)))
+      return Option.match(first, {
+        onNone: () =>
+          Stream.fail(
+            new Error(`LLM stream first-event timeout: no event received within ${Duration.toMillis(duration)}ms`) as E,
+          ),
+        onSome: (chunk) => Stream.concat(Stream.fromIterable([chunk]), Stream.fromPull(Effect.sync(() => pull))),
+      })
     }),
     // toPull introduces Scope and timeout introduces TimeoutError; both are
     // consumed by the caller (run loop error path / stream scope), so the

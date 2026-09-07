@@ -202,6 +202,8 @@ const live: Layer.Layer<
           return !match || match.action !== "ask"
         })
 
+        // P2 修复：限制 Set 大小避免无限增长，并使用 LRU 淘汰旧条目
+        const APPROVED_TOOLS_MAX = 1000
         const approvedToolsForSession = new Set<string>()
         workflowModel.approvalHandler = bridge.bind(async (approvalTools) => {
           const uniqueNames = [...new Set(approvalTools.map((t: { name: string }) => t.name))] as string[]
@@ -209,6 +211,12 @@ const live: Layer.Layer<
           // (prevents infinite approval loops for server-side MCP tools)
           if (uniqueNames.every((name) => approvedToolsForSession.has(name))) {
             return { approved: true }
+          }
+          // 防止 Set 无限增长
+          if (approvedToolsForSession.size >= APPROVED_TOOLS_MAX) {
+            const entries = [...approvedToolsForSession]
+            approvedToolsForSession.clear()
+            entries.slice(-Math.floor(APPROVED_TOOLS_MAX / 2)).forEach((n) => approvedToolsForSession.add(n))
           }
 
           const id = PermissionV1.ID.ascending()
@@ -394,26 +402,21 @@ const live: Layer.Layer<
             )
 
             const cfg = yield* config.get()
-            // Hold a permit for the whole stream lifetime (acquireRelease is
-            // scoped to the Stream.scoped wrapper, so the permit is released
-            // only after the stream is drained or interrupted).
-            // 等待耗时观测：等待超阈值说明已达 maxStreams 上限在本地排队，
-            // 此时用户感知的"首字慢"并非 provider 延迟。
-            const result = yield* Effect.acquireRelease(
-              Effect.gen(function* () {
-                const start = Date.now()
-                // 添加 30s 获取超时，防止信号量永久阻塞
-                yield* semaphore.take(1).pipe(Effect.timeout("30 seconds"))
-                const waitMs = Date.now() - start
-                if (waitMs > 200) {
-                  yield* Effect.logInfo("llm stream waited for concurrency permit", {
-                    "session.id": input.sessionID,
-                    waitMs,
-                  })
-                }
-              }),
-              () => semaphore.release(1),
-            ).pipe(Effect.flatMap(() => run({ ...input, abort: ctrl.signal })))
+            // P2 修复：semaphore 应在整个流生命周期内持有，使用 flatMap 将释放延迟到流完成之后
+            const result = yield* Effect.gen(function* () {
+              const start = Date.now()
+              yield* semaphore.take(1).pipe(Effect.timeout("30 seconds"))
+              const waitMs = Date.now() - start
+              if (waitMs > 200) {
+                yield* Effect.logInfo("llm stream waited for concurrency permit", {
+                  "session.id": input.sessionID,
+                  waitMs,
+                })
+              }
+              return yield* run({ ...input, abort: ctrl.signal })
+            }).pipe(
+              Effect.ensuring(semaphore.release(1)),
+            )
 
             if (result.type === "native") return result.stream
 

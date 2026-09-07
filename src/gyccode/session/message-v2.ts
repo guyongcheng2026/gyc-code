@@ -34,6 +34,7 @@ import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
 import type { Provider } from "@/provider/provider"
 import { Cause, Effect, Schema } from "effect"
+import { Semaphore } from "effect"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -136,21 +137,31 @@ export const TRUNCATION_DECISIONS_MAX = 10_000
  * recomputed, so the serialized prompt prefix stays byte-stable across turns
  * (prompt-cache friendly). Mirrors reference agent partitionByPriorDecision.
  */
-const truncationDecisions = new Map<string, number | undefined>()
+// P1 修复：使用 Semaphore 确保并发安全
+const truncationDecisionsMap = new Map<string, number | undefined>()
+const truncationDecisionsSemaphore = Semaphore.makeUnsafe(1)
 
 /** 测试用：当前冻结决策数量。 */
 export function truncationDecisionsSize(): number {
-  return truncationDecisions.size
+  return truncationDecisionsMap.size
 }
 
 function freezeDecision(id: string, cap: number | undefined): void {
-  if (truncationDecisions.size >= TRUNCATION_DECISIONS_MAX) truncationDecisions.clear()
-  truncationDecisions.set(id, cap)
+  truncationDecisionsSemaphore.withPermits(1)(
+    Effect.sync(() => {
+      if (truncationDecisionsMap.size >= TRUNCATION_DECISIONS_MAX) truncationDecisionsMap.clear()
+      truncationDecisionsMap.set(id, cap)
+    }),
+  ).pipe(Effect.runSync)
 }
 
 /** Reset frozen decisions (used by tests). */
 export function resetTruncationDecisions(): void {
-  truncationDecisions.clear()
+  truncationDecisionsSemaphore.withPermits(1)(
+    Effect.sync(() => {
+      truncationDecisionsMap.clear()
+    }),
+  ).pipe(Effect.runSync)
 }
 
 // ─── 截断观测（幻觉率前置信号）─────────────────────────────────
@@ -158,26 +169,36 @@ export function resetTruncationDecisions(): void {
 // 的同一旋钮两端。按工具类型统计截断次数与被省略字符数，为 TOOL_TYPE_CAPS
 // 阈值（2K↔4K）的闭环调参提供数据基础，避免拍脑袋回调。指标只读、零依赖、
 // 仅在实际发生截断时自增，序列化热路径开销为一次 Map.get。
-const truncationStats = new Map<string, { count: number; omittedChars: number }>()
+// P1 修复：使用 Semaphore 确保并发安全
+const truncationStatsMap = new Map<string, { count: number; omittedChars: number }>()
+const truncationStatsSemaphore = Semaphore.makeUnsafe(1)
 
 function recordTruncation(tool: string, omittedChars: number): void {
-  const entry = truncationStats.get(tool)
-  if (entry) {
-    entry.count++
-    entry.omittedChars += omittedChars
-  } else {
-    truncationStats.set(tool, { count: 1, omittedChars })
-  }
+  truncationStatsSemaphore.withPermits(1)(
+    Effect.sync(() => {
+      const entry = truncationStatsMap.get(tool)
+      if (entry) {
+        entry.count++
+        entry.omittedChars += omittedChars
+      } else {
+        truncationStatsMap.set(tool, { count: 1, omittedChars })
+      }
+    }),
+  ).pipe(Effect.runSync)
 }
 
 /** 当前截断统计快照（按工具类型）。供 /insights、诊断或测试读取。 */
 export function truncationStatsSnapshot(): Record<string, { count: number; omittedChars: number }> {
-  return Object.fromEntries(truncationStats)
+  return Object.fromEntries(truncationStatsMap)
 }
 
 /** Reset truncation stats (used by tests). */
 export function resetTruncationStats(): void {
-  truncationStats.clear()
+  truncationStatsSemaphore.withPermits(1)(
+    Effect.sync(() => {
+      truncationStatsMap.clear()
+    }),
+  ).pipe(Effect.runSync)
 }
 
 /** 仅保留真实截断（cap < 当前输出长度）的条目；无任何截断返回 undefined。
@@ -226,10 +247,10 @@ export function aggregateToolCaps(
   }
   if (callIDs.length === 0) return undefined
   // All callIDs already decided? Reuse the frozen decision set exactly.
-  const allDecided = callIDs.every((id) => truncationDecisions.has(id))
+  const allDecided = callIDs.every((id) => truncationDecisionsMap.has(id))
   if (allDecided) {
     for (const id of callIDs) {
-      const keep = truncationDecisions.get(id)
+      const keep = truncationDecisionsMap.get(id)
       caps.set(id, keep ?? lens.get(id) ?? 0)
     }
     return onlyTruncated(caps, lens)
@@ -238,7 +259,7 @@ export function aggregateToolCaps(
     // Under budget: freeze the cap to apply for each callID (a number, possibly
     // the full length for kept tools) so a later re-serialization stays byte-stable.
     for (const id of callIDs) {
-      if (!truncationDecisions.has(id)) freezeDecision(id, caps.get(id))
+      if (!truncationDecisionsMap.has(id)) freezeDecision(id, caps.get(id))
     }
     return onlyTruncated(caps, lens)
   }

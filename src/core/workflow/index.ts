@@ -198,12 +198,17 @@ const layer = Layer.effect(
             }
             // P0 修复：session 死机检测
             if (inactiveCount >= INACTIVE_WARN_THRESHOLD) {
-              yield* Effect.logWarning(`Workflow session inactive but no step.failed event detected`, {
+              yield* Effect.logError("Workflow session inactive threshold exceeded, marking step as failed", {
                 runID: run.id,
                 step: step.name,
                 inactiveCount,
+                threshold: INACTIVE_WARN_THRESHOLD,
               })
-              inactiveCount = 0 // 重置计数，继续等待
+              return {
+                ok: false as const,
+                error: `步骤 ${step.name} 失败：session 失活超过 ${INACTIVE_WARN_THRESHOLD} 次轮询未检测到失败事件`,
+                summary: "",
+              }
             }
             const summary = yield* lastAssistantSummary(run.sessionID)
             return { ok: true as const, summary }

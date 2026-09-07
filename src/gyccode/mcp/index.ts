@@ -479,7 +479,17 @@ const layer = Layer.effect(
     )
 
     function watch(s: State, name: string, client: MCPClient, bridge: EffectBridge.Shape, timeout?: number) {
+      // P1 修复：防止重复设置 onclose 处理器，避免重新连接时丢失旧的处理器
+      const existingHandler = client.onclose
       client.onclose = () => {
+        // P1 修复：如果之前有处理器，先调用它（如果不是我们设置的）
+        if (existingHandler) {
+          try {
+            existingHandler()
+          } catch {
+            // 忽略旧处理器的错误
+          }
+        }
         if (s.clients[name] !== client) return
         delete s.clients[name]
         delete s.defs[name]

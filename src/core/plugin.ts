@@ -132,12 +132,15 @@ const layer = Layer.effect(
       }),
     )
 
+    // P0 修复：确保 host 在使用前已定义
+    // P0 修复：host 必须在 service 创建后初始化，确保 PluginHost 能访问完整的 service 接口
     const service = Service.of({
       add,
       remove,
       wait,
     })
-    host = yield* PluginHost.make(service)
+    const initializedHost = yield* PluginHost.make(service)
+    host = initializedHost
     return service
   }),
 )

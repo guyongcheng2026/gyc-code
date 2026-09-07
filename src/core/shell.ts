@@ -194,7 +194,18 @@ export function args(file: string, command: string, cwd: string) {
       cwd,
     ]
   }
-  if (n === "cmd") return ["/c", command]
+  // P1 修复：cmd.exe 需要对命令字符串进行转义，防止特殊字符问题
+  if (n === "cmd") {
+    const escaped = command
+      .replace(/%/g, "^%")
+      .replace(/&/g, "^&")
+      .replace(/\|/g, "^|")
+      .replace(/</g, "^<")
+      .replace(/>/g, "^>")
+      .replace(/"/g, "\"\"")
+      .replace(/\^/g, "^^")
+    return ["/c", escaped]
+  }
   if (ps(file)) return ["-NoProfile", "-Command", command]
   return ["-c", command]
 }

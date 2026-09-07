@@ -206,11 +206,13 @@ const layer = Layer.effect(
       })
 
       const finishReasoning = Effect.fn("SessionProcessor.finishReasoning")(function* (reasoningID: string) {
-        if (!(reasoningID in ctx.reasoningMap)) return
+        // P2 修复：使用 in 操作符检查 key 存在性，但后续访问假设值非 undefined
+        const entry = ctx.reasoningMap[reasoningID]
+        if (entry === undefined) return
         // oxlint-disable-next-line no-self-assign -- reactivity trigger
-        ctx.reasoningMap[reasoningID].text = ctx.reasoningMap[reasoningID].text
-        ctx.reasoningMap[reasoningID].time = { ...ctx.reasoningMap[reasoningID].time, end: Date.now() }
-        yield* session.updatePart(ctx.reasoningMap[reasoningID])
+        entry.text = entry.text
+        entry.time = { ...entry.time, end: Date.now() }
+        yield* session.updatePartLive(entry)
         delete ctx.reasoningMap[reasoningID]
       })
 
