@@ -474,8 +474,11 @@ registerBuiltinCommand("editor", async (ctx) => {
       return "continue"
     }
 
+    // P2 安全修复：移除 shell: true，EDITOR 字符串中的空格会作为参数分隔
+    // 之前的 shell: true 允许通过精心构造的 EDITOR 值执行 shell 命令
+    // 现在使用数组形式直接传递 editor 作为可执行文件
     const tmpFile = path.join(tmpdir(), `gyc-editor-${Date.now()}.md`)
-    const result = spawnSync(editor, [tmpFile], { stdio: "inherit", shell: true })
+    const result = spawnSync(editor, [tmpFile], { stdio: "inherit" })
     if (result.status !== 0) { UI.error(`编辑器退出码 ${result.status ?? "unknown"}`); return "continue" }
 
     const { Filesystem } = await import("@/util/filesystem")

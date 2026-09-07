@@ -97,20 +97,47 @@ function resolveTools(agent: Agent.Info, availableTools: { id: string }[]) {
   return resolved
 }
 
+// P1 安全修复：检测可疑模式，防止注入
+const DANGEROUS_PATTERNS = [
+  /[;]/,
+  /await\s/,
+  /yield\s/,
+  /async\s*\(/,
+  /function\s*\(/,
+  /=>\s*{/,
+  /import\s*\(/,
+  /require\s*\(/,
+  /process\./,
+  /global\./,
+  /globalThis\./,
+  /\beval\b/,
+  /\bFunction\b/,
+  /\$\{.*\}/,
+]
+
+function isDangerous(input: string): boolean {
+  return DANGEROUS_PATTERNS.some((pattern) => pattern.test(input))
+}
+
 function parseToolParams(input?: string) {
   if (!input) return {}
   const trimmed = input.trim()
   if (trimmed.length === 0) return {}
 
+  // P1 安全修复：优先 JSON，仅在明确安全时使用 Function 求值
   const parsed = iife(() => {
     try {
       return JSON.parse(trimmed)
     } catch (jsonError) {
+      // 仅在输入不包含危险模式时尝试 JS 表达式求值
+      if (isDangerous(trimmed)) {
+        throw new Error(`Suspicious pattern detected in --params. Use JSON format.`)
+      }
       try {
         return new Function(`return (${trimmed})`)()
       } catch (evalError) {
         throw new Error(
-          `Failed to parse --params. Use JSON or a JS object literal. JSON error: ${jsonError}. Eval error: ${evalError}.`,
+          `Failed to parse --params. Use JSON or a simple JS object literal. JSON error: ${jsonError}. Eval error: ${evalError}.`,
           { cause: evalError },
         )
       }
