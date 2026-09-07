@@ -122,9 +122,15 @@ const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: D
       bytes: victim.b,
       cap: EVENT_LOG_MAX_BYTES,
     })
+    // P1 修复：删除全部事件时同时删除序列号，防止孤立序列号导致 sync 从不存在的序列号恢复
     yield* db.run(sql`DELETE FROM event WHERE aggregate_id = ${victim.id}`).pipe(
       Effect.catch((e) =>
         Effect.logError("Failed to delete victim session events", { error: e })
+      )
+    )
+    yield* db.run(sql`DELETE FROM event_sequence WHERE aggregate_id = ${victim.id}`).pipe(
+      Effect.catch((e) =>
+        Effect.logError("Failed to delete victim session sequence", { error: e })
       )
     )
   }

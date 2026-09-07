@@ -23,7 +23,8 @@ interface PendingEntry {
 
 interface State {
   pending: RefModule.Ref<Map<PermissionV1.ID, PendingEntry>>
-  approved: PermissionV1.Rule[]
+  // P0 修复：使用 Ref 包装 approved 数组，避免并发修改导致的数据竞争
+  approved: RefModule.Ref<PermissionV1.Rule[]>
 }
 
 export function evaluate(permission: string, pattern: string, ...rulesets: PermissionV1.Ruleset[]): PermissionV1.Rule {
@@ -49,7 +50,8 @@ const layer = Layer.effect(
         void ctx
         const state = {
           pending: yield* RefModule.make(new Map<PermissionV1.ID, PendingEntry>()),
-          approved: [],
+          // P0 修复：使用 Ref 包装 approved 数组
+          approved: yield* RefModule.make<PermissionV1.Rule[]>([]),
         }
 
         yield* Effect.addFinalizer(() =>
@@ -68,7 +70,7 @@ const layer = Layer.effect(
 
     const state = yield* InstanceState.get(stateCache)
     const ask = Effect.fn("Permission.ask")(function* (input: PermissionV1.AskInput) {
-      const { approved } = state
+      const approved = yield* RefModule.get(state.approved)
       const { ruleset, ...request } = input
       let needsAsk = false
 
@@ -114,7 +116,6 @@ const layer = Layer.effect(
 
     const reply = Effect.fn("Permission.reply")(function* (input: PermissionV1.ReplyInput) {
       const state = yield* InstanceState.get(stateCache)
-      const { approved } = state
       const existing = yield* RefModule.get(state.pending).pipe(Effect.map((m) => m.get(input.requestID)))
       if (!existing) return yield* new PermissionV1.NotFoundError({ requestID: input.requestID })
 
@@ -157,14 +158,19 @@ const layer = Layer.effect(
       yield* Deferred.succeed(existing.deferred, undefined)
       if (input.reply === "once") return
 
-      for (const pattern of existing.info.always) {
-        approved.push({
-          permission: existing.info.permission,
-          pattern,
-          action: "allow",
+      // P0 修复：使用 RefModule.modify 原子更新 approved 数组
+      if (existing.info.always.length > 0) {
+        yield* RefModule.modify(state.approved, (approved) => {
+          const newRules = existing.info.always.map((pattern) => ({
+            permission: existing.info.permission,
+            pattern,
+            action: "allow" as const,
+          }))
+          return [approved.concat(newRules), approved] as const
         })
       }
 
+      const approved = yield* RefModule.get(state.approved)
       const toResolve = (yield* RefModule.get(state.pending)).entries().filter(([, item]) => {
         if (item.info.sessionID !== existing.info.sessionID) return false
         return item.info.patterns.every(

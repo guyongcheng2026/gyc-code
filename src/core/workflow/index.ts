@@ -58,8 +58,9 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Wor
 }) {}
 
 import type { EffectDrizzleQueryError } from "drizzle-orm/effect-core/errors"
+import type { SqlError } from "effect/unstable/sql/SqlError"
 
-export type Error = NotFoundError | DefinitionError | FSUtil.Error | EffectDrizzleQueryError
+export type Error = NotFoundError | DefinitionError | FSUtil.Error | EffectDrizzleQueryError | SqlError
 
 export interface Interface {
   /** 列出指定目录可用的工作流定义 */
@@ -128,7 +129,15 @@ const layer = Layer.effect(
     const updateRun = (
       runID: string,
       patch: Partial<Pick<WorkflowRun, "status" | "currentStepIndex" | "steps" | "error" | "timeUpdated">>,
-    ) => db.update(WorkflowRunTable).set({ ...patch, time_updated: Date.now(), steps: patch.steps as any }).where(eq(WorkflowRunTable.id, runID))
+    ) =>
+      // P1 修复：使用事务确保原子性，防止并发 update 间的部分写入
+      db.transaction((tx) =>
+        tx
+          .update(WorkflowRunTable)
+          .set({ ...patch, time_updated: Date.now(), steps: patch.steps as any })
+          .where(eq(WorkflowRunTable.id, runID))
+          .run(),
+      )
 
     const readRun = (runID: string) =>
       db.select().from(WorkflowRunTable).where(eq(WorkflowRunTable.id, runID)).limit(1).pipe(
