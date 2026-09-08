@@ -40,15 +40,21 @@ export class WSTransport implements Transport {
     if (!url) return Promise.reject(new Error("WSTransport: connect(url) must be called before start()"))
     return new Promise((resolve, reject) => {
       const socket = new WebSocket(url, { headers: this.options.headers, protocol: "mcp" })
-      this.socket = socket
       const timer = this.options.timeout
         ? setTimeout(() => {
-            socket.terminate()
+            // P2 修复：terminate 失败时记录日志而非静默忽略
+            try {
+              socket.terminate()
+            } catch (err) {
+              console.error("WebSocket terminate failed:", err)
+            }
             reject(new Error(`WebSocket connect timed out: ${url}`))
           }, this.options.timeout)
         : undefined
       socket.once("open", () => {
         if (timer) clearTimeout(timer)
+        // P0 修复：socket 赋值在连接打开后进行，避免竞态
+        this.socket = socket
         resolve()
       })
       socket.once("error", (error) => {
@@ -79,7 +85,8 @@ export class WSTransport implements Transport {
     if (!socket || socket.readyState === WebSocket.CLOSED) return Promise.resolve()
     return new Promise((resolve) => {
       socket.once("close", () => resolve())
-      socket.on("error", () => {})
+      // P0 修复：使用 once 而非 on，避免监听器累积
+      socket.once("error", () => {}) // 忽略关闭时的错误
       socket.close()
     })
   }

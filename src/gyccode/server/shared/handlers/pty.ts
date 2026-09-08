@@ -156,11 +156,22 @@ export const PtyHandler = HttpApiBuilder.group(Api, "server.pty", (handlers) =>
             if (!valid) return HttpServerResponse.empty({ status: 403 })
           }
           const parsedCursor = url.searchParams.get("cursor")
-          const cursorNumber = parsedCursor === null ? undefined : Number(parsedCursor)
-          const cursor =
-            cursorNumber !== undefined && Number.isSafeInteger(cursorNumber) && cursorNumber >= -1
-              ? cursorNumber
-              : undefined
+          // P1 修复：无效的 cursor 参数记录警告日志（undefined 是有效的默认值，表示从头开始）
+          let cursor: number | undefined
+          if (parsedCursor === null) {
+            cursor = undefined
+          } else {
+            const cursorNumber = Number(parsedCursor)
+            if (Number.isSafeInteger(cursorNumber) && cursorNumber >= -1) {
+              cursor = cursorNumber
+            } else {
+              yield* Effect.logWarning("Invalid cursor parameter, defaulting to undefined", {
+                value: parsedCursor,
+                ptyID: ctx.params.ptyID,
+              })
+              cursor = undefined
+            }
+          }
 
           const socket = yield* Effect.orDie(ctx.request.upgrade)
           const write = yield* socket.writer

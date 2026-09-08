@@ -21,8 +21,14 @@ export const invokeJsonMethod = (name: string, args: Array<unknown>, node: AstNo
           [supportedSyntaxMessage],
         )
       }
+      // P2 修复：限制 indent 参数范围，避免极端值
       const space = args[2]
-      const indent = typeof space === "number" || typeof space === "string" ? space : undefined
+      let indent: number | string | undefined
+      if (typeof space === "number") {
+        indent = Math.min(Math.max(0, Math.floor(space)), 10) // 限制在 0-10
+      } else if (typeof space === "string") {
+        indent = space.slice(0, 10) // 限制字符串长度
+      }
       return JSON.stringify(copyOut(copyIn(args[0], "JSON.stringify value")), null, indent)
     }
     case "parse": {

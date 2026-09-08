@@ -133,8 +133,6 @@ export type Provider = Schema.Schema.Type<typeof Provider>
 
 export const Event = ModelsDev.Event
 
-import { MODELS_DEV_SNAPSHOT } from "./models-dev-snapshot"
-
 declare const GYCCODE_MODELS_DEV: Record<string, Provider> | undefined
 
 export interface Interface {
@@ -203,11 +201,15 @@ const layer = Layer.effect(
       Effect.map((v) => v as Record<string, Provider> | undefined),
     )
 
-    const loadSnapshot = Effect.sync(() =>
-      typeof GYCCODE_MODELS_DEV === "undefined"
-        ? (MODELS_DEV_SNAPSHOT as Record<string, Provider>)
-        : GYCCODE_MODELS_DEV,
-    )
+    const loadSnapshot = Effect.gen(function* () {
+      if (typeof GYCCODE_MODELS_DEV !== "undefined") return GYCCODE_MODELS_DEV
+      // Dynamic import keeps the 739KB snapshot out of the eager module graph
+      // (sync mkdir-level TLA cost is non-trivial for short-lived commands like
+      // `gyc --version`). Effect-level laziness preserves the disk → snapshot
+      // → fetch fallback chain.
+      const mod = yield* Effect.promise(() => import("./models-dev-snapshot"))
+      return mod.MODELS_DEV_SNAPSHOT as Record<string, Provider>
+    })
 
     const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
       const text = yield* fetchApi()

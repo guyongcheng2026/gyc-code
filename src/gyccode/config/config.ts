@@ -544,7 +544,16 @@ const layer = Layer.effect(
 
         if (Flag.GYCCODE_PERMISSION) {
           try {
-            result.permission = mergeDeep(result.permission ?? {}, JSON.parse(Flag.GYCCODE_PERMISSION))
+            const parsed = JSON.parse(Flag.GYCCODE_PERMISSION)
+            // P1 修复：验证解析结果是否为有效对象，避免静默失败
+            if (isRecord(parsed)) {
+              // Merge with type assertion since we validated it's an object
+              result.permission = mergeDeep(result.permission ?? {}, parsed as any)
+            } else {
+              yield* Effect.logWarning("GYCCODE_PERMISSION is valid JSON but not an object, skipping", {
+                type: typeof parsed,
+              })
+            }
           } catch (err) {
             yield* Effect.logWarning("GYCCODE_PERMISSION contains invalid JSON, skipping", { err })
           }

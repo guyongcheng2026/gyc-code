@@ -58,6 +58,8 @@ const MEMORY_PATH = path.join(MEMORY_DIR, "gyccode_memory.md")
 
 // 兼容旧文件名：读取时新文件缺失则回退旧文件，写入始终写新名
 const LEGACY_MEMORY_PATH = path.join(LEGACY_DIR, "hermes_gyccode_memory.md")
+// 项目隔离前 gyc 写的是 memory/gyccode_memory.md，须继续兼容读取
+const PRE_PROJECT_MEMORY_PATH = path.join(LEGACY_DIR, "gyccode_memory.md")
 
 export interface MemoryEntry {
   key: string
@@ -68,10 +70,34 @@ export interface MemoryEntry {
 const SEP = "\n§\n"
 const KEY_PREFIX = "#memory_"
 
+function isMissingError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false
+  const code = (error as { code?: unknown }).code
+  return code === "ENOENT" || code === "ENOTDIR"
+}
+
+const optionalStat = async (file: string): Promise<{ mtimeMs: number; size: number } | null> => {
+  try {
+    const item = await stat(file)
+    return { mtimeMs: Number(item.mtimeMs), size: Number(item.size) }
+  } catch (error) {
+    if (isMissingError(error)) return null
+    throw error
+  }
+}
+
 /** Read memory entries from the memory file */
 export async function readMemories(): Promise<MemoryEntry[]> {
   try {
-    const content = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
+    const [projectStat, legacyStat, preProjectStat] = await Promise.all([
+      optionalStat(MEMORY_PATH),
+      optionalStat(LEGACY_MEMORY_PATH),
+      optionalStat(PRE_PROJECT_MEMORY_PATH),
+    ])
+    if (!projectStat && !legacyStat && !preProjectStat) return []
+    const content = await readFile(MEMORY_PATH, "utf-8")
+      .catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
+      .catch(() => readFile(PRE_PROJECT_MEMORY_PATH, "utf-8"))
     const blocks = content.split(SEP).filter(Boolean)
     return blocks.map((block, i) => ({
       key: KEY_PREFIX + i,
@@ -126,7 +152,10 @@ export async function writeMemoryFile(
     // P1 修复：首次写入前确保目录存在
     await mkdir(MEMORY_DIR, { recursive: true }).catch(() => {})
 
-    const existing = await readFile(MEMORY_PATH, "utf-8").catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8")).catch(() => "")
+    const existing = await readFile(MEMORY_PATH, "utf-8")
+      .catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
+      .catch(() => readFile(PRE_PROJECT_MEMORY_PATH, "utf-8"))
+      .catch(() => "")
 
     if (!append) {
       await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
@@ -199,12 +228,18 @@ let cachedEntries: MemoryEntry[] | undefined
 async function readMemoriesCached(): Promise<MemoryEntry[]> {
   return cacheRWLock.read(async () => {
     try {
-      const fileStat = await stat(MEMORY_PATH)
-      if (cachedStat && cachedStat.mtimeMs === fileStat.mtimeMs && cachedStat.size === fileStat.size) {
+      const [projectStat, legacyStat, preProjectStat] = await Promise.all([
+        optionalStat(MEMORY_PATH),
+        optionalStat(LEGACY_MEMORY_PATH),
+        optionalStat(PRE_PROJECT_MEMORY_PATH),
+      ])
+      const resolvedStat = projectStat ?? legacyStat ?? preProjectStat
+      if (!resolvedStat) return []
+      if (cachedStat && cachedStat.mtimeMs === resolvedStat.mtimeMs && cachedStat.size === resolvedStat.size) {
         return cachedEntries ?? []
       }
       const entries = await readMemories()
-      cachedStat = { mtimeMs: fileStat.mtimeMs, size: fileStat.size }
+      cachedStat = { mtimeMs: resolvedStat.mtimeMs, size: resolvedStat.size }
       cachedEntries = entries
       return entries
     } catch (error) {
@@ -385,8 +420,9 @@ export const MEMORY_FRESHNESS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000
  */
 export async function getMemoryAgeMs(): Promise<number | undefined> {
   try {
-    const fileStat = await stat(MEMORY_PATH)
-    return Date.now() - fileStat.mtimeMs
+    const fileStat = await stat(MEMORY_PATH).catch(() => stat(LEGACY_MEMORY_PATH))
+    const preProjectFile = fileStat ?? (await optionalStat(PRE_PROJECT_MEMORY_PATH))
+    return preProjectFile ? Date.now() - Number(preProjectFile.mtimeMs) : undefined
   } catch {
     return undefined
   }

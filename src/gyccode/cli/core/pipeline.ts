@@ -72,13 +72,18 @@ export interface ExecutionContext {
 }
 
 // 模型输入解析：provider/model[:variant] → { providerID, modelID, variant? }
+const modelInputCache = new Map<string, { providerID: string; modelID: string; variant?: string }>()
 export function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
   if (!value) return undefined
+  const cached = modelInputCache.get(value)
+  if (cached) return cached
   const [providerID, ...rest] = value.split("/")
   const modelPart = rest.join("/")
   if (!modelPart) return { providerID, modelID: "" }
   const [modelID, variant] = modelPart.split(":")
-  return { providerID, modelID, variant }
+  const result = { providerID, modelID, variant }
+  modelInputCache.set(value, result)
+  return result
 }
 
 export interface ResolveFilePartsOptions {

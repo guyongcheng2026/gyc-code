@@ -13,12 +13,18 @@ export const invokeNumberMethod = (value: number, name: string, args: Array<unkn
   }
   let result: unknown
   switch (name) {
-    case "toFixed":
-      result = value.toFixed(optNum(0))
+    case "toFixed": {
+      // P2 修复：toFixed 必须有参数，无参数时返回字符串表示
+      const digits = optNum(0)
+      result = digits === undefined ? value.toString() : value.toFixed(digits)
       break
-    case "toExponential":
-      result = value.toExponential(optNum(0))
+    }
+    case "toExponential": {
+      // P2 修复：toExponential 必须有参数，无参数时使用 toString
+      const fractionDigits = optNum(0)
+      result = fractionDigits === undefined ? value.toString() : value.toExponential(fractionDigits)
       break
+    }
     case "toPrecision": {
       const digits = optNum(0)
       result = digits === undefined ? value.toString() : value.toPrecision(digits)

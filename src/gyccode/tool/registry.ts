@@ -194,9 +194,13 @@ const layer = Layer.effect(
                   worktree: ctx.worktree,
                 }
                 const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
-                const output = typeof result === "string" ? result : result.output
-                const metadata = typeof result === "string" ? {} : (result.metadata ?? {})
-                const attachments = typeof result === "string" ? undefined : result.attachments
+                // P1 修复：验证 result 类型，避免访问 undefined 属性
+                const isResultObject = (r: unknown): r is { output?: unknown; metadata?: unknown; attachments?: unknown; title?: string } =>
+                  r !== null && typeof r === "object"
+                const isRecord = (r: unknown): r is Record<string, unknown> => r !== null && typeof r === "object" && !Array.isArray(r)
+                const output: string = typeof result === "string" ? result : (isResultObject(result) ? String(result.output ?? "") : "")
+                const metadata = typeof result === "string" ? {} : (isResultObject(result) && isRecord(result.metadata) ? result.metadata : {})
+                const attachments = typeof result === "string" ? undefined : (isResultObject(result) && Array.isArray(result.attachments) ? result.attachments : undefined)
                 const info = yield* agent.get(toolCtx.agent)
                 const out = yield* truncate.output(output, {}, info)
                 return {

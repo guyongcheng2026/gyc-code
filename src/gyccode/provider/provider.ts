@@ -1144,6 +1144,10 @@ export interface Interface {
   ) => Effect.Effect<{ providerID: ProviderV2.ID; modelID: string } | undefined>
   readonly getSmallModel: (providerID: ProviderV2.ID) => Effect.Effect<Model | undefined>
   readonly defaultModel: () => Effect.Effect<{ providerID: ProviderV2.ID; modelID: ModelV2.ID }, DefaultModelError>
+  readonly healthCheck: (
+    providerID: ProviderV2.ID,
+    options?: { timeoutMs?: number },
+  ) => Effect.Effect<{ ok: true; latencyMs: number } | { ok: false; reason: string; latencyMs: number }>
 }
 
 interface State {
@@ -2020,7 +2024,40 @@ const layer = Layer.effect(
       }
     })
 
-    return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel })
+    const healthCheck = Effect.fn("Provider.healthCheck")(function* (
+      providerID: ProviderV2.ID,
+      options: { timeoutMs?: number } = {},
+    ) {
+      const timeoutMs = options.timeoutMs ?? 5000
+      const s = yield* InstanceState.get(state)
+      const provider = s.providers[providerID]
+      if (!provider) {
+        return { ok: false as const, reason: "provider not found", latencyMs: 0 }
+      }
+      const start = Date.now()
+      const baseURL = provider.options?.baseURL
+      if (!baseURL) {
+        return { ok: false as const, reason: "no baseURL", latencyMs: Date.now() - start }
+      }
+      const result = yield* Effect.tryPromise({
+        try: async () => {
+          const ctl = new AbortController()
+          const timer = setTimeout(() => ctl.abort(), timeoutMs)
+          try {
+            const res = await fetch(baseURL, { method: "HEAD", signal: ctl.signal })
+            return res.status < 500
+          } finally {
+            clearTimeout(timer)
+          }
+        },
+        catch: (e) => (e instanceof Error ? e.message : String(e)),
+      }).pipe(Effect.orElseSucceed(() => false))
+      const latencyMs = Date.now() - start
+      if (result === true) return { ok: true as const, latencyMs }
+      return { ok: false as const, reason: typeof result === "string" ? result : "unreachable", latencyMs }
+    })
+
+    return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel, healthCheck })
   }),
 )
 
