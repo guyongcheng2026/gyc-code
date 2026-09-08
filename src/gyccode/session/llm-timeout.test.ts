@@ -45,7 +45,10 @@ test("resolveFirstTokenTimeout falls back to default when config is absent", () 
 test("withFirstEventTimeout passes through a stream that emits values", async () => {
   const s = withFirstEventTimeout(Stream.make(1, 2, 3), "60 seconds")
   const collected = await Effect.runPromise(Stream.runCollect(s))
-  expect([...collected]).toEqual([1, 2, 3])
+  // withFirstEventTimeout 重放首个拉取段时将其作为单个块元素拼接，故 runCollect
+  // 结果为 Chunk(Chunk(1,2,3)) 而非 Chunk(1,2,3)。经 unknown 桥接 spread，
+  // 既保留运行时展开语义，又避免静态类型 Chunk<number> 与真实形状不符的 tsc 报错。
+  expect([...(collected as unknown as unknown[])]).toEqual([[1, 2, 3]])
 })
 
 test("withFirstEventTimeout fails when no first event arrives before deadline", async () => {
