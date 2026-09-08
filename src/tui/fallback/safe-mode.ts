@@ -82,41 +82,41 @@ function formatError(error: unknown): string {
  * 返回 true 表示已通过安全模式正常收场。
  */
 export async function runFallbackSafeMode(options: SafeModeOptions): Promise<boolean> {
-	const backend = options.backend ?? new ProcessBackend(process.stdout, process.stdin)
-	const label = options.productLabel ?? "gyc-code"
-	const app = new DemoApp({
-		backend,
-		title: `${label} · 安全模式`,
-		initialMessages: [
-			"系统: opentui 渲染器异常，已自动降级到内置安全模式",
-			`错误: ${formatError(options.error).slice(0, 200)}`,
-			"说明: 本界面为纯 JS 差分帧渲染器，不依赖原生库",
-			"操作: 输入文字回车可测试终端通路；Esc 或 Ctrl+C 退出",
-			"恢复: 重启终端或检查 GYC_TUI_BACKEND 环境变量后重试 gyc tui",
-		],
-	})
-	app.run()
-	// 孤儿进程防护：渲染器成功路径上的关闭检测此时未挂载，此处补齐
-	let offWatchClose: (() => void) | undefined
-	let done = false
-	let finishResolve: (() => void) | undefined
-	const finishPromise = new Promise<void>((resolve) => {
-		finishResolve = resolve
-	})
-	const finish = () => {
-		if (done) return
-		done = true
-		// （移除对未定义 flushSync 的调用：该回退通道不依赖 Solid/React，无需同步冲刷）
-		finishResolve?.()
-	}
-	try {
-		const { watchTerminalClose } = await import("../terminal-win32")
-		const watcher = options.watchClose ?? watchTerminalClose
-		offWatchClose = watcher(() => finish())
-	} catch {
-		// 关闭检测在非 Windows 或缺少依赖时不可用，属可选增强
-	}
-	await finishPromise
-	offWatchClose?.()
-	return true
+  const backend = options.backend ?? new ProcessBackend(process.stdout, process.stdin)
+  const label = options.productLabel ?? "gyc-code"
+  let finishResolve: (() => void) | undefined
+  const finishPromise = new Promise<void>((resolve) => {
+    finishResolve = resolve
+  })
+  const finish = () => {
+    if (done) return
+    done = true
+    finishResolve?.()
+  }
+  let done = false
+  const app = new DemoApp({
+    backend,
+    title: `${label} · 安全模式`,
+    initialMessages: [
+      "系统: opentui 渲染器异常，已自动降级到内置安全模式",
+      `错误: ${formatError(options.error).slice(0, 200)}`,
+      "说明: 本界面为纯 JS 差分帧渲染器，不依赖原生库",
+      "操作: 输入文字回车可测试终端通路；Esc 或 Ctrl+C 退出",
+      "恢复: 重启终端或检查 GYC_TUI_BACKEND 环境变量后重试 gyc tui",
+    ],
+    onDone: () => finish(),
+  })
+  app.run()
+  // 孤儿进程防护：渲染器成功路径上的关闭检测此时未挂载，此处补齐
+  let offWatchClose: (() => void) | undefined
+  try {
+    const { watchTerminalClose } = await import("../terminal-win32")
+    const watcher = options.watchClose ?? watchTerminalClose
+    offWatchClose = watcher(() => finish())
+  } catch {
+    // 关闭检测在非 Windows 或缺少依赖时不可用，属可选增强
+  }
+  await finishPromise
+  offWatchClose?.()
+  return true
 }

@@ -9,10 +9,12 @@ import { FallbackRenderer, type TerminalBackend } from "./terminal"
  */
 
 export interface DemoAppOptions {
-	backend: TerminalBackend
-	title: string
-	/** 初始消息（如崩溃诊断信息），每条一个字符串 */
-	initialMessages?: string[]
+  backend: TerminalBackend
+  title: string
+  /** 初始消息（如崩溃诊断信息），每条一个字符串 */
+  initialMessages?: string[]
+  /** 完成回调（退出安全模式时调用） */
+  onDone?: () => void
 }
 
 export class DemoApp {
@@ -22,12 +24,14 @@ export class DemoApp {
 	private input = ""
 	private scrollFromBottom = 0
 	private done = false
+	private onDone: (() => void) | undefined
 
 	constructor(private readonly options: DemoAppOptions) {
 		this.renderer = new FallbackRenderer(options.backend)
 		this.messages = [...(options.initialMessages ?? [])]
 		this.parser = new KeyParser((key) => this.handleKey(key))
 		options.backend.onInput((chunk) => this.parser.feed(chunk))
+		this.onDone = options.onDone
 	}
 
 	run(): void {
@@ -96,6 +100,7 @@ export class DemoApp {
 	stop(): void {
 		this.done = true
 		this.renderer.stop()
+		this.onDone?.()
 	}
 
 	private render(): void {
