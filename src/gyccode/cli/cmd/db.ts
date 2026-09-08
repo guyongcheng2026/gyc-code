@@ -132,6 +132,92 @@ const CompactCommand = effectCmd({
     console.log("随后可运行 `gyc db cleanup` 执行 VACUUM 以回收文件大小")
   }),
 })
+
+export interface CacheRowLike {
+  data: string
+  time_created?: number | string
+}
+
+export interface PromptCacheStats {
+  /** 含可解析 token 用量的消息数 */
+  withTokens: number
+  /** 总输入 token（含缓存命中），命中率分母 */
+  totalInput: number
+  /** 缓存命中读取 token，命中率分子 */
+  cacheRead: number
+  perMessage: { time: number; total: number; cached: number }[]
+}
+
+/**
+ * 统计 prompt 缓存命中率口径（供 `gyc db cache` 使用）。
+ *
+ * 命中率分母 = 单条"总输入 token（含缓存命中）"= tokens.input + cache.read + cache.write，
+ * 恰好还原 provider 上报的完整输入规模。不能用 AI SDK 的 tokens.total 作分母：
+ * total 含 output/reasoning token，会把真实 CH 系统性低估（例如 input 10K + output 500，
+ * 全命中时按 total=10500 只算出 95.2%，实际应为 100%）。
+ */
+export function promptCacheStats(rows: CacheRowLike[]): PromptCacheStats {
+  let input = 0
+  let cacheRead = 0
+  let withTokens = 0
+  const perMessage: { time: number; total: number; cached: number }[] = []
+  for (const row of rows) {
+    try {
+      const data = JSON.parse(row.data) as {
+        tokens?: { input?: unknown; total?: unknown; cache?: { read?: unknown; write?: unknown } }
+      }
+      const t = data.tokens
+      if (!t) continue
+      const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, v) : 0)
+      const cacheReadTokens = num(t.cache?.read)
+      const cacheWriteTokens = num(t.cache?.write)
+      const netInput = num(t.input)
+      const totalInput =
+        typeof t.input === "number" && Number.isFinite(t.input)
+          ? netInput + cacheReadTokens + cacheWriteTokens
+          : num(t.total)
+      if (totalInput <= 0) continue
+      withTokens++
+      input += totalInput
+      cacheRead += cacheReadTokens
+      perMessage.push({ time: Number(row.time_created ?? 0), total: totalInput, cached: cacheReadTokens })
+    } catch {
+      // skip malformed rows
+    }
+  }
+  return { withTokens, totalInput: input, cacheRead, perMessage }
+}
+
+/** 服务商 prompt 缓存窗口阈值（DeepSeek 等约 5min/1h）。间隔超过它时缓存自然过期，
+ * 下一轮必然 miss——即使前缀字节完全未变（物理限制，不是前缀漂移）。 */
+export const CACHE_WINDOW_MS = 10 * 60 * 1000
+
+export interface PerMessageRow {
+  time: number
+  total: number
+  cached: number
+}
+
+export type CacheMissCause = "window-expiry" | "drift"
+
+/**
+ * 分类"该轮近乎全 miss"（ratio < 20% 且上一轮 ≥ 80%）的原因：
+ * - window-expiry：与上一轮间隔超过缓存窗口 → 服务商缓存已过期，前缀未变也会 miss
+ * - drift：间隔在窗口内却近乎全 miss → 前缀字节确实与上轮不同（记忆/技能/指令/工具集等变化）
+ * - null：非明显 miss，或没有上一轮可比（报告窗口首行无法判断，不再误标）
+ */
+export function classifyMiss(
+  prev: PerMessageRow | undefined,
+  cur: PerMessageRow,
+  windowMs = CACHE_WINDOW_MS,
+): CacheMissCause | null {
+  if (!prev) return null
+  const prevRatio = prev.total > 0 ? prev.cached / prev.total : 1
+  const ratio = cur.total > 0 ? cur.cached / cur.total : 0
+  if (!(ratio < 0.2 && prevRatio >= 0.8)) return null
+  return cur.time - prev.time > windowMs ? "window-expiry" : "drift"
+}
+
 const CacheCommand = effectCmd({
   command: "cache",
   describe: "report recent prompt-cache hit rate from persisted message tokens",
@@ -143,57 +229,52 @@ const CacheCommand = effectCmd({
         sql.raw(`SELECT data, time_created FROM message ORDER BY time_created DESC LIMIT 50`),
       )
       .pipe(Effect.orDie)
-    let input = 0
-    let cacheRead = 0
-    let withTokens = 0
-    const perMessage: { time: number; total: number; cached: number }[] = []
-    for (const row of rows) {
-      try {
-        const data = JSON.parse(row.data)
-        const t = data.tokens
-        if (!t) continue
-        // total = full input tokens (incl. cached); cache.read = served from cache
-        const totalInput = typeof t.total === "number" ? t.total : (typeof t.input === "number" ? t.input : 0)
-        if (totalInput <= 0) continue
-        withTokens++
-        input += totalInput
-        cacheRead += t.cache?.read ?? 0
-        perMessage.push({ time: Number(row.time_created), total: totalInput, cached: t.cache?.read ?? 0 })
-      } catch {
-        // skip malformed rows
-      }
-    }
-    if (withTokens === 0) {
+    const stats = promptCacheStats(rows)
+    if (stats.withTokens === 0) {
       console.log("最近 50 条消息中未持久化任何 token 用量")
       return
     }
-    const rate = input > 0 ? ((cacheRead / input) * 100).toFixed(1) : "0.0"
-    console.log(`含用量的消息数：${withTokens}`)
-    console.log(`总输入 token：${input.toLocaleString()}`)
-    console.log(`缓存读取 token：${cacheRead.toLocaleString()}`)
+    const rate = stats.totalInput > 0 ? ((stats.cacheRead / stats.totalInput) * 100).toFixed(1) : "0.0"
+    console.log(`含用量的消息数：${stats.withTokens}`)
+    console.log(`总输入 token：${stats.totalInput.toLocaleString()}`)
+    console.log(`缓存读取 token：${stats.cacheRead.toLocaleString()}`)
     console.log(`prompt 缓存命中率：${rate}%`)
-    if (rate === "0.0" && input > 0) {
+    if (rate === "0.0" && stats.totalInput > 0) {
       console.log("注意：命中率为 0% 说明当前模型/服务商未上报 prompt 缓存，")
       console.log("或系统提示前缀在多次请求间发生了变化。")
     }
 
     // Per-message trend (oldest → newest): a stable prefix shows ~99% on every
     // row; a row that collapses to ~0% while neighbours stay high marks the
-    // exact turn where the prefix drifted (memory/skills/env/tools change).
-    const asc = perMessage.reverse()
+    // turn where the prefix changed. Distinguish "cache window expired"
+    // (interval > service cache window → physical miss, prefix intact) from a
+    // real prefix drift (memory/skills/env/tools change), so users don't
+    // misdiagnose a window expiry as a code-level prefix break.
+    const asc = stats.perMessage.reverse()
     console.log("")
     console.log(`逐条命中率（从旧到新，最近 ${asc.length} 条）：`)
+    let windowExpired = 0
     asc.forEach((m, i) => {
-      const ratio = m.total > 0 ? m.cached / m.total : 0
-      const r = (ratio * 100).toFixed(1)
       const prev = i > 0 ? asc[i - 1] : undefined
-      const prevRatio = prev && prev.total > 0 ? prev.cached / prev.total : 1
-      const flag = ratio < 0.2 && prevRatio >= 0.8 ? "  ← 前缀漂移疑似（该轮前缀与上轮不同）" : ""
+      const cause = classifyMiss(prev, m)
+      if (cause === "window-expiry") windowExpired++
+      const r = m.total > 0 ? ((m.cached / m.total) * 100).toFixed(1) : "0.0"
+      const flag =
+        cause === "window-expiry"
+          ? "  ← 缓存窗口过期（与上轮间隔超过服务商缓存窗口，属物理 miss）"
+          : cause === "drift"
+            ? "  ← 前缀漂移疑似（该轮前缀与上轮不同，排查记忆/技能/指令/工具集变化）"
+            : ""
       const time = new Date(m.time).toLocaleTimeString()
       console.log(
         `  ${String(i + 1).padStart(3)}. ${time}  ${r.padStart(5)}%  (${m.cached.toLocaleString()} / ${m.total.toLocaleString()})${flag}`,
       )
     })
+    if (windowExpired > 0) {
+      console.log("")
+      console.log("提示：部分低命中行与上一轮间隔超过服务商缓存窗口（DeepSeek 等约 5min/1h），")
+      console.log("属缓存自然过期而非前缀漂移；命中会续期窗口，持续对话后命中率会回升。")
+    }
   }),
 })
 export const DbCommand = effectCmd({
