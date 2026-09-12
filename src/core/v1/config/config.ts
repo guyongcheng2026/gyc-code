@@ -330,6 +330,28 @@ export const Info = Schema.Struct({
   ).annotate({
     description: "Cross-session memory configuration",
   }),
+  learning: Schema.optional(
+    Schema.Struct({
+      enabled: Schema.optional(Schema.Boolean).annotate({
+        description: "启用会话尾部技能沉淀闭环（默认 true）",
+      }),
+      nudge_interval: Schema.optional(NonNegativeInt).annotate({
+        description: "累计工具迭代数达到该值时触发一次沉淀（默认 10）",
+      }),
+      max_actions: Schema.optional(NonNegativeInt).annotate({
+        description: "单次沉淀最多落盘的动作数（默认 5）",
+      }),
+      model: Schema.optional(Schema.String).annotate({
+        description: "沉淀用的模型，如 deepseek/deepseek-chat（默认 provider 小模型）",
+      }),
+      stale_after_days: Schema.optional(NonNegativeInt).annotate({
+        description: "多久未使用标记为 stale（默认 30）",
+      }),
+      archive_after_days: Schema.optional(NonNegativeInt).annotate({
+        description: "多久未使用归档（默认 90）",
+      }),
+    }),
+  ).annotate({ description: "技能沉淀闭环配置" }),
   experimental: Schema.optional(
     Schema.Struct({
       disable_paste_summary: Schema.optional(Schema.Boolean),
