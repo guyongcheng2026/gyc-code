@@ -1,3 +1,6 @@
+// 离线工具，不在运行时链路上：由 `scripts/archive-skills.ts` 与 `scripts/marketplace.ts` 使用，
+// 校验技能市场种子内容里的 agent.json。运行时加载技能走 src/gyccode/skill/（单数），不经此处。
+// src/ 内没有运行时调用方是**预期行为**，不要据此当成死代码删除。
 import { z } from "zod"
 
 export const AgentJsonSchema = z.object({

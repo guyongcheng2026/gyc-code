@@ -1,3 +1,5 @@
+// 离线工具，不在运行时链路上：由 `bun scripts/build-training-set.ts <command>` 驱动。
+// src/ 内没有调用方是**预期行为**，不要据此当成死代码删除。
 // Training Data Pipeline — 训练数据飞轮
 // 从会话日志中提取成功任务模式，构建训练数据集
 
