@@ -6,11 +6,8 @@ import * as Tool from "./tool"
 import path from "path"
 import { containsPath, type InstanceContext } from "../project/instance-context"
 import { InstanceState } from "@/effect/instance-state"
-import { lazy } from "@/util/lazy"
-import { Language, type Node } from "web-tree-sitter"
 
 import { FSUtil } from "@gyccode/core/fs-util"
-import { fileURLToPath } from "url"
 import { Config } from "@/config/config"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
@@ -89,47 +86,96 @@ type Chunk = {
   size: number
 }
 
-const resolveWasm = (asset: string) => {
-  if (asset.startsWith("file://")) return fileURLToPath(asset)
-  if (asset.startsWith("/") || /^[a-z]:/i.test(asset)) return asset
-  const url = new URL(asset, import.meta.url)
-  return fileURLToPath(url)
+// 权限扫描只需要「命令名 + 参数 token + 命令原文」三样东西，原先却为此加载
+// web-tree-sitter 的 wasm AST。实测（4GB 机）Node 下加载该 wasm 会在首个 shell
+// 调用后产生 1.2~2.4GB 的堆外瞬时峰值（wasm memory 自身仍只有 32MB，且不进入
+// V8 堆；Bun/JSC 无此现象），收益与代价严重不匹配，故改为词法扫描。
+// 语义保持保守：无法静态判定的构造（$()、反引号、@() 等）仍由 dynamic() 过滤，
+// 此时 pattern 退化为整段原文——更严格，不会放宽既有权限判定。
+const REDIRECT = /^(?:\d*>>?|<<?|&>\|?|>&\d+|\|&)$/
+const SEPARATOR = new Set(["|", ";", "&", "\n"])
+
+type Segment = {
+  tokens: Part[]
+  source: string
 }
 
-function parts(node: Node) {
-  const out: Part[] = []
-  for (let i = 0; i < node.childCount; i++) {
-    const child = node.child(i)
-    if (!child) continue
-    if (child.type === "command_elements") {
-      for (let j = 0; j < child.childCount; j++) {
-        const item = child.child(j)
-        if (!item || item.type === "command_argument_sep" || item.type === "redirection") continue
-        out.push({ type: item.type, text: item.text })
+function segments(command: string, ps: boolean): Segment[] {
+  const out: Segment[] = []
+  let tokens: Part[] = []
+  let buf = ""
+  let quote: '"' | "'" | undefined
+  let quoted = false
+  let redirect = false
+  let start = 0
+
+  const flushToken = () => {
+    if (buf.length === 0) return
+    const text = buf
+    const wasQuoted = quoted
+    buf = ""
+    quoted = false
+    if (REDIRECT.test(text)) {
+      redirect = true
+      return
+    }
+    if (redirect) {
+      redirect = false
+      return
+    }
+    tokens.push({ type: wasQuoted ? "string" : "word", text })
+  }
+
+  const flushSegment = (end: number) => {
+    flushToken()
+    redirect = false
+    // bash 允许 `VAR=value cmd`：赋值前缀不影响命令名，按原 AST 行为剔除
+    const named = ps ? tokens : tokens.filter((item, index) => index > 0 || !/^[A-Za-z_][A-Za-z0-9_]*=/.test(item.text))
+    if (named.length > 0) out.push({ tokens: named, source: command.slice(start, end).trim() })
+    tokens = []
+  }
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i]!
+    if (quote) {
+      buf += ch
+      if (ch === quote) {
+        // PowerShell 用两个连续单引号表示字面量单引号
+        if (ps && quote === "'" && command[i + 1] === "'") {
+          buf += command[++i]!
+          continue
+        }
+        quote = undefined
       }
       continue
     }
-    if (
-      child.type !== "command_name" &&
-      child.type !== "command_name_expr" &&
-      child.type !== "word" &&
-      child.type !== "string" &&
-      child.type !== "raw_string" &&
-      child.type !== "concatenation"
-    ) {
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      quoted = true
+      buf += ch
       continue
     }
-    out.push({ type: child.type, text: child.text })
+    // bash 用反斜杠转义；PowerShell 用反引号
+    if ((ch === "\\" && !ps) || (ch === "`" && ps)) {
+      buf += ch
+      if (i + 1 < command.length) buf += command[++i]!
+      continue
+    }
+    if (SEPARATOR.has(ch)) {
+      // `||`、`&&` 视为单个分隔符
+      if ((ch === "|" || ch === "&") && command[i + 1] === ch) i++
+      flushSegment(i)
+      start = i + 1
+      continue
+    }
+    if (/\s/.test(ch)) {
+      flushToken()
+      continue
+    }
+    buf += ch
   }
+  flushSegment(command.length)
   return out
-}
-
-function source(node: Node) {
-  return (node.parent?.type === "redirected_statement" ? node.parent.text : node.text).trim()
-}
-
-function commands(node: Node) {
-  return node.descendantsOfType("command").filter((child): child is Node => Boolean(child))
 }
 
 function unquote(text: string) {
@@ -262,12 +308,6 @@ function tail(text: string, maxLines: number, maxBytes: number) {
   }
 }
 
-const parse = Effect.fn("ShellTool.parse")(function* (command: string, ps: boolean) {
-  const tree = yield* Effect.promise(() => parser().then((p) => (ps ? p.ps : p.bash).parse(command)))
-  if (!tree) throw new Error("Failed to parse command")
-  return tree
-})
-
 const ask = Effect.fn("ShellTool.ask")(function* (ctx: Tool.Context, scan: Scan, input: { command: string }) {
   if (scan.dirs.size > 0) {
     const directories = Array.from(scan.dirs)
@@ -316,27 +356,6 @@ function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv
     detached: process.platform !== "win32",
   })
 }
-const parser = lazy(async () => {
-  const { Parser } = await import("web-tree-sitter")
-  const { default: treeWasm } = await import("web-tree-sitter/tree-sitter.wasm" as string)
-  const treePath = resolveWasm(treeWasm)
-  await Parser.init({
-    locateFile() {
-      return treePath
-    },
-  })
-  const { default: bashWasm } = await import("tree-sitter-bash/tree-sitter-bash.wasm" as string)
-  const { default: psWasm } = await import("tree-sitter-powershell/tree-sitter-powershell.wasm" as string)
-  const bashPath = resolveWasm(bashWasm)
-  const psPath = resolveWasm(psWasm)
-  const [bashLanguage, psLanguage] = await Promise.all([Language.load(bashPath), Language.load(psPath)])
-  const bash = new Parser()
-  bash.setLanguage(bashLanguage)
-  const ps = new Parser()
-  ps.setLanguage(psLanguage)
-  return { bash, ps }
-})
-
 export const ShellTool = Tool.define(
   ShellID.ToolID,
   Effect.gen(function* () {
@@ -379,7 +398,7 @@ export const ShellTool = Tool.define(
     })
 
     const collect = Effect.fn("ShellTool.collect")(function* (
-      root: Node,
+      command: string,
       cwd: string,
       ps: boolean,
       shell: string,
@@ -392,13 +411,12 @@ export const ShellTool = Tool.define(
       }
       const shellKind = ShellID.toKind(Shell.name(shell))
 
-      for (const node of commands(root)) {
-        const command = parts(node)
-        const tokens = command.map((item) => item.text)
+      for (const segment of segments(command, ps)) {
+        const tokens = segment.tokens.map((item) => item.text)
         const cmd = ps || shellKind === "cmd" ? tokens[0]?.toLowerCase() : tokens[0]
 
         if (cmd && (FILES.has(cmd) || (shellKind === "cmd" && CMD_FILES.has(cmd)))) {
-          for (const arg of pathArgs(command, ps, shellKind === "cmd")) {
+          for (const arg of pathArgs(segment.tokens, ps, shellKind === "cmd")) {
             const resolved = yield* argPath(arg, cwd, ps, shell)
             // Per-arg path resolution detail; DEBUG keeps the default log quiet.
             yield* Effect.logDebug("resolved path", { arg, resolved })
@@ -409,7 +427,7 @@ export const ShellTool = Tool.define(
         }
 
         if (tokens.length && (!cmd || !CWD.has(cmd))) {
-          scan.patterns.add(source(node))
+          scan.patterns.add(segment.source)
           scan.always.add(BashArity.prefix(tokens).join(" ") + " *")
         }
       }
@@ -623,10 +641,7 @@ export const ShellTool = Tool.define(
               const ps = Shell.ps(shell)
               yield* Effect.scoped(
                 Effect.gen(function* () {
-                  const tree = yield* Effect.acquireRelease(parse(params.command, ps), (tree) =>
-                    Effect.sync(() => tree.delete()),
-                  )
-                  const scan = yield* collect(tree.rootNode, cwd, ps, shell, instanceCtx)
+                  const scan = yield* collect(params.command, cwd, ps, shell, instanceCtx)
                   if (!containsPath(cwd, instanceCtx)) scan.dirs.add(cwd)
                   yield* ask(ctx, scan, params)
                 }),
