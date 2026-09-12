@@ -2,7 +2,7 @@
 //   - 同一套协议栈：openai-compatible 协议 + RequestExecutor（自动重试 / 错误结构化 / 敏感信息脱敏）
 //   - 同一份凭据来源：gyc auth.json（~/.local/share/gyccode/auth.json）
 //   - 同一 provider facade：OpenAICompatible（默认 deepseek，https://api.deepseek.com/v1）
-// 环境变量：GYC_PROVIDER / GYC_MODEL（支持 "provider/model" 写法），缺省 deepseek/deepseek-chat
+// 环境变量：GYC_PROVIDER / GYC_MODEL（支持 "provider/model" 写法），缺省 openrouter/free-models-router
 
 import * as fs from "node:fs"
 import * as os from "node:os"
@@ -67,9 +67,9 @@ function loadProviderBaseURL(provider: string): string | undefined {
 }
 
 export function loadLlmConfig(): LlmConfig {
-  const raw = process.env.GYC_MODEL ?? "deepseek-chat"
+  const raw = process.env.GYC_MODEL ?? "free-models-router"
   const slash = raw.indexOf("/")
-  const provider = process.env.GYC_PROVIDER ?? (slash > 0 ? raw.slice(0, slash) : "deepseek")
+  const provider = process.env.GYC_PROVIDER ?? (slash > 0 ? raw.slice(0, slash) : "openrouter")
   const model = slash > 0 ? raw.slice(slash + 1) : raw
   const apiKey = loadApiKey(provider) ?? process.env.GYC_API_KEY
   if (!apiKey) {
