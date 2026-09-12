@@ -2,6 +2,8 @@ import path from "path"
 import { Effect, Schema } from "effect"
 import { Ripgrep } from "@gyccode/core/ripgrep"
 import { Skill } from "../skill"
+import { gycHome } from "../learning/paths"
+import { bumpView } from "../learning/usage"
 import * as Tool from "./tool"
 import DESCRIPTION from "./skill.txt"
 
@@ -41,6 +43,9 @@ export const SkillTool = Tool.define(
             signal: ctx.abort,
             limit: 10,
           })
+
+          // 技能被加载进上下文即计入用量账本；记账失败不能影响技能加载。
+          yield* Effect.promise(() => bumpView(gycHome(), info.name)).pipe(Effect.ignore)
 
           return {
             title: `Loaded skill: ${info.name}`,
