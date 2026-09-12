@@ -17,12 +17,12 @@ function View(props: { api: TuiPluginApi }) {
           <text fg={theme().text}>{open() ? "▼" : "▶"}</text>
         </Show>
         <text fg={theme().text}>
-          <b>语言服务</b>
+          <b>LSP</b>
         </text>
       </box>
       <Show when={list().length <= 2 || open()}>
         <Show when={list().length === 0}>
-          <text fg={theme().textMuted}>{off() ? "语言服务已禁用" : "读取文件后会激活语言服务"}</text>
+          <text fg={theme().textMuted}>{off() ? "LSP 已禁用" : "读取文件后会激活 LSP"}</text>
         </Show>
         <For each={list()}>
           {(item) => (

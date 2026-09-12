@@ -27,12 +27,24 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
 
   function evictExpired(): void {
     const now = Date.now()
-    for (const [key, entry] of cache.entries()) {
-      if (entry.expiresAt <= now) {
+    for (const key of Array.from(cache.keys())) {
+      const entry = cache.get(key)
+      if (entry && entry.expiresAt <= now) {
         totalSize -= entry.size
         cache.delete(key)
       }
     }
+  }
+
+  function hasUnexpired(key: K): boolean {
+    const entry = cache.get(key)
+    if (!entry) return false
+    if (entry.expiresAt <= Date.now()) {
+      totalSize -= entry.size
+      cache.delete(key)
+      return false
+    }
+    return true
   }
 
   function evictLru(): void {
@@ -49,7 +61,7 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
     evictExpired()
     // cache.size > 0 保护：单条 value 的 size 超过预算（size > maxSize * 10）时，
     // 清空缓存后仍会满足 totalSize + size > maxSize * 10，若无保护将死循环。
-    while ((cache.size >= maxSize || totalSize + size > maxSize * 10) && cache.size > 0) {
+    while (cache.size > 0 && (cache.size >= maxSize || totalSize + size > maxSize * 10)) {
       evictLru()
     }
   }
@@ -72,12 +84,17 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
 
     /** 设置值，自动处理过期和 LRU 淘汰 */
     set(key: K, value: V): void {
-      const size = sizeOf(value)
-      makeRoomFor(size)
-      // 同键覆盖：先扣除旧 entry 已计入的 size，否则 totalSize 虚高，
-      // 且 delete/evict 时只减一次导致 totalSize 永不回落（缓存被提前清空）。
+      const raw = sizeOf(value)
+      // sizeOf 返回 NaN/负数/Infinity 会让预算判据静默失效，按 1 兜底。
+      const size = Number.isFinite(raw) && raw > 0 ? raw : 1
+      // 覆盖已存在的键时先释放旧条目：否则 cache.size >= maxSize 会让
+      // makeRoomFor 淘汰无关条目——覆盖写入不该扩大驱逐范围。
       const prev = cache.get(key)
-      if (prev) totalSize -= prev.size
+      if (prev) {
+        totalSize -= prev.size
+        cache.delete(key)
+      }
+      makeRoomFor(size)
       const entry: CacheEntry<V> = {
         value,
         expiresAt: Date.now() + ttlMs,
@@ -89,17 +106,17 @@ export function createTtlCache<K, V>(options: TtlCacheOptions<K, V>) {
 
     /** 检查是否存在且未过期 */
     has(key: K): boolean {
-      return this.get(key) !== undefined
+      return hasUnexpired(key)
     },
 
     /** 删除指定键 */
     delete(key: K): boolean {
       const entry = cache.get(key)
-      if (entry) {
-        totalSize -= entry.size
-        return cache.delete(key)
-      }
-      return false
+      if (!entry) return false
+      // 只要条目还在 cache 里，totalSize 就一定含它的 size（所有过期清理路径
+      // 都会同时移除条目），因此与是否过期无关，都必须扣减。
+      totalSize -= entry.size
+      return cache.delete(key)
     },
 
     /** 清空缓存 */
