@@ -507,6 +507,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           // free < 256MB 的"致命"判定在低内存机器上是启动瞬态，采用连续多轮
           // 确认（本轮起 5 轮 × 10~30s）再退出。rss 单独超线不再致命（见下）。
           let fatalStreak = 0
+          // 堆自身超线也要求连续确认：单次采样可能正好落在 GC 前的瞬时峰值上，
+          // 首次仅降载 + GC，避免为一个可恢复的尖峰销毁用户会话。
+          let heapFatalStreak = 0
           const FATAL_STREAK_LIMIT = 5
           const totalMem = os.totalmem()
           const lowMemMachine = totalMem <= 4 * 1024 * 1024 * 1024
@@ -601,11 +604,12 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // 动态释放有延时，单轮 low 不代表不可恢复。改用连续多轮确认
               // （fatalStreak ≥3 才退出），期间写日志+尽力 GC，给喘息窗口。
               const systemFatal = free < 256 * 1024 * 1024
-              // 仅 V8 堆自身逼近上限才立即退出（不可恢复的 native OOM 前兆）。
+              // V8 堆自身逼近上限（连续两次采样确认）才降载退出：
               // rss 超线但堆内占用低时，多为堆外瞬时峰值或 Windows 未回收的
               // 陈旧页（实测提交量可滞留 GB 级数分钟），此时退出只丢会话、
               // 换回几十 MB，得不偿失——降为告警 + 尽力 GC，交由 streak 兜底。
-              if (heapRatio > 0.85) {
+              heapFatalStreak = heapRatio > 0.85 ? heapFatalStreak + 1 : 0
+              if (heapFatalStreak >= 2) {
                 // 进程自身堆失控（V8 堆 >85% 上限）：真致命，立即降载退出
                 // 2026-08-28：V8 堆使用率比 RSS 更早捕捉 FatalOOM 的根因（堆使用
                 // 到达上限触发 native abort），提前降载避免不可恢复的 native 崩溃
@@ -641,9 +645,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   // 只释放数百 MB 却牺牲用户会话——得不偿失。仅当本进程 rss
                   // 也是内存大户（>30% RAM）才退出；否则降级为持续告警
                   //（重置计数继续监护，下轮 streak 再确认），不再销毁渲染器。
-                  // 退出的门槛：本进程的 V8 堆确实过半（offHeap 峰值常见于
+                  // 退出门槛：本进程自身确实是大户——V8 堆过半，或堆外
                   // wasm/原生瞬时分配，数秒内自行回落，不作退出依据）。
-                  if (rss > total * 0.3 && heapRatio > 0.5) {
+                  if (rss > total * 0.3 && (heapRatio > 0.5 || offHeap > total * 0.35)) {
                     void appendFile(
                       join(global.log, "gyccode.log"),
                       `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB heap=${heapUsedMB}/${heapLimitMB}MB offHeap=${offHeapMB}MB streak=${fatalStreak}\n`,
