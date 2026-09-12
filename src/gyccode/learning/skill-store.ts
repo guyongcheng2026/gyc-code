@@ -365,12 +365,9 @@ export function make(root: string): SkillStore {
   async function restore(input: { name: string; sessionId: string }): Promise<ApplyResult> {
     return guard(async () => {
       const { name, sessionId } = input
-      let entries
-      try {
-        entries = await readdir(archiveRoot(root), { withFileTypes: true })
-      } catch {
-        entries = []
-      }
+      // 归档根不存在时按空目录处理：恢复一个从未归档过的技能应当得到 not-found，
+      // 而不是把 ENOENT 抛给调用方。
+      const entries = await readdir(archiveRoot(root), { withFileTypes: true }).catch(() => [])
       const backups = entries
         .filter((entry) => entry.isDirectory() && entry.name.startsWith(`${name}-`))
         .map((entry) => entry.name)
