@@ -6,7 +6,7 @@
   },
   "include": [
     "./src/gyccode/index.ts",
-    "./src/gyccode/cli/core/*.ts",
+    "./src/cli/core/*.ts",
     "./src/gyccode/util/filesystem.ts"
   ],
   "exclude": []

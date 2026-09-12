@@ -44,9 +44,16 @@ if (!splitting) {
 }
 
 const SHARED = {
-  entrypoints: ["./src/gyccode/index.ts", "./src/gyccode/cli/tui/worker.ts"],
+  entrypoints: ["./src/gyccode/index.ts", "./src/cli/tui/worker.ts"],
   format: "esm",
   splitting,
+  // 入口产物名固定为 dist/index.js + dist/worker.js：Bun 默认按「所有入口的公共
+  // 父目录」还原目录结构，入口分处 src/gyccode 与 src/cli 时会变成
+  // dist/gyccode/index.js，而 bin/gyc、scripts/install.sh、src/gyccode/gateway/reply.ts、
+  // scripts/bench-cli.ts、scripts/measure-llm-latency.mjs、scripts/verify-tui.mjs 与
+  // npm start 均按 dist/index.js 定位主产物——布局漂移会让 bin/gyc 静默回退 Bun
+  // 源码模式（丢掉 V8 代码缓存与 heap 参数）。故显式扁平化入口命名。
+  naming: { entry: "[name].[ext]" },
   // 构建期 define 注入（P2-3）：版本号以 package.json 为单一事实来源（消除
   // 双源漂移），并注入构建目标运行时标记供诊断（GYC_RUNTIME 已是构建参数）。
   // 注：GYCCODE_* 行为开关不走 define——它们是用户运行时环境变量

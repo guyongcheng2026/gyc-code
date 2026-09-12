@@ -1,6 +1,6 @@
 import { Session } from "@/session/session"
 import { SessionV1 } from "@gyccode/core/v1/session"
-import { SessionID } from "../../session/schema"
+import { SessionID } from "@/session/schema"
 import { effectCmd, fail } from "../effect-cmd"
 import { UI } from "../ui"
 import * as prompts from "@clack/prompts"

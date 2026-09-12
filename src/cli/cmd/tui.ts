@@ -1,12 +1,12 @@
-import { readStdin } from "../../../core/util/read-stdin"
-import { cmd } from "@/cli/cmd/cmd"
+import { readStdin } from "@core/util/read-stdin"
+import { cmd } from "./cmd"
 import { Rpc } from "@/util/rpc"
 import { type rpc } from "../tui/worker"
 import path from "path"
 import { fileURLToPath } from "url"
-import { UI } from "@/cli/ui"
+import { UI } from "../ui"
 import { errorMessage } from "@gyccode/tui/util/error"
-import { withNetworkOptions, resolveNetworkOptionsNoConfig, hasArg } from "@/cli/network"
+import { withNetworkOptions, resolveNetworkOptionsNoConfig, hasArg } from "../network"
 import { Filesystem } from "@/util/filesystem"
 import type { GlobalEvent } from "@gyccode/protocol/v2"
 import type { EventSource } from "@gyccode/tui/context/sdk"
@@ -51,7 +51,9 @@ function createEventSource(client: () => RpcClient): EventSource {
 
 async function target() {
   if (typeof GYCCODE_WORKER_PATH !== "undefined") return GYCCODE_WORKER_PATH
-  const dist = new URL("./cli/tui/worker.js", import.meta.url)
+  // 两个候选：dist（入口产物扁平化为 dist/index.js + dist/worker.js，见 build.mjs
+  // 的 naming 配置）与源码直跑（src/cli/cmd/tui.ts 旁的 ../tui/worker.ts）。
+  const dist = new URL("./worker.js", import.meta.url)
   if (await Filesystem.exists(fileURLToPath(dist))) return dist
   return new URL("../tui/worker.ts", import.meta.url)
 }

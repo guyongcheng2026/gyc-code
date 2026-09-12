@@ -1,5 +1,5 @@
 import { cmd } from "./cmd"
-import { UI } from "@/cli/ui"
+import { UI } from "../ui"
 import { errorMessage } from "@gyccode/tui/util/error"
 import { validateSession } from "../tui/validate-session"
 import { ServerAuth } from "@/server/auth"

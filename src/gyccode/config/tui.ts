@@ -21,7 +21,7 @@ import { makeRuntime } from "@gyccode/core/effect/runtime"
 import { Filesystem } from "@/util/filesystem"
 import { ConfigVariable } from "@/config/variable"
 import { Npm } from "@gyccode/core/npm"
-import { FormatError, FormatUnknownError } from "@/cli/error"
+import { FormatError, FormatUnknownError } from "@gyccode/cli/error"
 import { TuiConfig } from "@gyccode/tui/config"
 
 export const Info = TuiConfig.Info

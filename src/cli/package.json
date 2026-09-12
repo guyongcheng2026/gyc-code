@@ -1,0 +1,14 @@
+{
+  "name": "@gyccode/cli",
+  "exports": {
+    "./cmd/debug": "./cmd/debug/index.ts",
+    "./*": "./*.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@gyccode/core": "workspace:*",
+    "@gyccode/protocol": "workspace:*",
+    "@gyccode/schema": "workspace:*",
+    "@gyccode/tui": "workspace:*"
+  }
+}

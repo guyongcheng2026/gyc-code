@@ -1,6 +1,6 @@
 import { Rpc } from "@/util/rpc"
 import { writeHeapSnapshot } from "node:v8"
-import { Heap } from "@/cli/heap"
+import { Heap } from "../heap"
 import { Effect } from "effect"
 import { Global } from "@gyccode/core/global"
 import { appendFile, mkdir } from "node:fs/promises"
@@ -86,7 +86,7 @@ const LAZY_MODULES: Record<string, () => Promise<unknown>> = {
   '@/project/instance-runtime': () => import('@/project/instance-runtime'),
   '@/server/server': () => import('@/server/server'),
   '@/server/auth': () => import('@/server/auth'),
-  '@/cli/upgrade': () => import('@/cli/upgrade'),
+  '../upgrade': () => import('../upgrade'),
   '@/effect/app-runtime': () => import('@/effect/app-runtime'),
   '@/config/config': () => import('@/config/config'),
   '@/server/global-lifecycle': () => import('@/server/global-lifecycle'),
@@ -180,7 +180,7 @@ export const rpc = {
   },
   async checkUpgrade(input: { directory: string }) {
     await ensureWarmInstance()
-    const { upgrade } = await importMod<typeof import("@/cli/upgrade")>("@/cli/upgrade")
+    const { upgrade } = await importMod<typeof import("../upgrade")>("../upgrade")
     // 后台检查升级失败不影响当前会话，忽略
     await upgrade().catch(() => {})
   },

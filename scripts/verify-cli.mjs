@@ -4,7 +4,7 @@
 // CLI 特性适配：
 //   - 功能性以子命令实测为主（--version/session/models/stats/debug），serve API 为辅
 //   - 稳定性优先复用 pm2 长跑实例 gyc-stability（stability-log.jsonl），无则自起 serve
-//   - 安全性扫描面 = src/gyccode/cli + src/core；含 CLI 输出明文密钥检查
+//   - 安全性扫描面 = src/cli + src/core；含 CLI 输出明文密钥检查
 // 用法：
 //   node scripts/verify-cli.mjs [--base-url http://127.0.0.1:4300] [--port 4300]
 //        [--soak-seconds 12] [--load-seconds 6] [--llm] [--keep-server] [--skip-server-start]
@@ -454,7 +454,7 @@ async function checkPersistence() {
   await req("DELETE", `/session/${sid}`).catch(() => {})
   record("persistence", "可靠性-持久化（会话跨重启）", kept ? "pass" : "fail", details, {})
 }
-// 4. 安全性：CLI 输出密钥检查 + 危险 API 面（src/gyccode/cli + src/core）+ 依赖审计
+// 4. 安全性：CLI 输出密钥检查 + 危险 API 面（src/cli + src/core）+ 依赖审计
 async function checkSecurity() {
   const details = []
   let hardFail = false
@@ -467,7 +467,7 @@ async function checkSecurity() {
 
   // 危险 API 面：eval/new Function/拼接 exec
   const xssRe = /\beval\s*\(|new\s+Function\s*\(|child_process.*\bexec(Sync)?\s*\(\s*[`"'][^`"'(]*\$\{/g
-  const scanDirs = [join(ROOT, "src", "gyccode", "cli"), join(ROOT, "src", "core")]
+  const scanDirs = [join(ROOT, "src", "cli"), join(ROOT, "src", "core")]
   const hits = []
   for (const dir of scanDirs) {
     for (const file of walkFiles(dir, [".ts"])) {
@@ -478,7 +478,7 @@ async function checkSecurity() {
       })
     }
   }
-  if (hits.length === 0) details.push("src/gyccode/cli + src/core 未发现 eval/new Function/拼接 exec 直用")
+  if (hits.length === 0) details.push("src/cli + src/core 未发现 eval/new Function/拼接 exec 直用")
   else {
     details.push(`发现 ${hits.length} 处危险 API 使用（需人工确认）：`)
     for (const h of hits.slice(0, 10)) details.push(`   ${h}`)
@@ -507,22 +507,22 @@ async function checkSecurity() {
   })
 }
 
-// 5. 合规性：违禁品牌词扫描（src/gyccode/cli + src/core）
+// 5. 合规性：违禁品牌词扫描（src/cli + src/core）
 // 判定口径：**品牌展示类违禁** = FAIL；
 // src/core 为 LLM 服务商协议适配层（消息格式转换/provider 映射/AI SDK 封装），
 // 第三方服务名属必要互操作引用，按 AGENTS.md 开源合规条款做目录级豁免并计数；
-// src/gyccode/cli 为用户界面面，逐条判定（已知互操作文件入豁免表）。
+// src/cli 为用户界面面，逐条判定（已知互操作文件入豁免表）。
 const FORBIDDEN = ["anthropic", "claude", "codex", "openai", "chatgpt", "copilot", "windsurf", "gemini", "mimo", "hermes"]
 const COMPLIANCE_EXEMPTS = [
-  { file: "src\\gyccode\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
-  { file: "src\\gyccode\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },
+  { file: "src\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
+  { file: "src\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },
 ]
 const COMPLIANCE_EXEMPT_WORDS = ["openai-compatible"]
 const CORE_INTEROP_DIR = "src" + String.fromCharCode(92) + "core" + String.fromCharCode(92)
 
 function checkCompliance() {
   const targets = [
-    ...walkFiles(join(ROOT, "src", "gyccode", "cli"), [".ts"]),
+    ...walkFiles(join(ROOT, "src", "cli"), [".ts"]),
     ...walkFiles(join(ROOT, "src", "core"), [".ts"]),
   ].filter((f) => existsSync(f))
 
@@ -574,7 +574,7 @@ function checkBranding() {
 
   // CLI logo（re-export TUI 字标）
   const logoPath = join(ROOT, "src", "tui", "logo.ts")
-  const cliLogoPath = join(ROOT, "src", "gyccode", "cli", "logo.ts")
+  const cliLogoPath = join(ROOT, "src", "cli", "logo.ts")
   if (existsSync(logoPath) && existsSync(cliLogoPath)) {
     const src = readFileSync(logoPath, "utf8")
     const hasBlocks = src.includes("left") && /[█▀▄]/.test(src)
@@ -603,7 +603,7 @@ async function checkSelfDeveloped() {
   const BUILTINS = new Set(["fs", "path", "os", "url", "util", "tty", "stream", "crypto", "events", "assert", "http", "https", "zlib", "child_process", "readline", "v8", "worker_threads", "process", "net", "dns", "tls", "string_decoder", "buffer", "querystring", "module", "perf_hooks", "inspector"])
   const externals = new Set()
   const importRe = /(?:^|[\s(])import\s+(?:[^'"]+\s+from\s+)?["']([^'"./][^'"]*)["']/g
-  for (const dir of [join(ROOT, "src", "gyccode", "cli"), join(ROOT, "src", "core")]) {
+  for (const dir of [join(ROOT, "src", "cli"), join(ROOT, "src", "core")]) {
     for (const file of walkFiles(dir, [".ts"])) {
       const content = readFileSync(file, "utf8")
       importRe.lastIndex = 0

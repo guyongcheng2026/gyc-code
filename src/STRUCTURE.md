@@ -25,9 +25,9 @@
 |---|---|---|
 | `assistant/`（AI 助手模式） | 无独立目录 | 待建 |
 | `bootstrap/`（启动状态） | `src/gyccode/project/bootstrap.ts` | 等价 |
-| `bridge/`（远程/IDE 桥接） | `src/gyccode/cli/tui/`（worker.ts Rpc 桥，TUI↔server）+ `src/gyccode/ide/`（IDE 集成） | 等价 |
+| `bridge/`（远程/IDE 桥接） | `src/cli/tui/`（worker.ts Rpc 桥，TUI↔server）+ `src/gyccode/ide/`（IDE 集成） | 等价 |
 | `buddy/`（伙伴伴随） | `src/gyccode/skill/bundled/`（部分） | 待建 |
-| `cli/`（CLI 框架） | `src/gyccode/cli/` | 等价 |
+| `cli/`（CLI 框架） | `src/cli/` | 等价 |
 | `commands/`（100+ 斜杠命令） | `src/gyccode/command/` | 等价 |
 | `components/`（React/Ink UI） | `src/tui/component/`（SolidJS） | 等价（技术栈不同） |
 | `constants/`（提示词/常量） | `src/gyccode/session/system.ts` + `src/core/` 各常量 | 等价 |
@@ -42,7 +42,7 @@
 | `native-ts/`（原生绑定） | `src/gyccode/` wasm/native 相关（tree-sitter 等） | 等价 |
 | `plugins/`（插件系统） | `src/gyccode/plugin/` + `src/core/plugin/` | 等价 |
 | `query/`（查询子系统） | `src/gyccode/session/`（token-budget.ts/overflow.ts） | 等价 |
-| `remote/`（远程会话） | `src/gyccode/cli/cmd/attach.ts`（--attach 客户端）+ `src/gyccode/server/routes/instance/httpapi/`（服务端会话路由与 WebSocketTracker） | 等价 |
+| `remote/`（远程会话） | `src/cli/cmd/attach.ts`（--attach 客户端）+ `src/gyccode/server/routes/instance/httpapi/`（服务端会话路由与 WebSocketTracker） | 等价 |
 | `schemas/`（Zod Schema） | `src/schema/` + `src/core/v1/` | 等价 |
 | `screens/`（屏幕/页面） | `src/tui/`（screen 组件） | 等价 |
 | `server/`（直接连接服务器） | `src/gyccode/server/` + `src/server/` | 等价 |

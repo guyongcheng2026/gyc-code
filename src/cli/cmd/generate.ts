@@ -6,7 +6,7 @@ export const GenerateCommand = {
   command: "generate",
   builder: (yargs) => yargs,
   handler: async () => {
-    const { Server } = await import("../../server/server")
+    const { Server } = await import("@/server/server")
     const specs = (await Server.openapi()) as {
       paths: Record<string, Record<string, any>>
     }

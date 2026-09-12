@@ -43,6 +43,7 @@
     "@effect/platform-node": "4.0.0-beta.83",
     "@effect/sql-sqlite-bun": "4.0.0-beta.83",
     "@ff-labs/fff-bun": "0.9.4",
+    "@gyccode/cli": "workspace:*",
     "@gyccode/codemode": "workspace:*",
     "@gyccode/core": "workspace:*",
     "@gyccode/effect-drizzle-sqlite": "workspace:*",
@@ -170,6 +171,7 @@
     "node": ">=22.5.0"
   },
   "workspaces": [
+    "src/cli",
     "src/codemode",
     "src/core",
     "src/effect-drizzle-sqlite",

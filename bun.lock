@@ -24,6 +24,7 @@
         "@effect/platform-node": "4.0.0-beta.83",
         "@effect/sql-sqlite-bun": "4.0.0-beta.83",
         "@ff-labs/fff-bun": "0.9.4",
+        "@gyccode/cli": "workspace:*",
         "@gyccode/codemode": "workspace:*",
         "@gyccode/core": "workspace:*",
         "@gyccode/effect-drizzle-sqlite": "workspace:*",
@@ -145,6 +146,15 @@
         "vite": "8.2.0",
         "vitest": "3.2.7",
         "vscode-languageserver-types": "3.17.5",
+      },
+    },
+    "src/cli": {
+      "name": "@gyccode/cli",
+      "dependencies": {
+        "@gyccode/core": "workspace:*",
+        "@gyccode/protocol": "workspace:*",
+        "@gyccode/schema": "workspace:*",
+        "@gyccode/tui": "workspace:*",
       },
     },
     "src/codemode": {
@@ -453,6 +463,8 @@
     "@gar/promise-retry": ["@gar/promise-retry@1.0.3", "https://registry.npmmirror.com/@gar/promise-retry/-/promise-retry-1.0.3.tgz", {}, "sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA=="],
 
     "@graphql-typed-document-node/core": ["@graphql-typed-document-node/core@3.2.0", "https://registry.npmmirror.com/@graphql-typed-document-node/core/-/core-3.2.0.tgz", { "peerDependencies": { "graphql": "^0.8.0 || ^0.9.0 || ^0.10.0 || ^0.11.0 || ^0.12.0 || ^0.13.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0" } }, "sha512-mB9oAsNCm9aM3/SOv4YtBMqZbYj10R7dkq8byBqxGY/ncFwhf2oQzMV+LCRlWoDSEBJ3COiR1yeDvMtsoOsuFQ=="],
+
+    "@gyccode/cli": ["@gyccode/cli@workspace:src/cli"],
 
     "@gyccode/codemode": ["@gyccode/codemode@workspace:src/codemode"],
 

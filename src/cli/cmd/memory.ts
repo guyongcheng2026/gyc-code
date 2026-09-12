@@ -1,5 +1,5 @@
 import { cmd } from "./cmd"
-import { readMemories, writeMemoryFile, syncMemories } from "../../memory/memory-bridge"
+import { readMemories, writeMemoryFile, syncMemories } from "@/memory/memory-bridge"
 
 export const MemoryCommand = cmd({
   command: "memory",

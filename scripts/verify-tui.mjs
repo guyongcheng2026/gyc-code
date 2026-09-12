@@ -275,12 +275,12 @@ async function checkFunctional() {
   details.push(versionOk ? `gyc --version → ${ver}（冷启动正常）` : `gyc --version 异常：exit=${v.status} out=${ver.slice(0, 40)}`)
   ok = ok && versionOk
 
-  // TUI 双入口产物（主入口 + worker 渲染层）
+  // TUI 双入口产物（主入口 + worker 渲染层），命名见 build.mjs 的 naming 配置
   const distIndex = join(ROOT, "dist", "index.js")
-  const workerJs = join(ROOT, "dist", "cli", "tui", "worker.js")
-  const workerTs = join(ROOT, "src", "tui", "worker.ts")
+  const workerJs = join(ROOT, "dist", "worker.js")
+  const workerTs = join(ROOT, "src", "cli", "tui", "worker.ts")
   const entryOk = existsSync(distIndex) && (existsSync(workerJs) || existsSync(workerTs))
-  details.push(entryOk ? `TUI 双入口就绪：dist/index.js ${existsSync(distIndex) ? "✓" : "✗"}，worker ${existsSync(workerJs) ? "dist/cli/tui/worker.js ✓" : "src/tui/worker.ts（dev 源）✓"}` : "缺少 TUI 入口产物")
+  details.push(entryOk ? `TUI 双入口就绪：dist/index.js ${existsSync(distIndex) ? "✓" : "✗"}，worker ${existsSync(workerJs) ? "dist/worker.js ✓" : "src/cli/tui/worker.ts（dev 源）✓"}` : "缺少 TUI 入口产物")
   ok = ok && entryOk
 
   // 核心 API（TUI 渲染层的数据源与 web 同一 server 内核）
@@ -543,9 +543,9 @@ const COMPLIANCE_EXEMPTS = [
   { file: "src\\tui\\feature-plugins\\sidebar\\instructions.test.tsx", reason: "测试夹具：CLAUDE.md/.cursorrules 指令文件名缩写规则" },
   { file: "src\\tui\\util\\custom-provider.ts", reason: "第三方依赖包名 @ai-sdk/openai-compatible（开源合规条款明示豁免）" },
   { file: "src\\tui\\util\\custom-provider.test.ts", reason: "测试夹具：@ai-sdk/openai-compatible 包名引用" },
-  { file: "src\\gyccode\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
-  { file: "src\\gyccode\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },
-  { file: "src\\gyccode\\cli\\cmd\\gateway.ts", reason: "微信网关：检测 hermes 网关状态文件与独占锁竞争（功能互操作，非品牌冒用）" },
+  { file: "src\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
+  { file: "src\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },
+  { file: "src\\cli\\cmd\\gateway.ts", reason: "微信网关：检测 hermes 网关状态文件与独占锁竞争（功能互操作，非品牌冒用）" },
 ]
 const COMPLIANCE_EXEMPT_WORDS = ["openai-compatible"] // 含于第三方包名的子串
 
@@ -553,7 +553,7 @@ function checkCompliance() {
   const targets = [
     ...walkFiles(join(ROOT, "src", "tui"), [".ts", ".tsx", ".css"]),
     ...walkFiles(join(ROOT, "src", "ui"), [".ts", ".tsx", ".css"]),
-    ...walkFiles(join(ROOT, "src", "gyccode", "cli"), [".ts"]),
+    ...walkFiles(join(ROOT, "src", "cli"), [".ts"]),
   ].filter((f) => existsSync(f))
 
   const hits = []

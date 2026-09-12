@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import { Snapshot } from "../../../snapshot"
+import { Snapshot } from "@/snapshot"
 import { effectCmd } from "../../effect-cmd"
 import { cmd } from "../cmd"
 

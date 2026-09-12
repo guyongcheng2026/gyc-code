@@ -3,9 +3,9 @@ import { Effect } from "effect"
 
 import { ConfigPaths } from "@/config/paths"
 import { Global } from "@gyccode/core/global"
-import { installPlugin, patchPluginConfig, readPluginManifest } from "../../plugin/install"
-import { resolvePluginTarget } from "../../plugin/shared"
-import { errorMessage } from "../../util/error"
+import { installPlugin, patchPluginConfig, readPluginManifest } from "@/plugin/install"
+import { resolvePluginTarget } from "@/plugin/shared"
+import { errorMessage } from "@/util/error"
 import { Filesystem } from "@/util/filesystem"
 import { Process } from "@/util/process"
 import { UI } from "../ui"
@@ -206,7 +206,7 @@ export const PluginCommand = effectCmd({
 
     // 子命令：gyc plugin search <query> / gyc plugin list
     if (mod === "search" || mod === "list") {
-      const { PluginMarketplace } = yield* Effect.promise(() => import("../../plugin/marketplace"))
+      const { PluginMarketplace } = yield* Effect.promise(() => import("@/plugin/marketplace"))
       const market = new PluginMarketplace()
       if (mod === "search") {
         const query = String(args.query ?? "").trim()

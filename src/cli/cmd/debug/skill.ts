@@ -1,6 +1,6 @@
 import { EOL } from "os"
 import { Effect } from "effect"
-import { Skill } from "../../../skill"
+import { Skill } from "@/skill"
 import { effectCmd } from "../../effect-cmd"
 
 export const SkillCommand = effectCmd({

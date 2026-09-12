@@ -1,5 +1,5 @@
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
-import { readStdin } from "../../../core/util/read-stdin"
+import { readStdin } from "@core/util/read-stdin"
 import { FSUtil } from "@gyccode/core/fs-util"
 // CLI entry point for `gyccode run`.
 //

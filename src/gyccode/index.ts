@@ -5,7 +5,7 @@ import { hideBin } from "yargs/helpers"
 import { Effect } from "effect"
 import { existsSync } from "fs"
 import { homedir, EOL } from "os"
-import { join, resolve as pathResolve, isAbsolute as pathIsAbsolute } from "path"
+import { join } from "path"
 import { win32InstallUtf8ConsoleGuard } from "@gyccode/tui/terminal-win32"
 import { tuiTiming } from "@gyccode/tui/util/timing"
 import dotenv from "dotenv"
@@ -93,11 +93,11 @@ tuiTiming("entry module evaluated (static imports done)")
 // 2) OpenTUI 的 StdinParser 依赖原始字节流（Buffer）解析键盘事件，
 //    设置编码后 data 事件变为 string，中文输入、/命令选择、模型切换全部失效。
 // 乱码问题由 win32InstallUtf8ConsoleGuard() 运行期守护切换控制台代码页 65001 解决。
-import { UI } from "./cli/ui"
+import { UI } from "@gyccode/cli/ui"
 import { InstallationVersion } from "@gyccode/core/installation/version"
-import { FormatError } from "./cli/error"
+import { FormatError } from "@gyccode/cli/error"
 import { errorMessage } from "./util/error"
-import { Heap } from "./cli/heap"
+import { Heap } from "@gyccode/cli/heap"
 
 const args = hideBin(process.argv)
 
@@ -106,40 +106,41 @@ const args = hideBin(process.argv)
 // modules it actually uses in memory (reduces RSS on low-RAM machines).
 type CommandLoader = { load: () => Promise<Record<string, unknown>>; name: string }
 
-const providersLoader: CommandLoader = { load: () => import("./cli/cmd/providers"), name: "ProvidersCommand" }
-const pluginLoader: CommandLoader = { load: () => import("./cli/cmd/plug"), name: "PluginCommand" }
+const providersLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/providers"), name: "ProvidersCommand" }
+const pluginLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/plug"), name: "PluginCommand" }
 
 const COMMANDS: Record<string, CommandLoader> = {
-  acp: { load: () => import("./cli/cmd/acp"), name: "AcpCommand" },
-  mcp: { load: () => import("./cli/cmd/mcp"), name: "McpCommand" },
-  attach: { load: () => import("./cli/cmd/attach"), name: "AttachCommand" },
-  run: { load: () => import("./cli/cmd/run"), name: "RunCommand" },
-  generate: { load: () => import("./cli/cmd/generate"), name: "GenerateCommand" },
-  debug: { load: () => import("./cli/cmd/debug"), name: "DebugCommand" },
-  console: { load: () => import("./cli/cmd/account"), name: "ConsoleCommand" },
+  cli: { load: () => import("@gyccode/cli/cmd/cli"), name: "CliCommand" },
+  acp: { load: () => import("@gyccode/cli/cmd/acp"), name: "AcpCommand" },
+  mcp: { load: () => import("@gyccode/cli/cmd/mcp"), name: "McpCommand" },
+  attach: { load: () => import("@gyccode/cli/cmd/attach"), name: "AttachCommand" },
+  run: { load: () => import("@gyccode/cli/cmd/run"), name: "RunCommand" },
+  generate: { load: () => import("@gyccode/cli/cmd/generate"), name: "GenerateCommand" },
+  debug: { load: () => import("@gyccode/cli/cmd/debug"), name: "DebugCommand" },
+  console: { load: () => import("@gyccode/cli/cmd/account"), name: "ConsoleCommand" },
   providers: providersLoader,
   auth: providersLoader,
-  agent: { load: () => import("./cli/cmd/agent"), name: "AgentCommand" },
-  upgrade: { load: () => import("./cli/cmd/upgrade"), name: "UpgradeCommand" },
-  uninstall: { load: () => import("./cli/cmd/uninstall"), name: "UninstallCommand" },
-  serve: { load: () => import("./cli/cmd/serve"), name: "ServeCommand" },
-  web: { load: () => import("./cli/cmd/web"), name: "WebCommand" },
-  models: { load: () => import("./cli/cmd/models"), name: "ModelsCommand" },
-  stats: { load: () => import("./cli/cmd/stats"), name: "StatsCommand" },
-  export: { load: () => import("./cli/cmd/export"), name: "ExportCommand" },
-  import: { load: () => import("./cli/cmd/import"), name: "ImportCommand" },
-  github: { load: () => import("./cli/cmd/github"), name: "GithubCommand" },
-  pr: { load: () => import("./cli/cmd/pr"), name: "PrCommand" },
-  session: { load: () => import("./cli/cmd/session"), name: "SessionCommand" },
-  tui: { load: () => import("./cli/cmd/tui"), name: "TuiThreadCommand" },
+  agent: { load: () => import("@gyccode/cli/cmd/agent"), name: "AgentCommand" },
+  upgrade: { load: () => import("@gyccode/cli/cmd/upgrade"), name: "UpgradeCommand" },
+  uninstall: { load: () => import("@gyccode/cli/cmd/uninstall"), name: "UninstallCommand" },
+  serve: { load: () => import("@gyccode/cli/cmd/serve"), name: "ServeCommand" },
+  web: { load: () => import("@gyccode/cli/cmd/web"), name: "WebCommand" },
+  models: { load: () => import("@gyccode/cli/cmd/models"), name: "ModelsCommand" },
+  stats: { load: () => import("@gyccode/cli/cmd/stats"), name: "StatsCommand" },
+  export: { load: () => import("@gyccode/cli/cmd/export"), name: "ExportCommand" },
+  import: { load: () => import("@gyccode/cli/cmd/import"), name: "ImportCommand" },
+  github: { load: () => import("@gyccode/cli/cmd/github"), name: "GithubCommand" },
+  pr: { load: () => import("@gyccode/cli/cmd/pr"), name: "PrCommand" },
+  session: { load: () => import("@gyccode/cli/cmd/session"), name: "SessionCommand" },
+  tui: { load: () => import("@gyccode/cli/cmd/tui"), name: "TuiThreadCommand" },
   plugin: pluginLoader,
   plug: pluginLoader,
-  memory: { load: () => import("./cli/cmd/memory"), name: "MemoryCommand" },
-  db: { load: () => import("./cli/cmd/db"), name: "DbCommand" },
-  workflow: { load: () => import("./cli/cmd/workflow"), name: "WorkflowCommand" },
-  send: { load: () => import("./cli/cmd/send"), name: "SendCommand" },
-  gateway: { load: () => import("./cli/cmd/gateway"), name: "GatewayCommand" },
-  pair: { load: () => import("./cli/cmd/pair"), name: "PairCommand" },
+  memory: { load: () => import("@gyccode/cli/cmd/memory"), name: "MemoryCommand" },
+  db: { load: () => import("@gyccode/cli/cmd/db"), name: "DbCommand" },
+  workflow: { load: () => import("@gyccode/cli/cmd/workflow"), name: "WorkflowCommand" },
+  send: { load: () => import("@gyccode/cli/cmd/send"), name: "SendCommand" },
+  gateway: { load: () => import("@gyccode/cli/cmd/gateway"), name: "GatewayCommand" },
+  pair: { load: () => import("@gyccode/cli/cmd/pair"), name: "PairCommand" },
 }
 
 // Canonical command keys (excluding aliases) used to render the full --help list.
@@ -156,6 +157,14 @@ const COMMAND_KEYS = (() => {
   }
   return keys
 })()
+
+// bare `gyc` / `gyc tui` 共用同一个 TUI 命令模块；`defaultEntry` 时挂到 `$0`。
+async function registerTui(cli: Argv, defaultEntry: boolean) {
+  const mod = await import("@gyccode/cli/cmd/tui")
+  const command = mod.TuiThreadCommand as unknown as Record<string, unknown>
+  if (defaultEntry) cli.command({ ...command, command: "$0 [project]" } as never)
+  else cli.command({ ...command, describe: false } as never)
+}
 
 async function registerCommand(cli: Argv, loader: CommandLoader) {
   const mod = await loader.load()
@@ -214,214 +223,24 @@ const cli = yargs(args)
 // except `db`, which stays a lightweight placeholder so the sqlite dependency
 // is not pulled into the help path.
 const first = args.find((a) => !a.startsWith("-"))
-const isHelp = args.includes("-h") || args.includes("--help")
+const isHelp = !first && (args.includes("-h") || args.includes("--help"))
 
 if (isHelp) {
   for (const key of COMMAND_KEYS) {
     if (key === "db") continue
+    // `tui` 是 bare `gyc` 的旧入口：保留可用，但不占用帮助列表条目。
+    if (key === "tui") continue
     await registerCommand(cli, COMMANDS[key]!)
   }
   cli.command("db", "database tools")
+  // 仅注册隐藏别名 `gyc tui`；默认入口的 `$0` 不在此注册，
+  // 否则 yargs 会把 `gyc --help` 当成默认命令的帮助、不再输出全局命令列表。
+  await registerTui(cli, false)
 } else if (first && COMMANDS[first]) {
-  // 显式 `gyc tui`：OpenTUI 经 koffi 支持 Node，直接注册执行（无需 dist-bun Bun 产物）。
   await registerCommand(cli, COMMANDS[first]!)
 } else {
-  // Default: 纯 CLI（$0）。传消息则非交互单轮，无参数进入逐行对话（Node 直跑）；
-  // 使用新的统一交互核心模块
-  const { effectCmd } = await import("./cli/effect-cmd")
-  const { readStdin } = await import("../core/util/read-stdin")
-  const { Filesystem } = await import("./util/filesystem")
-
-  cli.command(
-    effectCmd({
-      command: "$0 [message..]",
-      describe: "gyc 默认入口：传消息则非交互单轮；无参数进入逐行对话；--tui 进入全屏 TUI",
-      instance: (args) => !args.attach,
-      directory: (args) => (args.dir && !args.attach ? pathResolve(process.cwd(), args.dir) : process.cwd()),
-      builder: (yargs: Argv) =>
-        yargs
-          .positional("message", {
-            describe: "message to send",
-            type: "string",
-            array: true,
-            default: [],
-          })
-          .option("continue", {
-            alias: ["c"],
-            describe: "continue the last session",
-            type: "boolean",
-          })
-          .option("session", {
-            alias: ["s"],
-            describe: "session id to continue",
-            type: "string",
-          })
-          .option("fork", {
-            describe: "fork the session before continuing (requires --continue or --session)",
-            type: "boolean",
-          })
-          .option("model", {
-            type: "string",
-            alias: ["m"],
-            describe: "model to use in the format of provider/model",
-          })
-          .option("agent", {
-            type: "string",
-            describe: "agent to use",
-          })
-          .option("file", {
-            alias: ["f"],
-            type: "string",
-            array: true,
-            describe: "file(s) to attach to message",
-          })
-          .option("attach", {
-            type: "string",
-            describe: "attach to a running gyc server (e.g., http://localhost:4096)",
-          })
-          .option("password", {
-            alias: ["p"],
-            type: "string",
-            describe: "basic auth password (defaults to GYCCODE_SERVER_PASSWORD)",
-          })
-          .option("username", {
-            alias: ["u"],
-            type: "string",
-            describe: "basic auth username (defaults to GYCCODE_SERVER_USERNAME or 'gyccode')",
-          })
-          .option("dir", {
-            type: "string",
-            describe: "directory to run in, path on remote server if attaching",
-          })
-          .option("variant", {
-            type: "string",
-            describe: "model variant (provider-specific reasoning effort, e.g., high, max, minimal)",
-          })
-          .option("thinking", {
-            type: "boolean",
-            describe: "show thinking blocks",
-          })
-          .option("auto", {
-            type: "boolean",
-            describe: "auto-approve permissions that are not explicitly denied (dangerous!)",
-            default: false,
-          })
-          .option("yolo", {
-            type: "boolean",
-            hidden: true,
-            default: false,
-          })
-          .option("dangerously-skip-permissions", {
-            type: "boolean",
-            hidden: true,
-            default: false,
-          }),
-      handler: Effect.fn("Cli.default")(function* (args) {
-        const auto = args.auto || args.yolo || args["dangerously-skip-permissions"]
-        const thinking = args.thinking ?? false
-        const die = (message: string): never => {
-          UI.error(message)
-          process.exit(1)
-        }
-
-        if (args["dangerously-skip-permissions"]) {
-          console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
-          console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
-          console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
-        }
-
-        let message = [...args.message, ...(args["--"] || [])]
-          .map((arg) => (arg.includes(" ") ? `"${arg.replace(/"/g, '\\"')}"` : arg))
-          .join(" ")
-
-        const root = Filesystem.resolve(process.env.PWD ?? process.cwd())
-        const directory = (() => {
-          if (!args.dir) return args.attach ? undefined : root
-          if (args.attach) return args.dir
-
-          try {
-            process.chdir(pathIsAbsolute(args.dir) ? args.dir : pathResolve(root, args.dir))
-            return process.cwd()
-          } catch {
-            UI.error("Failed to change directory to " + args.dir)
-            process.exit(1)
-          }
-        })()
-
-        const piped = process.stdin.isTTY ? undefined : yield* Effect.promise(() => readStdin())
-        message = [message, piped].filter(Boolean).join("\n")
-
-        if (args.attach) {
-          // --attach 模式：连接远程服务器，使用 runPipeline
-          const { runPipeline } = yield* Effect.promise(() => import("./cli/core"))
-          const result = yield* Effect.promise(() => runPipeline({
-            message: message || undefined,
-            command: (args as any).command,
-            commandArgs: [(args as any).message, ...((args as any)["--"] || [])].join(" "),
-            files: (args as any).file,
-            model: (args as any).model,
-            variant: (args as any).variant,
-            agent: (args as any).agent,
-            thinking,
-            auto,
-            sessionID: (args as any).session,
-            continue: (args as any).continue,
-            fork: (args as any).fork,
-            directory,
-            attachUrl: (args as any).attach,
-            attachHeaders: (args.password || (args as any).username) ? {
-              Authorization: `Basic ${btoa(`${args.username || "gyccode"}:${(args as any).password || ""}`)}`,
-            } : {},
-            pipedInput: piped,
-          }))
-          if (result.error) die(result.error)
-          process.exitCode = result.exitCode
-          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
-          yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", () => resolve())))
-          process.exit(result.exitCode)
-          return
-        }
-
-        // 交互模式或单轮模式
-        if (message.trim()) {
-          // 有消息：单轮执行
-          const { runPipeline } = yield* Effect.promise(() => import("./cli/core"))
-          const result = yield* Effect.promise(() => runPipeline({
-            message,
-            files: (args as any).file,
-            model: (args as any).model,
-            variant: (args as any).variant,
-            agent: (args as any).agent,
-            thinking,
-            auto,
-            sessionID: (args as any).session,
-            continue: (args as any).continue,
-            fork: (args as any).fork,
-            directory,
-          }))
-          if (result.error) die(result.error)
-          process.exitCode = result.exitCode
-          // 单轮完成：flush 后显式退出，实例内 watcher/定时器句柄会挂住 event loop
-          yield* Effect.promise(() => new Promise<void>((resolve) => process.stdout.write("", () => resolve())))
-          process.exit(result.exitCode)
-        } else {
-          // 无消息：进入交互式循环（惰性加载 cli/core，纯单轮命令不背载交互模块）
-          const { runInteractiveLoop } = yield* Effect.promise(() => import("./cli/core"))
-          yield* Effect.promise(() => runInteractiveLoop({
-            directory,
-            model: (args as any).model,
-            variant: (args as any).variant,
-            agent: (args as any).agent,
-            thinking,
-            auto,
-            sessionId: (args as any).session,
-            continue: (args as any).continue,
-            fork: (args as any).fork,
-          }))
-        }
-      }),
-    }) as never
-  )
+  // 默认入口：bare `gyc` 直接进入全屏 TUI（`gyc tui` 仍可作为隐藏别名使用）。
+  await registerTui(cli, true)
 }
 
 cli

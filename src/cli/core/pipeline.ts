@@ -6,7 +6,7 @@ import type { PermissionRule } from "@gyccode/protocol/v2/gen/types.gen"
 import { Filesystem } from "@/util/filesystem"
 import { pathToFileURL } from "url"
 import path from "path"
-import { readStdin } from "../../../core/util/read-stdin"
+import { readStdin } from "@core/util/read-stdin"
 import { streamLoop } from "../cmd/run/stream-cli"
 
 export interface PipelineInput {

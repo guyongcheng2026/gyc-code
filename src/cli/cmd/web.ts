@@ -36,7 +36,7 @@ export const WebCommand = effectCmd({
   // ambient project InstanceContext needed at startup.
   instance: false,
   handler: Effect.fn("Cli.web")(function* (args) {
-    const { Server } = yield* Effect.promise(() => import("../../server/server"))
+    const { Server } = yield* Effect.promise(() => import("@/server/server"))
     const opts = yield* resolveNetworkOptions(args)
     const isLoopback = opts.hostname === "127.0.0.1" || opts.hostname === "localhost" || opts.hostname === "::1"
     if (!Flag.GYCCODE_SERVER_PASSWORD) {

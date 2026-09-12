@@ -60,7 +60,7 @@ const AgentCreateCommand = effectCmd({
       }),
   handler: Effect.fn("Cli.agent.create")(function* (args) {
     const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
-    const { Agent } = yield* Effect.promise(() => import("../../agent/agent"))
+    const { Agent } = yield* Effect.promise(() => import("@/agent/agent"))
     const { Provider } = yield* Effect.promise(() => import("@/provider/provider"))
     const maybeCtx = yield* InstanceRef
     if (!maybeCtx) return yield* Effect.die("InstanceRef not provided")
@@ -235,7 +235,7 @@ const AgentListCommand = effectCmd({
   command: "list",
   describe: "列出所有可用的智能体",
   handler: Effect.fn("Cli.agent.list")(function* () {
-    const { Agent } = yield* Effect.promise(() => import("../../agent/agent"))
+    const { Agent } = yield* Effect.promise(() => import("@/agent/agent"))
     const agents = yield* Agent.Service.use((svc) => svc.list())
     const sortedAgents = agents.sort((a, b) => {
       if (a.native !== b.native) {

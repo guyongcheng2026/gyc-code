@@ -91,7 +91,7 @@ function extractTuiCommands(): CommandSpec[] {
 }
 
 function extractCliCommands(): CommandSpec[] {
-  const defaultTs = readFileSync(join(ROOT, "src/gyccode/cli/core/slash-specs.ts"), "utf-8")
+  const defaultTs = readFileSync(join(ROOT, "src/cli/core/slash-specs.ts"), "utf-8")
   const specs: CommandSpec[] = []
 
   // 从 SLASH_SPECS 提取
@@ -201,7 +201,7 @@ function main() {
     ),
   }
 
-  const outPath = join(ROOT, "src/gyccode/cli/core/command-manifest.json")
+  const outPath = join(ROOT, "src/cli/core/command-manifest.json")
   writeFileSync(outPath, JSON.stringify(manifest, null, 2))
   console.log(`✅ 写入 ${outPath}`)
 
@@ -235,7 +235,7 @@ export interface CommandSpec {
 export const commandManifest: CommandManifest = ${JSON.stringify(manifest, null, 2)}
 `
 
-  const tsOutPath = join(ROOT, "src/gyccode/cli/core/command-manifest.ts")
+  const tsOutPath = join(ROOT, "src/cli/core/command-manifest.ts")
   writeFileSync(tsOutPath, tsDef)
   console.log(`✅ 写入 ${tsOutPath}`)
 
