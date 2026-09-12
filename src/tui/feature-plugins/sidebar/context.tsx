@@ -125,7 +125,7 @@ export function View(props: { api: TuiPluginApi; session_id: string }) {
   return (
     <box onMouseDown={() => props.api.ui.dialog.replace(() => <DialogContextInfo />)}>
       <text fg={theme().text}>
-        <b>Context</b>
+        <b>上下文</b>
       </text>
       <Show when={state().compacting}>
         <text fg={theme().warning}>compacting…</text>

@@ -120,7 +120,7 @@ export function DialogSessionList() {
         if (!workspace) {
           toast.show({
             title: "创建工作区失败",
-            message: errorMessage(result?.error ?? "no response"),
+            message: errorMessage(result?.error ?? "无响应"),
             variant: "error",
           })
           return
@@ -360,5 +360,5 @@ export function DialogSessionList() {
 function quickSwitchRange(first: string, last: string) {
   const prefix = first.slice(0, -1)
   if (first.endsWith("1") && last === `${prefix}9`) return `${prefix}1-9`
-  return `${first} through ${last}`
+  return `${first} 至 ${last}`
 }

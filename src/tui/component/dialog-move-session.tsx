@@ -161,9 +161,9 @@ export function DialogMoveSession(props: DialogMoveSessionProps) {
       return {
         title,
         titleView: isRemoving ? (
-          <span style={{ fg: theme.error }}>Deleting {item.location}</span>
+          <span style={{ fg: theme.error }}>正在删除 {item.location}</span>
         ) : deleting ? (
-          <span style={{ fg: theme.text }}>Press {deleteHint()} again to confirm</span>
+          <span style={{ fg: theme.text }}>再次按 {deleteHint()} 确认</span>
         ) : suffix ? (
           <>
             {visible.slice(0, split)}
@@ -176,7 +176,7 @@ export function DialogMoveSession(props: DialogMoveSessionProps) {
           directory: item.location,
           subdirectory: item.location !== item.root.directory,
         } as const,
-        category: item.root.directory === current ? "Current" : "Other",
+        category: item.root.directory === current ? "当前" : "其他",
         titleWidth,
         truncateTitle: "left" as const,
       }

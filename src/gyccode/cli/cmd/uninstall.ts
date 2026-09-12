@@ -25,30 +25,30 @@ interface RemovalTargets {
 
 export const UninstallCommand = {
   command: "uninstall",
-  describe: "uninstall gyc and remove all related files",
+  describe: "卸载 gyc 并删除所有相关文件",
   builder: (yargs: Argv) =>
     yargs
       .option("keep-config", {
         alias: "c",
         type: "boolean",
-        describe: "keep configuration files",
+        describe: "保留配置文件",
         default: false,
       })
       .option("keep-data", {
         alias: "d",
         type: "boolean",
-        describe: "keep session data and snapshots",
+        describe: "保留会话数据和快照",
         default: false,
       })
       .option("dry-run", {
         type: "boolean",
-        describe: "show what would be removed without removing",
+        describe: "仅显示将要删除的内容，而不实际删除",
         default: false,
       })
       .option("force", {
         alias: "f",
         type: "boolean",
-        describe: "skip confirmation prompts",
+        describe: "跳过确认提示",
         default: false,
       }),
 
@@ -56,10 +56,10 @@ export const UninstallCommand = {
     UI.empty()
     UI.println(UI.logo("  "))
     UI.empty()
-    prompts.intro("Uninstall GycCode")
+    prompts.intro("卸载 GycCode")
 
     const method = await Installation.method()
-    prompts.log.info(`Installation method: ${method}`)
+    prompts.log.info(`安装方式：${method}`)
 
     const targets = await collectRemovalTargets(args, method)
 
@@ -67,33 +67,33 @@ export const UninstallCommand = {
 
     if (!args.force && !args.dryRun) {
       const confirm = await prompts.confirm({
-        message: "Are you sure you want to uninstall?",
+        message: "确定要卸载吗？",
         initialValue: false,
       })
       if (!confirm || prompts.isCancel(confirm)) {
-        prompts.outro("Cancelled")
+        prompts.outro("已取消")
         return
       }
     }
 
     if (args.dryRun) {
-      prompts.log.warn("Dry run - no changes made")
-      prompts.outro("Done")
+      prompts.log.warn("演练模式 — 未做任何改动")
+      prompts.outro("完成")
       return
     }
 
     await executeUninstall(method, targets)
 
-    prompts.outro("Done")
+    prompts.outro("完成")
   },
 }
 
 async function collectRemovalTargets(args: UninstallArgs, method: Installation.Method): Promise<RemovalTargets> {
   const directories: RemovalTargets["directories"] = [
-    { path: Global.Path.data, label: "Data", keep: args.keepData },
-    { path: Global.Path.cache, label: "Cache", keep: false },
-    { path: Global.Path.config, label: "Config", keep: args.keepConfig },
-    { path: Global.Path.state, label: "State", keep: false },
+    { path: Global.Path.data, label: "数据", keep: args.keepData },
+    { path: Global.Path.cache, label: "缓存", keep: false },
+    { path: Global.Path.config, label: "配置", keep: args.keepConfig },
+    { path: Global.Path.state, label: "状态", keep: false },
   ]
 
   const shellConfig = method === "curl" ? await getShellConfigFile() : null
@@ -103,7 +103,7 @@ async function collectRemovalTargets(args: UninstallArgs, method: Installation.M
 }
 
 async function showRemovalSummary(targets: RemovalTargets, method: Installation.Method) {
-  prompts.log.message("The following will be removed:")
+  prompts.log.message("以下内容将被删除：")
 
   for (const dir of targets.directories) {
     const exists = await fs
@@ -114,18 +114,18 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
 
     const size = await getDirectorySize(dir.path)
     const sizeStr = formatSize(size)
-    const status = dir.keep ? UI.Style.TEXT_DIM + "(keeping)" : ""
+    const status = dir.keep ? UI.Style.TEXT_DIM + "（保留）" : ""
     const prefix = dir.keep ? "○" : "✓"
 
     prompts.log.info(`  ${prefix} ${dir.label}: ${withHomeTilde(dir.path)} ${UI.Style.TEXT_DIM}(${sizeStr})${status}`)
   }
 
   if (targets.binary) {
-    prompts.log.info(`  ✓ Binary: ${withHomeTilde(targets.binary)}`)
+    prompts.log.info(`  ✓ 二进制文件： ${withHomeTilde(targets.binary)}`)
   }
 
   if (targets.shellConfig) {
-    prompts.log.info(`  ✓ Shell PATH in ${withHomeTilde(targets.shellConfig)}`)
+    prompts.log.info(`  ✓ Shell PATH 位于 ${withHomeTilde(targets.shellConfig)}`)
   }
 
   if (method !== "curl" && method !== "unknown") {
@@ -138,7 +138,7 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
       choco: "choco uninstall gyccode",
       scoop: "scoop uninstall gyccode",
     }
-    prompts.log.info(`  ✓ Package: ${cmds[method] || method}`)
+    prompts.log.info(`  ✓ 软件包： ${cmds[method] || method}`)
   }
 }
 
@@ -148,7 +148,7 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
 
   for (const dir of targets.directories) {
     if (dir.keep) {
-      prompts.log.step(`Skipping ${dir.label} (--keep-${dir.label.toLowerCase()})`)
+      prompts.log.step(`跳过 ${dir.label}（--keep-${dir.label.toLowerCase()}）`)
       continue
     }
 
@@ -158,24 +158,24 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
       .catch(() => false)
     if (!exists) continue
 
-    spinner.start(`Removing ${dir.label}...`)
+    spinner.start(`正在移除 ${dir.label}…`)
     const err = await fs.rm(dir.path, { recursive: true, force: true }).catch((e) => e)
     if (err) {
-      spinner.stop(`Failed to remove ${dir.label}`)
+      spinner.stop(`移除 ${dir.label} 失败`)
       errors.push(`${dir.label}: ${err.message}`)
       continue
     }
-    spinner.stop(`Removed ${dir.label}`)
+    spinner.stop(`已移除 ${dir.label}`)
   }
 
   if (targets.shellConfig) {
-    spinner.start("Cleaning shell config...")
+    spinner.start("正在清理 shell 配置...")
     const err = await cleanShellConfig(targets.shellConfig).catch((e) => e)
     if (err) {
-      spinner.stop("Failed to clean shell config")
-      errors.push(`Shell config: ${err.message}`)
+      spinner.stop("清理 shell 配置失败")
+      errors.push(`Shell 配置：${err.message}`)
     } else {
-      spinner.stop("Cleaned shell config")
+      spinner.stop("已清理 shell 配置")
     }
   }
 
@@ -192,7 +192,7 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
 
     const cmd = cmds[method]
     if (cmd) {
-      spinner.start(`Running ${cmd.join(" ")}...`)
+      spinner.start(`正在运行 ${cmd.join(" ")}…`)
       const result = await Process.run(method === "choco" ? ["choco", "uninstall", "gyccode", "-y", "-r"] : cmd, {
         nothrow: true,
       })
@@ -200,19 +200,19 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
         spinner.stop()
         const text = `${result.stdout.toString("utf8")}\n${result.stderr.toString("utf8")}`
         if (method === "choco" && text.includes("not running from an elevated command shell")) {
-          prompts.log.warn(`You may need to run '${cmd.join(" ")}' from an elevated command shell`)
+          prompts.log.warn(`你可能需要在管理员命令行中运行 '${cmd.join(" ")}'`)
         } else {
-          prompts.log.warn(`You may need to run manually: ${cmd.join(" ")}`)
+          prompts.log.warn(`你可能需要手动运行：${cmd.join(" ")}`)
         }
       } else {
-        spinner.stop("Package removed")
+        spinner.stop("已移除软件包")
       }
     }
   }
 
   if (method === "curl" && targets.binary) {
     UI.empty()
-    prompts.log.message("To finish removing the binary, run:")
+    prompts.log.message("要完成二进制文件的移除，请运行：")
     prompts.log.info(`  rm "${targets.binary}"`)
 
     const binDir = path.dirname(targets.binary)
@@ -223,14 +223,14 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
 
   if (errors.length > 0) {
     UI.empty()
-    prompts.log.warn("Some operations failed:")
+    prompts.log.warn("部分操作失败：")
     for (const err of errors) {
       prompts.log.error(`  ${err}`)
     }
   }
 
   UI.empty()
-  prompts.log.success("Thank you for using GycCode!")
+  prompts.log.success("感谢使用 GycCode！")
 }
 
 async function getShellConfigFile(): Promise<string | null> {

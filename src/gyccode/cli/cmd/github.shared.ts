@@ -14,7 +14,7 @@ export function extractResponseText(parts: SessionV1.Part[]): string | null {
   // Non-text parts (tools, reasoning, step-start/step-finish, etc.) - signal summary needed
   if (parts.length > 0) return null
 
-  throw new Error("Failed to parse response: no parts returned")
+  throw new Error("解析响应失败：未返回内容部分")
 }
 
 /**

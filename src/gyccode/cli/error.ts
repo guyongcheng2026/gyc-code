@@ -47,7 +47,7 @@ export function FormatError(input: unknown): string | undefined {
   // MCPFailed: { name: string }
   if (NamedError.hasName(input, "MCPFailed")) {
     const data = isRecord(input) && isRecord(input.data) ? stringField(input.data, "name") : undefined
-    return `MCP server "${data}" failed. Note, gyccode does not support MCP authentication yet.`
+    return `MCP 服务器 "${data}" 启动失败。注意：gyccode 暂不支持 MCP 认证。`
   }
 
   // AccountServiceError, AccountTransportError: TaggedErrorClass
@@ -62,30 +62,30 @@ export function FormatError(input: unknown): string | undefined {
       ? providerModelNotFound.suggestions.filter((x) => typeof x === "string")
       : []
     return [
-      `Model not found: ${stringField(providerModelNotFound, "providerID")}/${stringField(providerModelNotFound, "modelID")}`,
-      ...(suggestions.length ? ["Did you mean: " + suggestions.join(", ")] : []),
-      `Try: \`gyccode models\` to list available models`,
-      `Or check your config (gyccode.json) provider/model names`,
+      `未找到模型：${stringField(providerModelNotFound, "providerID")}/${stringField(providerModelNotFound, "modelID")}`,
+      ...(suggestions.length ? ["你是否想输入： " + suggestions.join(", ")] : []),
+      `可试试：\`gyccode models\` 列出可用模型`,
+      `或检查配置（gyccode.json）中的服务商/模型名称`,
     ].join("\n")
   }
 
   // ProviderInitError: { providerID: string }
   const providerInit = configData(input, "ProviderInitError")
   if (providerInit) {
-    return `Failed to initialize provider "${stringField(providerInit, "providerID")}". Check credentials and configuration.`
+    return `服务商 "${stringField(providerInit, "providerID")}" 初始化失败。请检查凭据与配置。`
   }
 
   // ConfigJsonError: { path: string, message?: string }
   const configJson = configData(input, "ConfigJsonError")
   if (configJson) {
     const message = stringField(configJson, "message")
-    return `Config file at ${stringField(configJson, "path")} is not valid JSON(C)` + (message ? `: ${message}` : "")
+    return `配置文件 ${stringField(configJson, "path")} 不是合法的 JSON(C)` + (message ? `: ${message}` : "")
   }
 
   // ConfigDirectoryTypoError: { dir: string, path: string, suggestion: string }
   const configDirectoryTypo = configData(input, "ConfigDirectoryTypoError")
   if (configDirectoryTypo) {
-    return `Directory "${stringField(configDirectoryTypo, "dir")}" in ${stringField(configDirectoryTypo, "path")} is not valid. Rename the directory to "${stringField(configDirectoryTypo, "suggestion")}" or remove it. This is a common typo.`
+    return `目录 "${stringField(configDirectoryTypo, "dir")}"（位于 ${stringField(configDirectoryTypo, "path")}）无效。请将其重命名为 "${stringField(configDirectoryTypo, "suggestion")}" 或删除它。这是常见的拼写错误。`
   }
 
   // ConfigFrontmatterError: { message: string }
@@ -101,8 +101,8 @@ export function FormatError(input: unknown): string | undefined {
     const remote = stringField(remoteAuth, "remote")
     return [
       `Failed to load remote config${remote ? ` from ${remote}` : ""}: the server returned a login page instead of JSON.`,
-      `Authentication is missing or has expired (the endpoint is likely behind an SSO or identity-aware proxy).`,
-      ...(url ? [`Run \`gyccode auth login ${url}\` to re-authenticate.`] : []),
+      `身份验证缺失或已过期（该端点很可能位于 SSO 或身份感知代理之后）。`,
+      ...(url ? [`请运行 \`gyccode auth login ${url}\` 重新认证。`] : []),
     ].join("\n")
   }
 

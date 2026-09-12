@@ -68,7 +68,7 @@ function formatRunError(error: unknown) {
 
 export const RunCommand = effectCmd({
   command: "run [message..]",
-  describe: "run gyc with a message",
+  describe: "带消息运行 gyc",
   // --attach connects to a remote server (no local instance needed); the
   // default path runs an in-process server and needs the project instance.
   instance: (args) => !args.attach,
@@ -78,91 +78,91 @@ export const RunCommand = effectCmd({
   builder: (yargs: Argv) =>
     yargs
       .positional("message", {
-        describe: "message to send",
+        describe: "要发送的消息",
         type: "string",
         array: true,
         default: [],
       })
       .option("command", {
-        describe: "the command to run, use message for args",
+        describe: "要运行的命令，其参数使用 message",
         type: "string",
       })
       .option("continue", {
         alias: ["c"],
-        describe: "continue the last session",
+        describe: "继续上一个会话",
         type: "boolean",
       })
       .option("session", {
         alias: ["s"],
-        describe: "session id to continue",
+        describe: "要继续的会话 ID",
         type: "string",
       })
       .option("fork", {
-        describe: "fork the session before continuing (requires --continue or --session)",
+        describe: "继续前先派生新会话（需要 --continue 或 --session）",
         type: "boolean",
       })
       .option("share", {
         type: "boolean",
-        describe: "share the session",
+        describe: "分享会话",
       })
       .option("model", {
         type: "string",
         alias: ["m"],
-        describe: "model to use in the format of provider/model",
+        describe: "要使用的模型，格式为 provider/model",
       })
       .option("agent", {
         type: "string",
-        describe: "agent to use",
+        describe: "要使用的智能体",
       })
       .option("format", {
         type: "string",
         choices: ["default", "json"],
         default: "default",
-        describe: "format: default (formatted) or json (raw JSON events)",
+        describe: "格式：default（格式化输出）或 json（原始 JSON 事件）",
       })
       .option("file", {
         alias: ["f"],
         type: "string",
         array: true,
-        describe: "file(s) to attach to message",
+        describe: "要附加到消息的文件",
       })
       .option("title", {
         type: "string",
-        describe: "title for the session (uses truncated prompt if no value provided)",
+        describe: "会话标题（未提供值时使用截断后的提示词）",
       })
       .option("attach", {
         type: "string",
-        describe: "attach to a running gyc server (e.g., http://localhost:4096)",
+        describe: "连接到正在运行的 gyc 服务端（例如 http://localhost:4096）",
       })
       .option("password", {
         alias: ["p"],
         type: "string",
-        describe: "basic auth password (defaults to GYCCODE_SERVER_PASSWORD)",
+        describe: "Basic 认证密码（默认取 GYCCODE_SERVER_PASSWORD）",
       })
       .option("username", {
         alias: ["u"],
         type: "string",
-        describe: "basic auth username (defaults to GYCCODE_SERVER_USERNAME or 'gyccode')",
+        describe: "Basic 认证用户名（默认取 GYCCODE_SERVER_USERNAME 或 'gyccode'）",
       })
       .option("dir", {
         type: "string",
-        describe: "directory to run in, path on remote server if attaching",
+        describe: "运行目录；附加到远端服务端时为远端路径",
       })
       .option("port", {
         type: "number",
-        describe: "port for the local server (defaults to random port if no value provided)",
+        describe: "本地服务端端口（未提供值时默认使用随机端口）",
       })
       .option("variant", {
         type: "string",
-        describe: "model variant (provider-specific reasoning effort, e.g., high, max, minimal)",
+        describe: "模型变体（服务商特定的推理强度，例如 high、max、minimal）",
       })
       .option("thinking", {
         type: "boolean",
-        describe: "show thinking blocks",
+        describe: "显示思考块",
       })
       .option("auto", {
         type: "boolean",
-        describe: "auto-approve permissions that are not explicitly denied (dangerous!)",
+        describe: "自动批准未被明确拒绝的权限（危险！）",
         default: false,
       })
       .option("yolo", {
@@ -450,7 +450,7 @@ export const RunCommand = effectCmd({
           UI.println(
             UI.Style.TEXT_WARNING_BOLD + "!",
             UI.Style.TEXT_NORMAL,
-            `agent "${name}" not found. Falling back to default agent`,
+            `未找到智能体 "${name}"，将回退到默认智能体`,
           )
           return undefined
         }
@@ -458,7 +458,7 @@ export const RunCommand = effectCmd({
           UI.println(
             UI.Style.TEXT_WARNING_BOLD + "!",
             UI.Style.TEXT_NORMAL,
-            `agent "${name}" is a subagent, not a primary agent. Falling back to default agent`,
+            `智能体 "${name}" 是子智能体而非主智能体，将回退到默认智能体`,
           )
           return undefined
         }
@@ -478,7 +478,7 @@ export const RunCommand = effectCmd({
           UI.println(
             UI.Style.TEXT_WARNING_BOLD + "!",
             UI.Style.TEXT_NORMAL,
-            `failed to list agents from ${args.attach}. Falling back to default agent`,
+            `无法从 ${args.attach} 列出智能体，将回退到默认智能体`,
           )
           return undefined
         }
@@ -488,7 +488,7 @@ export const RunCommand = effectCmd({
           UI.println(
             UI.Style.TEXT_WARNING_BOLD + "!",
             UI.Style.TEXT_NORMAL,
-            `agent "${name}" not found. Falling back to default agent`,
+            `未找到智能体 "${name}"，将回退到默认智能体`,
           )
           return undefined
         }
@@ -497,7 +497,7 @@ export const RunCommand = effectCmd({
           UI.println(
             UI.Style.TEXT_WARNING_BOLD + "!",
             UI.Style.TEXT_NORMAL,
-            `agent "${name}" is a subagent, not a primary agent. Falling back to default agent`,
+            `智能体 "${name}" 是子智能体而非主智能体，将回退到默认智能体`,
           )
           return undefined
         }

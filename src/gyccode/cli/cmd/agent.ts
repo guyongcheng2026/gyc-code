@@ -32,31 +32,31 @@ const AVAILABLE_PERMISSIONS = [
 
 const AgentCreateCommand = effectCmd({
   command: "create",
-  describe: "create a new agent",
+  describe: "创建一个新的智能体",
   builder: (yargs: Argv) =>
     yargs
       .option("path", {
         type: "string",
-        describe: "directory path to generate the agent file",
+        describe: "生成智能体文件的目录路径",
       })
       .option("description", {
         type: "string",
-        describe: "what the agent should do",
+        describe: "该智能体应执行什么",
       })
       .option("mode", {
         type: "string",
-        describe: "agent mode",
+        describe: "智能体模式",
         choices: ["all", "primary", "subagent"] as const,
       })
       .option("permissions", {
         type: "string",
         alias: ["tools"],
-        describe: `comma-separated list of permissions to allow (default: all). Available: "${AVAILABLE_PERMISSIONS.join(", ")}"`,
+        describe: `允许的权限列表，以逗号分隔（默认：all）。可选值："${AVAILABLE_PERMISSIONS.join(", ")}"`,
       })
       .option("model", {
         type: "string",
         alias: ["m"],
-        describe: "model to use in the format of provider/model",
+        describe: "要使用的模型，格式为 provider/model",
       }),
   handler: Effect.fn("Cli.agent.create")(function* (args) {
     const { InstanceRef } = yield* Effect.promise(() => import("@/effect/instance-ref"))
@@ -78,7 +78,7 @@ const AgentCreateCommand = effectCmd({
 
       if (!isFullyNonInteractive) {
         UI.empty()
-        prompts.intro("Create agent")
+        prompts.intro("创建智能体")
       }
 
       const project = ctx.project
@@ -91,15 +91,15 @@ const AgentCreateCommand = effectCmd({
         let scope: "global" | "project" = "global"
         if (project.vcs === "git") {
           const scopeResult = await prompts.select({
-            message: "Location",
+            message: "位置",
             options: [
               {
-                label: "Current project",
+                label: "当前项目",
                 value: "project" as const,
                 hint: ctx.worktree,
               },
               {
-                label: "Global",
+                label: "全局",
                 value: "global" as const,
                 hint: Global.Path.config,
               },
@@ -117,9 +117,9 @@ const AgentCreateCommand = effectCmd({
         description = cliDescription
       } else {
         const query = await prompts.text({
-          message: "Description",
-          placeholder: "What should this agent do?",
-          validate: (x) => (x && x.length > 0 ? undefined : "Required"),
+          message: "描述",
+          placeholder: "这个智能体应该做什么？",
+          validate: (x) => (x && x.length > 0 ? undefined : "必填"),
         })
         if (prompts.isCancel(query)) throw new UI.CancelledError()
         description = query
@@ -127,14 +127,14 @@ const AgentCreateCommand = effectCmd({
 
       // Generate agent
       const spinner = prompts.spinner()
-      spinner.start("Generating agent configuration...")
+      spinner.start("正在生成智能体配置...")
       const model = args.model ? Provider.parseModel(args.model) : undefined
       const generated = await runLocalEffect(agentSvc.generate({ description, model })).catch((error) => {
-        spinner.stop(`LLM failed to generate agent: ${error.message}`)
+        spinner.stop(`LLM 生成智能体失败：${error.message}`)
         if (isFullyNonInteractive) process.exit(1)
         throw new UI.CancelledError()
       })
-      spinner.stop(`Agent ${generated.identifier} generated`)
+      spinner.stop(`已生成智能体 ${generated.identifier}`)
 
       // Select permissions to allow
       let selected: string[]
@@ -142,7 +142,7 @@ const AgentCreateCommand = effectCmd({
         selected = perms ? perms.split(",").map((t) => t.trim()) : AVAILABLE_PERMISSIONS
       } else {
         const result = await prompts.multiselect({
-          message: "Select permissions to allow (Space to toggle)",
+          message: "选择要允许的权限（按空格键切换）",
           options: AVAILABLE_PERMISSIONS.map((permission) => ({
             label: permission,
             value: permission,
@@ -159,22 +159,22 @@ const AgentCreateCommand = effectCmd({
         mode = cliMode
       } else {
         const modeResult = await prompts.select({
-          message: "Agent mode",
+          message: "智能体模式",
           options: [
             {
-              label: "All",
+              label: "全部",
               value: "all" as const,
-              hint: "Can function in both primary and subagent roles",
+              hint: "可同时承担主智能体和子智能体角色",
             },
             {
-              label: "Primary",
+              label: "主智能体",
               value: "primary" as const,
-              hint: "Acts as a primary/main agent",
+              hint: "作为主/主要智能体运行",
             },
             {
-              label: "Subagent",
+              label: "子智能体",
               value: "subagent" as const,
-              hint: "Can be used as a subagent by other agents",
+              hint: "可被其他智能体作为子智能体调用",
             },
           ],
           initialValue: "all" as const,
@@ -215,7 +215,7 @@ const AgentCreateCommand = effectCmd({
           console.error(`Error: Agent file already exists: ${filePath}`)
           process.exit(1)
         }
-        prompts.log.error(`Agent file already exists: ${filePath}`)
+        prompts.log.error(`智能体文件已存在：${filePath}`)
         throw new UI.CancelledError()
       }
 
@@ -224,8 +224,8 @@ const AgentCreateCommand = effectCmd({
       if (isFullyNonInteractive) {
         console.log(filePath)
       } else {
-        prompts.log.success(`Agent created: ${filePath}`)
-        prompts.outro("Done")
+        prompts.log.success(`已创建智能体：${filePath}`)
+        prompts.outro("完成")
       }
     })
   }),
@@ -233,7 +233,7 @@ const AgentCreateCommand = effectCmd({
 
 const AgentListCommand = effectCmd({
   command: "list",
-  describe: "list all available agents",
+  describe: "列出所有可用的智能体",
   handler: Effect.fn("Cli.agent.list")(function* () {
     const { Agent } = yield* Effect.promise(() => import("../../agent/agent"))
     const agents = yield* Agent.Service.use((svc) => svc.list())
@@ -253,7 +253,7 @@ const AgentListCommand = effectCmd({
 
 export const AgentCommand = cmd({
   command: "agent",
-  describe: "manage agents",
+  describe: "管理智能体",
   builder: (yargs) => yargs.command(AgentCreateCommand).command(AgentListCommand).demandCommand(),
   async handler() {},
 })

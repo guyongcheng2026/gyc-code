@@ -163,7 +163,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
   yield* Effect.promise(async () => {
     {
       UI.empty()
-      prompts.intro("Install GitHub agent")
+      prompts.intro("安装 GitHub 智能体")
       const app = await getAppInfo()
       await installGitHubApp()
 
@@ -183,10 +183,10 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
         let step2
         if (provider === "amazon-bedrock") {
           step2 =
-            "Configure OIDC in AWS - https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
+            "在 AWS 中配置 OIDC - https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
         } else {
           step2 = [
-            `    2. Add the following secrets in org or repo (${app.owner}/${app.repo}) settings`,
+            `    2. 在组织或仓库（${app.owner}/${app.repo}）设置中添加以下密钥`,
             "",
             ...providers[provider].env.map((e) => `       - ${e}`),
           ].join("\n")
@@ -194,14 +194,14 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
 
         prompts.outro(
           [
-            "Next steps:",
+            "下一步：",
             "",
             `    1. Commit the \`${WORKFLOW_FILE}\` file and push`,
             step2,
             "",
-            "    3. Go to a GitHub issue and comment `/oc summarize` to see the agent in action",
+            "    3. 打开一个 GitHub issue 并评论 `/oc summarize`，即可看到智能体运行",
             "",
-            "   Learn more about the GitHub agent",
+            "   了解有关 GitHub 智能体的更多信息",
           ].join("\n"),
         )
       }
@@ -209,7 +209,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
       async function getAppInfo() {
         const project = ctx.project
         if (project.vcs !== "git") {
-          prompts.log.error(`Could not find git repository. Please run this command from a git repository.`)
+          prompts.log.error(`找不到 git 仓库。请在 git 仓库中运行此命令。`)
           throw new UI.CancelledError()
         }
 
@@ -219,7 +219,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
         )
         const parsed = parseGitHubRemote(info)
         if (!parsed) {
-          prompts.log.error(`Could not find git repository. Please run this command from a git repository.`)
+          prompts.log.error(`找不到 git 仓库。请在 git 仓库中运行此命令。`)
           throw new UI.CancelledError()
         }
         return { owner: parsed.owner, repo: parsed.repo, root: ctx.worktree }
@@ -233,7 +233,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
           google: 3,
         }
         let provider = await prompts.select({
-          message: "Select provider",
+          message: "选择服务商",
           maxItems: 8,
           options: pipe(
             providers,
@@ -259,7 +259,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
         const providerData = providers[provider]!
 
         const model = await prompts.select({
-          message: "Select model",
+          message: "选择模型",
           maxItems: 8,
           options: pipe(
             providerData.models,
@@ -278,7 +278,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
 
       async function installGitHubApp() {
         const s = prompts.spinner()
-        s.start("Installing GitHub app")
+        s.start("正在安装 GitHub App")
 
         // 打开安装页
         const url = "https://github.com/apps/gyccode-agent"
@@ -291,7 +291,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
 
         exec(command, (error) => {
           if (error) {
-            prompts.log.warn(`Could not open browser. Please visit: ${url}`)
+            prompts.log.warn(`无法打开浏览器。请访问：${url}`)
           }
         })
 
@@ -299,7 +299,7 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
         s.stop(`请在浏览器中为 \`${app.owner}/${app.repo}\` 安装 GitHub App，完成后按 Enter 继续`)
         await prompts.confirm({ message: "安装完成后按 Enter 继续" })
 
-        s.message("Installed GitHub app")
+        s.message("已安装 GitHub App")
       }
 
       async function addWorkflowFiles() {
@@ -343,7 +343,7 @@ jobs:
           model: ${provider}/${model}`,
         )
 
-        prompts.log.success(`Added workflow file: "${WORKFLOW_FILE}"`)
+        prompts.log.success(`已添加工作流文件："${WORKFLOW_FILE}"`)
       }
     }
   })
@@ -364,7 +364,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
     const context = isMock ? (JSON.parse(args.event!) as Context) : github.context
     if (!SUPPORTED_EVENTS.includes(context.eventName as (typeof SUPPORTED_EVENTS)[number])) {
-      core.setFailed(`Unsupported event type: ${context.eventName}`)
+      core.setFailed(`不支持的事件类型：${context.eventName}`)
       process.exit(1)
     }
 
@@ -448,7 +448,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         const githubToken = process.env["GITHUB_TOKEN"]
         if (!githubToken) {
           throw new Error(
-            "GITHUB_TOKEN environment variable is not set. When using use_github_token, you must provide GITHUB_TOKEN.",
+            "未设置 GITHUB_TOKEN 环境变量。使用 use_github_token 时必须提供 GITHUB_TOKEN。",
           )
         }
         appToken = githubToken
@@ -517,7 +517,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
             repoData.data.default_branch,
             branch,
             summary,
-            `${response}\n\nTriggered by ${triggerType}${footer({ image: true })}`,
+            `${response}\n\n由 ${triggerType} 触发${footer({ image: true })}`,
           )
           if (pr) {
             console.log(`Created PR #${pr}`)
@@ -590,7 +590,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
             `${response}\n\nCloses #${issueId}${footer({ image: true })}`,
           )
           if (pr) {
-            await createComment(`Created PR #${pr}${footer({ image: true })}`)
+            await createComment(`已创建 PR #${pr}${footer({ image: true })}`)
           } else {
             await createComment(`${response}${footer({ image: true })}`)
           }
@@ -626,18 +626,18 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
     function normalizeModel() {
       const value = process.env["MODEL"]
-      if (!value) throw new Error(`Environment variable "MODEL" is not set`)
+      if (!value) throw new Error(`未设置环境变量 "MODEL"`)
 
       const { providerID, modelID } = Provider.parseModel(value)
 
       if (!providerID.length || !modelID.length)
-        throw new Error(`Invalid model ${value}. Model must be in the format "provider/model".`)
+        throw new Error(`模型 ${value} 无效，格式必须为 "provider/model"。`)
       return { providerID, modelID }
     }
 
     function normalizeRunId() {
       const value = process.env["GITHUB_RUN_ID"]
-      if (!value) throw new Error(`Environment variable "GITHUB_RUN_ID" is not set`)
+      if (!value) throw new Error(`未设置环境变量 "GITHUB_RUN_ID"`)
       return value
     }
 
@@ -646,7 +646,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       if (!value) return undefined
       if (value === "true") return true
       if (value === "false") return false
-      throw new Error(`Invalid share value: ${value}. Share must be a boolean.`)
+      throw new Error(`share 值无效：${value}，必须为布尔值。`)
     }
 
     function normalizeUseGithubToken() {
@@ -654,7 +654,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       if (!value) return false
       if (value === "true") return true
       if (value === "false") return false
-      throw new Error(`Invalid use_github_token value: ${value}. Must be a boolean.`)
+      throw new Error(`use_github_token 值无效：${value}，必须为布尔值。`)
     }
 
     function normalizeOidcBaseUrl(): string | undefined {
@@ -698,7 +698,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       if (isRepoEvent || isIssuesEvent) {
         if (!customPrompt) {
           const eventType = isRepoEvent ? "scheduled and workflow_dispatch" : "issues"
-          throw new Error(`PROMPT input is required for ${eventType} events`)
+          throw new Error(`${eventType} 事件需要 PROMPT 输入`)
         }
         return { userPrompt: customPrompt, promptFiles: [] }
       }
@@ -937,7 +937,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           }
 
           const summaryText = extractResponseText(summary.parts)
-          if (!summaryText) throw new Error("Failed to get summary from agent")
+          if (!summaryText) throw new Error("无法从智能体获取摘要")
           return summaryText
         }),
       )
@@ -949,7 +949,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       } catch (error) {
         console.error("Failed to get OIDC token:", error instanceof Error ? error.message : error)
         throw new Error(
-          "Could not fetch an OIDC token. Make sure to add `id-token: write` to your workflow permissions.",
+          "无法获取 OIDC 令牌。请确保在工作流权限中添加 `id-token: write`。",
           { cause: error },
         )
       }
@@ -976,7 +976,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
       if (!response.ok) {
         const responseJson = (await response.json()) as { error?: string }
-        throw new Error(`App token exchange failed: ${response.status} ${response.statusText} - ${responseJson.error}`)
+        throw new Error(`应用令牌交换失败：${response.status} ${response.statusText} - ${responseJson.error}`)
       }
 
       const responseJson = (await response.json()) as { token: string }
@@ -1142,10 +1142,10 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         console.log(`  permission: ${permission}`)
       } catch (error) {
         console.error(`Failed to check permissions: ${error}`)
-        throw new Error(`Failed to check permissions for user ${actor}: ${error}`, { cause: error })
+        throw new Error(`检查用户 ${actor} 的权限失败：${error}`, { cause: error })
       }
 
-      if (!["admin", "write"].includes(permission)) throw new Error(`User ${actor} does not have write permissions`)
+      if (!["admin", "write"].includes(permission)) throw new Error(`用户 ${actor} 没有写权限`)
     }
 
     async function addReaction(commentType?: "issue" | "pr_review") {
@@ -1368,7 +1368,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
       )
 
       const issue = issueResult.repository.issue
-      if (!issue) throw new Error(`Issue #${issueId} not found`)
+      if (!issue) throw new Error(`未找到 Issue #${issueId}`)
 
       return issue
     }
@@ -1498,7 +1498,7 @@ query($owner: String!, $repo: String!, $number: Int!) {
       )
 
       const pr = prResult.repository.pullRequest
-      if (!pr) throw new Error(`PR #${issueId} not found`)
+      if (!pr) throw new Error(`未找到 PR #${issueId}`)
 
       return pr
     }

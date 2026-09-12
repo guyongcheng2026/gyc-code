@@ -71,43 +71,43 @@ export function resolveThreadDirectory(project?: string, envPWD = process.env.PW
 
 export const TuiThreadCommand = cmd({
   command: "tui [project]",
-  describe: "start gyc tui (full-screen interface)",
+  describe: "启动 gyc tui（全屏界面）",
   builder: (yargs) =>
     withNetworkOptions(yargs)
       .positional("project", {
         type: "string",
-        describe: "path to start gyc in",
+        describe: "启动 gyc 的路径",
       })
       .option("model", {
         type: "string",
         alias: ["m"],
-        describe: "model to use in the format of provider/model",
+        describe: "要使用的模型，格式为 provider/model",
       })
       .option("continue", {
         alias: ["c"],
-        describe: "continue the last session",
+        describe: "继续上一个会话",
         type: "boolean",
       })
       .option("session", {
         alias: ["s"],
         type: "string",
-        describe: "session id to continue",
+        describe: "要继续的会话 ID",
       })
       .option("fork", {
         type: "boolean",
-        describe: "fork the session when continuing (use with --continue or --session)",
+        describe: "继续会话时派生新会话（与 --continue 或 --session 一起使用）",
       })
       .option("prompt", {
         type: "string",
-        describe: "prompt to use",
+        describe: "要使用的提示词",
       })
       .option("agent", {
         type: "string",
-        describe: "agent to use",
+        describe: "要使用的智能体",
       })
       .option("auto", {
         type: "boolean",
-        describe: "auto-approve permissions that are not explicitly denied (dangerous!)",
+        describe: "自动批准未被明确拒绝的权限（危险！）",
         default: false,
       })
       .option("yolo", {
@@ -125,7 +125,7 @@ export const TuiThreadCommand = cmd({
     const unguard = win32InstallCtrlCGuard()
     try {
       if (args.fork && !args.continue && !args.session) {
-        UI.error("--fork requires --continue or --session")
+        UI.error("--fork 需要配合 --continue 或 --session 使用")
         process.exitCode = 1
         return
       }
@@ -143,7 +143,7 @@ export const TuiThreadCommand = cmd({
       try {
         process.chdir(next)
       } catch {
-        UI.error("Failed to change directory to " + next)
+        UI.error("无法切换目录到 " + next)
         return
       }
       const cwd = Filesystem.resolve(process.cwd())

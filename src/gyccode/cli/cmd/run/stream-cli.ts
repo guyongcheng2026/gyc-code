@@ -88,7 +88,7 @@ async function toolError(part: ToolPart) {
     inline(
       {
         icon: "✗",
-        title: `${part.tool} failed`,
+        title: `${part.tool} 失败`,
       },
       UI.Style.TEXT_DANGER,
     )

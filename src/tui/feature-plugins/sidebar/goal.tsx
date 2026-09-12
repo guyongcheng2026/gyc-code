@@ -25,10 +25,10 @@ export type GoalStatus = {
 /** Derive the judge status line from the latest verdict (pure, testable). */
 export function goalStatus(verdict: GoalVerdictView | undefined): GoalStatus | undefined {
   if (!verdict) return undefined
-  if (verdict.error) return { kind: "error", label: "error (stopped)" }
-  if (verdict.ok) return { kind: "met", label: "met" }
-  if (verdict.impossible) return { kind: "impossible", label: "impossible" }
-  return { kind: "pending", label: `round ${verdict.attempt} · not met` }
+  if (verdict.error) return { kind: "error", label: "错误（已停止）" }
+  if (verdict.ok) return { kind: "met", label: "已达成" }
+  if (verdict.impossible) return { kind: "impossible", label: "无法达成" }
+  return { kind: "pending", label: `第 ${verdict.attempt} 轮 · 未达成` }
 }
 
 function View(props: { api: TuiPluginApi; session_id: string }) {
@@ -42,7 +42,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
         <box>
           <box flexDirection="row" gap={1}>
             <text fg={theme().text}>
-              <b>Goal</b>
+              <b>目标</b>
             </text>
           </box>
           <box flexDirection="row" gap={1}>

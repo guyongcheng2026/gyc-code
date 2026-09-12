@@ -6,28 +6,28 @@ import { Effect } from "effect"
 const options = {
   port: {
     type: "number" as const,
-    describe: "port to listen on",
+    describe: "监听的端口",
     default: 0,
   },
   hostname: {
     type: "string" as const,
-    describe: "hostname to listen on",
+    describe: "监听的主机名",
     default: "127.0.0.1",
   },
   mdns: {
     type: "boolean" as const,
-    describe: "enable mDNS service discovery (defaults hostname to 0.0.0.0)",
+    describe: "启用 mDNS 服务发现（默认将主机名设为 0.0.0.0）",
     default: false,
   },
   "mdns-domain": {
     type: "string" as const,
-    describe: "custom domain name for mDNS service (default: gyccode.local)",
+    describe: "mDNS 服务的自定义域名（默认：gyccode.local）",
     default: "gyccode.local",
   },
   cors: {
     type: "string" as const,
     array: true,
-    describe: "additional domains to allow for CORS",
+    describe: "允许用于 CORS 的额外域名",
     default: [] as string[],
   },
 }

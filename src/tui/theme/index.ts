@@ -248,12 +248,12 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light") {
       if (c.startsWith("#")) return RGBA.fromHex(c)
 
       if (chain.includes(c)) {
-        throw new Error(`Circular color reference: ${[...chain, c].join(" -> ")}`)
+        throw new Error(`颜色引用成环：${[...chain, c].join(" -> ")}`)
       }
 
       const next = defs[c] ?? theme.theme[c as ThemeColor]
       if (next === undefined) {
-        throw new Error(`Color reference "${c}" not found in defs or theme`)
+        throw new Error(`在 defs 或主题中找不到颜色引用 "${c}"`)
       }
       return resolveColor(next, [...chain, c])
     }

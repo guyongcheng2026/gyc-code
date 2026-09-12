@@ -160,7 +160,7 @@ export function DialogContextInfo() {
       <text fg={theme.textMuted}>
         cache read {totals().cacheRead.toLocaleString()} · cache write {totals().cacheWrite.toLocaleString()}
       </text>
-      <text fg={theme.textMuted}>cost {money.format(cost())}</text>
+      <text fg={theme.textMuted}>费用 {money.format(cost())}</text>
 
       <box>
         <text fg={theme.text}>

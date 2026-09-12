@@ -40,7 +40,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
         success: "#7fd88f",
       }
 
-  const message = props.error.message || "An unknown error occurred."
+  const message = props.error.message || "发生未知错误。"
   const stack = props.error.stack || "无可用堆栈跟踪。"
   const issueURL = buildIssueURL(message, stack)
 
@@ -49,9 +49,9 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
   }
 
   const actions = [
-    { key: "c", label: () => (copied() ? "✓ Copied" : "Copy report"), copy: true, onUse: copyReport },
-    { key: "r", label: () => "Restart", onUse: props.reset },
-    { key: "q", label: () => "Quit", onUse: () => exit() },
+    { key: "c", label: () => (copied() ? "✓ 已复制" : "复制报告"), copy: true, onUse: copyReport },
+    { key: "r", label: () => "重启", onUse: props.reset },
+    { key: "q", label: () => "退出", onUse: () => exit() },
   ]
   const [selected, setSelected] = createSignal(0)
   const move = (delta: number) => setSelected((prev) => (prev + delta + actions.length) % actions.length)
@@ -170,7 +170,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
           borderColor={colors.borderSubtle}
           title="堆栈跟踪 "
           titleColor={colors.muted}
-          bottomTitle=" ↑↓ scroll "
+          bottomTitle=" ↑↓ 滚动 "
           bottomTitleAlignment="right"
           paddingLeft={1}
           paddingRight={1}
@@ -205,7 +205,7 @@ function buildIssueURL(message: string, stack: string) {
   // form opens pre-filled. Populating os/terminal/reproduce keeps the report past
   // the contributing-guidelines compliance check, which pushes for system info.
   const url = new URL("https://github.com/guyongcheng2026/gyc-code/issues/new?template=bug-report.yml")
-  url.searchParams.set("title", `TUI crash: ${message}`)
+  url.searchParams.set("title", `TUI 崩溃：${message}`)
   url.searchParams.set("gyccode-version", InstallationVersion)
   url.searchParams.set("os", describeOS())
   url.searchParams.set("terminal", describeTerminal())
@@ -219,8 +219,8 @@ function buildIssueURL(message: string, stack: string) {
   // clipped trace is obvious. searchParams.set handles encoding without throwing,
   // so measuring url.toString() is both correct and safe on any input.
   const MAX_URL_LENGTH = 6000
-  const marker = "\n... (truncated)"
-  const head = `The gyccode TUI crashed with an unexpected error.\n\n**Error:** ${message}\n\n**Stack trace:**\n`
+  const marker = "\n...（已截断）"
+  const head = `gyccode TUI 发生意外错误而崩溃。\n\n**错误：** ${message}\n\n**堆栈跟踪：**\n`
   const setBody = (body: string) => url.searchParams.set("description", head + "```\n" + body + "\n```")
 
   setBody(stack)

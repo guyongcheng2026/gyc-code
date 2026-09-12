@@ -22,26 +22,26 @@ export function cliErrorMessage(input: unknown): string | undefined {
       ? model.suggestions.filter((item): item is string => typeof item === "string")
       : []
     return [
-      `Model not found: ${field(model, "providerID")}/${field(model, "modelID")}`,
-      ...(suggestions.length ? ["Did you mean: " + suggestions.join(", ")] : []),
-      "Try: `gyccode models` to list available models",
-      "Or check your config (gyccode.json) provider/model names",
+      `未找到模型：${field(model, "providerID")}/${field(model, "modelID")}`,
+      ...(suggestions.length ? ["你是否想找：" + suggestions.join(", ")] : []),
+      "可试试：`gyccode models` 列出可用模型",
+      "或检查配置（gyccode.json）中的服务商/模型名称",
     ].join("\n")
   }
 
   const provider = configData(input, "ProviderInitError")
   if (provider)
-    return `Failed to initialize provider "${field(provider, "providerID")}". Check credentials and configuration.`
+    return `服务商 "${field(provider, "providerID")}" 初始化失败。请检查凭据与配置。`
 
   const json = configData(input, "ConfigJsonError")
   if (json) {
     const message = field(json, "message")
-    return `Config file at ${field(json, "path")} is not valid JSON(C)` + (message ? `: ${message}` : "")
+    return `配置文件 ${field(json, "path")} 不是合法的 JSON(C)` + (message ? `: ${message}` : "")
   }
 
   const directory = configData(input, "ConfigDirectoryTypoError")
   if (directory) {
-    return `Directory "${field(directory, "dir")}" in ${field(directory, "path")} is not valid. Rename the directory to "${field(directory, "suggestion")}" or remove it. This is a common typo.`
+    return `目录 "${field(directory, "dir")}"（位于 ${field(directory, "path")}）无效。请将其重命名为 "${field(directory, "suggestion")}" 或删除它。这是常见的拼写错误。`
   }
 
   const frontmatter = configData(input, "ConfigFrontmatterError")
@@ -70,7 +70,7 @@ export function cliErrorMessage(input: unknown): string | undefined {
   if (tagged(input, "UICancelledError") || named(input, "UICancelledError")) return ""
   if (isRecord(input) && named(input, "MCPFailed")) {
     const name = isRecord(input.data) ? field(input.data, "name") : undefined
-    return `MCP server "${name}" failed. Note, gyccode does not support MCP authentication yet.`
+    return `MCP 服务器 "${name}" 启动失败。注意：gyccode 暂不支持 MCP 认证。`
   }
   return undefined
 }
@@ -111,11 +111,11 @@ export function errorFormat(error: unknown): string {
         const ctor = error.constructor?.name
         const prefix = ctor && ctor !== "Object" ? ctor : "Error"
         const names = Object.getOwnPropertyNames(error)
-        return names.length === 0 ? `${prefix} (no message)` : `${prefix} { ${names.join(", ")} }`
+        return names.length === 0 ? `${prefix}（无消息）` : `${prefix} { ${names.join(", ")} }`
       }
       return json
     } catch {
-      return "Unexpected error (unserializable)"
+      return "意外错误（无法序列化）"
     }
   }
 
@@ -141,7 +141,7 @@ export function errorMessage(error: unknown): string {
 
   const formatted = errorFormat(error)
   if (formatted) return formatted
-  return "unknown error"
+  return "未知错误"
 }
 
 export function errorData(error: unknown) {

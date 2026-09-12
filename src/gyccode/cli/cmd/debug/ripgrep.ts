@@ -7,27 +7,27 @@ import { InstanceRef } from "@/effect/instance-ref"
 
 export const RipgrepCommand = cmd({
   command: "rg",
-  describe: "ripgrep debugging utilities",
+  describe: "ripgrep 调试工具",
   builder: (yargs) => yargs.command(FilesCommand).command(SearchCommand).demandCommand(),
   async handler() {},
 })
 
 const FilesCommand = effectCmd({
   command: "files",
-  describe: "list files using ripgrep",
+  describe: "使用 ripgrep 列出文件",
   builder: (yargs) =>
     yargs
       .option("query", {
         type: "string",
-        description: "Filter files by query",
+        description: "按查询筛选文件",
       })
       .option("glob", {
         type: "string",
-        description: "Glob pattern to match files",
+        description: "用于匹配文件的 Glob 模式",
       })
       .option("limit", {
         type: "number",
-        description: "Limit number of results",
+        description: "限制结果数量",
       }),
   handler: Effect.fn("Cli.debug.rg.files")(function* (args) {
     const ctx = yield* InstanceRef
@@ -46,21 +46,21 @@ const FilesCommand = effectCmd({
 
 const SearchCommand = effectCmd({
   command: "search <pattern>",
-  describe: "search file contents using ripgrep",
+  describe: "使用 ripgrep 搜索文件内容",
   builder: (yargs) =>
     yargs
       .positional("pattern", {
         type: "string",
         demandOption: true,
-        description: "Search pattern",
+        description: "搜索模式",
       })
       .option("glob", {
         type: "array",
-        description: "File glob patterns",
+        description: "文件 Glob 模式",
       })
       .option("limit", {
         type: "number",
-        description: "Limit number of results",
+        description: "限制结果数量",
       }),
   handler: Effect.fn("Cli.debug.rg.search")(function* (args) {
     const ctx = yield* InstanceRef

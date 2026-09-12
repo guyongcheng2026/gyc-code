@@ -13,8 +13,8 @@ export function formatDuration(secs: number) {
   }
   if (secs < 604800) {
     const days = Math.floor(secs / 86400)
-    return days === 1 ? "~1 day" : `~${days} days`
+    return days === 1 ? "约 1 天" : `约 ${days} 天`
   }
   const weeks = Math.floor(secs / 604800)
-  return weeks === 1 ? "~1 week" : `~${weeks} weeks`
+  return weeks === 1 ? "约 1 周" : `约 ${weeks} 周`
 }

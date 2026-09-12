@@ -10,8 +10,8 @@ export function DialogHelp() {
 
   useBindings(() => ({
     bindings: [
-      { key: "return", desc: "关闭帮助", group: "Dialog", cmd: () => dialog.clear() },
-      { key: "escape", desc: "关闭帮助", group: "Dialog", cmd: () => dialog.clear() },
+      { key: "return", desc: "关闭帮助", group: "对话框", cmd: () => dialog.clear() },
+      { key: "escape", desc: "关闭帮助", group: "对话框", cmd: () => dialog.clear() },
     ],
   }))
 

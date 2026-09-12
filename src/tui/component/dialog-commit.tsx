@@ -90,13 +90,13 @@ export function DialogCommit() {
   const copy = () => {
     const s = status()
     const text = [
-      `Branch: ${s.branch}`,
-      `Ahead: ${s.ahead}, Behind: ${s.behind}`,
-      `Staged (${s.staged.length}):`,
+      `分支：${s.branch}`,
+      `领先：${s.ahead}，落后：${s.behind}`,
+      `已暂存（${s.staged.length}）：`,
       ...s.staged.map((f) => `  ${f}`),
-      `Unstaged (${s.unstaged.length}):`,
+      `未暂存（${s.unstaged.length}）：`,
       ...s.unstaged.map((f) => `  ${f}`),
-      `Untracked (${s.untracked.length}):`,
+      `未跟踪（${s.untracked.length}）：`,
       ...s.untracked.map((f) => `  ${f}`),
     ].join("\n")
     void clipboard
@@ -106,7 +106,7 @@ export function DialogCommit() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制 Git 状态", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制 Git 状态", group: "对话框", cmd: copy }],
   }))
 
   return (

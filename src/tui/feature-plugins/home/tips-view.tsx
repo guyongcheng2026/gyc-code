@@ -82,7 +82,7 @@ function commandText(command: string, shortcut: string) {
 
 function press(shortcut: string, text: string) {
   if (!shortcut) return undefined
-  return `Press ${shortcutText(shortcut)} ${text}`
+  return `按 ${shortcutText(shortcut)} ${text}`
 }
 
 function configShortcut(api: TuiPluginApi, command: string): TipShortcut {

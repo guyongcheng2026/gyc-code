@@ -62,7 +62,7 @@ export function DialogHooks() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制 Hook 信息", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制 Hook 信息", group: "对话框", cmd: copy }],
   }))
 
   return (

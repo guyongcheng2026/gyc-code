@@ -7,19 +7,19 @@ import { effectCmd } from "../effect-cmd"
 
 const QueryCommand = effectCmd({
   command: "query [query]",
-  describe: "run a SQL query or open an interactive sqlite3 shell",
+  describe: "运行 SQL 查询或打开交互式 sqlite3 shell",
   instance: false,
   builder: (yargs: Argv) => {
     return yargs
       .positional("query", {
         type: "string",
-        describe: "SQL query to execute",
+        describe: "要执行的 SQL 查询",
       })
       .option("format", {
         type: "string",
         choices: ["json", "tsv"],
         default: "tsv",
-        describe: "Output format",
+        describe: "输出格式",
       })
   },
   handler: Effect.fn("Cli.db.query")(function* (args: { query?: string; format: string }) {
@@ -44,7 +44,7 @@ const QueryCommand = effectCmd({
 
 const PathCommand = effectCmd({
   command: "path",
-  describe: "print the database path",
+  describe: "打印数据库路径",
   instance: false,
   handler: Effect.fn("Cli.db.path")(function* () {
     console.log(Database.path())
@@ -53,7 +53,7 @@ const PathCommand = effectCmd({
 
 const CleanupCommand = effectCmd({
   command: "cleanup",
-  describe: "delete orphaned durable events (sessions that no longer exist) and VACUUM",
+  describe: "删除孤立的持久化事件（不再存在的会话）并执行 VACUUM",
   instance: false,
   handler: Effect.fn("Cli.db.cleanup")(function* () {
     const { db } = yield* Database.Service
@@ -75,7 +75,7 @@ const PART_BATCH = 500
 
 const CompactCommand = effectCmd({
   command: "compact",
-  describe: "compact long tool outputs of already-compacted parts to head summaries (shrink the DB)",
+  describe: "将已压缩部分中的长工具输出压缩为头部摘要（缩小数据库）",
   instance: false,
   handler: Effect.fn("Cli.db.compact")(function* () {
     const { db } = yield* Database.Service
@@ -220,7 +220,7 @@ export function classifyMiss(
 
 const CacheCommand = effectCmd({
   command: "cache",
-  describe: "report recent prompt-cache hit rate from persisted message tokens",
+  describe: "根据已持久化的消息 token 报告近期的提示缓存命中率",
   instance: false,
   handler: Effect.fn("Cli.db.cache")(function* () {
     const { db } = yield* Database.Service
@@ -279,7 +279,7 @@ const CacheCommand = effectCmd({
 })
 export const DbCommand = effectCmd({
   command: "db",
-  describe: "database tools",
+  describe: "数据库工具",
   instance: false,
   builder: (yargs: Argv) => {
     return yargs

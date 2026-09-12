@@ -107,8 +107,8 @@ function init() {
     bindings: [
       {
         key: "escape",
-        desc: "Close dialog",
-        group: "Dialog",
+        desc: "关闭对话框",
+        group: "对话框",
         cmd: () => {
           if (renderer.getSelection()) {
             renderer.clearSelection()
@@ -121,8 +121,8 @@ function init() {
       },
       {
         key: "ctrl+c",
-        desc: "Close dialog",
-        group: "Dialog",
+        desc: "关闭对话框",
+        group: "对话框",
         cmd: () => {
           if (renderer.getSelection()) {
             renderer.clearSelection()

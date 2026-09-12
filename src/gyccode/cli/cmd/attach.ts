@@ -6,7 +6,7 @@ import { ServerAuth } from "@/server/auth"
 
 export const AttachCommand = cmd({
   command: "attach <url>",
-  describe: "attach to a running gyc server",
+  describe: "连接到正在运行的 gyc 服务端",
   builder: (yargs) =>
     yargs
       .positional("url", {
@@ -16,31 +16,31 @@ export const AttachCommand = cmd({
       })
       .option("dir", {
         type: "string",
-        description: "directory to run in",
+        description: "运行目录",
       })
       .option("continue", {
         alias: ["c"],
-        describe: "continue the last session",
+        describe: "继续上一个会话",
         type: "boolean",
       })
       .option("session", {
         alias: ["s"],
         type: "string",
-        describe: "session id to continue",
+        describe: "要继续的会话 ID",
       })
       .option("fork", {
         type: "boolean",
-        describe: "fork the session when continuing (use with --continue or --session)",
+        describe: "继续会话时派生新会话（与 --continue 或 --session 一起使用）",
       })
       .option("password", {
         alias: ["p"],
         type: "string",
-        describe: "basic auth password (defaults to GYCCODE_SERVER_PASSWORD)",
+        describe: "Basic 认证密码（默认取 GYCCODE_SERVER_PASSWORD）",
       })
       .option("username", {
         alias: ["u"],
         type: "string",
-        describe: "basic auth username (defaults to GYCCODE_SERVER_USERNAME or 'gyccode')",
+        describe: "Basic 认证用户名（默认取 GYCCODE_SERVER_USERNAME 或 'gyccode'）",
       }),
   handler: async (args) => {
     const directory = (() => {
@@ -56,7 +56,7 @@ export const AttachCommand = cmd({
 
     const { TuiConfig } = await import("@/config/tui")
     if (args.fork && !args.continue && !args.session) {
-      UI.error("--fork requires --continue or --session")
+      UI.error("--fork 需要配合 --continue 或 --session 使用")
       process.exitCode = 1
       return
     }

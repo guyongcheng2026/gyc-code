@@ -43,11 +43,11 @@ const run = Effect.fn("Cli.debug.agent.body")(function* (
   if (toolID) {
     const tool = availableTools.find((item) => item.id === toolID)
     if (!tool) {
-      process.stderr.write(`Tool ${toolID} not found for agent ${agentName}` + EOL)
+      process.stderr.write(`智能体 ${agentName} 中未找到工具 ${toolID}` + EOL)
       return yield* fail("", 1)
     }
     if (resolvedTools[toolID] === false) {
-      process.stderr.write(`Tool ${toolID} is disabled for agent ${agentName}` + EOL)
+      process.stderr.write(`智能体 ${agentName} 中已禁用工具 ${toolID}` + EOL)
       return yield* fail("", 1)
     }
     const params = parseToolParams(args.params)
@@ -75,10 +75,10 @@ const getAvailableTools = Effect.fn("Cli.debug.agent.getAvailableTools")(functio
         onFailure: (cause) => {
           const error = Cause.squash(cause) as Provider.DefaultModelError
           if (error instanceof Provider.ModelNotFoundError) {
-            return fail(`Model not found: ${error.providerID}/${error.modelID}`)
+            return fail(`未找到模型：${error.providerID}/${error.modelID}`)
           }
-          if (error instanceof Provider.NoModelsError) return fail(`No models found for provider ${error.providerID}`)
-          return fail("No providers found")
+          if (error instanceof Provider.NoModelsError) return fail(`该服务商下没有可用模型：${error.providerID}`)
+          return fail("未找到服务商")
         },
       }),
     ))
@@ -131,13 +131,13 @@ function parseToolParams(input?: string) {
     } catch (jsonError) {
       // 仅在输入不包含危险模式时尝试 JS 表达式求值
       if (isDangerous(trimmed)) {
-        throw new Error(`Suspicious pattern detected in --params. Use JSON format.`)
+        throw new Error(`在 --params 中检测到可疑模式。请使用 JSON 格式。`)
       }
       try {
         return new Function(`return (${trimmed})`)()
       } catch (evalError) {
         throw new Error(
-          `Failed to parse --params. Use JSON or a simple JS object literal. JSON error: ${jsonError}. Eval error: ${evalError}.`,
+          `--params 解析失败。请使用 JSON 或简单的 JS 对象字面量。JSON 错误：${jsonError}。求值错误：${evalError}。`,
           { cause: evalError },
         )
       }
@@ -145,7 +145,7 @@ function parseToolParams(input?: string) {
   })
 
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-    throw new Error("Tool params must be an object.")
+    throw new Error("工具参数必须是对象。")
   }
   return parsed as Record<string, unknown>
 }
@@ -167,11 +167,11 @@ const createToolContext = Effect.fn("Cli.debug.agent.createToolContext")(functio
             onFailure: (cause) => {
               const error = Cause.squash(cause) as Provider.DefaultModelError
               if (error instanceof Provider.ModelNotFoundError) {
-                return fail(`Model not found: ${error.providerID}/${error.modelID}`)
+                return fail(`未找到模型：${error.providerID}/${error.modelID}`)
               }
               if (error instanceof Provider.NoModelsError)
-                return fail(`No models found for provider ${error.providerID}`)
-              return fail("No providers found")
+                return fail(`该服务商下没有可用模型：${error.providerID}`)
+              return fail("未找到服务商")
             },
           }),
         )

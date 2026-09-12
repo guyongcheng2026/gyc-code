@@ -124,7 +124,7 @@ export async function warpWorkspaceSession(input: {
 
     input.toast.show({
       title: "迁移会话失败",
-      message: errorMessage(result?.error ?? "no response"),
+      message: errorMessage(result?.error ?? "无响应"),
       variant: "error",
     })
     return false

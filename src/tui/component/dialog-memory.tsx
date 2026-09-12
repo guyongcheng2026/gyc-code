@@ -43,7 +43,7 @@ export function DialogMemory() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制记忆", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制记忆", group: "对话框", cmd: copy }],
   }))
 
   return (

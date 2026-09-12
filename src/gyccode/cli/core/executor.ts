@@ -87,7 +87,7 @@ registerBuiltinCommand("new", async (ctx) => {
   })
   const nextID = created.data?.id
   if (!nextID) {
-    UI.error("Failed to create new session")
+    UI.error("创建新会话失败")
     return "continue"
   }
   ctx.sessionId = nextID
@@ -339,7 +339,7 @@ registerBuiltinCommand("status", async (ctx) => {
       `版本:   ${data.version}`,
       `会话:   ${data.id.slice(0, 8)}`,
       `模型:   ${model}`,
-      `agent:  ${data.agent ?? "build"}`,
+      `智能体：  ${data.agent ?? "build"}`,
       `标题:   ${data.title || "(未命名)"}`,
       `目录:   ${data.directory}`,
     ].join("\n"))
@@ -393,7 +393,7 @@ registerBuiltinCommand("context", async (ctx) => {
     console.log([
       `上下文：${messages.length} 条消息`,
       ...(model ? [`模型:   ${model}`] : []),
-      ...(tokens ? [`Token:  ${tokens}`] : []),
+      ...(tokens ? [`词元：  ${tokens}`] : []),
       `消息:   用户 ${userCount} · 助手 ${assistantCount}${otherCount > 0 ? ` · 其他 ${otherCount}` : ""}`,
     ].join("\n"))
   } catch (e) {
@@ -639,7 +639,7 @@ async function runStreamTurn(
     auto: ctx.input.auto,
     interactive: {
       askPermission: async (permission) => {
-        UI.println(UI.Style.TEXT_WARNING_BOLD + "!", UI.Style.TEXT_NORMAL + `permission requested: ${permission.permission} (${permission.patterns.join(", ")})${permission.subagent ? " [subagent]" : ""}`)
+        UI.println(UI.Style.TEXT_WARNING_BOLD + "!", UI.Style.TEXT_NORMAL + `请求权限：${permission.permission}（${permission.patterns.join(", ")}）${permission.subagent ? " [子智能体]" : ""}`)
         UI.println("  [y] 允许一次  [a] 始终允许  [n/Enter] 拒绝")
         for (;;) {
           const line = (await readLine("  > ")).trim().toLowerCase()

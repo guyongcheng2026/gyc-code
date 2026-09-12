@@ -24,7 +24,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
       <box>
         <box flexDirection="row" gap={1}>
           <text fg={theme().text}>
-            <b>Instructions</b>
+            <b>指令文件</b>
           </text>
         </box>
         <For each={list()}>

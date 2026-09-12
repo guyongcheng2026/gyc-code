@@ -9,13 +9,13 @@ describe("goalStatus", () => {
   it("reports error when the judge errored", () => {
     const s = goalStatus({ ok: false, error: true, reason: "boom", attempt: 1 })
     expect(s?.kind).toBe("error")
-    expect(s?.label).toContain("error")
+    expect(s?.label).toContain("已停止")
   })
 
   it("reports met when the condition is satisfied", () => {
     const s = goalStatus({ ok: true, reason: "done", attempt: 2 })
     expect(s?.kind).toBe("met")
-    expect(s?.label).toBe("met")
+    expect(s?.label).toBe("已达成")
   })
 
   it("reports impossible when the condition cannot be met", () => {
@@ -26,7 +26,7 @@ describe("goalStatus", () => {
   it("reports pending with the round number when not met yet", () => {
     const s = goalStatus({ ok: false, reason: "still going", attempt: 4 })
     expect(s?.kind).toBe("pending")
-    expect(s?.label).toContain("round 4")
+    expect(s?.label).toContain("第 4 轮")
   })
 })
 

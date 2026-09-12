@@ -18,12 +18,12 @@ function notify(api: TuiPluginApi, sessionID: string | undefined, message: strin
 }
 
 function sessionErrorMessage(error: SessionError) {
-  if (error?.name === "MessageAbortedError") return "Session aborted"
+  if (error?.name === "MessageAbortedError") return "会话已中断"
   const data = error?.data
   if (data && typeof data === "object" && "message" in data && data.message === "SSE read timed out") {
-    return "Model stopped responding"
+    return "模型停止响应"
   }
-  return "Session error"
+  return "会话出错"
 }
 
 const tui: TuiPlugin = async (api) => {
@@ -35,7 +35,7 @@ const tui: TuiPlugin = async (api) => {
   api.event.on("question.asked", (event) => {
     if (questions.has(event.properties.id)) return
     questions.add(event.properties.id)
-    notify(api, event.properties.sessionID, "Question needs input", "question")
+    notify(api, event.properties.sessionID, "有提问待输入", "question")
   })
 
   api.event.on("question.replied", (event) => {
@@ -49,7 +49,7 @@ const tui: TuiPlugin = async (api) => {
   api.event.on("permission.asked", (event) => {
     if (permissions.has(event.properties.id)) return
     permissions.add(event.properties.id)
-    notify(api, event.properties.sessionID, "Permission needs input", "permission")
+    notify(api, event.properties.sessionID, "有待确认的权限", "permission")
   })
 
   api.event.on("permission.replied", (event) => {
@@ -74,7 +74,7 @@ const tui: TuiPlugin = async (api) => {
     }
 
     const session = api.state.session.get(sessionID)
-    notify(api, sessionID, "Session done", session?.parentID ? "subagent_done" : "done")
+    notify(api, sessionID, "会话已完成", session?.parentID ? "subagent_done" : "done")
   })
 
   api.event.on("session.error", (event) => {

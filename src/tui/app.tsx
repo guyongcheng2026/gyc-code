@@ -1349,7 +1349,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
           const files = await props.onSnapshot?.()
           toast.show({
             variant: "info",
-            message: `Heap snapshot written to ${files?.join(", ")}`,
+            message: `堆快照已写入 ${files?.join(", ")}`,
             duration: 5000,
           })
           dialog.clear()
@@ -1657,8 +1657,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     const choice = await DialogConfirm.show(
       dialog,
-      `Update Available`,
-      `A new release v${version} is available. Would you like to update now?`,
+      `发现新版本`,
+      `检测到新版本 v${version}，是否立即更新？`,
       "skip",
     )
 
@@ -1671,7 +1671,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     toast.show({
       variant: "info",
-      message: `Updating to v${version}...`,
+      message: `正在更新到 v${version}…`,
       duration: 30000,
     })
 
@@ -1689,8 +1689,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
 
     await DialogAlert.show(
       dialog,
-      "Update Complete",
-      `Successfully updated to GycCode v${result.data.version}. Please restart the application.`,
+      "更新完成",
+      `已成功更新到 GycCode v${result.data.version}，请重启应用。`,
     )
 
     void exit()

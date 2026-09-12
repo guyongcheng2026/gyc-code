@@ -39,7 +39,7 @@ export function DialogConfig() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制配置", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制配置", group: "对话框", cmd: copy }],
   }))
 
   return (
@@ -75,7 +75,7 @@ export function DialogConfig() {
         <text fg={theme.textMuted}>配置文件路径见 /debug 或 ~/.gyccode/config.json</text>
         <text onMouseUp={copy}>
           <span style={{ fg: theme.text }}>
-            <b>copy</b>
+            <b>复制</b>
           </span>{" "}
           <span style={{ fg: theme.textMuted }}>enter</span>
         </text>

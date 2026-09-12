@@ -39,13 +39,13 @@ export function shouldAttachShareAuthHeaders(shareUrl: string, accountBaseUrl: s
 
 export function formatImportFileError(file: string, error: FSUtil.Error) {
   if (error._tag === "PlatformError") {
-    if (error.reason._tag === "NotFound") return `File not found: ${file}`
-    if (error.reason._tag === "PermissionDenied") return `Failed to read file: Permission denied`
-    return `Failed to read file: ${error.message}`
+    if (error.reason._tag === "NotFound") return `未找到文件：${file}`
+    if (error.reason._tag === "PermissionDenied") return `读取文件失败：权限不足`
+    return `读取文件失败：${error.message}`
   }
 
   const detail = error.cause instanceof Error ? error.cause.message : error.message
-  return `Invalid JSON in ${file}: ${detail}`
+  return `${file} 中的 JSON 无效：${detail}`
 }
 
 /**
@@ -92,10 +92,10 @@ type ExportData = { info: SDKSession; messages: Array<{ info: Message; parts: Pa
 
 export const ImportCommand = effectCmd({
   command: "import <file>",
-  describe: "import session data from JSON file or URL",
+  describe: "从 JSON 文件或 URL 导入会话数据",
   builder: (yargs) =>
     yargs.positional("file", {
-      describe: "path to JSON file or share URL",
+      describe: "JSON 文件路径或分享 URL",
       type: "string",
       demandOption: true,
     }),
@@ -133,7 +133,7 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
         try: () => fetch(url, { headers }),
         catch: (e) =>
           new CliError({
-            message: `Failed to fetch share data: ${e instanceof Error ? e.message : String(e)}`,
+            message: `获取分享数据失败：${e instanceof Error ? e.message : String(e)}`,
           }),
       })
 
@@ -152,12 +152,12 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
 
     const shareData = yield* Effect.tryPromise({
       try: () => response.json() as Promise<ShareData[]>,
-      catch: () => new CliError({ message: "Share data was not valid JSON" }),
+      catch: () => new CliError({ message: "分享数据不是有效的 JSON" }),
     })
     const transformed = transformShareData(shareData)
 
     if (!transformed) {
-      process.stdout.write(`Share not found or empty: ${slug}`)
+      process.stdout.write(`分享不存在或为空：${slug}`)
       process.stdout.write(EOL)
       return
     }
@@ -224,6 +224,6 @@ const runImport = Effect.fn("Cli.import.body")(function* (file: string, ctx: Ins
     }
   }
 
-  process.stdout.write(`Imported session: ${exportData.info.id}`)
+  process.stdout.write(`已导入会话：${exportData.info.id}`)
   process.stdout.write(EOL)
 })

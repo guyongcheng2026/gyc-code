@@ -463,13 +463,13 @@ title: "选择项目",
               {
                 key: "tab",
                 desc: "下一个对话框操作",
-                group: "Dialog",
+                group: "对话框",
                 cmd: () => moveAction(1),
               },
               {
                 key: "shift+tab",
                 desc: "上一个对话框操作",
-                group: "Dialog",
+                group: "对话框",
                 cmd: () => moveAction(-1),
               },
             ]
@@ -590,7 +590,7 @@ title: "选择项目",
                   input.focus()
                 }, 1)
               }}
-              placeholder={props.placeholder ?? "Search"}
+              placeholder={props.placeholder ?? "搜索"}
               placeholderColor={theme.textMuted}
             />
           </box>

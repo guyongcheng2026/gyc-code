@@ -48,22 +48,22 @@ interface SessionStats {
 
 export const StatsCommand = effectCmd({
   command: "stats",
-  describe: "show token usage and cost statistics",
+  describe: "显示 token 用量与成本统计",
   builder: (yargs) =>
     yargs
       .option("days", {
-        describe: "show stats for the last N days (default: all time)",
+        describe: "显示最近 N 天的统计（默认：全部时间）",
         type: "number",
       })
       .option("tools", {
-        describe: "number of tools to show (default: all)",
+        describe: "要显示的工具数量（默认：全部）",
         type: "number",
       })
       .option("models", {
-        describe: "show model statistics (default: hidden). Pass a number to show top N, otherwise shows all",
+        describe: "显示模型统计（默认：隐藏）。传入数字则显示前 N 项，否则显示全部",
       })
       .option("project", {
-        describe: "filter by project (default: all projects, empty string: current project)",
+        describe: "按项目筛选（默认：所有项目，空字符串：当前项目）",
         type: "string",
       }),
   handler: Effect.fn("Cli.stats")(function* (args) {
@@ -114,7 +114,7 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
 
   if (projectFilter !== undefined) {
     if (projectFilter === "") {
-      if (!currentProject) throw new Error("currentProject required when projectFilter is empty string")
+      if (!currentProject) throw new Error("当 projectFilter 为空字符串时必须提供 currentProject")
       filteredSessions = filteredSessions.filter((session) => session.projectID === currentProject.id)
     } else {
       filteredSessions = filteredSessions.filter((session) => session.projectID === projectFilter)

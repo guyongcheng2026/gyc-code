@@ -48,20 +48,20 @@ async function deliver(platform: string, chatId: string, text: string): Promise<
 
 export const SendCommand = effectCmd({
   command: "send [message]",
-  describe: "send a text message via the gyc gateway (platforms: weixin)",
+  describe: "通过 gyc 网关发送文本消息（平台：weixin）",
   instance: false,
   builder: (yargs) =>
     yargs
       .positional("message", {
-        describe: "message text; omit to read from stdin",
+        describe: "消息文本；省略则从标准输入读取",
         type: "string",
       })
       .option("to", {
-        describe: 'delivery target: "weixin" (home channel) or "weixin:<chat_id>"',
+        describe: '投递目标："weixin"（主频道）或 "weixin:<chat_id>"',
         type: "string",
       })
       .option("json", {
-        describe: "emit machine-readable JSON result",
+        describe: "输出机器可读的 JSON 结果",
         type: "boolean",
       }),
   handler: Effect.fn("Cli.send")(function* (args: SendArgs) {

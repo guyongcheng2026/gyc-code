@@ -31,7 +31,7 @@ function getNetworkIPs() {
 export const WebCommand = effectCmd({
   command: "web",
   builder: (yargs) => withNetworkOptions(yargs),
-  describe: "start gyc server and open web interface",
+  describe: "启动 gyc 服务器并打开 Web 界面",
   // Server loads instances per-request via x-gyccode-directory header — no
   // ambient project InstanceContext needed at startup.
   instance: false,
@@ -43,7 +43,7 @@ export const WebCommand = effectCmd({
       if (!isLoopback) {
         UI.println(
           UI.Style.TEXT_DANGER_BOLD +
-            "!  Refusing to expose an unsecured server on a non-loopback address. Set GYCCODE_SERVER_PASSWORD before listening on " +
+            "!  拒绝在非回环地址上暴露未受保护的服务器。在监听前请设置 GYCCODE_SERVER_PASSWORD " +
             opts.hostname,
         )
         process.exit(1)
@@ -70,7 +70,7 @@ export const WebCommand = effectCmd({
       if (networkIPs.length > 0) {
         for (const ip of networkIPs) {
           UI.println(
-            UI.Style.TEXT_INFO_BOLD + "  Network access:    ",
+            UI.Style.TEXT_INFO_BOLD + "  网络访问：    ",
             UI.Style.TEXT_NORMAL,
             `http://${ip}:${server.port}`,
           )
@@ -89,7 +89,7 @@ export const WebCommand = effectCmd({
       open(localhostUrl).catch(() => {})
     } else {
       const displayUrl = server.url.toString()
-      UI.println(UI.Style.TEXT_INFO_BOLD + "  Web interface:    ", UI.Style.TEXT_NORMAL, displayUrl)
+      UI.println(UI.Style.TEXT_INFO_BOLD + "  Web 界面：    ", UI.Style.TEXT_NORMAL, displayUrl)
       // 同上：无 GUI 环境打开失败不阻断
       open(displayUrl).catch(() => {})
     }

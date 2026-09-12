@@ -97,7 +97,7 @@ const MOD_CACHE_TTL = 5 * 60 * 1000 // 5分钟
 const modCacheTimestamps = new Map<string, number>()
 function importMod<T>(spec: string): Promise<T> {
   const loader = LAZY_MODULES[spec]
-  if (!loader) return Promise.reject(new Error(`Unknown lazy module: ${spec}`))
+  if (!loader) return Promise.reject(new Error(`未知的懒加载模块：${spec}`))
   
   // 清理过期缓存
   const now = Date.now()

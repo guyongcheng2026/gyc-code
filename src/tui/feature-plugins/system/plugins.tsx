@@ -10,7 +10,7 @@ const id = "internal:plugin-manager"
 
 function state(api: TuiPluginApi, item: TuiPluginStatus) {
   if (!item.enabled) {
-    return <span style={{ fg: api.theme.current.textMuted }}>disabled</span>
+    return <span style={{ fg: api.theme.current.textMuted }}>已禁用</span>
   }
 
   return (
@@ -27,8 +27,8 @@ function source(spec: string) {
 
 function meta(item: TuiPluginStatus, width: number) {
   if (item.source === "internal") {
-    if (width >= 120) return "Built-in plugin"
-    return "Built-in"
+    if (width >= 120) return "内置插件"
+    return "内置"
   }
   const next = source(item.spec)
   if (next) return next
@@ -52,7 +52,7 @@ function Install(props: { api: TuiPluginApi }) {
       busyText="正在安装插件..."
       description={() => (
         <box flexDirection="row" gap={1}>
-          <text fg={props.api.theme.current.textMuted}>scope:</text>
+          <text fg={props.api.theme.current.textMuted}>作用域：</text>
           <text fg={busy() ? props.api.theme.current.textMuted : props.api.theme.current.text}>
             {global() ? "全局" : "本地"}
           </text>
@@ -116,7 +116,7 @@ function Install(props: { api: TuiPluginApi }) {
 
               props.api.ui.toast({
                 variant: "success",
-                message: `Loaded ${mod} in current session.`,
+                message: `已在当前会话中加载 ${mod}。`,
               })
               show(props.api)
             })
@@ -136,7 +136,7 @@ function row(api: TuiPluginApi, item: TuiPluginStatus, width: number): DialogSel
   return {
     title: item.id,
     value: item.id,
-    category: item.source === "internal" ? "Internal" : "External",
+    category: item.source === "internal" ? "内置" : "第三方",
     description: meta(item, width),
     footer: state(api, item),
     disabled: item.id === id,
@@ -188,7 +188,7 @@ function View(props: { api: TuiPluginApi }) {
         if (!ok) {
           props.api.ui.toast({
             variant: "error",
-            message: `Failed to update plugin ${item.id}`,
+            message: `更新插件 ${item.id} 失败`,
           })
         }
         setList(props.api.plugins.list())

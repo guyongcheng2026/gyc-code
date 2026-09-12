@@ -39,8 +39,8 @@ export function DialogExportOptions(props: DialogExportOptionsProps) {
     bindings: [
       {
         key: "tab",
-        desc: "Next export option",
-        group: "Dialog",
+        desc: "下一个导出选项",
+        group: "对话框",
         cmd: () => {
           const order: Array<"filename" | "thinking" | "toolDetails" | "assistantMetadata" | "openWithoutSaving"> = [
             "filename",
@@ -62,8 +62,8 @@ export function DialogExportOptions(props: DialogExportOptionsProps) {
     bindings: [
       {
         key: "space",
-        desc: "Toggle export option",
-        group: "Dialog",
+        desc: "切换导出选项",
+        group: "对话框",
         cmd: () => {
           if (store.active === "thinking") setStore("thinking", !store.thinking)
           if (store.active === "toolDetails") setStore("toolDetails", !store.toolDetails)
@@ -173,14 +173,14 @@ export function DialogExportOptions(props: DialogExportOptionsProps) {
       </box>
       <Show when={store.active !== "filename"}>
         <text fg={theme.textMuted} paddingBottom={1}>
-          Press <span style={{ fg: theme.text }}>space</span> 进行切换， <span style={{ fg: theme.text }}>return</span>{" "}
-          to confirm
+          按 <span style={{ fg: theme.text }}>space</span> 进行切换， <span style={{ fg: theme.text }}>return</span>{" "}
+          确认
         </text>
       </Show>
       <Show when={store.active === "filename"}>
         <text fg={theme.textMuted} paddingBottom={1}>
-          Press <span style={{ fg: theme.text }}>return</span> 进行确认， <span style={{ fg: theme.text }}>tab</span>{" "}
-          for options
+          按 <span style={{ fg: theme.text }}>return</span> 进行确认， <span style={{ fg: theme.text }}>tab</span>{" "}
+          查看选项
         </text>
       </Show>
     </box>

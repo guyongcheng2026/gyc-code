@@ -480,7 +480,7 @@ export function Session() {
       sessionID,
     })
     const status = sync.data.session_status[sessionID]
-    if (status?.type === "retry") void DialogAlert.show(dialog, "Retry Error", status.message)
+    if (status?.type === "retry") void DialogAlert.show(dialog, "重试错误", status.message)
   }
 
   function moveFirstChild() {
@@ -1560,7 +1560,7 @@ export function Session() {
                           const handleUnrevert = async () => {
                             const confirmed = await DialogConfirm.show(
                               dialog,
-                              "Confirm Redo",
+                              "确认重做",
                               "确定要恢复已撤回的消息吗？",
                             )
                             if (confirmed) {
@@ -1798,7 +1798,7 @@ function UserMessage(props: {
                     return (
                       <text fg={theme.text}>
                         <span style={{ bg: theme.secondary, fg: theme.background }}>
-                          {directory ? " Directory " : " File "}
+                          {directory ? " 目录 " : " 文件 "}
                         </span>
                         <span style={{ bg: theme.backgroundElement, fg: theme.textMuted }}> {file.filename} </span>
                       </text>
@@ -2036,7 +2036,7 @@ function ReasoningHeader(props: {
     <Switch>
       <Match when={!props.done}>
         <box flexDirection="row">
-          <Spinner color={fg()}>{props.title ? "Thinking: " + props.title : "思考中"}</Spinner>
+          <Spinner color={fg()}>{props.title ? "思考中：" + props.title : "思考中"}</Spinner>
         </box>
       </Match>
       <Match when={true}>
@@ -2512,7 +2512,7 @@ function Write(props: ToolProps) {
           complete={stringValue(props.input.filePath)}
           part={props.part}
         >
-          Write {pathFormatter.format(stringValue(props.input.filePath))}
+          写入 {pathFormatter.format(stringValue(props.input.filePath))}
         </InlineTool>
       </Match>
     </Switch>
@@ -2523,10 +2523,10 @@ function Glob(props: ToolProps) {
   const pathFormatter = usePathFormatter()
   return (
     <InlineTool icon="✱" pending="正在查找文件..." complete={stringValue(props.input.pattern)} part={props.part}>
-      Glob "{stringValue(props.input.pattern)}"{" "}
-      <Show when={stringValue(props.input.path)}>in {pathFormatter.format(stringValue(props.input.path))} </Show>
+      查找文件 "{stringValue(props.input.pattern)}"{" "}
+      <Show when={stringValue(props.input.path)}>于 {pathFormatter.format(stringValue(props.input.path))} </Show>
       <Show when={numberValue(props.metadata.count)}>
-        ({numberValue(props.metadata.count)} {numberValue(props.metadata.count) === 1 ? "match" : "matches"})
+        ({numberValue(props.metadata.count)} {numberValue(props.metadata.count) === 1 ? "个匹配" : "个匹配"})
       </Show>
     </InlineTool>
   )
@@ -2552,7 +2552,7 @@ function Read(props: ToolProps) {
         spinner={isRunning()}
         part={props.part}
       >
-        Read {pathFormatter.format(stringValue(props.input.filePath))} {input(props.input, ["filePath"])}
+        读取 {pathFormatter.format(stringValue(props.input.filePath))} {input(props.input, ["filePath"])}
       </InlineTool>
       <For each={loaded()}>
         {(filepath) => (
@@ -2571,10 +2571,10 @@ function Grep(props: ToolProps) {
   const pathFormatter = usePathFormatter()
   return (
     <InlineTool icon="✱" pending="正在搜索内容..." complete={stringValue(props.input.pattern)} part={props.part}>
-      Grep "{stringValue(props.input.pattern)}"{" "}
-      <Show when={stringValue(props.input.path)}>in {pathFormatter.format(stringValue(props.input.path))} </Show>
+      搜索内容 "{stringValue(props.input.pattern)}"{" "}
+      <Show when={stringValue(props.input.path)}>于 {pathFormatter.format(stringValue(props.input.path))} </Show>
       <Show when={numberValue(props.metadata.matches)}>
-        ({numberValue(props.metadata.matches)} {numberValue(props.metadata.matches) === 1 ? "match" : "matches"})
+        ({numberValue(props.metadata.matches)} {numberValue(props.metadata.matches) === 1 ? "个匹配" : "个匹配"})
       </Show>
     </InlineTool>
   )
@@ -2583,7 +2583,7 @@ function Grep(props: ToolProps) {
 function WebFetch(props: ToolProps) {
   return (
     <InlineTool icon="%" pending="正在从网络获取..." complete={stringValue(props.input.url)} part={props.part}>
-      WebFetch {stringValue(props.input.url)}
+      抓取网页 {stringValue(props.input.url)}
     </InlineTool>
   )
 }
@@ -2655,7 +2655,7 @@ function Task(props: ToolProps) {
     if (!description) return ""
     let content = [
       formatSubagentTitle(
-        Locale.titlecase(stringValue(props.input.subagent_type) ?? "General"),
+        Locale.titlecase(stringValue(props.input.subagent_type) ?? "通用"),
         description,
         props.metadata.background === true,
       ),
@@ -2693,7 +2693,7 @@ function Task(props: ToolProps) {
           navigate({ type: "session", sessionID: sessionID()! })
         }
         const status = retry()
-        if (status) void DialogAlert.show(dialog, "Retry Error", status.message)
+        if (status) void DialogAlert.show(dialog, "重试错误", status.message)
       }}
     >
       {content()}
@@ -2702,15 +2702,15 @@ function Task(props: ToolProps) {
 }
 
 export function formatSubagentToolcalls(count: number) {
-  return `${count} toolcall${count === 1 ? "" : "s"}`
+  return `${count} 次工具调用`
 }
 
 export function formatSubagentTitle(agent: string, description: string, background: boolean) {
-  return `${agent} Task${background ? " (background)" : ""} — ${description}`
+  return `${agent} 任务${background ? "（后台）" : ""} — ${description}`
 }
 
 export function formatSubagentRetry(attempt: number, message: string) {
-  return `Retrying (attempt ${attempt}) · ${message}`
+  return `正在重试（第 ${attempt} 次） · ${message}`
 }
 
 export function formatCompletedSubagentDetail(toolcalls: number, duration: string) {
@@ -2745,7 +2745,7 @@ function Execute(props: ToolProps) {
     const lines = ["execute"]
     for (const call of calls()) {
       const args = input(call.input ?? {})
-      lines.push(`↳ ${call.tool}${args ? ` ${args}` : ""}${call.status === "error" ? " (failed)" : ""}`)
+      lines.push(`↳ ${call.tool}${args ? ` ${args}` : ""}${call.status === "error" ? "（失败）" : ""}`)
     }
     return lines.join("\n")
   })
@@ -2797,7 +2797,7 @@ function Edit(props: ToolProps) {
   return (
     <Switch>
       <Match when={stringValue(props.metadata.diff) !== undefined}>
-        <BlockTool title={"← Edit " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
+        <BlockTool title={"← 编辑 " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
           <box paddingLeft={1}>
             <diff
               diff={diffContent()}
@@ -2824,7 +2824,7 @@ function Edit(props: ToolProps) {
       </Match>
       <Match when={true}>
         <InlineTool icon="←" pending="正在准备编辑..." complete={stringValue(props.input.filePath)} part={props.part}>
-          Edit {pathFormatter.format(stringValue(props.input.filePath))} {input({ replaceAll: props.input.replaceAll })}
+          编辑 {pathFormatter.format(stringValue(props.input.filePath))} {input({ replaceAll: props.input.replaceAll })}
         </InlineTool>
       </Match>
     </Switch>
@@ -2871,10 +2871,10 @@ function ApplyPatch(props: ToolProps) {
   }
 
   function title(file: { type: string; relativePath: string; filePath: string; deletions: number }) {
-    if (file.type === "delete") return "# Deleted " + file.relativePath
-    if (file.type === "add") return "# Created " + file.relativePath
-    if (file.type === "move") return "# Moved " + pathFormatter.format(file.filePath) + " → " + file.relativePath
-    return "← Patched " + file.relativePath
+    if (file.type === "delete") return "# 已删除 " + file.relativePath
+    if (file.type === "add") return "# 已创建 " + file.relativePath
+    if (file.type === "move") return "# 已移动 " + pathFormatter.format(file.filePath) + " → " + file.relativePath
+    return "← 已修补 " + file.relativePath
   }
 
   return (
@@ -2940,7 +2940,7 @@ function Question(props: ToolProps) {
   const count = createMemo(() => questions().length)
 
   function format(answer?: ReadonlyArray<string>) {
-    if (!answer?.length) return "(no answer)"
+    if (!answer?.length) return "（无回答）"
     return answer.join(", ")
   }
 

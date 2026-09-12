@@ -40,7 +40,7 @@ export function usePromptWorkspace(sessionID?: string) {
       setCreating(false)
       toast.show({
         title: "创建工作区失败",
-        message: errorMessage(result.error ?? "no response"),
+        message: errorMessage(result.error ?? "无响应"),
         variant: "error",
       })
       return
@@ -73,7 +73,7 @@ export function usePromptWorkspace(sessionID?: string) {
 
     const workspace =
       selection.type === "none"
-        ? { id: null, name: "local project" }
+        ? { id: null, name: "本地项目" }
         : selection.type === "existing"
           ? { id: selection.workspaceID, name: selection.workspaceName }
           : await create(selection)
@@ -94,7 +94,7 @@ export function usePromptWorkspace(sessionID?: string) {
   }
 
   function showNotice(name: string) {
-    setNotice(`Warped to ${name}`)
+    setNotice(`已切换到 ${name}`)
     setTimeout(() => setNotice(undefined), 4000)
   }
 

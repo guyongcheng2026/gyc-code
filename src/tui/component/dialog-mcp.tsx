@@ -60,10 +60,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("Failed to refresh MCP status: no data returned")
+            console.error("刷新 MCP 状态失败：未返回数据")
           }
         } catch (error) {
-          console.error("Failed to toggle MCP:", error)
+          console.error("切换 MCP 失败：", error)
         } finally {
           setLoading(null)
         }

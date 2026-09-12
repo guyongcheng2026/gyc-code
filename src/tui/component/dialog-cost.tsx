@@ -116,13 +116,13 @@ export function DialogCost() {
   const copy = () => {
     const t = totals()
     const text = [
-      `Cost: ${money.format(cost())}`,
-      `Tokens: ${totalTokens().toLocaleString()}`,
-      `  Input: ${t.input.toLocaleString()}`,
-      `  Output: ${t.output.toLocaleString()}`,
-      `  Reasoning: ${t.reasoning.toLocaleString()}`,
-      `  Cache Read: ${t.cacheRead.toLocaleString()}`,
-      `  Cache Write: ${t.cacheWrite.toLocaleString()}`,
+      `费用：${money.format(cost())}`,
+      `词元：${totalTokens().toLocaleString()}`,
+      `  输入：${t.input.toLocaleString()}`,
+      `  输出：${t.output.toLocaleString()}`,
+      `  推理：${t.reasoning.toLocaleString()}`,
+      `  缓存读取：${t.cacheRead.toLocaleString()}`,
+      `  缓存写入：${t.cacheWrite.toLocaleString()}`,
     ].join("\n")
     void clipboard
       .write?.(text)
@@ -131,7 +131,7 @@ export function DialogCost() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制花费信息", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制花费信息", group: "对话框", cmd: copy }],
   }))
 
   return (
@@ -162,12 +162,12 @@ export function DialogCost() {
         <text fg={theme.text}>
           <b>Token 明细</b>
         </text>
-        <text fg={theme.textMuted}>input {totals().input.toLocaleString()}</text>
-        <text fg={theme.textMuted}>output {totals().output.toLocaleString()}</text>
-        <text fg={theme.textMuted}>reasoning {totals().reasoning.toLocaleString()}</text>
-        <text fg={theme.textMuted}>cache read {totals().cacheRead.toLocaleString()}</text>
-        <text fg={theme.textMuted}>cache write {totals().cacheWrite.toLocaleString()}</text>
-        <text fg={theme.accent}>cache hit {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {cacheHitRate().totalInput.toLocaleString()}）</text>
+        <text fg={theme.textMuted}>输入 {totals().input.toLocaleString()}</text>
+        <text fg={theme.textMuted}>输出 {totals().output.toLocaleString()}</text>
+        <text fg={theme.textMuted}>推理 {totals().reasoning.toLocaleString()}</text>
+        <text fg={theme.textMuted}>缓存读取 {totals().cacheRead.toLocaleString()}</text>
+        <text fg={theme.textMuted}>缓存写入 {totals().cacheWrite.toLocaleString()}</text>
+        <text fg={theme.accent}>缓存命中 {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {cacheHitRate().totalInput.toLocaleString()}）</text>
       </box>
 
       <box>
@@ -178,8 +178,8 @@ export function DialogCost() {
           {(item) => (
             <text fg={theme.textMuted} wrapMode="none">
               {item.role === "assistant"
-                ? `assistant: ${messageTokens(item).toLocaleString()} tokens`
-                : `user: ${estimateParts(partOf(item.id)).toLocaleString()} tokens（估算）`}
+                ? `助手：${messageTokens(item).toLocaleString()} 词元`
+                : `用户：${estimateParts(partOf(item.id)).toLocaleString()} 词元（估算）`}
             </text>
           )}
         </For>
@@ -189,7 +189,7 @@ export function DialogCost() {
         <text fg={theme.textMuted}>按 enter 复制详细信息</text>
         <text onMouseUp={copy}>
           <span style={{ fg: theme.text }}>
-            <b>copy</b>
+            <b>复制</b>
           </span>{" "}
           <span style={{ fg: theme.textMuted }}>enter</span>
         </text>

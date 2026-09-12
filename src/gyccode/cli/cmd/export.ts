@@ -220,15 +220,15 @@ function sanitize(data: { info: Session.Info; messages: SessionV1.WithParts[] })
 
 export const ExportCommand = effectCmd({
   command: "export [sessionID]",
-  describe: "export session data as JSON",
+  describe: "以 JSON 格式导出会话数据",
   builder: (yargs) =>
     yargs
       .positional("sessionID", {
-        describe: "session id to export",
+        describe: "要导出的会话 ID",
         type: "string",
       })
       .option("sanitize", {
-        describe: "redact sensitive transcript and file data",
+        describe: "对敏感的对话记录和文件数据做脱敏处理",
         type: "boolean",
       }),
   handler: Effect.fn("Cli.export")(function* (args) {
@@ -239,17 +239,17 @@ export const ExportCommand = effectCmd({
 const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; sanitize?: boolean }) {
   const svc = yield* Session.Service
   let sessionID = args.sessionID ? SessionID.make(args.sessionID) : undefined
-  process.stderr.write(`Exporting session: ${sessionID ?? "latest"}\n`)
+  process.stderr.write(`正在导出会话：${sessionID ?? "latest"}\n`)
 
   if (!sessionID) {
     UI.empty()
-    prompts.intro("Export session", { output: process.stderr })
+    prompts.intro("导出会话", { output: process.stderr })
 
     const sessions = yield* svc.list()
 
     if (sessions.length === 0) {
-      prompts.log.error("No sessions found", { output: process.stderr })
-      prompts.outro("Done", { output: process.stderr })
+      prompts.log.error("未找到会话", { output: process.stderr })
+      prompts.outro("完成", { output: process.stderr })
       return
     }
 
@@ -257,7 +257,7 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
 
     const selectedSession = yield* Effect.promise(() =>
       prompts.autocomplete({
-        message: "Select session to export",
+        message: "选择要导出的会话",
         maxItems: 10,
         options: sessions.map((session) => ({
           label: session.title,
@@ -274,7 +274,7 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
 
     sessionID = selectedSession
 
-    prompts.outro("Exporting session...", { output: process.stderr })
+    prompts.outro("正在导出会话...", { output: process.stderr })
   }
 
   // Match legacy try/catch — catches both typed failures and defects
@@ -287,5 +287,5 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
 
     process.stdout.write(JSON.stringify(args.sanitize ? sanitize(exportData) : exportData, null, 2))
     process.stdout.write(EOL)
-  }).pipe(Effect.catchCause(() => fail(`Session not found: ${sessionID!}`)))
+  }).pipe(Effect.catchCause(() => fail(`未找到会话：${sessionID!}`)))
 })

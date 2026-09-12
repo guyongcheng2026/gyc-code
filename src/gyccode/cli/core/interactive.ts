@@ -435,7 +435,7 @@ async function runStreamTurn(
     auto: ctx.input.auto,
     interactive: {
       askPermission: async (permission) => {
-        UI.println(UI.Style.TEXT_WARNING_BOLD + "!", UI.Style.TEXT_NORMAL + `permission requested: ${permission.permission} (${permission.patterns.join(", ")})${permission.subagent ? " [subagent]" : ""}`)
+        UI.println(UI.Style.TEXT_WARNING_BOLD + "!", UI.Style.TEXT_NORMAL + `请求权限：${permission.permission}（${permission.patterns.join(", ")}）${permission.subagent ? " [子智能体]" : ""}`)
         UI.println("  [y] 允许一次  [a] 始终允许  [n/Enter] 拒绝")
         for (;;) {
           const line = (await readLine("  > ")).trim().toLowerCase()

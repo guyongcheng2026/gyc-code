@@ -17,7 +17,7 @@ export async function validateSession(input: {
   try {
     sessionID = decodeSessionID(input.sessionID)
   } catch (error) {
-    throw new Error(`Invalid session ID: ${error instanceof Error ? error.message : "unknown error"}`, { cause: error })
+    throw new Error(`会话 ID 无效：${error instanceof Error ? error.message : "unknown error"}`, { cause: error })
   }
 
   await createGyccodeClient({

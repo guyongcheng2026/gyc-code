@@ -26,7 +26,7 @@ export function DialogFeedback() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制反馈链接", group: "Dialog", cmd: copyUrl }],
+    bindings: [{ key: "return", desc: "复制反馈链接", group: "对话框", cmd: copyUrl }],
   }))
 
   return (
@@ -48,7 +48,7 @@ export function DialogFeedback() {
         <text fg={theme.text}>
           <b>提交反馈</b>
         </text>
-        <text fg={theme.textMuted}>GitHub Issues:</text>
+        <text fg={theme.textMuted}>GitHub 问题反馈：</text>
         <text fg={theme.success} wrapMode="word">
           {"  "}{FEEDBACK_URL}
         </text>

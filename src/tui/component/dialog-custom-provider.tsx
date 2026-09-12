@@ -116,7 +116,7 @@ export function DialogCustomProvider(props: Props) {
     dialog.replace(() => (
       <DialogPrompt
         title={`输入 ${provider.name} 的 API Key`}
-        placeholder={provider.env[0] ?? "API key"}
+        placeholder={provider.env[0] ?? "API 密钥"}
         onConfirm={(value) => {
           if (!value) return
           setBusy(true)

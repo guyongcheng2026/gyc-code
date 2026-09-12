@@ -65,7 +65,7 @@ async function runCustomProviderWizard(opts: {
   const baseURL = baseURLRaw.trim()
   if (!baseURL) return
 
-  const apiKeyRaw = await step(4, 6, "API Key", "sk-...")
+  const apiKeyRaw = await step(4, 6, "API 密钥", "sk-...")
   if (apiKeyRaw === null) return
   const apiKey = apiKeyRaw.trim()
   if (!apiKey) return
@@ -157,9 +157,9 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
         value: provider.id,
         providerID: provider.id,
         description: {
-          gyccode: "(Recommended)",
-          anthropic: "(API key)",
-          openai: "(ChatGPT Plus/Pro or API key)",
+          gyccode: "（推荐）",
+          anthropic: "（API 密钥）",
+          openai: "（ChatGPT Plus/Pro 或 API 密钥）",
           "gyccode-go": "人人可用的低成本订阅",
         }[provider.id],
         category: provider.id in PROVIDER_PRIORITY ? "热门" : "提供商",
@@ -235,7 +235,7 @@ export function createDialogProviderOptions() {
             const methods = sync.data.provider_auth[providerID] ?? [
               {
                 type: "api",
-                label: "API key",
+                label: "API 密钥",
               },
             ]
             let index: number | null = 0
@@ -336,7 +336,7 @@ function AutoMethod(props: AutoMethodProps) {
       {
         key: "c",
         desc: "复制服务商代码",
-        group: "Dialog",
+        group: "对话框",
         cmd: () => {
           const code =
             props.authorization.instructions.match(/[A-Z0-9]{4}-[A-Z0-9]{4,5}/)?.[0] ?? props.authorization.url
@@ -386,7 +386,7 @@ function AutoMethod(props: AutoMethodProps) {
       </box>
       <text fg={theme.textMuted}>正在等待授权...</text>
       <text fg={theme.text}>
-        c <span style={{ fg: theme.textMuted }}>copy</span>
+        c <span style={{ fg: theme.textMuted }}>复制</span>
       </text>
     </box>
   )
@@ -451,7 +451,7 @@ function ApiMethod(props: ApiMethodProps) {
   return (
     <DialogPrompt
       title={props.title}
-      placeholder="API key"
+      placeholder="API 密钥"
       description={() =>
         ({
           gyccode: (

@@ -108,11 +108,11 @@ export async function detectGycHeartbeat(): Promise<string | null> {
 
 export const GatewayCommand = effectCmd({
   command: "gateway",
-  describe: "run the gyc weixin gateway daemon (poll messages and auto-reply via LLM)",
+  describe: "运行 gyc 微信网关守护进程（轮询消息并通过 LLM 自动回复）",
   instance: false,
   builder: (yargs) =>
     yargs.option("force", {
-      describe: "start even if hermes gateway or another gyc daemon is detected (risk: message splitting)",
+      describe: "即使检测到 hermes 网关或其他 gyc 守护进程也照常启动（风险：消息被拆分）",
       type: "boolean",
     }),
   handler: Effect.fn("Cli.gateway")(function* (args: GatewayArgs) {

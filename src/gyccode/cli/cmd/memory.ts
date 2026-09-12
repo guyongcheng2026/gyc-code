@@ -3,12 +3,12 @@ import { readMemories, writeMemoryFile, syncMemories } from "../../memory/memory
 
 export const MemoryCommand = cmd({
   command: "memory",
-  describe: "manage cross-session memory",
+  describe: "管理跨会话记忆",
   builder: (yargs) =>
     yargs
       .command({
         command: "read",
-        describe: "read stored memories",
+        describe: "读取已存储的记忆",
         handler: async () => {
           const memories = await readMemories()
           if (memories.length === 0) {
@@ -25,11 +25,11 @@ export const MemoryCommand = cmd({
       })
       .command({
         command: "write <key> <value..>",
-        describe: "write a memory entry",
+        describe: "写入一条记忆",
         builder: (yargs) =>
           yargs
-            .positional("key", { type: "string", demandOption: true, describe: "memory key" })
-            .positional("value", { type: "string", array: true, demandOption: true, describe: "memory value" }),
+            .positional("key", { type: "string", demandOption: true, describe: "记忆键" })
+            .positional("value", { type: "string", array: true, demandOption: true, describe: "记忆值" }),
         handler: async (argv) => {
           await writeMemoryFile({
             key: argv.key as string,
@@ -40,7 +40,7 @@ export const MemoryCommand = cmd({
       })
       .command({
         command: "sync",
-        describe: "sync all memories",
+        describe: "同步所有记忆",
         handler: async () => {
           await syncMemories()
           console.log("Memories synced.")

@@ -142,7 +142,7 @@ export class SessionManager {
         } else if (part.type === "tool") {
           md += `**Tool: ${part.tool}**\n\n\`\`\`json\n${JSON.stringify(part.state.input, null, 2)}\n\`\`\`\n\n`
         } else if (part.type === "reasoning" && part.text) {
-          md += `*Reasoning:* ${part.text}\n\n`
+          md += `*推理：* ${part.text}\n\n`
         }
       }
     }

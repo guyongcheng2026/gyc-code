@@ -39,9 +39,9 @@ export function DialogWorkspaceList() {
         return {
           title:
             removing() === workspace.id
-              ? "Deleting..."
+              ? "正在删除…"
               : deleting() === workspace.id
-                ? `Delete ${workspace.name}? Press delete again`
+                ? `删除 ${workspace.name}？再次按 delete 确认`
                 : workspace.name,
           value: { workspace },
           footer: workspace.type,

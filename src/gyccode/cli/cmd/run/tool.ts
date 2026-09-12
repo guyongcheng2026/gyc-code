@@ -204,10 +204,10 @@ function span(state: ToolDict): string {
 function fail(ctx: ToolFrame): string {
   const error = toolError(ctx)
   if (error) {
-    return `✖ ${ctx.name} failed: ${error}`
+    return `✖ ${ctx.name} 失败：${error}`
   }
 
-  return `✖ ${ctx.name} failed`
+  return `✖ ${ctx.name} 失败`
 }
 
 function toolError(ctx: ToolFrame): string {
@@ -243,10 +243,10 @@ function fallbackFinal(ctx: ToolFrame): string {
 
   const time = span(ctx.state)
   if (!time) {
-    return `${ctx.name} completed`
+    return `${ctx.name} 已完成`
   }
 
-  return `${ctx.name} completed · ${time}`
+  return `${ctx.name} 已完成 · ${time}`
 }
 
 export function toolPath(input?: string, opts: { home?: boolean } = {}): string {
@@ -275,7 +275,7 @@ export function toolPath(input?: string, opts: { home?: boolean } = {}): string 
 }
 
 function fallbackInline(ctx: ToolFrame): ToolInline {
-  const title = text(ctx.state.title) || (Object.keys(ctx.input).length > 0 ? JSON.stringify(ctx.input) : "Unknown")
+  const title = text(ctx.state.title) || (Object.keys(ctx.input).length > 0 ? JSON.stringify(ctx.input) : "未知")
 
   return {
     icon: "🅃",
@@ -284,7 +284,7 @@ function fallbackInline(ctx: ToolFrame): ToolInline {
 }
 
 function count(n: number, label: string): string {
-  return `${n} ${label}${n === 1 ? "" : "es"}`
+  return `${n} ${label}`
 }
 
 function runGlob(p: ToolProps<typeof GlobTool>): ToolInline {
@@ -292,7 +292,7 @@ function runGlob(p: ToolProps<typeof GlobTool>): ToolInline {
   const title = `Glob "${p.input.pattern ?? ""}"`
   const suffix = root ? `in ${toolPath(root)}` : ""
   const matches = p.metadata.count
-  const description = matches === undefined ? suffix : `${suffix}${suffix ? " · " : ""}${count(matches, "match")}`
+  const description = matches === undefined ? suffix : `${suffix}${suffix ? " · " : ""}${count(matches, "个匹配")}`
   return {
     icon: "🅃",
     title,
@@ -305,7 +305,7 @@ function runGrep(p: ToolProps<typeof GrepTool>): ToolInline {
   const title = `Grep "${p.input.pattern ?? ""}"`
   const suffix = root ? `in ${toolPath(root)}` : ""
   const matches = p.metadata.matches
-  const description = matches === undefined ? suffix : `${suffix}${suffix ? " · " : ""}${count(matches, "match")}`
+  const description = matches === undefined ? suffix : `${suffix}${suffix ? " · " : ""}${count(matches, "个匹配")}`
   return {
     icon: "🅃",
     title,
@@ -317,7 +317,7 @@ function runList(p: ToolProps): ToolInline {
   const dir = text(dict(p.input).path)
   return {
     icon: "🅃",
-    title: dir ? `List ${toolPath(dir)}` : "List",
+    title: dir ? `列出 ${toolPath(dir)}` : "列表",
   }
 }
 
@@ -326,7 +326,7 @@ function runRead(p: ToolProps<typeof ReadTool>): ToolInline {
   const description = info(p.frame.input, ["filePath"]) || undefined
   return {
     icon: "🅃",
-    title: `Read ${file}`,
+    title: `读取 ${file}`,
     ...(description && { description }),
   }
 }
@@ -334,7 +334,7 @@ function runRead(p: ToolProps<typeof ReadTool>): ToolInline {
 function runWrite(p: ToolProps<typeof WriteTool>): ToolInline {
   return {
     icon: "🄝",
-    title: `Write ${toolPath(p.input.filePath)}`,
+    title: `写入 ${toolPath(p.input.filePath)}`,
     mode: "block",
     body: p.frame.status === "completed" ? text(p.frame.state.output) : undefined,
   }
@@ -344,14 +344,14 @@ function runWebfetch(p: ToolProps<typeof WebFetchTool>): ToolInline {
   const url = p.input.url ?? ""
   return {
     icon: "🅃",
-    title: url ? `WebFetch ${url}` : "WebFetch",
+    title: url ? `抓取网页 ${url}` : "WebFetch",
   }
 }
 
 function runEdit(p: ToolProps<typeof EditTool>): ToolInline {
   return {
     icon: "🄝",
-    title: `Edit ${toolPath(p.input.filePath)}`,
+    title: `编辑 ${toolPath(p.input.filePath)}`,
     mode: "block",
     body: p.metadata.diff,
     diff: true,
@@ -372,15 +372,15 @@ function runTask(p: ToolProps<typeof TaskTool>): ToolInline {
   const icon = p.frame.status === "error" ? "✗" : p.frame.status === "running" ? "•" : "✓"
   return {
     icon,
-    title: desc || `${kind} Task`,
-    description: desc ? `${kind} Agent` : undefined,
+    title: desc || `${kind} 任务`,
+    description: desc ? `${kind} 智能体` : undefined,
   }
 }
 
 function runTodo(p: ToolProps<typeof TodoWriteTool>): ToolInline {
   return {
     icon: "🅃",
-    title: "Todos",
+    title: "待办",
     mode: "block",
     body: list<{ status?: string; content?: string }>(p.frame.input.todos)
       .flatMap((item) => {
@@ -399,7 +399,7 @@ function runTodo(p: ToolProps<typeof TodoWriteTool>): ToolInline {
 function runSkill(p: ToolProps<typeof SkillTool>): ToolInline {
   return {
     icon: "🅃",
-    title: `Skill "${p.input.name ?? ""}"`,
+    title: `技能 "${p.input.name ?? ""}"`,
   }
 }
 
@@ -408,13 +408,13 @@ function runPatch(p: ToolProps<typeof ApplyPatchTool>): ToolInline {
   if (files === 0) {
     return {
       icon: "🅃",
-      title: "Patch",
+      title: "补丁",
     }
   }
 
   return {
     icon: "🅃",
-    title: `Patch ${files} file${files === 1 ? "" : "s"}`,
+    title: `已修补 ${files} 个文件`,
   }
 }
 
@@ -422,14 +422,14 @@ function runQuestion(p: ToolProps<typeof QuestionTool>): ToolInline {
   const total = list(p.frame.input.questions).length
   return {
     icon: "🅃",
-    title: `Asked ${total} question${total === 1 ? "" : "s"}`,
+    title: `提问了 ${total} 个问题`,
   }
 }
 
 function runInvalid(p: ToolProps<typeof InvalidTool>): ToolInline {
   return {
     icon: "✗",
-    title: text(p.frame.state.title) || "Invalid Tool",
+    title: text(p.frame.state.title) || "无效工具",
     mode: "block",
     body: p.frame.status === "completed" ? text(p.frame.state.output) : undefined,
   }
@@ -439,7 +439,7 @@ function runBatch(p: ToolProps): ToolInline {
   const calls = list(dict(p.input).tool_calls).length
   return {
     icon: "🅃",
-    title: text(p.frame.state.title) || (calls > 0 ? `Batch ${calls} tool${calls === 1 ? "" : "s"}` : "Batch"),
+    title: text(p.frame.state.title) || (calls > 0 ? `批量 ${calls} 次工具调用` : "批次"),
     mode: "block",
     body: p.frame.status === "completed" ? text(p.frame.state.output) : undefined,
   }
@@ -476,7 +476,7 @@ function runLsp(p: ToolProps<typeof LspTool>): ToolInline {
 function runPlanExit(p: ToolProps<typeof PlanExitTool>): ToolInline {
   return {
     icon: "🅃",
-    title: text(p.frame.state.title) || "Switching to build agent",
+    title: text(p.frame.state.title) || "正在切换到 build 智能体",
     mode: "block",
     body: p.frame.status === "completed" ? text(p.frame.state.output) : undefined,
   }
@@ -488,16 +488,16 @@ function patchTitle(file: PatchFile): string {
   const rel = file.relativePath
   const from = file.filePath
   if (file.type === "add") {
-    return `# Created ${rel || toolPath(from)}`
+    return `# 已创建 ${rel || toolPath(from)}`
   }
   if (file.type === "delete") {
-    return `# Deleted ${rel || toolPath(from)}`
+    return `# 已删除 ${rel || toolPath(from)}`
   }
   if (file.type === "move") {
-    return `# Moved ${toolPath(from)} -> ${rel || toolPath(file.movePath)}`
+    return `# 已移动 ${toolPath(from)} -> ${rel || toolPath(file.movePath)}`
   }
 
-  return `# Patched ${rel || toolPath(from)}`
+  return `# 已修补 ${rel || toolPath(from)}`
 }
 
 function snapWrite(p: ToolProps<typeof WriteTool>): ToolSnapshot | undefined {
@@ -509,7 +509,7 @@ function snapWrite(p: ToolProps<typeof WriteTool>): ToolSnapshot | undefined {
 
   return {
     kind: "code",
-    title: `# Wrote ${toolPath(file)}`,
+    title: `# 已写入 ${toolPath(file)}`,
     content,
     file,
   }
@@ -526,7 +526,7 @@ function snapEdit(p: ToolProps<typeof EditTool>): ToolSnapshot | undefined {
     kind: "diff",
     items: [
       {
-        title: `# Edited ${toolPath(file)}`,
+        title: `# 已编辑 ${toolPath(file)}`,
         diff,
         file,
       },
@@ -579,7 +579,7 @@ function snapTask(p: ToolProps<typeof TaskTool>): ToolSnapshot {
 
   return {
     kind: "task",
-    title: `# ${kind} Task`,
+    title: `# ${kind} 任务`,
     rows,
     tail: "",
   }
@@ -612,8 +612,8 @@ function snapQuestion(p: ToolProps<typeof QuestionTool>): ToolSnapshot {
   const items = list<{ question?: string }>(p.frame.input.questions).map((item, i) => {
     const answer = list<string>(answers[i]).filter((entry) => typeof entry === "string")
     return {
-      question: item.question || `Question ${i + 1}`,
-      answer: answer.length > 0 ? answer.join(", ") : "(no answer)",
+      question: item.question || `问题 ${i + 1}`,
+      answer: answer.length > 0 ? answer.join(", ") : "（无答案）",
     }
   })
 
@@ -634,10 +634,10 @@ function scrollBashStart(p: ToolProps<typeof BashTool>): string {
   }
 
   if (!cmd) {
-    return dir ? `# Running in ${dir}` : ""
+    return dir ? `# 正在运行于 ${dir}` : ""
   }
 
-  return `# Running in ${dir}\n$ ${cmd}`
+  return `# 正在运行于 ${dir}\n$ ${cmd}`
 }
 
 function scrollBashProgress(p: ToolProps<typeof BashTool>): string {
@@ -678,20 +678,20 @@ function scrollBashFinal(p: ToolProps<typeof BashTool>): string {
   const time = span(p.frame.state)
   if (code === undefined) {
     if (!time) {
-      return "bash completed"
+      return "bash 已完成"
     }
 
-    return `bash completed · ${time}`
+    return `bash 已完成 · ${time}`
   }
 
-  return `bash completed (exit ${code})${time ? ` · ${time}` : ""}`
+  return `bash 已完成（退出码 ${code}）${time ? ` · ${time}` : ""}`
 }
 
 function scrollReadStart(p: ToolProps<typeof ReadTool>): string {
   const file = toolPath(p.input.filePath)
   const extra = info(p.frame.input, ["filePath"])
   const tail = extra ? ` ${extra}` : ""
-  return `→ Read ${file}${tail}`.trim()
+  return `→ 读取 ${file}${tail}`.trim()
 }
 
 function scrollWriteStart(_: ToolProps<typeof WriteTool>): string {
@@ -712,18 +712,18 @@ function patchLine(file: PatchFile): string {
   const from = file.filePath
 
   if (type === "add") {
-    return `+ Created ${rel || toolPath(from)}`
+    return `+ 已创建 ${rel || toolPath(from)}`
   }
 
   if (type === "delete") {
-    return `- Deleted ${rel || toolPath(from)}`
+    return `- 已删除 ${rel || toolPath(from)}`
   }
 
   if (type === "move") {
-    return `→ Moved ${toolPath(from)} → ${rel || toolPath(file.movePath)}`
+    return `→ 已移动 ${toolPath(from)} → ${rel || toolPath(file.movePath)}`
   }
 
-  return `~ Patched ${rel || toolPath(from)}`
+  return `~ 已修补 ${rel || toolPath(from)}`
 }
 
 function scrollPatchFinal(p: ToolProps<typeof ApplyPatchTool>): string {
@@ -738,7 +738,7 @@ function scrollPatchFinal(p: ToolProps<typeof ApplyPatchTool>): string {
       return "patch"
     }
 
-    return `patch · ${time}`
+    return `补丁 · ${time}`
   }
 
   const show_updates = !files.some((file) => file?.type && file.type !== "update")
@@ -785,10 +785,10 @@ function scrollTaskFinal(p: ToolProps<typeof TaskTool>): string {
   const kind = Locale.titlecase(p.input.subagent_type || "general")
   const row = p.input.description || text(p.frame.state.title)
   if (!row) {
-    return `# ${kind} Task`
+    return `# ${kind} 任务`
   }
 
-  return `# ${kind} Task\n${row}`
+  return `# ${kind} 任务\n${row}`
 }
 
 function scrollTodoStart(_: ToolProps<typeof TodoWriteTool>): string {
@@ -800,24 +800,24 @@ function scrollTodoFinal(p: ToolProps<typeof TodoWriteTool>): string {
   const time = span(p.frame.state)
   if (items.length === 0) {
     if (!time) {
-      return "0 todos"
+      return "0 个待办"
     }
 
-    return `0 todos · ${time}`
+    return `0 个待办 · ${time}`
   }
 
   const doneN = items.filter((item) => item.status === "completed").length
   const runN = items.filter((item) => item.status === "in_progress").length
   const left = items.length - doneN - runN
-  const tail = [`${items.length} total`]
+  const tail = [`共 ${items.length} 项`]
   if (doneN > 0) {
-    tail.push(`${doneN} done`)
+    tail.push(`已完成 ${doneN}`)
   }
   if (runN > 0) {
-    tail.push(`${runN} active`)
+    tail.push(`进行中 ${runN}`)
   }
   if (left > 0) {
-    tail.push(`${left} pending`)
+    tail.push(`待办 ${left}`)
   }
 
   if (time) {
@@ -837,18 +837,18 @@ function scrollQuestionFinal(p: ToolProps<typeof QuestionTool>): string {
   const time = span(p.frame.state)
   if (q.length === 0) {
     if (!time) {
-      return "0 questions"
+      return "0 个问题"
     }
 
-    return `0 questions · ${time}`
+    return `0 个问题 · ${time}`
   }
 
   const rows: string[] = []
   for (const [i, item] of q.slice(0, 4).entries()) {
     const prompt = item.question
     const reply = a[i] ?? []
-    rows.push(`? ${prompt || `Question ${i + 1}`}`)
-    rows.push(`  ${reply.length > 0 ? reply.join(", ") : "(no answer)"}`)
+    rows.push(`? ${prompt || `问题 ${i + 1}`}`)
+    rows.push(`  ${reply.length > 0 ? reply.join(", ") : "（无答案）"}`)
   }
 
   if (q.length > 4) {
@@ -863,18 +863,18 @@ function scrollLspStart(p: ToolProps<typeof LspTool>): string {
 }
 
 function scrollSkillStart(p: ToolProps<typeof SkillTool>): string {
-  return `→ Skill "${p.input.name ?? ""}"`
+  return `→ 技能 "${p.input.name ?? ""}"`
 }
 
 function scrollGlobStart(p: ToolProps<typeof GlobTool>): string {
   const pattern = p.input.pattern ?? ""
-  const head = pattern ? `✱ Glob "${pattern}"` : "✱ Glob"
+  const head = pattern ? `✱ 查找文件 "${pattern}"` : "✱ 查找文件"
   const dir = p.input.path ?? ""
   if (!dir) {
     return head
   }
 
-  return `${head} in ${toolPath(dir)}`
+  return `${head} 在 ${toolPath(dir)} 中`
 }
 
 function scrollGlobFinal(p: ToolProps<typeof GlobTool>): string {
@@ -883,31 +883,31 @@ function scrollGlobFinal(p: ToolProps<typeof GlobTool>): string {
 
 function scrollGrepStart(p: ToolProps<typeof GrepTool>): string {
   const pattern = p.input.pattern ?? ""
-  const head = pattern ? `✱ Grep "${pattern}"` : "✱ Grep"
+  const head = pattern ? `✱ 搜索内容 "${pattern}"` : "✱ 搜索内容"
   const dir = p.input.path ?? ""
   if (!dir) {
     return head
   }
 
-  return `${head} in ${toolPath(dir)}`
+  return `${head} 在 ${toolPath(dir)} 中`
 }
 
 function scrollListStart(p: ToolProps): string {
   const dir = text(dict(p.input).path)
   if (!dir) {
-    return "→ List"
+    return "→ 列出"
   }
 
-  return `→ List ${toolPath(dir)}`
+  return `→ 列出 ${toolPath(dir)}`
 }
 
 function scrollWebfetchStart(p: ToolProps<typeof WebFetchTool>): string {
   const url = p.input.url ?? ""
   if (!url) {
-    return "% WebFetch"
+    return "% 抓取网页"
   }
 
-  return `% WebFetch ${url}`
+  return `% 抓取网页 ${url}`
 }
 
 function scrollWebSearchStart(p: ToolProps<typeof WebSearchTool>): string {
@@ -925,7 +925,7 @@ function permEdit(p: ToolPermissionProps<typeof EditTool>): ToolPermissionInfo {
   const file = input.filePath || input.filepath || p.patterns[0] || ""
   return {
     icon: "🅃",
-    title: `Edit ${toolPath(file, { home: true })}`,
+    title: `编辑 ${toolPath(file, { home: true })}`,
     lines: [],
     diff: p.metadata.diff ?? input.diff,
     file,
@@ -936,8 +936,8 @@ function permRead(p: ToolPermissionProps<typeof ReadTool>): ToolPermissionInfo {
   const file = p.input.filePath || p.patterns[0] || ""
   return {
     icon: "🅃",
-    title: `Read ${toolPath(file, { home: true })}`,
-    lines: file ? [`Path: ${toolPath(file, { home: true })}`] : [],
+    title: `读取 ${toolPath(file, { home: true })}`,
+    lines: file ? [`路径：${toolPath(file, { home: true })}`] : [],
   }
 }
 
@@ -946,7 +946,7 @@ function permGlob(p: ToolPermissionProps<typeof GlobTool>): ToolPermissionInfo {
   return {
     icon: "🅃",
     title: `Glob "${pattern}"`,
-    lines: pattern ? [`Pattern: ${pattern}`] : [],
+    lines: pattern ? [`模式：${pattern}`] : [],
   }
 }
 
@@ -955,7 +955,7 @@ function permGrep(p: ToolPermissionProps<typeof GrepTool>): ToolPermissionInfo {
   return {
     icon: "🅃",
     title: `Grep "${pattern}"`,
-    lines: pattern ? [`Pattern: ${pattern}`] : [],
+    lines: pattern ? [`模式：${pattern}`] : [],
   }
 }
 
@@ -963,8 +963,8 @@ function permList(p: ToolPermissionProps): ToolPermissionInfo {
   const dir = text(dict(p.input).path) || p.patterns[0] || ""
   return {
     icon: "🅃",
-    title: `List ${toolPath(dir, { home: true })}`,
-    lines: dir ? [`Path: ${toolPath(dir, { home: true })}`] : [],
+    title: `列出 ${toolPath(dir, { home: true })}`,
+    lines: dir ? [`路径：${toolPath(dir, { home: true })}`] : [],
   }
 }
 
@@ -972,7 +972,7 @@ function permBash(p: ToolPermissionProps<typeof BashTool>): ToolPermissionInfo {
   const cmd = p.input.command || ""
   return {
     icon: "🅃",
-    title: "Shell command",
+    title: "Shell 命令",
     lines: cmd ? [`$ ${cmd}`] : p.patterns.map((item) => `- ${item}`),
   }
 }
@@ -982,7 +982,7 @@ function permTask(p: ToolPermissionProps<typeof TaskTool>): ToolPermissionInfo {
   const desc = p.input.description
   return {
     icon: "🅃",
-    title: `${Locale.titlecase(type)} Task`,
+    title: `${Locale.titlecase(type)} 任务`,
     lines: desc ? [`◉ ${desc}`] : [],
   }
 }
@@ -991,7 +991,7 @@ function permWebfetch(p: ToolPermissionProps<typeof WebFetchTool>): ToolPermissi
   const url = p.input.url || ""
   return {
     icon: "🅃",
-    title: `WebFetch ${url}`,
+    title: `抓取网页 ${url}`,
     lines: url ? [`URL: ${url}`] : [],
   }
 }
@@ -1002,7 +1002,7 @@ function permWebSearch(p: ToolPermissionProps<typeof WebSearchTool>): ToolPermis
   return {
     icon: "🅃",
     title: query ? `${title} "${query}"` : title,
-    lines: query ? [`Query: ${query}`] : [],
+    lines: query ? [`查询：${query}`] : [],
   }
 }
 
@@ -1015,9 +1015,9 @@ function permLsp(p: ToolPermissionProps<typeof LspTool>): ToolPermissionInfo {
     icon: "🅃",
     title: lspTitle(p.input, { home: true }),
     lines: [
-      ...(p.input.operation ? [`Operation: ${p.input.operation}`] : []),
-      ...(file ? [`Path: ${toolPath(file, { home: true })}`] : []),
-      ...(pos ? [`Position: ${pos}`] : []),
+      ...(p.input.operation ? [`操作：${p.input.operation}`] : []),
+      ...(file ? [`路径：${toolPath(file, { home: true })}`] : []),
+      ...(pos ? [`位置：${pos}`] : []),
     ],
   }
 }

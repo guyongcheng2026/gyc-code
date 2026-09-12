@@ -47,7 +47,7 @@ export function DialogDebug() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制调试信息", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制调试信息", group: "对话框", cmd: copy }],
   }))
 
   return (
@@ -80,7 +80,7 @@ export function DialogDebug() {
         <text fg={theme.textMuted}>反馈问题时请附带此信息。</text>
         <text onMouseUp={copy}>
           <span style={{ fg: copied() ? theme.success : theme.text }}>
-            <b>{copied() ? "✓ copied" : "copy"}</b>{" "}
+            <b>{copied() ? "✓ 已复制" : "copy"}</b>{" "}
           </span>
           <span style={{ fg: theme.textMuted }}>enter</span>
         </text>

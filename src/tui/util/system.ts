@@ -15,6 +15,6 @@ export function describeOS() {
 export function describeTerminal() {
   const program = process.env.TERM_PROGRAM || process.env.TERM || "unknown"
   const version = process.env.TERM_PROGRAM_VERSION ? ` ${process.env.TERM_PROGRAM_VERSION}` : ""
-  const multiplexer = process.env.TMUX ? " in tmux" : process.env.STY ? " in screen" : ""
+  const multiplexer = process.env.TMUX ? "（tmux）" : process.env.STY ? "（screen）" : ""
   return `${program}${version}${multiplexer}`
 }

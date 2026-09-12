@@ -877,7 +877,7 @@ title: "打开编辑器",
         {
           key: "!",
           desc: "Shell 模式",
-          group: "Prompt",
+          group: "提示词",
           cmd: () => {
             setStore("placeholder", randomIndex(shell().length))
             setStore("mode", "shell")
@@ -891,7 +891,7 @@ title: "打开编辑器",
     return {
       target: inputTarget,
       enabled: inputTarget() !== undefined && store.mode === "shell",
-      bindings: [{ key: "escape", desc: "退出 Shell 模式", group: "Prompt", cmd: () => setStore("mode", "normal") }],
+      bindings: [{ key: "escape", desc: "退出 Shell 模式", group: "提示词", cmd: () => setStore("mode", "normal") }],
     }
   })
 
@@ -902,7 +902,7 @@ title: "打开编辑器",
         cursorVersion()
         return inputTarget() !== undefined && store.mode === "shell" && input?.visualCursor.offset === 0
       })(),
-      bindings: [{ key: "backspace", desc: "退出 Shell 模式", group: "Prompt", cmd: () => setStore("mode", "normal") }],
+      bindings: [{ key: "backspace", desc: "退出 Shell 模式", group: "提示词", cmd: () => setStore("mode", "normal") }],
     }
   })
 
@@ -1255,7 +1255,7 @@ title: "打开编辑器",
       (lineCount >= 3 || pastedContent.length > 150) &&
       kv.get("paste_summary_enabled", !sync.data.config.experimental?.disable_paste_summary)
     ) {
-      pasteText(pastedContent, `[Pasted ~${lineCount} lines]`)
+      pasteText(pastedContent, `[已粘贴约 ${lineCount} 行]`)
       return
     }
 
@@ -1277,7 +1277,7 @@ title: "打开编辑器",
       if (pdf) return x.mime === "application/pdf"
       return x.mime.startsWith("image/")
     }).length
-    const virtualText = pdf ? `[PDF ${count + 1}]` : `[Image ${count + 1}]`
+    const virtualText = pdf ? `[PDF ${count + 1}]` : `[图片 ${count + 1}]`
     const extmarkEnd = extmarkStart + virtualText.length
     const textToInsert = virtualText + " "
 
@@ -1360,10 +1360,10 @@ title: "打开编辑器",
     if (store.mode === "shell") {
       if (!shell().length) return undefined
       const example = shell()[store.placeholder % shell().length]
-      return `Run a command... "${example}"`
+      return `执行命令…… "${example}"`
     }
     if (!list().length) return undefined
-    return `Ask anything... "${list()[store.placeholder % list().length]}"`
+    return `输入消息... "${list()[store.placeholder % list().length]}"`
   })
 
   const spinnerDef = createMemo(() => {
@@ -1494,10 +1494,10 @@ title: "打开编辑器",
                   {(agent) => (
                     <>
                       <text fg={fadeColor(highlight(), agentMetaAlpha())}>
-                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
+                        {store.mode === "shell" ? "命令行" : Locale.titlecase(agent().name)}
                       </text>
                       <Show when={store.mode === "normal" && local.permission.mode === "auto"}>
-                        <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>auto</text>
+                        <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>自动</text>
                       </Show>
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>
@@ -1583,7 +1583,7 @@ title: "打开编辑器",
                         const r = retry()
                         if (!r) return
                         if (r.message.includes("exceeded your current quota") && r.message.includes("gemini"))
-                          return "gemini is way too hot right now"
+                          return "gemini 当前负载过高，请稍后重试"
                         if (r.message.length > 80) return r.message.slice(0, 80) + "..."
                         return r.message
                       })
@@ -1607,7 +1607,7 @@ title: "打开编辑器",
                         const r = retry()
                         if (!r) return
                         if (isTruncated()) {
-                          void DialogAlert.show(dialog, "Retry Error", r.message)
+                          void DialogAlert.show(dialog, "重试错误", r.message)
                         }
                       }
 
@@ -1615,7 +1615,7 @@ title: "打开编辑器",
                         const r = retry()
                         if (!r) return ""
                         const baseMessage = message()
-                        const truncatedHint = isTruncated() ? " (click to expand)" : ""
+                        const truncatedHint = isTruncated() ? "（点击展开）" : ""
                         const duration = formatDuration(seconds())
                         const retryInfo = ` [retrying ${duration ? `in ${duration} ` : ""}attempt #${r.attempt}]`
                         return baseMessage + truncatedHint + retryInfo
@@ -1634,7 +1634,7 @@ title: "打开编辑器",
                 <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                   esc{" "}
                   <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                    {store.interrupt > 0 ? "again to interrupt" : "interrupt"}
+                    {store.interrupt > 0 ? "再次中断" : "interrupt"}
                   </span>
                 </text>
               </box>
@@ -1657,7 +1657,7 @@ title: "打开编辑器",
                       const item = label()
                       if (item.type === "new") {
                         if (workspace.creating())
-                          return `Creating ${item.workspaceType}${".".repeat(workspace.creatingDots())}`
+                          return `正在创建 ${item.workspaceType}${".".repeat(workspace.creatingDots())}`
                         return (
                           <>
                             Workspace <span style={{ fg: theme.textMuted }}>(new {item.workspaceType})</span>

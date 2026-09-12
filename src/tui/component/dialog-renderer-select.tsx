@@ -33,8 +33,8 @@ export function DialogRendererSelect() {
 
 	useBindings(() => ({
 		bindings: [
-			{ key: "return", desc: "确认", group: "Dialog", cmd: confirm },
-			{ key: "escape", desc: "取消", group: "Dialog", cmd: () => dialog.clear() },
+			{ key: "return", desc: "确认", group: "对话框", cmd: confirm },
+			{ key: "escape", desc: "取消", group: "对话框", cmd: () => dialog.clear() },
 		],
 	}))
 

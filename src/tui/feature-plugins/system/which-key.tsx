@@ -46,7 +46,7 @@ const MAX_PANEL_HEIGHT = 16
 const PANEL_TOP_PADDING = 1
 const FOOTER_HEIGHT = 1
 const FOOTER_MARGIN = 1
-const UNKNOWN = "Unknown"
+const UNKNOWN = "未知"
 
 type Layout = "dock" | "overlay"
 
@@ -119,7 +119,7 @@ function activeKeyLabel(active: ActiveKey<Renderable, KeyEvent>) {
 }
 
 function activeKeyGroup(active: ActiveKey<Renderable, KeyEvent>) {
-  if (active.continues) return "System"
+  if (active.continues) return "系统"
   return text(active.commandAttrs?.category) ?? text(active.bindingAttrs?.group) ?? UNKNOWN
 }
 

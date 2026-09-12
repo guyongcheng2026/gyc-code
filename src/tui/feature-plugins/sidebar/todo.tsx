@@ -47,7 +47,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().text}>{open() ? "\u25BC" : "\u25B6"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>Todo</b>
+            <b>待办</b>
           </text>
         </box>
         <Show when={!collapsible() || open()}>
@@ -55,7 +55,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
           <Show when={parts().hiddenDoneCount > 0 || doneExpanded()}>
             <box flexDirection="row" gap={0} onMouseDown={() => setDoneExpanded((x) => !x)}>
               <text fg={theme().textMuted}>
-                {doneExpanded() ? "\u25B2 fewer done" : `\u25BC ${parts().hiddenDoneCount} more done`}
+                {doneExpanded() ? "\u25B2 收起已完成" : `\u25BC 还有 ${parts().hiddenDoneCount} 项已完成`}
               </text>
             </box>
           </Show>

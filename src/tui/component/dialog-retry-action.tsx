@@ -49,25 +49,25 @@ export function DialogRetryAction(props: DialogRetryActionProps) {
       {
         key: "left",
         desc: "上一个重试选项",
-        group: "Dialog",
+        group: "对话框",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "right",
         desc: "下一个重试选项",
-        group: "Dialog",
+        group: "对话框",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "tab",
         desc: "下一个重试选项",
-        group: "Dialog",
+        group: "对话框",
         cmd: () => setSelected((value) => (value === "action" ? "dismiss" : "action")),
       },
       {
         key: "return",
         desc: "确认重试选项",
-        group: "Dialog",
+        group: "对话框",
         cmd: () => {
           if (selected() === "action") runAction(props, dialog)
           else dismiss(props, dialog)

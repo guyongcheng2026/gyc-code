@@ -7,27 +7,27 @@ import { ProviderV2 } from "@gyccode/core/provider"
 
 export const ModelsCommand = effectCmd({
   command: "models [provider]",
-  describe: "list all available models",
+  describe: "列出所有可用模型",
   builder: (yargs) =>
     yargs
       .positional("provider", {
-        describe: "provider ID to filter models by",
+        describe: "用于筛选模型的服务商 ID",
         type: "string",
         array: false,
       })
       .option("verbose", {
-        describe: "use more verbose model output (includes metadata like costs)",
+        describe: "使用更详细的模型输出（包含成本等元数据）",
         type: "boolean",
       })
       .option("refresh", {
-        describe: "refresh the models cache from models.dev",
+        describe: "从 models.dev 刷新模型缓存",
         type: "boolean",
       }),
   handler: Effect.fn("Cli.models")(function* (args) {
     const { Provider } = yield* Effect.promise(() => import("@/provider/provider"))
     if (args.refresh) {
       yield* ModelsDev.Service.use((s) => s.refresh(true))
-      UI.println(UI.Style.TEXT_SUCCESS_BOLD + "Models cache refreshed" + UI.Style.TEXT_NORMAL)
+      UI.println(UI.Style.TEXT_SUCCESS_BOLD + "模型缓存已刷新" + UI.Style.TEXT_NORMAL)
     }
 
     const provider = yield* Provider.Service
@@ -48,7 +48,7 @@ export const ModelsCommand = effectCmd({
 
     if (args.provider) {
       const providerID = ProviderV2.ID.make(args.provider)
-      if (!providers[providerID]) return yield* fail(`Provider not found: ${args.provider}`)
+      if (!providers[providerID]) return yield* fail(`未找到服务商：${args.provider}`)
       print(providerID, args.verbose)
       return
     }

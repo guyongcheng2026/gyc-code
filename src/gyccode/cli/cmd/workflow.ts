@@ -26,11 +26,11 @@ const directoryOf = (cwd: string, directory?: string) => (directory ? directory 
 
 const WorkflowDefsCommand = cmd({
   command: "defs",
-  describe: "list available workflow definitions",
+  describe: "列出可用的工作流定义",
   builder: (yargs: Argv) =>
     yargs.option("directory", {
       type: "string",
-      describe: "project directory (default: cwd)",
+      describe: "项目目录（默认：cwd）",
     }),
   handler: async (args) => {
     const runtime = makeRuntime()
@@ -54,22 +54,22 @@ const WorkflowDefsCommand = cmd({
 
 const WorkflowStartCommand = cmd({
   command: "start <workflow>",
-  describe: "start a workflow run on a session",
+  describe: "在会话上启动工作流运行",
   builder: (yargs: Argv) =>
     yargs
       .positional("workflow", {
         type: "string",
-        describe: "workflow definition name",
+        describe: "工作流定义名称",
       })
       .option("session", {
         type: "string",
         alias: "s",
         demandOption: true,
-        describe: "session id to run the workflow on",
+        describe: "运行工作流所用的会话 ID",
       })
       .option("directory", {
         type: "string",
-        describe: "project directory (default: cwd)",
+        describe: "项目目录（默认：cwd）",
       }),
   handler: async (args) => {
     const runtime = makeRuntime()
@@ -96,16 +96,16 @@ const WorkflowStartCommand = cmd({
 
 const WorkflowStatusCommand = cmd({
   command: "status [run]",
-  describe: "show workflow run status (or list runs)",
+  describe: "显示工作流运行状态（或列出运行记录）",
   builder: (yargs: Argv) =>
     yargs
       .positional("run", {
         type: "string",
-        describe: "workflow run id",
+        describe: "工作流运行 ID",
       })
       .option("directory", {
         type: "string",
-        describe: "filter runs by directory (default: cwd)",
+        describe: "按目录筛选运行记录（默认：cwd）",
       }),
   handler: async (args) => {
     const runtime = makeRuntime()
@@ -133,11 +133,11 @@ const WorkflowStatusCommand = cmd({
 
 const WorkflowAbortCommand = cmd({
   command: "abort <run>",
-  describe: "abort a running workflow",
+  describe: "中止正在运行的工作流",
   builder: (yargs: Argv) =>
     yargs.positional("run", {
       type: "string",
-      describe: "workflow run id",
+      describe: "工作流运行 ID",
     }),
   handler: async (args) => {
     const runtime = makeRuntime()
@@ -162,7 +162,7 @@ function printRun(run: WorkflowRun) {
 
 export const WorkflowCommand = cmd({
   command: "workflow",
-  describe: "workflow orchestration engine",
+  describe: "工作流编排引擎",
   builder: (yargs: Argv) =>
     yargs
       .command(WorkflowDefsCommand)

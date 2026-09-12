@@ -58,7 +58,7 @@ async function openQrInBrowser(scanData: string): Promise<void> {
 
 export const PairCommand = effectCmd({
   command: "pair",
-  describe: "pair the weixin bot via QR scan and save credentials to ~/.gyc/.env",
+  describe: "扫码配对 weixin 机器人并将凭据保存到 ~/.gyc/.env",
   instance: false,
   builder: (yargs) => yargs,
   handler: Effect.fn("Cli.pair")(function* () {

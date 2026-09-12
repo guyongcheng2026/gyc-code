@@ -6,7 +6,7 @@ import { Flag } from "@gyccode/core/flag/flag"
 export const ServeCommand = effectCmd({
   command: "serve",
   builder: (yargs) => withNetworkOptions(yargs),
-  describe: "starts a headless gyc server",
+  describe: "启动无头 gyc 服务器",
   // Server loads instances per-request via x-gyccode-directory header — no
   // need for an ambient project InstanceContext at startup.
   instance: false,
@@ -17,7 +17,7 @@ export const ServeCommand = effectCmd({
     if (!Flag.GYCCODE_SERVER_PASSWORD) {
       if (!isLoopback) {
         console.error(
-          "Error: refusing to expose an unsecured server on a non-loopback address. Set GYCCODE_SERVER_PASSWORD before listening on " + opts.hostname,
+          "错误：拒绝在非回环地址上暴露未受保护的服务器。在监听前请设置 GYCCODE_SERVER_PASSWORD " + opts.hostname,
         )
         process.exit(1)
       }

@@ -83,9 +83,9 @@ function storedView(value: unknown): DiffView | undefined {
 }
 
 function diffSourceLabel(mode: DiffMode) {
-  if (mode === "last-turn") return "last turn"
-  if (mode === "branch") return "main branch"
-  return "working tree"
+  if (mode === "last-turn") return "上一轮"
+  if (mode === "branch") return "主分支"
+  return "工作区"
 }
 
 function DiffViewer(props: { api: TuiPluginApi }) {
@@ -753,7 +753,7 @@ function DiffViewer(props: { api: TuiPluginApi }) {
     <box position="absolute" zIndex={2500} left={0} top={0} width={dimensions().width} height={dimensions().height}>
       <PanelGroup axis="y" width="100%" height="100%">
         <Panel border="none" flexShrink={0} padding={0} paddingLeft={1}>
-          <text fg={theme().text}>Diff </text>
+          <text fg={theme().text}>差异 </text>
           <text fg={theme().textMuted}>{diffSourceLabel(mode())}</text>
           <box flexGrow={1} />
           <text fg={theme().textMuted}>
@@ -766,7 +766,7 @@ function DiffViewer(props: { api: TuiPluginApi }) {
             <Match when={diff.loading}>
               <Separator axis="x" />
               <box flexGrow={1} paddingLeft={1}>
-                <text fg={theme().textMuted}>Loading diff...</text>
+                <text fg={theme().textMuted}>正在加载差异…</text>
               </box>
             </Match>
             <Match when={!diff.loading && files().length === 0}>
@@ -933,7 +933,7 @@ function DiffViewer(props: { api: TuiPluginApi }) {
           <Show when={helpShortcut()}>
             {(shortcut) => (
               <text fg={theme().text}>
-                {shortcut()} <span style={{ fg: theme().textMuted }}>all</span>
+                {shortcut()} <span style={{ fg: theme().textMuted }}>全部</span>
               </text>
             )}
           </Show>
@@ -1023,7 +1023,7 @@ function DiffViewerHelpDialog() {
         <text fg={theme.textMuted} width={22} wrapMode="none">
           Action
         </text>
-        <text fg={theme.textMuted}>Description</text>
+        <text fg={theme.textMuted}>描述</text>
       </box>
       <For each={rows}>
         {(row) => (

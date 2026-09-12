@@ -42,11 +42,11 @@ export function DialogSessionDeleteFailed(props: {
 
   useBindings(() => ({
     bindings: [
-      { key: "return", desc: "确认恢复选项", group: "Dialog", cmd: () => void confirm() },
-      { key: "left", desc: "删除已损坏的会话", group: "Dialog", cmd: () => setStore("active", "delete") },
-      { key: "up", desc: "删除已损坏的会话", group: "Dialog", cmd: () => setStore("active", "delete") },
-      { key: "right", desc: "恢复已损坏的会话", group: "Dialog", cmd: () => setStore("active", "restore") },
-      { key: "down", desc: "恢复已损坏的会话", group: "Dialog", cmd: () => setStore("active", "restore") },
+      { key: "return", desc: "确认恢复选项", group: "对话框", cmd: () => void confirm() },
+      { key: "left", desc: "删除已损坏的会话", group: "对话框", cmd: () => setStore("active", "delete") },
+      { key: "up", desc: "删除已损坏的会话", group: "对话框", cmd: () => setStore("active", "delete") },
+      { key: "right", desc: "恢复已损坏的会话", group: "对话框", cmd: () => setStore("active", "restore") },
+      { key: "down", desc: "恢复已损坏的会话", group: "对话框", cmd: () => setStore("active", "restore") },
     ],
   }))
 

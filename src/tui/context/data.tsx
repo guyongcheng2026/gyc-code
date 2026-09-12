@@ -575,7 +575,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
         dataResult.location.skill.refresh(),
       ]).then((settled) => {
         for (const failure of settled.filter((item) => item.status === "rejected"))
-          console.error("Failed to refresh default location data", failure.reason)
+          console.error("刷新默认位置数据失败", failure.reason)
       })
     })
 

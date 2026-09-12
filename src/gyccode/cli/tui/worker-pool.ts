@@ -77,7 +77,7 @@ export function createWorkerPool(opts: { file: URL | string; external: boolean }
       // 先 reject 挂起请求（Promise 挂在主进程，不 dispose 会永久悬挂），
       // 再置空引用：确保 ensure 在重启延迟窗口内被调用时立即重生
       // worker（而非返回已死 client 的 postMessage 抛错）
-      currentClient?.dispose(new Error(`worker exited with code ${code}`))
+      currentClient?.dispose(new Error(`工作进程退出，代码 ${code}`))
       currentWorker = undefined
       currentClient = undefined
       const delayMs = Math.min(2000 * 2 ** restarts, 8000)

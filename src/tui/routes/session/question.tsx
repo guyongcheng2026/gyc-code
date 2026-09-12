@@ -137,7 +137,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
       {
         name: "prompt.clear",
         title: "清除答案编辑",
-        category: "Question",
+        category: "提问",
         run() {
           const text = textarea?.plainText ?? ""
           if (!text) {
@@ -218,7 +218,7 @@ export function QuestionPrompt(props: { request: QuestionRequest; directory?: st
         {
           name: "app.exit",
           title: "拒绝提问",
-          category: "Question",
+          category: "提问",
           run() {
             reject()
           },

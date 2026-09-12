@@ -41,8 +41,8 @@ export function sessionEpilogue(input: { title: string; sessionID?: string }) {
   return [
     ...wordmark("  "),
     "",
-    `  ${weak("Session")}${bold}${input.title}${reset}`,
-    `  ${weak("Continue")}${bold}gyc -s ${input.sessionID}${reset}`,
+    `  ${weak("会话")}${bold}${input.title}${reset}`,
+    `  ${weak("继续")}${bold}gyc -s ${input.sessionID}${reset}`,
     "",
   ].join("\n")
 }

@@ -151,7 +151,7 @@ export function DialogDoctor() {
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制诊断信息", group: "Dialog", cmd: copy }],
+    bindings: [{ key: "return", desc: "复制诊断信息", group: "对话框", cmd: copy }],
   }))
 
   const statusColor = (status: CheckResult["status"]) =>
@@ -205,7 +205,7 @@ export function DialogDoctor() {
         <text fg={theme.textMuted}>反馈问题时请附带此信息。</text>
         <text onMouseUp={copy}>
           <span style={{ fg: theme.text }}>
-            <b>copy</b>
+            <b>复制</b>
           </span>{" "}
           <span style={{ fg: theme.textMuted }}>enter</span>
         </text>

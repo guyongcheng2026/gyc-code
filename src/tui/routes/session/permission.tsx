@@ -285,7 +285,7 @@ export function PermissionPrompt(props: { request: PermissionRequest; directory?
             }
 
             if (permission === "task") {
-              const type = typeof data.subagent_type === "string" ? data.subagent_type : "Unknown"
+              const type = typeof data.subagent_type === "string" ? data.subagent_type : "未知"
               const desc = typeof data.description === "string" ? data.description : ""
               return {
                 icon: "#",
@@ -460,12 +460,12 @@ function RejectPrompt(props: { onConfirm: (message: string) => void; onCancel: (
       },
     ],
     bindings: [
-      { key: "escape", desc: "取消拒绝权限", group: "Permission", cmd: () => props.onCancel() },
+      { key: "escape", desc: "取消拒绝权限", group: "权限", cmd: () => props.onCancel() },
       ...tuiConfig.keybinds.get("app.exit"),
       {
         key: "return",
         desc: "确认拒绝权限",
-        group: "Permission",
+        group: "权限",
         cmd: () => props.onConfirm(input.plainText),
       },
     ],
@@ -569,7 +569,7 @@ function Prompt<const T extends Record<string, string>>(props: {
       {
         key: "left",
         desc: "上一个权限选项",
-        group: "Permission",
+        group: "权限",
         cmd: () => {
           const idx = keys.indexOf(store.selected)
           const next = keys[(idx - 1 + keys.length) % keys.length]
@@ -579,7 +579,7 @@ function Prompt<const T extends Record<string, string>>(props: {
       {
         key: "h",
         desc: "上一个权限选项",
-        group: "Permission",
+        group: "权限",
         cmd: () => {
           const idx = keys.indexOf(store.selected)
           const next = keys[(idx - 1 + keys.length) % keys.length]
@@ -589,7 +589,7 @@ function Prompt<const T extends Record<string, string>>(props: {
       {
         key: "right",
         desc: "下一个权限选项",
-        group: "Permission",
+        group: "权限",
         cmd: () => {
           const idx = keys.indexOf(store.selected)
           const next = keys[(idx + 1) % keys.length]
@@ -599,7 +599,7 @@ function Prompt<const T extends Record<string, string>>(props: {
       {
         key: "l",
         desc: "下一个权限选项",
-        group: "Permission",
+        group: "权限",
         cmd: () => {
           const idx = keys.indexOf(store.selected)
           const next = keys[(idx + 1) % keys.length]
@@ -609,7 +609,7 @@ function Prompt<const T extends Record<string, string>>(props: {
       {
         key: "return",
         desc: "选择权限选项",
-        group: "Permission",
+        group: "权限",
         cmd: () => props.onSelect(store.selected),
       },
       ...(props.escapeKey
@@ -617,7 +617,7 @@ function Prompt<const T extends Record<string, string>>(props: {
             {
               key: "escape",
               desc: "拒绝权限",
-              group: "Permission",
+              group: "权限",
               cmd: () => props.onSelect(props.escapeKey!),
             },
           ]
