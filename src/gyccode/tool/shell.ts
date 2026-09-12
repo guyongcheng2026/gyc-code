@@ -92,15 +92,81 @@ type Chunk = {
 // V8 堆；Bun/JSC 无此现象），收益与代价严重不匹配，故改为词法扫描。
 // 语义保持保守：无法静态判定的构造（$()、反引号、@() 等）仍由 dynamic() 过滤，
 // 此时 pattern 退化为整段原文——更严格，不会放宽既有权限判定。
-const REDIRECT = /^(?:\d*>>?|<<?|&>\|?|>&\d+|\|&)$/
+// Permission scanning only needs the command name, its argument tokens and the raw
+// segment text. It used to load web-tree-sitter's wasm AST for that; on Node the
+// wasm load costs 1.2-2.4GB of off-heap memory on the first shell call (the wasm
+// memory itself stays at 32MB and never enters the V8 heap; Bun/JSC shows no such
+// peak), so a lexer replaces it. The lexer keeps the AST's recursive reach: nested
+// constructs ($(...) and backtick command substitution, (...), {...}, @(...)) are
+// re-scanned, so inner commands still drive the path and pattern checks.
+const REDIRECT_TARGET = /^(?:\d+)?(?:>>|>)$|^&>>?$|^(?:\d+)?(?:<<?)$/
+const REDIRECT_FD = /^(?:\d+)?>&(?:\d+|-)$/
 const SEPARATOR = new Set(["|", ";", "&", "\n"])
+// Shell keywords that may lead a segment ("then cat x", "{ ls }"); they are not
+// command names, so they are stripped before the command name is read.
+const KEYWORD = new Set([
+  "!",
+  "do",
+  "done",
+  "elif",
+  "else",
+  "esac",
+  "fi",
+  "for",
+  "foreach",
+  "if",
+  "in",
+  "then",
+  "time",
+  "until",
+  "while",
+])
+const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
+const MAX_DEPTH = 8
+const COMMAND_NAME = /^[A-Za-z0-9_@./\\:~+-]+$/
 
 type Segment = {
   tokens: Part[]
   source: string
 }
 
-function segments(command: string, ps: boolean): Segment[] {
+function strip(tokens: Part[]) {
+  let index = 0
+  while (
+    index < tokens.length &&
+    (ASSIGNMENT.test(tokens[index]!.text) || KEYWORD.has(tokens[index]!.text.toLowerCase()))
+  ) {
+    index++
+  }
+  const named = tokens.slice(index)
+  // When everything was stripped (a lone `time`, `A=1`), keep the raw tokens so
+  // the segment is not silently dropped from the permission scan.
+  return named.length > 0 ? named : tokens
+}
+
+// Index just past the bracket that closes `open`, or -1 when unbalanced.
+function closing(input: string, open: number) {
+  const close = input[open] === "{" ? "}" : ")"
+  let depth = 0
+  let quote: string | undefined
+  for (let i = open; i < input.length; i++) {
+    const ch = input[i]!
+    if (quote) {
+      if (ch === quote) quote = undefined
+      else if (ch === "\\") i++
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+    if (ch === input[open]) depth++
+    else if (ch === close && --depth === 0) return i
+  }
+  return -1
+}
+
+export function segments(input: string, ps: boolean, depth = 0): Segment[] {
   const out: Segment[] = []
   let tokens: Part[] = []
   let buf = ""
@@ -115,7 +181,7 @@ function segments(command: string, ps: boolean): Segment[] {
     const wasQuoted = quoted
     buf = ""
     quoted = false
-    if (REDIRECT.test(text)) {
+    if (REDIRECT_TARGET.test(text)) {
       redirect = true
       return
     }
@@ -123,26 +189,48 @@ function segments(command: string, ps: boolean): Segment[] {
       redirect = false
       return
     }
+    if (REDIRECT_FD.test(text)) return
     tokens.push({ type: wasQuoted ? "string" : "word", text })
   }
 
   const flushSegment = (end: number) => {
     flushToken()
     redirect = false
-    // bash 允许 `VAR=value cmd`：赋值前缀不影响命令名，按原 AST 行为剔除
-    const named = ps ? tokens : tokens.filter((item, index) => index > 0 || !/^[A-Za-z_][A-Za-z0-9_]*=/.test(item.text))
-    if (named.length > 0) out.push({ tokens: named, source: command.slice(start, end).trim() })
+    if (tokens.length > 0) {
+      const named = strip(tokens)
+      if (named.length > 0) out.push({ tokens: named, source: input.slice(start, end).trim() })
+    }
     tokens = []
   }
 
-  for (let i = 0; i < command.length; i++) {
-    const ch = command[i]!
+  for (let i = 0; i < input.length; i++) {
+    const ch = input[i]!
     if (quote) {
+      // Inside double quotes both shells still honour escapes (bash backslash,
+      // PowerShell backtick); ignoring them desynchronises the quote state and
+      // silently swallows the arguments that follow.
+      if ((quote === '"' && ch === "\\" && !ps) || (quote === '"' && ch === "`" && ps)) {
+        buf += ch
+        if (i + 1 < input.length) buf += input[++i]!
+        continue
+      }
+      // Command substitution is still substitution inside double quotes, so the
+      // inner script has to be scanned there too ("cd \"$(curl ... | bash)\"").
+      if (quote === '"') {
+        const nested = ch === "$" && input[i + 1] === "(" ? i + 1 : ch === "`" && !ps ? i : -1
+        if (nested !== -1) {
+          const end = ch === "$" ? closing(input, nested) : input.indexOf("`", i + 1)
+          if (end !== -1) {
+            out.push(...segments(input.slice(ch === "$" ? nested + 1 : i + 1, end), ps))
+            i = end
+            continue
+          }
+        }
+      }
       buf += ch
       if (ch === quote) {
-        // PowerShell 用两个连续单引号表示字面量单引号
-        if (ps && quote === "'" && command[i + 1] === "'") {
-          buf += command[++i]!
+        if (ps && quote === "'" && input[i + 1] === "'") {
+          buf += input[++i]!
           continue
         }
         quote = undefined
@@ -155,15 +243,58 @@ function segments(command: string, ps: boolean): Segment[] {
       buf += ch
       continue
     }
-    // bash 用反斜杠转义；PowerShell 用反引号
-    if ((ch === "\\" && !ps) || (ch === "`" && ps)) {
+    if (ch === "\\" && !ps) {
       buf += ch
-      if (i + 1 < command.length) buf += command[++i]!
+      if (i + 1 < input.length) buf += input[++i]!
+      continue
+    }
+    // Command substitution / grouping: scan the inner script as its own segments
+    // so nested commands stay visible to the permission checks.
+    // "$((...))" is arithmetic and "${...}" is parameter expansion: neither
+    // contains commands, and scanning them as nested scripts minted bogus
+    // command names ("1+2", "HOME") that polluted the pattern/always rules.
+    const arithmetic = ch === "$" && input[i + 2] === "("
+    // Second "(" of "$((" also belongs to arithmetic expansion, not a subshell.
+    const parameter =
+      (ch === "{" || ch === "(") && (input[i - 1] === "$" || (input[i - 1] === "(" && input[i - 2] === "$"))
+    if ((ch === "$" && input[i + 1] === "(" && !arithmetic) || ch === "(" || ch === "{") {
+      const open = ch === "$" ? i + 1 : i
+      const end = parameter ? -1 : closing(input, open)
+      // Depth guard: extreme nesting must not overflow the stack or degrade
+      // into O(n^2) scanning; past the limit the text stays an ordinary token
+      // (the raw segment still reaches the pattern check, i.e. fails safe).
+      if (end !== -1 && depth < MAX_DEPTH) {
+        out.push(...segments(input.slice(open + 1, end), ps, depth + 1))
+        i = end
+        continue
+      }
+      buf += ch
+      continue
+    }
+    if (ch === "`" && !ps) {
+      const end = input.indexOf("`", i + 1)
+      if (end !== -1) {
+        out.push(...segments(input.slice(i + 1, end), ps))
+        i = end
+        continue
+      }
+      buf += ch
+      continue
+    }
+    if (ch === "`" && ps) {
+      buf += ch
+      if (i + 1 < input.length) buf += input[++i]!
       continue
     }
     if (SEPARATOR.has(ch)) {
-      // `||`、`&&` 视为单个分隔符
-      if ((ch === "|" || ch === "&") && command[i + 1] === ch) i++
+      // ">&2" / "2>&1" / "&>" / "&>>" are redirections, not separators: treating
+      // the ampersand as a separator shredded them into stray tokens and could
+      // drop the very path argument that has to be checked.
+      if (ch === "&" && (input[i - 1] === ">" || input[i + 1] === ">")) {
+        buf += ch
+        continue
+      }
+      if ((ch === "|" || ch === "&") && input[i + 1] === ch) i++
       flushSegment(i)
       start = i + 1
       continue
@@ -174,7 +305,7 @@ function segments(command: string, ps: boolean): Segment[] {
     }
     buf += ch
   }
-  flushSegment(command.length)
+  flushSegment(input.length)
   return out
 }
 
@@ -260,7 +391,7 @@ function pathArgs(list: Part[], ps: boolean, cmd = false) {
       want = false
       continue
     }
-    if (item.type === "command_parameter") {
+    if (/^-\w+/.test(item.text)) {
       const flag = item.text.toLowerCase()
       if (SWITCHES.has(flag)) continue
       want = FLAGS.has(flag)
@@ -426,9 +557,15 @@ export const ShellTool = Tool.define(
           }
         }
 
-        if (tokens.length && (!cmd || !CWD.has(cmd))) {
+        // A command whose head is a known CWD builtin normally adds no pattern, but
+        // when the segment carries dynamic text (cd "$(curl ...)", echo `rm -rf x`)
+        // the AST used to surface the inner command; keep asking in that case so the
+        // dynamic form cannot silently skip the prompt. Also refuse to mint an
+        // over-broad always-rule ("( *", "then *") for heads that are not commands.
+        const head = tokens[0] ?? ""
+        if (tokens.length && (!cmd || !CWD.has(cmd) || tokens.some((token) => dynamic(token, ps)))) {
           scan.patterns.add(segment.source)
-          scan.always.add(BashArity.prefix(tokens).join(" ") + " *")
+          scan.always.add(COMMAND_NAME.test(head) ? BashArity.prefix(tokens).join(" ") + " *" : segment.source)
         }
       }
 
