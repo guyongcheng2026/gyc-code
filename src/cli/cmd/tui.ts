@@ -51,11 +51,16 @@ function createEventSource(client: () => RpcClient): EventSource {
 
 async function target() {
   if (typeof GYCCODE_WORKER_PATH !== "undefined") return GYCCODE_WORKER_PATH
-  // 两个候选：dist（入口产物扁平化为 dist/index.js + dist/worker.js，见 build.mjs
-  // 的 naming 配置）与源码直跑（src/cli/cmd/tui.ts 旁的 ../tui/worker.ts）。
+  // dist 入口产物扁平化为 dist/index.js + dist/worker.js（见 build.mjs 的 naming 配置）；
+  // 源码直跑时本文件位于 src/cli/cmd/，worker 在同包的 ../tui/worker.ts。
   const dist = new URL("./worker.js", import.meta.url)
   if (await Filesystem.exists(fileURLToPath(dist))) return dist
-  return new URL("../tui/worker.ts", import.meta.url)
+  const source = new URL("../tui/worker.ts", import.meta.url)
+  if (await Filesystem.exists(fileURLToPath(source))) return source
+  // 两者皆不存在只可能发生在 dist 产物缺 worker.js 时：返回 dist 候选，令 Worker 构造
+  // 报错直接点名缺失的 dist/worker.js。若此处回退源码路径，dist 下会解析出构建时就不
+  // 存在的位置（<安装根>/tui/worker.ts），把排查引向错误方向。
+  return dist
 }
 
 async function input(value?: string) {
