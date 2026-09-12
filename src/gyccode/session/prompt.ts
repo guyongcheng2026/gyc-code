@@ -1229,6 +1229,10 @@ const layer = Layer.effect(
         let recentToolRounds: string[][] = []
         // 技能沉淀闭环的触发计数：累计工具迭代数达阈值后，在会话退出时 fork 一次沉淀。
         const learningTrigger = createTrigger()
+        // 只对每个 assistant 消息计一次数：下面的 continue 分支（截断重试、溢出压缩、
+        // token 预算续跑）会在同一条 assistant 消息上反复回到循环顶部，不去重会把
+        // 同一批工具反复累加、让阈值提前达成。
+        let countedAssistantID: string | undefined
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1254,8 +1258,11 @@ const layer = Layer.effect(
               (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
             ) ?? false
 
-          // 累计本轮的工具迭代数，供沉淀触发判定使用。
-          learningTrigger.addToolIterations(toolSignatures(lastAssistantMsg?.parts ?? []).length)
+          // 累计本轮的工具迭代数，供沉淀触发判定使用（同一 assistant 消息只计一次）。
+          if (lastAssistant !== undefined && lastAssistant.id !== countedAssistantID) {
+            countedAssistantID = lastAssistant.id
+            learningTrigger.addToolIterations(toolSignatures(lastAssistantMsg?.parts ?? []).length)
+          }
 
           // 输出 token 上限命中：注入精炼接续指令，让模型不道歉不复述地继续写
           if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {

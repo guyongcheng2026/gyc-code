@@ -70,9 +70,13 @@ export function userModelPath(): string {
 function normalizeForDedupe(value: string): string {
   return value.toLowerCase().replace(/\s+/g, " ").trim()
 }
+// 进程内串行化读改写：两个会话各自 fork 的抽取可能同时落盘画像层。
+let writeQueue: Promise<unknown> = Promise.resolve()
 
 async function atomicWrite(file: string, content: string): Promise<void> {
-  const tmp = `${file}.tmp.${Date.now()}`
+  // 临时名带 pid 与随机后缀：只用 Date.now() 时同一毫秒内的两次写入会撞名，
+  // 后一次 rename 会因前一次已搬走而 ENOENT。
+  const tmp = `${file}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`
   await writeFile(tmp, content, "utf-8")
   try {
     await rename(tmp, file)
@@ -161,16 +165,26 @@ export function enforceLimit(
 
 /** 追加一条画像条目：去重、执行上限、原子落盘。返回落盘后的全部条目。 */
 export async function writeUserModel(entry: string): Promise<UserModelEntry[]> {
-  const value = entry.trim()
-  if (value.length === 0) return readUserModel()
+  const run = async (): Promise<UserModelEntry[]> => {
+    const value = entry.trim()
+    if (value.length === 0) return readUserModel()
 
-  const existing = await readUserModel()
-  const next = enforceLimit([...existing, { key: `user_${existing.length}`, value, tags: value.match(/#\w+/g) ?? [] }])
+    const existing = await readUserModel()
+    const next = enforceLimit([
+      ...existing,
+      { key: `user_${existing.length}`, value, tags: value.match(/#\w+/g) ?? [] },
+    ])
 
-  await mkdir(memoryDir(), { recursive: true })
-  await atomicWrite(userModelPath(), next.map((item) => item.value).join(SEP) + SEP)
-  cached = undefined
-  return next
+    await mkdir(memoryDir(), { recursive: true })
+    await atomicWrite(userModelPath(), next.map((item) => item.value).join(SEP) + SEP)
+    cached = undefined
+    return next
+  }
+
+  // 串行化：并发的读改写会互相覆盖，串行后每次都在最新快照上追加。
+  const result = writeQueue.then(run, run)
+  writeQueue = result.catch(() => undefined)
+  return result
 }
 
 /**

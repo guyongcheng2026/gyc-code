@@ -153,6 +153,30 @@ export async function recordCreated(
   }))
 }
 
+/**
+ * 无条件重置一条用量条目（**不**合并旧值）。
+ *
+ * create 场景专用：磁盘上目录已不存在，说明这是全新技能，残留的 pinned / origin /
+ * state 都属于上一个同名技能，必须丢弃。否则新技能会继承 origin=user 或 pinned，
+ * 此后每次改写都被 not-writable 无声拒掉。
+ */
+export async function resetCreated(
+  root: string | undefined,
+  name: string,
+  origin: SkillOrigin = "agent",
+): Promise<SkillUsageEntry> {
+  return mutate(root, name, (_entry, now) => ({
+    origin,
+    state: "active",
+    pinned: false,
+    useCount: 0,
+    viewCount: 0,
+    patchCount: 0,
+    createdAt: now,
+    lastActivityAt: now,
+  }))
+}
+
 export async function bumpView(
   root: string | undefined,
   name: string,

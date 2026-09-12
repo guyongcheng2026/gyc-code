@@ -7,7 +7,7 @@ import path from "path"
 import { appendEntry, snapshotSkill } from "./ledger"
 import type { FileSnapshot } from "./ledger"
 import { archiveRoot, isValidSkillName, isValidSupportPath, skillDir, skillFile, skillsRoot } from "./paths"
-import { bumpPatch, isWritable, readUsage, recordCreated, setState } from "./usage"
+import { bumpPatch, isWritable, readUsage, resetCreated, setState } from "./usage"
 
 export interface SkillInfo {
   name: string
@@ -243,8 +243,11 @@ export function make(root: string): SkillStore {
       const dir = skillDir(root, name)
       if (await pathExists(dir)) return reject("already-exists", `技能 ${name} 已经存在，改用 patch`)
 
-      const usage = await readUsage(root)
-      if (usage[name] === undefined) await recordCreated(root, name, ACTOR)
+      // 目录此刻确认不存在（上面已判），所以这是全新技能：无条件重置用量条目，不合并旧值。
+      // 若沿用「仅当条目缺失才建档」，会把「目录已删但 .usage.json 还留着」的中间态
+      // 继承过来——旧条目若是 pinned 或 origin=user，新技能此后每次改写都会被
+      // not-writable 无声拒掉。
+      await resetCreated(root, name, ACTOR)
 
       const before = await snapshotSkill(root, name)
       await mkdir(dir, { recursive: true })
@@ -343,6 +346,11 @@ export function make(root: string): SkillStore {
       const { name, sessionId } = input
       const dir = skillDir(root, name)
       if (!(await pathExists(dir))) return reject("not-found", `技能 ${name} 不存在`)
+      // provenance 闸门：搬走一个技能同样是改写它。谷总手写或已钉住的技能不许被
+      // 自动流程归档——需要归档时先显式解除钉住，这是两步骤、正是钉住的意义。
+      if (!isWritable((await readUsage(root))[name])) {
+        return reject("not-writable", `技能 ${name} 不是自建技能或已被钉住，不能归档`)
+      }
 
       const before = await snapshotSkill(root, name)
       const stamp = new Date().toISOString().replace(/[:.]/g, "")
@@ -377,6 +385,10 @@ export function make(root: string): SkillStore {
 
       const dir = skillDir(root, name)
       if (await pathExists(dir)) return reject("already-exists", `技能 ${name} 已存在，无需恢复`)
+      // 与 archive 对称：恢复也是改写，同样要过 provenance 闸门。
+      if (!isWritable((await readUsage(root))[name])) {
+        return reject("not-writable", `技能 ${name} 不是自建技能或已被钉住，不能恢复`)
+      }
 
       await mkdir(skillsRoot(root), { recursive: true })
       await rename(path.join(archiveRoot(root), latest), dir)

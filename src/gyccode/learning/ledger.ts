@@ -4,7 +4,7 @@
 // 2) 回滚是唯一的 fail-closed 操作——账本里查不到 id 就直接抛错，绝不假装回滚成功；
 // 3) 快照里的文件正文按 sha256 只存一份，回滚时从 .blobs 读回，保证「记了什么就能还原什么」。
 import { createHash, randomBytes } from "crypto"
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "fs/promises"
+import { mkdir, readFile, readdir, rename, rm, rmdir, stat, writeFile } from "fs/promises"
 import path from "path"
 import { blobsDir, ledgerPath, skillDir } from "./paths"
 
@@ -190,15 +190,27 @@ export async function rollbackEntry(root: string, id: string): Promise<void> {
 
   const base = skillDir(root, entry.skill)
   const known = new Set(entry.before.map((snap) => snap.path))
+  const emptied = new Set<string>()
 
   // 1) 本次变更新建的文件：after 里有、before 里没有
   for (const snap of entry.after) {
     if (known.has(snap.path)) continue
+    const target = path.join(base, snap.path)
     try {
-      await rm(path.join(base, snap.path), { force: true })
+      await rm(target, { force: true })
     } catch {
-      // 文件本就没了视为已达成目标
+      // 文件本就没了，视为已达成目标
     }
+    // 记下该文件之上、技能目录之内的各级目录（含技能目录自身）
+    for (let dir = path.dirname(target); dir.startsWith(base); dir = path.dirname(dir)) {
+      emptied.add(dir)
+    }
+  }
+
+  // 由深到浅清理空目录：rmdir 对非空目录会失败，正好当成保护，不会误删他人内容。
+  // 不清理的话，create 回滚留下的空技能目录会让同名技能再也 create 不出来。
+  for (const dir of [...emptied].sort((a, b) => b.length - a.length)) {
+    await rmdir(dir).catch(() => {})
   }
 
   // 2) before 里的每个文件：从内容寻址仓库取回正文，临时文件 + rename 原子落盘
