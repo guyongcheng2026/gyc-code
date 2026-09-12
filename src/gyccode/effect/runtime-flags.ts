@@ -20,6 +20,7 @@ export class Service extends ConfigService.Service<Service>()("@gyccode/RuntimeF
   disableEmbeddedWebUi: bool("GYCCODE_DISABLE_EMBEDDED_WEB_UI"),
   disableExternalSkills: bool("GYCCODE_DISABLE_EXTERNAL_SKILLS"),
   disableComposeSkills: bool("GYCCODE_DISABLE_COMPOSE_SKILLS"),
+  disableLearnedSkills: bool("GYCCODE_DISABLE_LEARNED_SKILLS"),
   disableLspDownload: bool("GYCCODE_DISABLE_LSP_DOWNLOAD"),
   disableClaudeCodePrompt: Config.all({
     broad: bool("GYCCODE_DISABLE_CLAUDE_CODE"),

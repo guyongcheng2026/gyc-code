@@ -16,6 +16,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Glob } from "@gyccode/core/util/glob"
 import { Discovery } from "./discovery"
 import { ComposeSkill } from "./compose"
+import { skillsRoot } from "@/learning/paths"
 import { isRecord } from "@/util/record"
 import { escapeHtml } from "@/util/html"
 
@@ -193,6 +194,7 @@ const discoverSkills = Effect.fnUntraced(function* (
   disableCodexSkills: boolean,
   disableOpenCodeSkills: boolean,
   disableComposeSkills: boolean,
+  disableLearnedSkills: boolean,
   directory: string,
   worktree: string,
 ) {
@@ -254,6 +256,15 @@ const discoverSkills = Effect.fnUntraced(function* (
     }
   }
 
+  // 沉淀闭环自建技能：落在 GYC_HOME/skills，与 bundled/compose 只读集物理隔离。
+  // 这些技能不设 hidden——它们是常规可用技能，应当出现在 available_skills 中。
+  if (!disableLearnedSkills) {
+    const learnedRoot = skillsRoot()
+    if (yield* fsys.isDir(learnedRoot)) {
+      yield* scan(state, learnedRoot, SKILL_PATTERN, { dot: true, scope: "learned" })
+    }
+  }
+
   return {
     matches: Array.from(state.matches),
     dirs: Array.from(state.dirs),
@@ -298,6 +309,7 @@ const layer = Layer.effect(
           flags.disableCodexSkills,
           flags.disableOpenCodeSkills,
           flags.disableComposeSkills,
+          flags.disableLearnedSkills,
           ctx.directory,
           ctx.worktree,
         )
