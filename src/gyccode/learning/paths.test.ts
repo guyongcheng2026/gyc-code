@@ -24,9 +24,29 @@ describe("learning/paths 路径解析", () => {
   })
 
   it("gycSkillsHome 不采纳 HERMES_HOME，避免把自建技能写进 Hermes 技能库", () => {
-    const expected =
-      process.env.GYCCODE_SKILLS_HOME || process.env.GYCCODE_MEMORY_HOME || path.join(homedir(), ".gyc")
-    expect(gycSkillsHome()).toBe(expected)
+    const savedHermes = process.env.HERMES_HOME
+    const savedSkills = process.env.GYCCODE_SKILLS_HOME
+    const savedMemory = process.env.GYCCODE_MEMORY_HOME
+    try {
+      process.env.HERMES_HOME = path.join("C:", "hermes-home-must-be-ignored")
+      delete process.env.GYCCODE_SKILLS_HOME
+      delete process.env.GYCCODE_MEMORY_HOME
+
+      // 指向 Hermes home 时不得照单全收
+      expect(gycSkillsHome()).not.toContain("hermes-home-must-be-ignored")
+      expect(gycSkillsHome()).toBe(path.join(homedir(), ".gyc"))
+
+      // 显式覆盖优先
+      process.env.GYCCODE_SKILLS_HOME = path.join("C:", "explicit-skills-home")
+      expect(gycSkillsHome()).toBe(path.join("C:", "explicit-skills-home"))
+    } finally {
+      if (savedHermes === undefined) delete process.env.HERMES_HOME
+      else process.env.HERMES_HOME = savedHermes
+      if (savedSkills === undefined) delete process.env.GYCCODE_SKILLS_HOME
+      else process.env.GYCCODE_SKILLS_HOME = savedSkills
+      if (savedMemory === undefined) delete process.env.GYCCODE_MEMORY_HOME
+      else process.env.GYCCODE_MEMORY_HOME = savedMemory
+    }
   })
 
   it("空串 root 视为未传入", () => {
