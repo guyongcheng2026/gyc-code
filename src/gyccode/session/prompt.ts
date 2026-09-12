@@ -67,7 +67,7 @@ import { maybeDream, readDreamState, writeDreamState, type DreamSynthesizer } fr
 import { runReview } from "../learning/runner"
 import { createTrigger } from "../learning/trigger"
 import { make as makeSkillStore } from "../learning/skill-store"
-import { gycHome } from "../learning/paths"
+import { gycSkillsHome } from "../learning/paths"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
@@ -1407,10 +1407,10 @@ const layer = Layer.effect(
                   return typeof name === "string" ? [name] : []
                 })
               yield* Effect.gen(function* () {
-                const store = makeSkillStore(gycHome())
+                const store = makeSkillStore(gycSkillsHome())
                 const existing = yield* Effect.promise(() => store.list())
                 yield* runReview({
-                  root: gycHome(),
+                  root: gycSkillsHome(),
                   sessionId: sessionID,
                   transcript,
                   loadedSkills,

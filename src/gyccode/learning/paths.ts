@@ -20,24 +20,27 @@ const SUPPORT_SEGMENT_PATTERN = /^[A-Za-z0-9._-]+$/
 const WINDOWS_DRIVE_PATTERN = /^[A-Za-z]:/
 
 /**
- * 解析 GYC_HOME。
- * 解析顺序与 src/gyccode/memory/memory-bridge.ts 完全一致，绝不另立一套。
+ * 沉淀闭环的技能家目录。
+ *
+ * 刻意**不**采纳 HERMES_HOME：那是 Hermes Agent 自己的 home，其 skills/ 是它的
+ * 技能库、.usage.json 是它自己的结构。沿用会把 gyc 的自建技能写进别人的库，
+ * 并误读其用量账本。GYCCODE_MEMORY_HOME 仍可覆盖，便于把记忆与技能统一到同一根。
  */
-export function gycHome(root?: string): string {
+export function gycSkillsHome(root?: string): string {
   if (root !== undefined && root.length > 0) return root
   return (
-    process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
+    process.env.GYCCODE_SKILLS_HOME || process.env.GYCCODE_MEMORY_HOME || path.join(homedir(), ".gyc")
   )
 }
 
 /** $GYC_HOME/skills */
 export function skillsRoot(root?: string): string {
-  return path.join(gycHome(root), "skills")
+  return path.join(gycSkillsHome(root), "skills")
 }
 
 /** $GYC_HOME/skills_archived */
 export function archiveRoot(root?: string): string {
-  return path.join(gycHome(root), "skills_archived")
+  return path.join(gycSkillsHome(root), "skills_archived")
 }
 
 /** $GYC_HOME/skills/<name> */

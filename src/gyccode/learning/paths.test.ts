@@ -4,7 +4,7 @@ import path from "path"
 import {
   archiveRoot,
   blobsDir,
-  gycHome,
+  gycSkillsHome,
   isValidSkillName,
   isValidSupportPath,
   learningStatePath,
@@ -19,20 +19,20 @@ import {
 const ROOT = path.join("C:", "gyc-test-root")
 
 describe("learning/paths 路径解析", () => {
-  it("gycHome 显式传入 root 时原样返回（单测隔离）", () => {
-    expect(gycHome(ROOT)).toBe(ROOT)
+  it("gycSkillsHome 显式传入 root 时原样返回（单测隔离）", () => {
+    expect(gycSkillsHome(ROOT)).toBe(ROOT)
   })
 
-  it("gycHome 解析顺序与 memory-bridge 一致", () => {
+  it("gycSkillsHome 不采纳 HERMES_HOME，避免把自建技能写进 Hermes 技能库", () => {
     const expected =
-      process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
-    expect(gycHome()).toBe(expected)
+      process.env.GYCCODE_SKILLS_HOME || process.env.GYCCODE_MEMORY_HOME || path.join(homedir(), ".gyc")
+    expect(gycSkillsHome()).toBe(expected)
   })
 
   it("空串 root 视为未传入", () => {
     const expected =
-      process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
-    expect(gycHome("")).toBe(expected)
+      process.env.GYCCODE_SKILLS_HOME || process.env.GYCCODE_MEMORY_HOME || path.join(homedir(), ".gyc")
+    expect(gycSkillsHome("")).toBe(expected)
   })
 
   it("全部路径挂在 $GYC_HOME 之下的约定位置", () => {

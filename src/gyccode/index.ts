@@ -136,6 +136,7 @@ const COMMANDS: Record<string, CommandLoader> = {
   plugin: pluginLoader,
   plug: pluginLoader,
   memory: { load: () => import("@gyccode/cli/cmd/memory"), name: "MemoryCommand" },
+  learning: { load: () => import("@gyccode/cli/cmd/learning"), name: "LearningCommand" },
   db: { load: () => import("@gyccode/cli/cmd/db"), name: "DbCommand" },
   workflow: { load: () => import("@gyccode/cli/cmd/workflow"), name: "WorkflowCommand" },
   send: { load: () => import("@gyccode/cli/cmd/send"), name: "SendCommand" },
