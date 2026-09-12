@@ -64,6 +64,10 @@ import { readMemories, writeMemoryFile, syncMemories } from "../memory/memory-br
 import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
 import { runExtraction, memorySink, type Extractor } from "../memory/extraction-runner"
 import { maybeDream, readDreamState, writeDreamState, type DreamSynthesizer } from "../memory/dream-runner"
+import { runReview } from "../learning/runner"
+import { createTrigger } from "../learning/trigger"
+import { make as makeSkillStore } from "../learning/skill-store"
+import { gycHome } from "../learning/paths"
 import { LLMEvent } from "@gyccode/llm"
 import { ShardCache, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
@@ -1223,6 +1227,8 @@ const layer = Layer.effect(
         let escalatedOutputMax: number | undefined
         let consecutiveToolOnlySteps = 0
         let recentToolRounds: string[][] = []
+        // 技能沉淀闭环的触发计数：累计工具迭代数达阈值后，在会话退出时 fork 一次沉淀。
+        const learningTrigger = createTrigger()
         const session = yield* sessions.get(sessionID).pipe(Effect.orDie)
 
         while (true) {
@@ -1247,6 +1253,9 @@ const layer = Layer.effect(
             lastAssistantMsg?.parts.some(
               (part) => part.type === "tool" && !part.metadata?.providerExecuted && !isOrphanedInterruptedTool(part),
             ) ?? false
+
+          // 累计本轮的工具迭代数，供沉淀触发判定使用。
+          learningTrigger.addToolIterations(toolSignatures(lastAssistantMsg?.parts ?? []).length)
 
           // 输出 token 上限命中：注入精炼接续指令，让模型不道歉不复述地继续写
           if (lastAssistant?.finish === "length" && !hasToolCalls && lastUser.id < lastAssistant.id && resumes < 8) {
@@ -1376,6 +1385,71 @@ const layer = Layer.effect(
                 tool: orphan.tool,
                 callID: orphan.callID,
               })
+            }
+            // 技能沉淀闭环：会话即将退出时，若累计工具迭代数已达阈值，fork 一次
+            // 后台复盘，把本次任务的经验沉淀成技能文档（新建/补丁/支持文件）。
+            // 非阻塞：沉淀失败绝不影响主循环退出。
+            const learningCfg = (yield* config.get()).learning
+            if (learningCfg?.enabled !== false && learningTrigger.shouldReview()) {
+              // 先标记，保证同一会话只沉淀一次（也避免 fork 出来的复盘再次触发）。
+              learningTrigger.markReviewed()
+              const transcript = msgs
+                .flatMap((msg) => msg.parts)
+                .filter((part): part is SessionV1.TextPart => part.type === "text" && !part.synthetic)
+                .map((part) => part.text)
+                .join("\n")
+                .slice(-12_000)
+              const loadedSkills = msgs
+                .flatMap((msg) => msg.parts)
+                .flatMap((part) => {
+                  if (part.type !== "tool" || part.tool !== "skill") return []
+                  const name = part.state.input.name
+                  return typeof name === "string" ? [name] : []
+                })
+              yield* Effect.gen(function* () {
+                const store = makeSkillStore(gycHome())
+                const existing = yield* Effect.promise(() => store.list())
+                yield* runReview({
+                  root: gycHome(),
+                  sessionId: sessionID,
+                  transcript,
+                  loadedSkills,
+                  skills: existing,
+                  store,
+                  reviewer: ({ prompt }) =>
+                    Effect.gen(function* () {
+                      const mdl = learningCfg?.model
+                        ? yield* getModel(...(learningCfg.model.split("/") as [ProviderV2.ID, ModelV2.ID]), sessionID)
+                        : ((yield* provider.getSmallModel(lastUser.model.providerID)) ??
+                          (yield* getModel(lastUser.model.providerID, lastUser.model.modelID, sessionID)))
+                      const ag = yield* agents.get("summary")
+                      if (!ag) return ""
+                      return yield* llm
+                        .stream({
+                          agent: ag,
+                          user: lastUser,
+                          system: [],
+                          small: true,
+                          tools: {},
+                          model: mdl,
+                          sessionID,
+                          retries: 2,
+                          messages: [{ role: "user", content: prompt }],
+                        })
+                        .pipe(
+                          Stream.filter(LLMEvent.is.textDelta),
+                          Stream.map((e) => e.text),
+                          Stream.mkString,
+                          Effect.orDie,
+                        )
+                    }),
+                  maxActions: learningCfg?.max_actions ?? 5,
+                }).pipe(
+                  Effect.catchCause(() =>
+                    Effect.logWarning("技能沉淀失败；已跳过", { "session.id": sessionID }),
+                  ),
+                )
+              }).pipe(Effect.forkIn(scope))
             }
             yield* Effect.logInfo("exiting loop", { "session.id": sessionID })
             break
