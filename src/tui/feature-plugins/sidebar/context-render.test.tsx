@@ -44,9 +44,9 @@ test("View renders real tokens, CH, and cost", async () => {
   const setup = await testRender(() => <View api={api} session_id="ses1" />, { width: 80, height: 10 })
   await setup.flush()
   const frame = setup.captureCharFrame()
-  expect(frame).toContain("3,390 tokens")
-  expect(frame).toContain("CH 84.2%")
-  expect(frame).toContain("$0.33 spent")
+  expect(frame).toContain("3,390 词元")
+  expect(frame).toContain("缓存命中 84.2%")
+  expect(frame).toContain("费用 $0.33")
 })
 
 test("View hides CH with fewer than 2 completed turns", async () => {
@@ -67,7 +67,7 @@ test("View hides CH with fewer than 2 completed turns", async () => {
   const setup = await testRender(() => <View api={api} session_id="ses1" />, { width: 80, height: 10 })
   await setup.flush()
   const frame = setup.captureCharFrame()
-  expect(frame).not.toContain("CH ")
+  expect(frame).not.toContain("缓存命中 ")
 })
 
 test("View shows non-zero tokens for reasoning-only DeepSeek turns", async () => {
@@ -88,5 +88,5 @@ test("View shows non-zero tokens for reasoning-only DeepSeek turns", async () =>
   const setup = await testRender(() => <View api={api} session_id="ses1" />, { width: 80, height: 10 })
   await setup.flush()
   const frame = setup.captureCharFrame()
-  expect(frame).toContain("600 tokens")
+  expect(frame).toContain("600 词元")
 })

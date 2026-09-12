@@ -96,7 +96,7 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                     </Show>
                     <Show when={workspaceSummary().tokens > 0 || workspaceSummary().cost > 0}>
                       <text fg={theme.textMuted}>
-                        工作区 Context：{workspaceSummary().tokens.toLocaleString()} tokens · {workspaceSummary().active} 个会话 · {money.format(workspaceSummary().cost)} spent
+                        工作区上下文：{workspaceSummary().tokens.toLocaleString()} 词元 · {workspaceSummary().active} 个会话 · 费用 {money.format(workspaceSummary().cost)}
                       </text>
                     </Show>
                   </text>

@@ -128,28 +128,28 @@ export function View(props: { api: TuiPluginApi; session_id: string }) {
         <b>上下文</b>
       </text>
       <Show when={state().compacting}>
-        <text fg={theme().warning}>compacting…</text>
+        <text fg={theme().warning}>压缩中…</text>
       </Show>
-      <text fg={contextColor()}>{state().tokens.toLocaleString()} tokens</text>
+      <text fg={contextColor()}>{state().tokens.toLocaleString()} 词元</text>
       <Show when={state().percent !== null}>
-        {(pct) => <text fg={contextColor()}>{pct()}% used</text>}
+        {(pct) => <text fg={contextColor()}>已用 {pct()}%</text>}
       </Show>
       <Show when={chRate()}>
         {(r) => (
           <text fg={r().actual >= r().theory - 5 ? theme().textMuted : theme().warning}>
-            CH {r().actual.toFixed(1)}%
+            缓存命中 {r().actual.toFixed(1)}%
           </text>
         )}
       </Show>
       <Show when={state().limit}>
         {(win) => (
           <text fg={theme().textMuted}>
-            {`limit ${Token.format(win().effective)}${win().source === "config" ? ` of ${Token.format(win().hard)}` : ""}`}
+            {`上限 ${Token.format(win().effective)}${win().source === "config" ? `，配置上限 ${Token.format(win().hard)}` : ""}`}
           </text>
         )}
       </Show>
       <Show when={tpsLabel()}>{(label) => <text fg={theme().textMuted}>{label()}</text>}</Show>
-      <text fg={theme().textMuted}>{money.format(cost())} spent</text>
+      <text fg={theme().textMuted}>费用 {money.format(cost())}</text>
     </box>
   )
 }

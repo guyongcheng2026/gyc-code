@@ -1634,7 +1634,7 @@ title: "打开编辑器",
                 <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                   esc{" "}
                   <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                    {store.interrupt > 0 ? "再次中断" : "interrupt"}
+                    {store.interrupt > 0 ? "再次中断" : "中断"}
                   </span>
                 </text>
               </box>
