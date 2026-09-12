@@ -1732,12 +1732,13 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
-            const [skills, env, instructionResolved, mcpInstructions, memories] = yield* Effect.all([
+            const [skills, env, instructionResolved, mcpInstructions, memories, owner] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
               sys.memory(memoryQuery, sessionID),
+              sys.userModel(),
             ])
             // modelMsgs 依赖 memories（记忆前缀固定注入），故与上方解耦后单独计算
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
@@ -1746,7 +1747,9 @@ const layer = Layer.effect(
               // 日期/记忆前缀固定注入：追加到第一条 user 消息末尾，注入位置不逐轮游走，
               // 连续请求间前缀字节稳定（对齐 CH 99.9% 机制）
               injectDate: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
-              injectMemories: memories ?? undefined,
+              // 画像段与记忆段共用同一个注入位（同为末尾追加、同样不改历史前缀），
+              // 画像在前：它是稳定背景，记忆是本轮检索结果。
+              injectMemories: [owner, memories].filter((part): part is string => !!part).join("\n\n") || undefined,
               // 用户文本上限：与聚合预算同档，限制病态大粘贴的每轮增量
               maxUserTextChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
             })

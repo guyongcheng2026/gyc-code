@@ -69,13 +69,23 @@ export function runExtraction(options: RunOptions): Effect.Effect<string[]> {
   })
 }
 
-/** Default sink: persist into the memory file. */
+/**
+ * Default sink: 按内容分流落盘。
+ *
+ * 偏好 / 风格 / 交互约定进画像层，事实与决策进会话记忆文件。分流判据只有一处
+ * （user-model 的 classifyMemoryTarget），避免两套规则各自演化后漂移。
+ */
 export const memorySink: MemorySink = (memories) =>
   Effect.promise(async () => {
     const { writeMemoryFile } = await import("./memory-bridge")
+    const { classifyMemoryTarget, writeUserModel } = await import("./user-model")
     let count = 0
     for (const content of memories) {
-      await writeMemoryFile({ key: `extract_${Date.now()}_${count}`, value: content + "\n" }, true)
+      if (classifyMemoryTarget(content) === "user") {
+        await writeUserModel(content)
+      } else {
+        await writeMemoryFile({ key: `extract_${Date.now()}_${count}`, value: content + "\n" }, true)
+      }
       count++
     }
     return count

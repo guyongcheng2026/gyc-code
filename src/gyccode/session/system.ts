@@ -28,6 +28,7 @@ import {
   getMemoryAgeMs,
   MEMORY_INJECTION_BUDGET,
 } from "../memory/memory-bridge"
+import { formatUserModelForPrompt, readUserModelCached, USER_MODEL_INJECTION_BUDGET } from "../memory/user-model"
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
@@ -50,6 +51,8 @@ export interface Interface {
   readonly skills: (agent: Agent.Info) => Effect.Effect<string | undefined>
   readonly mcp: (agent: Agent.Info, permission?: PermissionV1.Ruleset) => Effect.Effect<string | undefined>
   readonly memory: (query: string, sessionID: string) => Effect.Effect<string | undefined>
+  // 谷总画像独立成段，与记忆段分开注入——一个回答「谷总是谁」，一个回答「发生过什么」。
+  readonly userModel: () => Effect.Effect<string | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/SystemPrompt") {}
@@ -178,6 +181,11 @@ const layer = Layer.effect(
         }
         memoryCache.set(sessionID, { time: Date.now(), value })
         return value
+      }),
+
+      userModel: Effect.fn("SystemPrompt.userModel")(function* () {
+        const entries = yield* Effect.promise(() => readUserModelCached())
+        return formatUserModelForPrompt(entries, USER_MODEL_INJECTION_BUDGET)
       }),
     })
   }),
