@@ -11,9 +11,12 @@ export const FileSystemHandler = HttpApiBuilder.group(Api, "server.fs", (handler
     return handlers
       .handleRaw("fs.read", (ctx) =>
         Effect.gen(function* () {
+          const pathname = new URL(ctx.request.url, "http://localhost").pathname
+          // 路由前缀与协议声明一致（/api/fs/read/*），按前缀实际长度切分，避免改路由后硬编码长度静默截断路径
+          const prefix = "/api/fs/read/"
           const file = yield* (yield* FileSystem.Service).read({
             path: RelativePath.make(
-              decodeURIComponent(new URL(ctx.request.url, "http://localhost").pathname.slice(13)),
+              decodeURIComponent(pathname.startsWith(prefix) ? pathname.slice(prefix.length) : pathname.slice(1)),
             ),
           })
           return HttpServerResponse.uint8Array(file.content, { contentType: file.mime })

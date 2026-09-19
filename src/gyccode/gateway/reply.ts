@@ -12,6 +12,8 @@ import { join } from "node:path"
 import process from "node:process"
 
 const MAX_HISTORY_TURNS = 20
+// 会话维度也要有上限：每个新 chatId 都会永久驻留，群聊/多联系人场景会无界增长
+const MAX_HISTORY_SESSIONS = 200
 const TASK_TIMEOUT_MS = 10 * 60_000
 const REPLY_MAX_CHARS = 1800
 
@@ -248,7 +250,13 @@ export class Replier {
 
   private remember(chatId: string, turns: Turn[]): void {
     while (turns.length > MAX_HISTORY_TURNS) turns.shift()
+    // 重新插入以刷新 LRU 顺序，再按会话数上限淘汰最久未使用的会话
+    this.history.delete(chatId)
     this.history.set(chatId, turns)
+    if (this.history.size > MAX_HISTORY_SESSIONS) {
+      const oldest = this.history.keys().next().value
+      if (oldest !== undefined) this.history.delete(oldest)
+    }
   }
 
   async reply(chatId: string, incoming: string): Promise<string> {

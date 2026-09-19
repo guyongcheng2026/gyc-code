@@ -1,0 +1,19 @@
+{
+  "id": "skill-system",
+  "name": "技能系统",
+  "main": "agent.md",
+  "description": "实现基本的技能系统，用于发现、加载和管理pi agent的功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /skill-system 帮助 来查看技能系统选项",
+    "该技能展示了如何实现基本的技能系统来发现、加载和管理pi agent的功能，包括技能市场集成"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/skill-system",
+  "publishedAt": "2026-09-07T11:15:00.000Z"
+}

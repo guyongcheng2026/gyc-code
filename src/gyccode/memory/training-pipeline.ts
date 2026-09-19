@@ -83,6 +83,9 @@ const MEMORY_ROOT = path.join(
   "memory"
 )
 
+// 日志尾部上限：仅保留最近 N 条，避免全量载入内存
+const LOG_TAIL_LIMIT = 50000
+
 const DEFAULT_CONFIG: PipelineConfig = {
   taskLogDir: path.join(MEMORY_ROOT, "task-logs"),
   outputPath: path.join(MEMORY_ROOT, "training-set.jsonl"),
@@ -105,7 +108,7 @@ export async function readTaskLogs(logDir: string): Promise<TaskLogEntry[]> {
       const filePath = path.join(logDir, file)
       try {
         const content = await readFile(filePath, "utf-8")
-        const lines = content.split("\n").filter(Boolean)
+        const lines = content.split("\n").filter(Boolean).slice(-LOG_TAIL_LIMIT)
 
         for (const line of lines) {
           try {
@@ -125,7 +128,7 @@ export async function readTaskLogs(logDir: string): Promise<TaskLogEntry[]> {
     // 目录不存在
   }
 
-  return entries
+  return entries.slice(-LOG_TAIL_LIMIT)
 }
 
 /** 从 stability-log.jsonl 提取健康数据作为辅助特征 */
@@ -135,7 +138,7 @@ export async function readStabilityLog(): Promise<Array<{ ts: string; alive: boo
 
   try {
     const content = await readFile(stabilityPath, "utf-8")
-    const lines = content.split("\n").filter(Boolean)
+    const lines = content.split("\n").filter(Boolean).slice(-LOG_TAIL_LIMIT)
 
     for (const line of lines) {
       try {
@@ -153,7 +156,7 @@ export async function readStabilityLog(): Promise<Array<{ ts: string; alive: boo
     // 忽略
   }
 
-  return entries
+  return entries.slice(-LOG_TAIL_LIMIT)
 }
 
 // ────────────────────── 质量评估 ──────────────────────

@@ -198,7 +198,11 @@ const layer = Layer.effect(
         }
         return Effect.succeed(undefined)
       }),
-      Effect.map((v) => v as Record<string, Provider> | undefined),
+      Effect.map((v) => {
+        // 磁盘缓存可能是空对象或半截数据，只有非空对象才算有效，否则回退快照
+        if (v === null || typeof v !== "object" || Array.isArray(v) || Object.keys(v).length === 0) return undefined
+        return v as Record<string, Provider>
+      }),
     )
 
     const loadSnapshot = Effect.gen(function* () {
@@ -213,6 +217,15 @@ const layer = Layer.effect(
 
     const fetchAndWrite = Effect.fn("ModelsDev.fetchAndWrite")(function* () {
       const text = yield* fetchApi()
+      // 先校验再落盘，避免上游返回空数据/非法 JSON 时污染缓存（下次启动拿到空模型列表）
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(text)
+      } catch (cause) {
+        return yield* Effect.fail(new Error(`models.dev 返回非法 JSON，跳过写入缓存: ${String(cause)}`))
+      }
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed) || Object.keys(parsed).length === 0)
+        return yield* Effect.fail(new Error("models.dev 返回空模型清单，跳过写入缓存"))
       const tempfile = `${filepath}.${process.pid}.${Date.now()}.tmp`
       yield* fs.writeWithDirs(tempfile, text).pipe(
         Effect.andThen(fs.rename(tempfile, filepath)),

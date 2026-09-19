@@ -1,12 +1,12 @@
 import { Effect, Stream } from "effect"
-import { Headers, HttpClientRequest } from "effect/unstable/http"
+import { Headers, HttpClientError, HttpClientRequest } from "effect/unstable/http"
 import { Auth } from "../auth"
 import { Framing, type Framing as FramingDef } from "../framing"
 import type { Transport, TransportPrepareInput } from "./index"
 import { Endpoint } from "../endpoint"
 import * as ProviderShared from "../../protocols/shared"
 import { mergeJsonRecords, type LLMRequest } from "../../schema"
-import { TransportReason, LLMError } from "../../schema/errors"
+import { TransportReason, LLMError, type LLMErrorReason } from "../../schema/errors"
 
 export type JsonRequestInput<Body> = TransportPrepareInput<Body>
 
@@ -140,15 +140,31 @@ export const httpJson = <Body, Frame>(input: HttpJsonInput<Body, Frame>): HttpJs
                 Stream.mapError((error) => {
                   // 区分传输层错误（可重试）与提供商输出错误（不可重试）
                   const errorMessage = ProviderShared.errorText(error)
+                  // 结构化判定优先：HttpClientError 的 reason 标签与 LLMError.reason 都由
+                  // 请求执行器按 HTTP 错误类型填充，比按错误文案猜测可靠
+                  const cause: unknown = error
+                  const httpReasonTag = HttpClientError.isHttpClientError(cause) ? cause.reason._tag : undefined
+                  // 流错误的静态类型是 LLMError，运行时也可能是 HTTP 客户端错误对象，
+                  // 这里按结构化字段探测（不用 instanceof，避免收窄到 never）
+                  const reason = (cause as { readonly reason?: LLMErrorReason }).reason
+                  const isStructuredTransportError =
+                    httpReasonTag === "TransportError" ||
+                    (reason !== undefined && reason._tag === "Transport") ||
+                    // 超时在执行器里映射为 ProviderInternal(408)，与 executor.ts 的语义保持一致
+                    (reason !== undefined && reason._tag === "ProviderInternal" && reason.status === 408)
                   // 网络级错误：连接中断、超时、DNS 失败等
-                  const isTransportError = errorMessage.includes("ECONNRESET") ||
-                    errorMessage.includes("ETIMEDOUT") ||
-                    errorMessage.includes("ENOTFOUND") ||
-                    errorMessage.includes("socket hang up") ||
-                    errorMessage.includes("fetch failed") ||
-                    errorMessage.includes("network") ||
-                    errorMessage.includes("timeout") ||
-                    errorMessage.includes("aborted")
+                  // 文案兜底：仅在拿不到结构化分类时沿用历史判定，避免行为回退
+                  const isTransportError =
+                    isStructuredTransportError ||
+                    (httpReasonTag === undefined && reason === undefined &&
+                      (errorMessage.includes("ECONNRESET") ||
+                        errorMessage.includes("ETIMEDOUT") ||
+                        errorMessage.includes("ENOTFOUND") ||
+                        errorMessage.includes("socket hang up") ||
+                        errorMessage.includes("fetch failed") ||
+                        errorMessage.includes("network") ||
+                        errorMessage.includes("timeout") ||
+                        errorMessage.includes("aborted")))
                   if (isTransportError) {
                     return new LLMError({
                       module: "HttpTransport",

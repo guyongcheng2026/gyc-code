@@ -524,6 +524,14 @@ const layer = Layer.effect(
           }
 
           case "text-start":
+            // 同一 step 内可能出现多次 text-start（多文本块 provider）：必须先收尾上一个
+            // part，否则它会永远没有 time.end，且后续 delta/end 都不再命中它。
+            if (ctx.currentText) {
+              const textEnd = Date.now()
+              ctx.currentText.time = { start: ctx.currentText.time?.start ?? textEnd, end: textEnd }
+              yield* session.updatePart(ctx.currentText)
+              ctx.currentText = undefined
+            }
             ctx.currentText = {
               id: PartID.ascending(),
               messageID: ctx.assistantMessage.id,
@@ -572,6 +580,9 @@ const layer = Layer.effect(
             return
 
           case "finish":
+            // finish 事件此前被完全丢弃：provider 借此携带的终结信息会静默消失，
+            // 至少保留一条调试日志便于排查「最后一帧没被处理」这类问题。
+            yield* Effect.logDebug("session processor received finish event")
             return
         }
       })

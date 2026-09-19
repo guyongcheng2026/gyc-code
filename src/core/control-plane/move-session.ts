@@ -2,6 +2,7 @@ export * as MoveSession from "./move-session"
 
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import { makeGlobalNode } from "../effect/app-node"
+import { KeyedMutex } from "../effect/keyed-mutex"
 import { EventV2 } from "../event"
 import { Git } from "../git"
 import { Location } from "../location"
@@ -103,13 +104,6 @@ const layer = Layer.effect(
           .pipe(Effect.mapError((error) => new ApplyChangesError({ message: error.message })))
       }
 
-      yield* events.publish(SessionEvent.Moved, {
-        sessionID: input.sessionID,
-        location: Location.Ref.make({ directory }),
-        subdirectory: RelativePath.make(path.relative(destination.directory, directory).replaceAll("\\", "/")),
-        timestamp: yield* DateTime.now,
-      })
-
       if (patch) {
         const repository = yield* git.repo.discover(current.location.directory)
         if (!repository)
@@ -135,9 +129,25 @@ const layer = Layer.effect(
             ),
           )
       }
+
+      // 先清源再发布 Moved：Moved 是「移动已完成」的公开信号，一旦先发出，
+      // 源清理失败时调用方拿到失败却已无法补救（重试会因位置已变而直接早退），
+      // 留下永久脏的源工作区。放在其后，失败态才是可重试的中间态。
+      yield* events.publish(SessionEvent.Moved, {
+        sessionID: input.sessionID,
+        location: Location.Ref.make({ directory }),
+        subdirectory: RelativePath.make(path.relative(destination.directory, directory).replaceAll("\\", "/")),
+        timestamp: yield* DateTime.now,
+      })
     })
 
-    return Service.of({ moveSession })
+    // moveSession 内「读会话位置 → 判定目的项目 → capture/apply → 发布 Moved」是先读后写，
+    // 同一会话被两个请求并发移动时会各自 capture/apply，导致目标项目双写、源改动重复丢弃或丢失；
+    // 这里按 sessionID 加 keyed 互斥锁串行化（withPermit 在失败/中断时自动释放锁）
+    const locks = KeyedMutex.makeUnsafe<string>()
+    const moveSessionLocked = (input: Input) => locks.withLock(input.sessionID)(moveSession(input))
+
+    return Service.of({ moveSession: moveSessionLocked })
   }),
 )
 

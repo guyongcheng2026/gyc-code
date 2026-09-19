@@ -348,7 +348,10 @@ export function make(root: string): SkillStore {
       if (!(await pathExists(dir))) return reject("not-found", `技能 ${name} 不存在`)
       // provenance 闸门：搬走一个技能同样是改写它。谷总手写或已钉住的技能不许被
       // 自动流程归档——需要归档时先显式解除钉住，这是两步骤、正是钉住的意义。
-      if (!isWritable((await readUsage(root))[name])) {
+      // 条目缺失（目录存在但 .usage.json 没记录，如手工拷入的技能）同样不可写：
+      // isWritable(undefined) 会在 entry.origin 处抛 TypeError，必须先显式判掉。
+      const usageEntry = (await readUsage(root))[name]
+      if (usageEntry === undefined || !isWritable(usageEntry)) {
         return reject("not-writable", `技能 ${name} 不是自建技能或已被钉住，不能归档`)
       }
 
@@ -386,7 +389,9 @@ export function make(root: string): SkillStore {
       const dir = skillDir(root, name)
       if (await pathExists(dir)) return reject("already-exists", `技能 ${name} 已存在，无需恢复`)
       // 与 archive 对称：恢复也是改写，同样要过 provenance 闸门。
-      if (!isWritable((await readUsage(root))[name])) {
+      // 条目缺失时显式拒绝，不让 isWritable(undefined) 抛 TypeError。
+      const usageEntry = (await readUsage(root))[name]
+      if (usageEntry === undefined || !isWritable(usageEntry)) {
         return reject("not-writable", `技能 ${name} 不是自建技能或已被钉住，不能恢复`)
       }
 

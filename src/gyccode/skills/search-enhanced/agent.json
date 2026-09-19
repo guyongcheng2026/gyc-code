@@ -1,0 +1,20 @@
+{
+  "id": "search-enhanced",
+  "name": "增强搜索工具",
+  "main": "agent.md",
+  "description": "提供GlobTool和GrepTool用于强大的文件模式匹配和内容搜索",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /search-enhanced 帮助 来查看增强搜索选项",
+    "该技能展示了如何添加GlobTool和GrepTool来增强文件搜索能力，包括正则表达式支持和高级过滤"
+  ],
+  "status": "active",
+  "tags": ["search", "glob", "grep", "enhancement", "file-discovery"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/search-enhanced",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

@@ -47,6 +47,12 @@ function mergeConfigConcatArrays(target: Info, source: Info): Info {
   if (target.instructions && source.instructions) {
     merged.instructions = Array.from(new Set([...target.instructions, ...source.instructions]))
   }
+  // plugin 列表同理：用深合并会被后者整体替换，用户在另一份配置里声明的插件会静默消失。
+  const targetPlugin = (target as Record<string, unknown>)["plugin"]
+  const sourcePlugin = (source as Record<string, unknown>)["plugin"]
+  if (Array.isArray(targetPlugin) && Array.isArray(sourcePlugin)) {
+    ;(merged as Record<string, unknown>)["plugin"] = Array.from(new Set([...targetPlugin, ...sourcePlugin]))
+  }
   return merged
 }
 
@@ -182,7 +188,10 @@ const layer = Layer.effect(
     const npmSvc = yield* Npm.Service
     const http = yield* HttpClient.HttpClient
 
-    const readConfigFile = (filepath: string) => fs.readFileStringSafe(filepath).pipe(Effect.orDie)
+    // 读取失败（权限/IO 错误）必须降级为 undefined 交给上层 orElseSucceed：
+    // orDie 会把它变成 defect，而 defect 不会被 orElseSucceed 捕获，会导致启动整体失败。
+    const readConfigFile = (filepath: string) =>
+      fs.readFileStringSafe(filepath).pipe(Effect.orElseSucceed((): string | undefined => undefined))
 
     const fetchRemoteJson = Effect.fnUntraced(function* <S extends Schema.Top>(
       url: string,
@@ -255,9 +264,11 @@ const layer = Layer.effect(
             .pipe(Effect.catch(() => Effect.void))
         }
       }
-      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "config.json"), env))
-      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "gyccode.json"), env))
-      result = mergeConfig(result, yield* loadFile(path.join(Global.Path.config, "gyccode.jsonc"), env))
+      // 全局三份配置之间必须拼接数组字段（instructions/plugin）：用 mergeConfig 时
+      // 后一份会整体覆盖，用户在 config.json 与 gyccode.jsonc 各声明一项会丢前一项。
+      result = mergeConfigConcatArrays(result, yield* loadFile(path.join(Global.Path.config, "config.json"), env))
+      result = mergeConfigConcatArrays(result, yield* loadFile(path.join(Global.Path.config, "gyccode.json"), env))
+      result = mergeConfigConcatArrays(result, yield* loadFile(path.join(Global.Path.config, "gyccode.jsonc"), env))
 
       const legacy = path.join(Global.Path.config, "config")
       if (existsSync(legacy)) {
@@ -564,7 +575,9 @@ const layer = Layer.effect(
           for (const [tool, enabled] of Object.entries(result.tools)) {
             const action: ConfigPermissionV1.Action = enabled ? "allow" : "deny"
             if (tool === "write" || tool === "edit" || tool === "patch") {
-              perms.edit = action
+              // 三者映射到同一个 edit 权限：必须取最严（任一为 deny 即 deny），
+              // 否则结果取决于对象键的遍历顺序，会出现非确定性放行。
+              perms.edit = perms.edit === "deny" || action === "deny" ? "deny" : action
               continue
             }
             perms[tool] = action

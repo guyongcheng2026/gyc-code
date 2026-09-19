@@ -319,7 +319,7 @@ const copyBounded = (
   return copied
 }
 
-export const copyOut = (value: unknown, undefinedAsNull = false): unknown => {
+export const copyOut = (value: unknown, undefinedAsNull = false, seen: Set<object> = new Set()): unknown => {
   if (value === undefined && undefinedAsNull) return null
   // Normalize non-finite numbers to null as the value crosses out of the sandbox (final return
   // and tool-call arguments both funnel through here), matching JSON semantics - NaN/Infinity
@@ -328,11 +328,23 @@ export const copyOut = (value: unknown, undefinedAsNull = false): unknown => {
     return null
   }
   if (Array.isArray(value)) {
-    return value.map((item) => copyOut(item, undefinedAsNull))
+    // 环形引用直接报错（与 copyBounded 一致），否则递归拷贝会栈溢出
+    if (seen.has(value)) throw new ToolRuntimeError("InvalidDataValue", "Value contains a circular reference.")
+    seen.add(value)
+    const copied = value.map((item) => copyOut(item, undefinedAsNull, seen))
+    seen.delete(value)
+    return copied
   }
 
   if (value !== null && typeof value === "object" && !(value instanceof ToolReference)) {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copyOut(item, undefinedAsNull)]))
+    // 同上：DAG 共享不算环，只有真正回到自身才拒绝
+    if (seen.has(value)) throw new ToolRuntimeError("InvalidDataValue", "Value contains a circular reference.")
+    seen.add(value)
+    const copied = Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, copyOut(item, undefinedAsNull, seen)]),
+    )
+    seen.delete(value)
+    return copied
   }
 
   return value

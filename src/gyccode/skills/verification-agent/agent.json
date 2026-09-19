@@ -1,0 +1,19 @@
+{
+  "id": "verification-agent",
+  "name": "验证代理",
+  "main": "agent.md",
+  "description": "实现专门的验证代理，专注于寻找实现中的缺陷而非仅仅确认其有效性",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /verification-agent 帮助 来查看验证代理选项",
+    "该技能展示了如何实现专门的验证代理，用于彻底测试和寻找实现中的缺陷"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/verification-agent",
+  "publishedAt": "2026-09-07T12:30:00.000Z"
+}

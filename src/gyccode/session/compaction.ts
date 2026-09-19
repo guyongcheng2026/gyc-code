@@ -70,6 +70,8 @@ export function microcompact(
   contextUsed: number,
   contextLimit: number,
 ): readonly Message[] {
+  // contextLimit 为 0 时 ratio 会变成 Infinity/NaN，比较结果会让微压缩被误触发。
+  if (contextLimit <= 0) return messages
   const ratio = contextUsed / contextLimit
   if (ratio < MICROCOMPACT_THRESHOLD) return messages
 

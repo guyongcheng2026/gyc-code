@@ -1,0 +1,19 @@
+{
+  "id": "network-tools",
+  "name": "网络和网络工具",
+  "main": "agent.md",
+  "description": "提供网络工具如WebFetch、WebSearch和MCP（模型上下文协议）等网络功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /network-tools 帮助 来查看网络工具选项",
+    "该技能展示了如何提供网络工具如WebFetch、WebSearch和MCP等网络功能"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/network-tools",
+  "publishedAt": "2026-09-07T14:30:00.000Z"
+}

@@ -951,11 +951,20 @@ interface Result {
   readonly exitCode: number
   readonly text: string
   readonly stderr: string
+  /** 进程未能启动或执行失败（区别于 git 自身的非零退出） */
+  readonly failedToStart?: boolean
 }
 
 function run(cwd: string, proc: AppProcess.Interface) {
   return (args: string[]) =>
-    execute(cwd, proc)(args).pipe(Effect.catch(() => Effect.succeed({ exitCode: 1, text: "", stderr: "" })))
+    execute(cwd, proc)(args).pipe(
+      // 不能把启动失败/IO 错误伪装成 exitCode 1：调用方普遍把 exitCode===1 当作
+      // git 的「正常否定结果」（如 diff --no-index 的差异退出码），会静默当成成功。
+      // 这里填充 stderr 并打上标记，至少让错误信息不再退化成 "Git X failed"。
+      Effect.catch((error) =>
+        Effect.succeed({ exitCode: 1, text: "", stderr: String(error), failedToStart: true } satisfies Result),
+      ),
+    )
 }
 
 function execute(cwd: string, proc: AppProcess.Interface) {

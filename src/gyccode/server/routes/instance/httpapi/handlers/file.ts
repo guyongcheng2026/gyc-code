@@ -69,6 +69,9 @@ export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handl
       // 前置越界检查：与 content 端点一致，穿越请求返回 403 而非底层 defect(500)。
       const listTarget = path.resolve(directory, ctx.query.path)
       if (!FSUtil.contains(directory, listTarget)) return yield* new ForbiddenError({ message: "路径越界" })
+      // 词法检查挡不住指向目录外的符号链接，再用 realpath 规范化后的路径比对一次
+      if (!FSUtil.contains(FSUtil.resolve(directory), FSUtil.resolve(listTarget)))
+        return yield* new ForbiddenError({ message: "路径越界" })
       return yield* filesystem(
         Effect.gen(function* () {
           const fs = yield* FileSystem.Service
@@ -101,6 +104,9 @@ export const fileHandlers = HttpApiBuilder.group(InstanceHttpApi, "file", (handl
       const directory = (yield* InstanceState.context).directory
       const file = path.resolve(directory, ctx.query.path)
       if (!FSUtil.contains(directory, file)) return yield* new ForbiddenError({ message: "路径越界" })
+      // 同上：符号链接指向目录外时，词法检查会放行，需按 realpath 再判一次
+      if (!FSUtil.contains(FSUtil.resolve(directory), FSUtil.resolve(file)))
+        return yield* new ForbiddenError({ message: "路径越界" })
       if (!(yield* FSUtil.Service.use((fs) => fs.existsSafe(file)))) return { type: "text" as const, content: "" }
       return yield* filesystem(
         FileSystem.Service.use((fs) => fs.read({ path: RelativePath.make(ctx.query.path) })),

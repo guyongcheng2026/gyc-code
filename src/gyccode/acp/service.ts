@@ -50,7 +50,7 @@ export const AuthMethodID = "gyccode-login"
 
 export type Error = ACPError.Error
 type ServiceConnection = Pick<AgentSideConnection, "sessionUpdate"> &
-  Partial<Pick<AgentSideConnection, "requestPermission" | "writeTextFile">>
+  Partial<Pick<AgentSideConnection, "requestPermission" | "writeTextFile" | "closed">>
 
 export type Interface = {
   readonly initialize: (input: InitializeRequest) => Effect.Effect<InitializeResponse, Error>
@@ -80,14 +80,28 @@ export function make(input: {
   usage?: UsageService.Interface
   eventSubscription?: (subscription: ACPEvent.Subscription) => void
 }): Interface {
-  const session = input.session ?? makeSessionService()
-  const directoryService = input.directory ?? makeDirectoryService(input.sdk)
+  const sessionHandle = input.session ? undefined : makeSessionService()
+  const directoryHandle = input.directory ? undefined : makeDirectoryService(input.sdk)
+  const session = input.session ?? sessionHandle!.service
+  const directoryService = input.directory ?? directoryHandle!.service
   const registeredMcp = new Map<string, Set<string>>()
   const sessionSnapshots = new Map<string, Directory.Snapshot>()
   const events = input.connection
     ? ACPEvent.start({ sdk: input.sdk, connection: input.connection, session })
     : undefined
   if (events) input.eventSubscription?.(events)
+  // 自建 ManagedRuntime 必须随连接结束释放：层内计时器、监听器与 fiber 都挂在它上面，
+  // 不释放会按连接数累积（长驻 ACP 客户端会持续泄漏）。
+  let runtimesDisposed = false
+  const disposeRuntimes = () => {
+    if (runtimesDisposed) return
+    runtimesDisposed = true
+    void sessionHandle?.runtime.dispose()
+    void directoryHandle?.runtime.dispose()
+  }
+  // connection.closed 在正常与异常关闭时都会 settle，用它做唯一清理入口；
+  // dispose 失败不应影响连接收尾，故两条路径都走同一个幂等函数。
+  input.connection?.closed?.then(disposeRuntimes, disposeRuntimes)
   const runUntilIdle = <A>(sessionId: string, fn: () => Promise<A>) =>
     events ? events.runUntilIdle(sessionId, fn) : fn()
 
@@ -251,9 +265,11 @@ export function make(input: {
     let cursorTimestamp: number | undefined
     let cursorSessionId: string | undefined
     if (params.cursor) {
-      const parts = params.cursor.split(":")
-      cursorTimestamp = Number(parts[0])
-      cursorSessionId = parts[1]
+      // sessionId 本身可能含冒号：只按第一个冒号切分，其余全部属于 id，
+      // 否则 id 会被截断，导致分页重复或漏页。
+      const separator = params.cursor.indexOf(":")
+      cursorTimestamp = Number(separator === -1 ? params.cursor : params.cursor.slice(0, separator))
+      cursorSessionId = separator === -1 ? undefined : params.cursor.slice(separator + 1)
     }
     const limit = 100
     const sessions = yield* request(
@@ -596,13 +612,15 @@ export function make(input: {
 }
 
 function makeSessionService() {
-  return ManagedRuntime.make(AppNodeBuilder.build(ACPSession.node)).runSync(
-    ACPSession.Service.use((service) => Effect.succeed(service)),
-  )
+  const runtime = ManagedRuntime.make(AppNodeBuilder.build(ACPSession.node))
+  return {
+    runtime,
+    service: runtime.runSync(ACPSession.Service.use((service) => Effect.succeed(service))),
+  }
 }
 
 function makeDirectoryService(sdk: GyccodeClient) {
-  return ManagedRuntime.make(
+  const runtime = ManagedRuntime.make(
     AppNodeBuilder.build(Directory.node, [
       [
         Directory.loaderNode,
@@ -614,7 +632,11 @@ function makeDirectoryService(sdk: GyccodeClient) {
         ),
       ],
     ]),
-  ).runSync(Directory.Service.use((service) => Effect.succeed(service)))
+  )
+  return {
+    runtime,
+    service: runtime.runSync(Directory.Service.use((service) => Effect.succeed(service))),
+  }
 }
 
 function makeUsageService(sdk: GyccodeClient) {
@@ -980,7 +1002,7 @@ function sendAvailableCommands(
             description: command.description ?? "",
           })),
         },
-      })
+      }).catch((error) => console.error("[acp] push available_commands failed:", error))
     }, 0)
   })
 }

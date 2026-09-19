@@ -12,6 +12,7 @@
 import { mkdir, readFile, rename, rm, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
+import { createFileLock } from "./file-lock"
 
 /** 条目分隔符，与 memory-bridge.ts 保持一致。 */
 const SEP = "\n§\n"
@@ -169,16 +170,22 @@ export async function writeUserModel(entry: string): Promise<UserModelEntry[]> {
     const value = entry.trim()
     if (value.length === 0) return readUserModel()
 
-    const existing = await readUserModel()
-    const next = enforceLimit([
-      ...existing,
-      { key: `user_${existing.length}`, value, tags: value.match(/#\w+/g) ?? [] },
-    ])
+    // 跨进程文件锁：与 memory-bridge 的记忆写入同一套保护。进程内 writeQueue 只
+    // 串行化单实例，多开几个 gyc 会话时画像层同样是「读 → 改 → 写」，没有这把锁
+    // 会互相覆盖丢更新。
+    const fileLock = createFileLock(userModelPath())
+    return fileLock.withLock(async () => {
+      const existing = await readUserModel()
+      const next = enforceLimit([
+        ...existing,
+        { key: `user_${existing.length}`, value, tags: value.match(/#\w+/g) ?? [] },
+      ])
 
-    await mkdir(memoryDir(), { recursive: true })
-    await atomicWrite(userModelPath(), next.map((item) => item.value).join(SEP) + SEP)
-    cached = undefined
-    return next
+      await mkdir(memoryDir(), { recursive: true })
+      await atomicWrite(userModelPath(), next.map((item) => item.value).join(SEP) + SEP)
+      cached = undefined
+      return next
+    })
   }
 
   // 串行化：并发的读改写会互相覆盖，串行后每次都在最新快照上追加。

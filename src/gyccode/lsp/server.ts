@@ -184,7 +184,12 @@ export const ESLint: Info = {
       if (!response.ok) return
 
       const zipPath = path.join(Global.Path.bin, "vscode-eslint.zip")
-      if (response.body) await Filesystem.writeStream(zipPath, response.body)
+      if (!response.body) {
+        // 空响应体：继续会解压一个空/不存在的文件，留下半解压目录。
+        await fs.rm(zipPath, { force: true })
+        return
+      }
+      await Filesystem.writeStream(zipPath, response.body)
 
       const ok = await Archive.extractZip(zipPath, Global.Path.bin)
         .then(() => true)
@@ -204,8 +209,11 @@ export const ESLint: Info = {
       await fs.rename(extractedPath, finalPath)
 
       const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm"
-      await Process.run([npmCmd, "install"], { cwd: finalPath })
-      await Process.run([npmCmd, "run", "compile"], { cwd: finalPath })
+      // 忽略退出码会把「安装/编译失败」当成可用，随后 spawn 一个并不存在的 server 文件。
+      const installed = await Process.run([npmCmd, "install"], { cwd: finalPath, nothrow: true })
+      if (installed.code !== 0) return
+      const compiled = await Process.run([npmCmd, "run", "compile"], { cwd: finalPath, nothrow: true })
+      if (compiled.code !== 0) return
     }
 
     const proc = spawn("node", [serverPath, "--stdio"], {
@@ -381,8 +389,9 @@ export const Gopls: Info = {
       }
       bin = path.join(Global.Path.bin, "gopls" + (process.platform === "win32" ? ".exe" : ""))
     }
+    if (!bin) return
     return {
-      process: spawn(bin!, {
+      process: spawn(bin, {
         cwd: root,
       }),
     }
@@ -413,8 +422,9 @@ export const Rubocop: Info = {
       }
       bin = path.join(Global.Path.bin, "rubocop" + (process.platform === "win32" ? ".exe" : ""))
     }
+    if (!bin) return
     return {
-      process: spawn(bin!, ["--lsp"], {
+      process: spawn(bin, ["--lsp"], {
         cwd: root,
       }),
     }
@@ -549,6 +559,8 @@ export const ElixirLS: Info = {
 
         if (flags.disableLspDownload) return
 
+        // 同 ESLint：拉取分支头并在本地编译，属供应链信任点；
+        // 如需完全可信应固定 release tag 并校验签名/摘要。
         const response = await fetch("https://github.com/elixir-lsp/elixir-ls/archive/refs/heads/master.zip")
         if (!response.ok) return
         const zipPath = path.join(Global.Path.bin, "elixir-ls.zip")
@@ -660,7 +672,11 @@ export const Zls: Info = {
           })
         if (!ok) return
       } else {
-        await run(["tar", "-xf", tempPath], { cwd: Global.Path.bin })
+        const tarExit = await run(["tar", "-xf", tempPath], { cwd: Global.Path.bin })
+        if (tarExit.code !== 0) {
+          await fs.rm(tempPath, { force: true })
+          return
+        }
       }
 
       await fs.rm(tempPath, { force: true })
@@ -733,7 +749,9 @@ export const Razor: Info = {
   },
 }
 
-let roslynLanguageServerInstall: Promise<string | undefined> | undefined
+// 按 flag 分键缓存：若共用一条 Promise，首个 disableLspDownload=true 的调用者
+// 会让并发的「允许下载」调用者复用同一个 undefined 结果，静默失去 LSP。
+const roslynLanguageServerInstalls = new Map<string, Promise<string | undefined>>()
 
 async function getRoslynLanguageServer(disableLspDownload: boolean) {
   const existing = which("roslyn-language-server")
@@ -742,10 +760,14 @@ async function getRoslynLanguageServer(disableLspDownload: boolean) {
   const global = await roslynLanguageServerGlobalPath()
   if (global) return global
 
-  roslynLanguageServerInstall ||= installRoslynLanguageServer(disableLspDownload).finally(() => {
-    roslynLanguageServerInstall = undefined
+  const cacheKey = disableLspDownload ? "disabled" : "enabled"
+  const pending = roslynLanguageServerInstalls.get(cacheKey)
+  if (pending) return pending
+  const task = installRoslynLanguageServer(disableLspDownload).finally(() => {
+    roslynLanguageServerInstalls.delete(cacheKey)
   })
-  return roslynLanguageServerInstall
+  roslynLanguageServerInstalls.set(cacheKey, task)
+  return task
 }
 
 async function installRoslynLanguageServer(disableLspDownload: boolean) {
@@ -1043,7 +1065,11 @@ export const Clangd: Info = {
       if (!ok) return
     }
     if (tar) {
-      await run(["tar", "-xf", archive], { cwd: Global.Path.bin })
+      const untar = await run(["tar", "-xf", archive], { cwd: Global.Path.bin })
+      if (untar.code !== 0) {
+        await fs.rm(archive, { force: true })
+        return
+      }
     }
     await fs.rm(archive, { force: true })
 
@@ -1193,8 +1219,14 @@ export const JDTLS: Info = {
       return
     }
     const javaMajorVersion = await run(["java", "-version"]).then((result) => {
-      const m = /"(\d+)\.\d+\.\d+"/.exec(result.stderr.toString())
-      return !m ? undefined : parseInt(m[1])
+      const text = result.stderr.toString() + result.stdout.toString()
+      // java -version 的格式因厂商而异：openjdk 可能打印 "21.0.1"，也可能只打印
+      // "21"；旧版本是 "1.8.0_402"。放宽匹配，否则会被误判为版本不足而静默禁用 JDT。
+      const versionMatch = /version\s+"(\d+)(?:[._](\d+))?/.exec(text) ?? /"(\d+)[._](\d+)/.exec(text)
+      if (!versionMatch) return undefined
+      const major = Number(versionMatch[1])
+      if (major === 1 && versionMatch[2] !== undefined) return Number(versionMatch[2])
+      return major
     })
     if (javaMajorVersion == null || javaMajorVersion < 21) {
       return
@@ -1448,7 +1480,7 @@ export const LuaLS: Info = {
         return
       }
 
-      const asset = release.assets.find((a: { name?: string }) => a.name === assetName)
+      const asset = (release.assets ?? []).find((a: { name?: string }) => a.name === assetName)
       if (!asset) {
         return
       }
@@ -1755,7 +1787,11 @@ export const TexLab: Info = {
         if (!ok) return
       }
       if (ext === "tar.gz") {
-        await run(["tar", "-xzf", tempPath], { cwd: Global.Path.bin })
+        const untar = await run(["tar", "-xzf", tempPath], { cwd: Global.Path.bin })
+        if (untar.code !== 0) {
+          await fs.rm(tempPath, { force: true })
+          return
+        }
       }
 
       await fs.rm(tempPath, { force: true })
@@ -1935,7 +1971,11 @@ export const Tinymist: Info = {
           })
         if (!ok) return
       } else {
-        await run(["tar", "-xzf", tempPath, "--strip-components=1"], { cwd: Global.Path.bin })
+        const untar = await run(["tar", "-xzf", tempPath, "--strip-components=1"], { cwd: Global.Path.bin })
+        if (untar.code !== 0) {
+          await fs.rm(tempPath, { force: true })
+          return
+        }
       }
 
       await fs.rm(tempPath, { force: true })

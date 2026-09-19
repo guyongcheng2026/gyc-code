@@ -72,6 +72,7 @@ export interface ExecutionContext {
 }
 
 // 模型输入解析：provider/model[:variant] → { providerID, modelID, variant? }
+const MODEL_INPUT_CACHE_LIMIT = 1000
 const modelInputCache = new Map<string, { providerID: string; modelID: string; variant?: string }>()
 export function parseModelInput(value: string | undefined): { providerID: string; modelID: string; variant?: string } | undefined {
   if (!value) return undefined
@@ -83,6 +84,11 @@ export function parseModelInput(value: string | undefined): { providerID: string
   const [modelID, variant] = modelPart.split(":")
   const result = { providerID, modelID, variant }
   modelInputCache.set(value, result)
+  // 容量上限：长会话里换过的模型串不应无限堆积，超限按插入序淘汰最旧一条
+  if (modelInputCache.size > MODEL_INPUT_CACHE_LIMIT) {
+    const oldest = modelInputCache.keys().next().value
+    if (oldest !== undefined) modelInputCache.delete(oldest)
+  }
   return result
 }
 

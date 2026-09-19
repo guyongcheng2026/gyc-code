@@ -16,7 +16,11 @@ function unquoteGitPath(input: string) {
   for (let i = 0; i < body.length; i++) {
     const char = body[i]!
     if (char !== "\\") {
-      bytes.push(char.charCodeAt(0))
+      // git 以原始 UTF-8 输出非 ASCII 路径：按码点整体编码，避免 charCodeAt 把
+      // 多字节字符截成单字节（代理对需一次吃掉两个 code unit）
+      const codePoint = body.codePointAt(i)!
+      for (const byte of Buffer.from(String.fromCodePoint(codePoint), "utf8")) bytes.push(byte)
+      if (codePoint > 0xffff) i++
       continue
     }
 

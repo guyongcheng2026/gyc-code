@@ -1,0 +1,19 @@
+{
+  "id": "permission-sandbox",
+  "name": "完整权限系统和沙盒环境",
+  "main": "agent.md",
+  "description": "实现完整的权限系统和沙盒环境，以增强安全性和隔离性",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /permission-sandbox 帮助 来查看权限系统和沙盒选项",
+    "该技能展示了如何实现完整的权限系统和沙盒环境"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/permission-sandbox",
+  "publishedAt": "2026-09-07T14:00:00.000Z"
+}

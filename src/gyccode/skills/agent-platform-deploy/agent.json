@@ -1,0 +1,19 @@
+{
+  "id": "agent-platform-deploy",
+  "name": "Agent Platform 部署",
+  "main": "agent.md",
+  "description": "部署开放模型或自定义权重从 Model Garden 到 Agent Platform 端点，检查部署状态，验证服务端点，或通过取消部署模型和删除端点来清理资源",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "deployment",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /agent-platform-deploy 帮助 来查看部署选项",
+    "该技能展示了如何在 Agent Platform 上部署模型和管理端点"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/agent-platform-deploy",
+  "publishedAt": "2026-09-07T15:00:00.000Z"
+}

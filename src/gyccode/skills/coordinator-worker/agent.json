@@ -1,0 +1,19 @@
+{
+  "id": "coordinator-worker",
+  "name": "协调者-工作者模式",
+  "main": "agent.md",
+  "description": "实现协调者-工作者架构，以实现专门化的代理任务和受限的工具访问",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /coordinator-worker 帮助 来查看协调者-工作者模式选项",
+    "该技能展示了如何实现协调者-工作者架构来实现专门化的代理（规划者、验证者、探索者等）和受限的工具访问"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/coordinator-worker",
+  "publishedAt": "2026-09-07T11:00:00.000Z"
+}

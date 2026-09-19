@@ -2,6 +2,7 @@ import { Effect, Schema, Stream } from "effect"
 import { decodeSubprocessStream } from "@gyccode/core/util/text-encoding"
 import os from "os"
 import { createWriteStream } from "node:fs"
+import { realpath } from "node:fs/promises"
 import * as Tool from "./tool"
 import path from "path"
 import { containsPath, type InstanceContext } from "../project/instance-context"
@@ -508,15 +509,20 @@ export const ShellTool = Tool.define(
       return FSUtil.normalizePath(file)
     })
 
+    // 解析符号链接后再做包含性判断：工作区里的 `ln -s /etc` 会让纯字符串
+    // 前缀比较（containsPath）误判为"在沙箱内"，从而绕过权限询问。
+    const realpathOr = (target: string) =>
+      Effect.tryPromise(() => realpath(target)).pipe(Effect.catch(() => Effect.succeed(target)))
+
     const resolvePath = Effect.fn("ShellTool.resolvePath")(function* (text: string, root: string, shell: string) {
       if (process.platform === "win32") {
         if (Shell.posix(shell) && text.startsWith("/") && FSUtil.windowsPath(text) === text) {
           const file = yield* cygpath(shell, text)
-          if (file) return file
+          if (file) return yield* realpathOr(file)
         }
-        return FSUtil.normalizePath(path.resolve(root, FSUtil.windowsPath(text)))
+        return yield* realpathOr(FSUtil.normalizePath(path.resolve(root, FSUtil.windowsPath(text))))
       }
-      return path.resolve(root, text)
+      return yield* realpathOr(path.resolve(root, text))
     })
 
     const argPath = Effect.fn("ShellTool.argPath")(function* (arg: string, cwd: string, ps: boolean, shell: string) {
@@ -563,9 +569,14 @@ export const ShellTool = Tool.define(
         // dynamic form cannot silently skip the prompt. Also refuse to mint an
         // over-broad always-rule ("( *", "then *") for heads that are not commands.
         const head = tokens[0] ?? ""
-        if (tokens.length && (!cmd || !CWD.has(cmd) || tokens.some((token) => dynamic(token, ps)))) {
+        const hasDynamic = tokens.some((token) => dynamic(token, ps))
+        if (tokens.length && (!cmd || !CWD.has(cmd) || hasDynamic)) {
           scan.patterns.add(segment.source)
-          scan.always.add(COMMAND_NAME.test(head) ? BashArity.prefix(tokens).join(" ") + " *" : segment.source)
+          // 动态 token（$(...)/反引号/变量）不得铸成 "prefix *" 的 always 规则：
+          // 一次"总是允许"会长期放行任意同前缀命令。
+          scan.always.add(
+            !hasDynamic && COMMAND_NAME.test(head) ? BashArity.prefix(tokens).join(" ") + " *" : segment.source,
+          )
         }
       }
 
@@ -602,9 +613,20 @@ export const ShellTool = Tool.define(
       let used = 0
       let file = ""
       let sink: ReturnType<typeof createWriteStream> | undefined
+      let sinkError: Error | undefined
       let cut = false
       let expired = false
       let aborted = false
+
+      const openSink = (target: string) => {
+        const stream = createWriteStream(target, { flags: "a" })
+        // 必须立刻挂 error 监听：写入失败（ENOSPC/EACCES）会 emit 'error'，
+        // 无监听器时 Node 会把它升级为 uncaught exception 并终止进程。
+        stream.on("error", (error) => {
+          sinkError = error instanceof Error ? error : new Error(String(error))
+        })
+        return stream
+      }
 
       const closeSink = Effect.fnUntraced(function* () {
         const stream = sink
@@ -657,7 +679,8 @@ export const ShellTool = Tool.define(
               last = preview(last + chunk)
 
               if (file) {
-                sink?.write(chunk)
+                // 落盘失败后 sinkError 已置位：丢弃该块，避免向已出错的流继续写入
+                if (sink && !sinkError) sink.write(chunk)
               } else {
                 full += chunk
                 if (Buffer.byteLength(full, "utf-8") > limits.maxBytes) {
@@ -666,7 +689,7 @@ export const ShellTool = Tool.define(
                       Effect.sync(() => {
                         file = next
                         cut = true
-                        sink = createWriteStream(next, { flags: "a" })
+                        sink = openSink(next)
                         full = ""
                       }),
                     ),
@@ -696,21 +719,27 @@ export const ShellTool = Tool.define(
             return Effect.sync(() => ctx.abort.removeEventListener("abort", handler))
           })
 
-          const timeout = Effect.sleep(`${input.timeout + 100} millis`)
+          // timeout <= 0 表示不设超时（0 曾等同于"立即超时"，100ms 后就杀掉进程）。
+          const timeout =
+            input.timeout > 0
+              ? Effect.sleep(`${input.timeout + 100} millis`).pipe(
+                  Effect.map(() => ({ kind: "timeout" as const, code: null })),
+                )
+              : Effect.never
 
           const exit = yield* Effect.raceAll([
             handle.exitCode.pipe(Effect.map((code) => ({ kind: "exit" as const, code }))),
             abort.pipe(Effect.map(() => ({ kind: "abort" as const, code: null }))),
-            timeout.pipe(Effect.map(() => ({ kind: "timeout" as const, code: null }))),
+            timeout,
           ])
 
-          if (exit.kind === "abort") {
-            aborted = true
+          if (exit.kind === "abort" || exit.kind === "timeout") {
+            if (exit.kind === "abort") aborted = true
+            else expired = true
             yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
-          }
-          if (exit.kind === "timeout") {
-            expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            // 等待进程真正退出：scoped 释放后就没有人再等它了，若 3 秒宽限内
+            // 没死，detached 的子进程（及其孙进程）会变成孤儿继续读写工作区。
+            yield* handle.exitCode.pipe(Effect.timeout("5 seconds"), Effect.ignore)
           }
 
           return exit.kind === "exit" ? exit.code : null
@@ -772,7 +801,9 @@ export const ShellTool = Tool.define(
                 ? yield* resolvePath(params.workdir, instanceCtx.directory, shell)
                 : instanceCtx.directory
               if (params.timeout !== undefined && params.timeout < 0) {
-                throw new Error(`Invalid timeout value: ${params.timeout}. Timeout must be a positive number.`)
+                throw new Error(
+                  `Invalid timeout value: ${params.timeout}. Timeout must be a non-negative number (0 disables the timeout).`,
+                )
               }
               const timeout = params.timeout ?? defaultTimeoutMs
               const ps = Shell.ps(shell)

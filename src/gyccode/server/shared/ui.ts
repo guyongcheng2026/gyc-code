@@ -71,7 +71,11 @@ export function embeddedUI(disableEmbeddedWebUi: boolean) {
           ]),
         )
       })
-      .catch(() => null))
+      .catch((cause) => {
+        // 内嵌 UI 清单缺失或损坏时回落到上游代理，记录原因便于排障
+        console.warn(`[ui] 内嵌 Web UI 清单加载失败，回落上游代理: ${String(cause).slice(0, 200)}`)
+        return null
+      }))
 }
 
 function notFound() {

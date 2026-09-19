@@ -1056,27 +1056,75 @@ export const ConfigProvidersResult = Schema.Struct({
 })
 export type ConfigProvidersResult = Types.DeepMutable<Schema.Schema.Type<typeof ConfigProvidersResult>>
 
+/** 稳定序列化 model.options 作为缓存键的一部分；不可序列化时退化为固定标记。 */
+function serializeOptions(options: unknown): string {
+  try {
+    return JSON.stringify(options ?? null) ?? "null"
+  } catch {
+    return "unserializable"
+  }
+}
+
+const SENSITIVE_KEYS = new Set([
+  "key",
+  "apikey",
+  "api_key",
+  "access",
+  "accesstoken",
+  "access_token",
+  "refreshtoken",
+  "refresh_token",
+  "token",
+  "secret",
+  "clientsecret",
+  "client_secret",
+  "password",
+  "authorization",
+  "auth_token",
+])
+
+/** 递归删除敏感字段（含 options/headers 内的嵌套凭据）。 */
+function stripSecrets(input: unknown, depth = 0): unknown {
+  if (depth > 8 || input === null || typeof input !== "object") return input
+  if (Array.isArray(input)) return input.map((item) => stripSecrets(item, depth + 1))
+  const out: Record<string, unknown> = {}
+  for (const [name, value] of Object.entries(input as Record<string, unknown>)) {
+    if (SENSITIVE_KEYS.has(name.toLowerCase())) continue
+    out[name] = stripSecrets(value, depth + 1)
+  }
+  return out
+}
+
 export function toPublicInfo(provider: Info): Info {
   // 数据安全：剥离配置注入的明文 API Key 等敏感字段，禁止经 HTTP 对外返回
-  const safe = { ...provider } as Partial<Info> & Record<string, unknown>
-  delete safe["key"]
-  return JSON.parse(
-    JSON.stringify(
-      {
-        ...safe,
-        models: Object.fromEntries(Object.entries(provider.models).filter(([, model]) => Schema.is(Model)(model))),
-      },
-      (_, value) => {
+  // 密钥不只在顶层 key：多个 provider 把凭据放进 options（apiKey /
+  // headers.authorization / access_token 等），只删顶层会随 HTTP/config 外泄。
+  let safe: unknown
+  try {
+    safe = stripSecrets({
+      ...provider,
+      models: Object.fromEntries(Object.entries(provider.models).filter(([, model]) => Schema.is(Model)(model))),
+    })
+    safe = JSON.parse(
+      JSON.stringify(safe, (_, value) => {
         if (typeof value === "function" || typeof value === "symbol" || value === undefined) return undefined
         if (typeof value === "bigint") return value.toString()
         return value
-      },
-    ),
-  )
+      }),
+    )
+  } catch {
+    // 循环引用等无法序列化的情形：退化为剥离顶层 key 的浅拷贝，绝不原样返回。
+    const fallback = { ...provider } as Partial<Info> & Record<string, unknown>
+    delete fallback["key"]
+    safe = fallback
+  }
+  return safe as Info
 }
 
 export function defaultModelIDs<T extends { models: Record<string, { id: string }> }>(providers: Record<string, T>) {
-  return mapValues(providers, (item) => sort(Object.values(item.models))[0].id)
+  // 空 models（全部被状态过滤或尚未发现）时不能直接取 [0]：这是配置/HTTP 的
+  // 热路径，一处 TypeError 会让整个 provider 列表解析失败。
+  return mapValues(providers, (item) => sort(Object.values(item.models))[0]?.id ?? "")
 }
 
 export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ProviderModelNotFoundError", {
@@ -1674,6 +1722,11 @@ const layer = Layer.effect(
     async function resolveSDK(model: Model, s: State, envs: Record<string, string | undefined>) {
       try {
         const provider = s.providers[model.providerID]
+        if (!provider) {
+          // provider 可能在本次会话中被清理掉（catalog 里仍有模型），
+          // 直接解引用会抛 TypeError 并被包成误导性的 InitError。
+          throw new ModelNotFoundError({ providerID: model.providerID, modelID: model.id })
+        }
         const options = { ...provider.options }
 
         if (
@@ -1764,7 +1817,8 @@ const layer = Layer.effect(
 
         options["fetch"] = async (input: string | URL | Request, init?: BunFetchRequestInit) => {
           const fetchFn = customFetch ?? fetch
-          const opts = init ?? {}
+          // 拷贝一份：下面会写入 signal，直接改 init 会污染调用方传入的对象。
+          const opts = { ...(init ?? {}) }
           const chunkAbortCtl = typeof chunkTimeout === "number" && chunkTimeout > 0 ? new AbortController() : undefined
           const headerTimeoutMs = headerTimeout === false ? undefined : headerTimeout
           const headerTimeoutCtl = typeof headerTimeoutMs === "number"
@@ -1822,9 +1876,10 @@ const layer = Layer.effect(
         // Prefer named factory resolution: try provider-specific name first,
         // then fall back to generic "create" prefix.
         const keys = Object.keys(mod)
+        const isFactory = (value: unknown) => typeof value === "function"
         const fnName =
-          keys.find((key) => key.toLowerCase() === `create${model.providerID.toLowerCase()}`) ??
-          keys.find((key) => key.startsWith("create"))
+          keys.find((key) => key.toLowerCase() === `create${model.providerID.toLowerCase()}` && isFactory(mod[key])) ??
+          keys.find((key) => key.startsWith("create") && isFactory(mod[key]))
         const fn = fnName ? mod[fnName] : undefined
         if (!fn) throw new InitError({ providerID: model.providerID, cause: new Error(`No factory found in ${importSpec}`) })
         const loaded = fn({
@@ -1834,6 +1889,7 @@ const layer = Layer.effect(
         s.sdk.set(key, loaded)
         return loaded as SDK
       } catch (e) {
+        if (ModelNotFoundError.isInstance(e)) throw e
         throw new InitError({ providerID: model.providerID, cause: e })
       }
     }
@@ -1869,7 +1925,9 @@ const layer = Layer.effect(
     const getLanguage = Effect.fn("Provider.getLanguage")(function* (model: Model) {
       const s = yield* InstanceState.get(state)
       const envs = yield* env.all()
-      const key = `${model.providerID}/${model.id}`
+      // variant 会通过 model.options 注入不同配置（如 thinking budget），
+      // 只按 provider/model 缓存会让第二次请求静默复用第一份配置。
+      const key = `${model.providerID}/${model.id}#${serializeOptions(model.options)}`
       if (s.models.has(key)) return s.models.get(key)!
 
       const provider = s.providers[model.providerID]

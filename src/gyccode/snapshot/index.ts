@@ -369,6 +369,9 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           return yield* locked(
             Effect.gen(function* () {
               yield* add()
+              // add() 会把工作区改动写进 git 索引，缓存的 tree hash 随之失效；
+              // 不置空的话，下次 track() 在 add() 报告无变更时会返回改动前的旧哈希。
+              lastTreeHash = undefined
               const result = yield* git(
                 [...quote, ...args(["diff", "--cached", "--no-ext-diff", "--name-only", hash, "--", "."])],
                 {

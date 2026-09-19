@@ -446,26 +446,32 @@ function createPluginScope(load: PluginLoad, id: string, disposeTimeoutMs: numbe
     const queue = [...list].reverse()
     list = []
     const until = Date.now() + disposeTimeoutMs
+    let timedOut = false
     for (const item of queue) {
       const left = until - Date.now()
-      if (left <= 0) {
+      if (left <= 0 && !timedOut) {
         fail("timed out cleaning up tui plugin", {
           path: load.spec,
           id,
           timeout: disposeTimeoutMs,
         })
-        break
+        // 不能 break/跳过：剩余的清理函数若被跳过，事件监听与槽位不会回滚。
+        // 改为以 0 预算继续执行，让同步完成的 cleanup 仍能生效。
+        timedOut = true
       }
 
-      const out = await runCleanup(item.fn, left)
+      const out = await runCleanup(item.fn, Math.max(0, left))
       if (out.type === "ok") continue
       if (out.type === "timeout") {
-        fail("timed out cleaning up tui plugin", {
-          path: load.spec,
-          id,
-          timeout: disposeTimeoutMs,
-        })
-        break
+        if (!timedOut) {
+          fail("timed out cleaning up tui plugin", {
+            path: load.spec,
+            id,
+            timeout: disposeTimeoutMs,
+          })
+          timedOut = true
+        }
+        continue
       }
 
       if (out.type === "error") {

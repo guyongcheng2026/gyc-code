@@ -1,0 +1,20 @@
+{
+  "id": "lsp-enhanced",
+  "name": "增强LSP集成",
+  "main": "agent.md",
+  "description": "提供基本的语言服务器协议(LSP)集成，用于Python语言的代码智能功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /lsp-enhanced 帮助 来查看LSP增强选项",
+    "该技能展示了如何集成语言服务器协议来提供自动补全、转到定义、悬停信息和诊断等代码智能功能"
+  ],
+  "status": "active",
+  "tags": ["lsp", "code-intelligence", "autocomplete", "python", "enhancement"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/lsp-enhanced",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

@@ -1,4 +1,5 @@
-import { unlink } from "fs/promises"
+import { mkdir, unlink } from "fs/promises"
+import path from "path"
 
 const LOCK_TIMEOUT = 5000
 const LOCK_RETRY_INTERVAL = 100
@@ -32,6 +33,11 @@ export class FileLock {
           await this.clearIfStale()
           await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_INTERVAL))
           continue
+        }
+        if (error?.code === "ENOENT") {
+          // 锁文件父目录尚不存在（调用方普遍在锁内才 mkdir 目标目录）：
+          // 先补建父目录再重试，否则会在这里空转到超时。
+          await mkdir(path.dirname(this.lockPath), { recursive: true }).catch(() => {})
         }
         await new Promise(resolve => setTimeout(resolve, LOCK_RETRY_INTERVAL))
       }

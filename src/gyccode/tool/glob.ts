@@ -24,6 +24,9 @@ export const GlobTool = Tool.define(
       parameters: Parameters,
       execute: (params: { pattern: string; path?: string }, ctx: Tool.Context) =>
         Effect.gen(function* () {
+          // 空/纯空白 pattern 会让 ripgrep 报错或匹配到一切：入口直接拒绝，
+          // 避免把"删除整个列表"这类空模式当成有效查询下发。
+          if (!params.pattern.trim()) throw new Error("glob pattern must not be empty")
           const ins = yield* InstanceState.context
           yield* ctx.ask({
             permission: "glob",

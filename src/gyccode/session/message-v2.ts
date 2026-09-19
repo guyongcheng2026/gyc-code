@@ -34,7 +34,6 @@ import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
 import type { Provider } from "@/provider/provider"
 import { Cause, Effect, Schema } from "effect"
-import { Semaphore } from "effect"
 
 /** Error shape thrown by Bun's fetch() when gzip/br decompression fails mid-stream */
 interface FetchDecompressionError extends Error {
@@ -137,9 +136,8 @@ export const TRUNCATION_DECISIONS_MAX = 10_000
  * recomputed, so the serialized prompt prefix stays byte-stable across turns
  * (prompt-cache friendly). Mirrors reference agent partitionByPriorDecision.
  */
-// P1 修复：使用 Semaphore 确保并发安全
+// 决策表并发安全：JS 单线程下同步 Map 操作本身就是原子的，不需要信号量。
 const truncationDecisionsMap = new Map<string, number | undefined>()
-const truncationDecisionsSemaphore = Semaphore.makeUnsafe(1)
 
 /** 测试用：当前冻结决策数量。 */
 export function truncationDecisionsSize(): number {
@@ -147,21 +145,20 @@ export function truncationDecisionsSize(): number {
 }
 
 function freezeDecision(id: string, cap: number | undefined): void {
-  truncationDecisionsSemaphore.withPermits(1)(
-    Effect.sync(() => {
-      if (truncationDecisionsMap.size >= TRUNCATION_DECISIONS_MAX) truncationDecisionsMap.clear()
-      truncationDecisionsMap.set(id, cap)
-    }),
-  ).pipe(Effect.runSync)
+  // 纯 Map 操作在 JS 单线程下天然原子：Semaphore.withPermits + Effect.runSync 只会
+  // 在热路径上加开销，并且一旦并发持锁就会直接抛错/死锁，这里不需要它。
+  if (truncationDecisionsMap.size >= TRUNCATION_DECISIONS_MAX) {
+    // 整表 clear() 会让已有 callID 的 cap 改变，破坏 prompt 前缀的字节稳定性；
+    // 改为按插入序只淘汰最旧的一条，保留当前批次。
+    const oldest = truncationDecisionsMap.keys().next().value
+    if (oldest !== undefined) truncationDecisionsMap.delete(oldest)
+  }
+  truncationDecisionsMap.set(id, cap)
 }
 
 /** Reset frozen decisions (used by tests). */
 export function resetTruncationDecisions(): void {
-  truncationDecisionsSemaphore.withPermits(1)(
-    Effect.sync(() => {
-      truncationDecisionsMap.clear()
-    }),
-  ).pipe(Effect.runSync)
+  truncationDecisionsMap.clear()
 }
 
 // ─── 截断观测（幻觉率前置信号）─────────────────────────────────
@@ -169,22 +166,19 @@ export function resetTruncationDecisions(): void {
 // 的同一旋钮两端。按工具类型统计截断次数与被省略字符数，为 TOOL_TYPE_CAPS
 // 阈值（2K↔4K）的闭环调参提供数据基础，避免拍脑袋回调。指标只读、零依赖、
 // 仅在实际发生截断时自增，序列化热路径开销为一次 Map.get。
-// P1 修复：使用 Semaphore 确保并发安全
+// 统计表并发安全：同上，同步 Map 操作天然原子。
 const truncationStatsMap = new Map<string, { count: number; omittedChars: number }>()
-const truncationStatsSemaphore = Semaphore.makeUnsafe(1)
 
 function recordTruncation(tool: string, omittedChars: number): void {
-  truncationStatsSemaphore.withPermits(1)(
-    Effect.sync(() => {
-      const entry = truncationStatsMap.get(tool)
-      if (entry) {
-        entry.count++
-        entry.omittedChars += omittedChars
-      } else {
-        truncationStatsMap.set(tool, { count: 1, omittedChars })
-      }
-    }),
-  ).pipe(Effect.runSync)
+  // 同 freezeDecision：同步 Map 更新不需要信号量包装（runSync 包 withPermits 在
+  // 并发持锁时会抛错，且纯属热路径开销）。
+  const entry = truncationStatsMap.get(tool)
+  if (entry) {
+    entry.count++
+    entry.omittedChars += omittedChars
+  } else {
+    truncationStatsMap.set(tool, { count: 1, omittedChars })
+  }
 }
 
 /** 当前截断统计快照（按工具类型）。供 /insights、诊断或测试读取。 */
@@ -194,11 +188,7 @@ export function truncationStatsSnapshot(): Record<string, { count: number; omitt
 
 /** Reset truncation stats (used by tests). */
 export function resetTruncationStats(): void {
-  truncationStatsSemaphore.withPermits(1)(
-    Effect.sync(() => {
-      truncationStatsMap.clear()
-    }),
-  ).pipe(Effect.runSync)
+  truncationStatsMap.clear()
 }
 
 /** 仅保留真实截断（cap < 当前输出长度）的条目；无任何截断返回 undefined。
@@ -300,7 +290,13 @@ export const cursor = {
     return Buffer.from(JSON.stringify(input)).toString("base64url")
   },
   decode(input: string) {
-    return decodeCursor(JSON.parse(Buffer.from(input, "base64url").toString("utf8")))
+    // cursor 来自客户端（HTTP 查询参数）：畸形输入不能让异常冒到路由层。
+    // JSON.parse 与 decodeUnknownSync 都会抛，这里统一降级为 undefined。
+    try {
+      return decodeCursor(JSON.parse(Buffer.from(input, "base64url").toString("utf8")))
+    } catch {
+      return undefined
+    }
   },
 }
 

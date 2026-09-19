@@ -432,7 +432,9 @@ export const layerWith = (options?: LayerOptions) =>
           const currentListeners = [...listeners]
           yield* Effect.forEach(
             currentListeners,
-            (listener) => (isolateListeners ? observe(event, listener) : listener(event)),
+            // 两种模式都走 observe：直接调用 listener 时，任一 listener 抛出都会
+            // 中断整个 forEach，导致后续 listener 与两个 PubSub 发布全部被跳过。
+            (listener) => observe(event, listener),
             { discard: true },
           )
           const typed = pubsub.typed.get(event.type)

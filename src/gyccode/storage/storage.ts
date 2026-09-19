@@ -91,7 +91,7 @@ const MIGRATIONS: Migration[] = [
       if (!(yield* fs.isDir(full))) continue
       yield* Effect.logInfo(`migrating project ${projectDir}`)
       let projectID = projectDir
-      let worktree = "/"
+      let worktree: string | undefined
 
       if (projectID !== "global") {
         for (const msgFile of yield* fs.glob("storage/session/message/*/*.json", {
@@ -308,7 +308,9 @@ const layer = Layer.effect(
         })
         .pipe(Effect.catch(() => Effect.succeed<string[]>([])))
       return result
-        .map((x) => [...prefix, ...x.slice(0, -5).split(path.sep)])
+        // 不能硬编码去掉尾部 5 个字符来当作 ".json"：非 .json 文件会被截错。
+        .filter((x) => x.endsWith(".json"))
+        .map((x) => [...prefix, ...path.basename(x, ".json").split(path.sep)])
         .toSorted((a, b) => a.join("/").localeCompare(b.join("/")))
     })
 

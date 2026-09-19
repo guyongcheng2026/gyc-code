@@ -743,20 +743,22 @@ const onContentBlockStart = (state: ParserState, event: AnthropicEvent): StepRes
   const block = event.content_block
   if (!block) return [state, NO_EVENTS]
 
-  if ((block.type === "tool_use" || block.type === "server_tool_use") && event.index !== undefined) {
+  // Anthropic 的 content_block_* 事件应带 index；缺失时按到达顺序兜底到 0 号块，避免整个 tool_use 块被静默丢弃。
+  const index = event.index ?? 0
+  if (block.type === "tool_use" || block.type === "server_tool_use") {
     const events: LLMEvent[] = []
     const lifecycle = Lifecycle.stepStart(state.lifecycle, events)
     return [
       {
         ...state,
         lifecycle,
-        tools: ToolStream.start(state.tools, event.index, {
-          id: block.id ?? String(event.index),
+        tools: ToolStream.start(state.tools, index, {
+          id: block.id ?? String(index),
           name: block.name ?? "",
           providerExecuted: block.type === "server_tool_use",
         }),
       },
-      [...events, LLMEvent.toolInputStart({ id: block.id ?? String(event.index), name: block.name ?? "" })],
+      [...events, LLMEvent.toolInputStart({ id: block.id ?? String(index), name: block.name ?? "" })],
     ]
   }
 
@@ -826,12 +828,14 @@ const onContentBlockDelta = Effect.fn("AnthropicMessages.onContentBlockDelta")(f
     ] satisfies StepResult
   }
 
-  if (delta?.type === "input_json_delta" && event.index !== undefined) {
+  if (delta?.type === "input_json_delta") {
     if (!delta.partial_json) return [state, NO_EVENTS] satisfies StepResult
+    // 缺 index 时按到达顺序兜底到 0 号块；若该块确实不存在，则沿用既有「tool argument delta is missing its tool call」错误，不再静默丢弃增量。
+    const index = event.index ?? 0
     const result = ToolStream.appendExisting(
       ADAPTER,
       state.tools,
-      event.index,
+      index,
       delta.partial_json,
       "Anthropic Messages tool argument delta is missing its tool call",
     )
@@ -849,16 +853,17 @@ const onContentBlockStop = Effect.fn("AnthropicMessages.onContentBlockStop")(fun
   state: ParserState,
   event: AnthropicEvent,
 ) {
-  if (event.index === undefined) return [state, NO_EVENTS] satisfies StepResult
-  const result = yield* ToolStream.finish(ADAPTER, state.tools, event.index)
+  // 缺 index 时按到达顺序兜底到 0 号块，仍要收尾（tool 结束 / text_end / reasoning_end），不再整块跳过。
+  const index = event.index ?? 0
+  const result = yield* ToolStream.finish(ADAPTER, state.tools, index)
   const events: LLMEvent[] = []
   const resultEvents = result.events ?? []
   const lifecycle = resultEvents.length
     ? Lifecycle.stepStart(state.lifecycle, events)
     : Lifecycle.reasoningEnd(
-        Lifecycle.textEnd(state.lifecycle, events, `text-${event.index}`),
+        Lifecycle.textEnd(state.lifecycle, events, `text-${index}`),
         events,
-        `reasoning-${event.index}`,
+        `reasoning-${index}`,
       )
   events.push(...resultEvents)
   return [{ ...state, lifecycle, tools: result.tools }, events] satisfies StepResult

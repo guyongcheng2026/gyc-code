@@ -65,6 +65,11 @@ export interface BudgetState {
   continuations: number
   /** Token increment of the most recent continuation turn. */
   lastIncrement: number
+  /**
+   * 最近一次已计入 used 的 assistant 消息 id。run loop 的 continue 会让同一条
+   * 消息再次进入累加分支，用它去重，避免同一份 usage 被重复累计。
+   */
+  countedMessageID?: string
 }
 
 export type BudgetAction = "continue" | "complete"

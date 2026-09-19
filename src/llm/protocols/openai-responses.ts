@@ -610,7 +610,13 @@ const NO_EVENTS: StepResult["1"] = []
 // `finish` event; `response.failed` is a hard failure that emits a
 // `provider-error`. All three end the stream — kept in one set so `step` and
 // the protocol's `terminal` predicate stay in sync.
-const TERMINAL_TYPES = new Set(["response.completed", "response.incomplete", "response.failed"])
+const TERMINAL_TYPES = new Set([
+  "response.completed",
+  "response.incomplete",
+  "response.failed",
+  // 取消也是终态，漏掉会让取消的流收不到 finish 事件。
+  "response.cancelled",
+])
 
 const onOutputTextDelta = (state: ParserState, event: OpenAIResponsesEvent): StepResult => {
   if (!event.delta) return [state, NO_EVENTS]
@@ -817,8 +823,10 @@ const onOutputItemDone = Effect.fn("OpenAIResponses.onOutputItemDone")(function*
     const tools = state.tools[item.id]
       ? state.tools
       : ToolStream.start(state.tools, item.id, { id: item.call_id, name: item.name })
+    // arguments 为空串不是权威值——供应商偶发在 output_item.done
+    // 回传空串，直接覆盖会清掉已累计的增量参数，工具调用变成空入参。
     const result =
-      item.arguments === undefined
+      item.arguments === undefined || item.arguments === ""
         ? yield* ToolStream.finish(ADAPTER, tools, item.id)
         : yield* ToolStream.finishWithInput(ADAPTER, tools, item.id, item.arguments)
     const events: LLMEvent[] = []
@@ -941,7 +949,12 @@ const step = (state: ParserState, event: OpenAIResponsesEvent) => {
   if (event.type === "response.output_item.added") return Effect.succeed(onOutputItemAdded(state, event))
   if (event.type === "response.function_call_arguments.delta") return onFunctionCallArgumentsDelta(state, event)
   if (event.type === "response.output_item.done") return onOutputItemDone(state, event)
-  if (event.type === "response.completed" || event.type === "response.incomplete")
+  if (
+    event.type === "response.completed" ||
+    event.type === "response.incomplete" ||
+    // 取消时同样收尾，否则 usage 与 finish 都不会下发。
+    event.type === "response.cancelled"
+  )
     return Effect.succeed(onResponseFinish(state, event))
   if (event.type === "response.failed") return Effect.succeed(onResponseFailed(state, event))
   if (event.type === "error") return Effect.succeed(onError(state, event))

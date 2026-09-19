@@ -2,7 +2,7 @@ export * as ServerAuth from "./auth"
 
 import { ConfigService } from "@/effect/config-service"
 import { Flag } from "@gyccode/core/flag/flag"
-import { timingSafeEqual } from "node:crypto"
+import { createHash, timingSafeEqual } from "node:crypto"
 import { Config as EffectConfig, Context, Option, Redacted } from "effect"
 
 export type Credentials = {
@@ -30,10 +30,11 @@ export function required(config: Info) {
 // 消除 username/password 明文 === 短路比较的时序侧信道
 // P0 修复：恒定时间比较 - 直接比较原始字符串字节，避免时序侧信道攻击
 function safeEqual(a: string, b: string): boolean {
-  const aBytes = Buffer.from(a, "utf8")
-  const bBytes = Buffer.from(b, "utf8")
-  if (aBytes.length !== bBytes.length) return false
-  return timingSafeEqual(aBytes, bBytes)
+  // 先哈希到定长摘要再比较：直接比较原始字节时长度不同会提前 return，
+  // 而"提前返回"本身就泄漏口令长度（时序侧信道）。
+  const aDigest = createHash("sha256").update(a, "utf8").digest()
+  const bDigest = createHash("sha256").update(b, "utf8").digest()
+  return timingSafeEqual(aDigest, bDigest)
 }
 
 export function authorized(credentials: DecodedCredentials, config: Info) {

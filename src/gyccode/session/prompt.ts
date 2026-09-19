@@ -973,7 +973,7 @@ const layer = Layer.effect(
                       let r: LSP.Range | undefined
                       if ("range" in symbol) r = symbol.range
                       else if ("location" in symbol) r = symbol.location.range
-                      if (r?.start?.line && r?.start?.line === start) {
+                      if (r?.start?.line !== undefined && r?.start?.line === start) {
                         start = r.start.line
                         end = r?.end?.line ?? start
                         break
@@ -981,7 +981,8 @@ const layer = Layer.effect(
                     }
                   }
                   offset = Math.max(start, 1)
-                  if (end) limit = end - (offset - 1)
+                  // end < offset 时不能向 read 工具传负数 limit。
+                  if (end) limit = Math.max(1, end - (offset - 1))
                 }
                 const args = { filePath: filepath, offset, limit }
                 const pieces: Draft<SessionV1.Part>[] = [
@@ -1340,9 +1341,14 @@ const layer = Layer.effect(
             !hasToolCalls &&
             lastUser.id < lastAssistant.id
           ) {
-            const increment = lastFinished?.tokens?.total ?? lastFinished?.tokens?.output ?? 0
-            budget.used += increment
-            budget.lastIncrement = increment
+            // 去重：continue 回到循环顶部时 lastFinished 仍是同一条 assistant 消息，
+            // 不去重会把同一份 usage 反复累加进 budget.used（记账偏大、提前停止续跑）。
+            if (budget.countedMessageID !== lastFinished?.id) {
+              const increment = lastFinished?.tokens?.total ?? lastFinished?.tokens?.output ?? 0
+              budget.used += increment
+              budget.lastIncrement = increment
+              budget.countedMessageID = lastFinished?.id
+            }
             const { action } = checkTokenBudget(budget)
             if (action === "continue") {
               budget.continuations += 1
@@ -1967,7 +1973,9 @@ const layer = Layer.effect(
           ),
         )
         let index = 0
-        template = template.replace(bashRegex, () => results[index++])
+        // 回调返回 undefined 时 String.replace 会注入字面量 "undefined"，
+        // 匹配数与结果数不一致时必须给出空串而不是把 "undefined" 写进提示词。
+        template = template.replace(bashRegex, () => results[index++] ?? "")
       }
       template = template.trim()
 
@@ -1993,8 +2001,17 @@ const layer = Layer.effect(
       }
 
       const templateParts = yield* resolvePromptParts(template)
+      // 非绝对 URL（模板变量拼接结果等）会让 new URL 抛错并中断整条命令处理。
+      const isFileURL = (url: string | undefined): boolean => {
+        if (!url) return false
+        try {
+          return new URL(url).protocol === "file:"
+        } catch {
+          return false
+        }
+      }
       const inputFiles = new Set(
-        input.parts?.filter((part) => new URL(part.url).protocol === "file:").map((part) => fileURLToPath(part.url)),
+        input.parts?.filter((part) => isFileURL(part.url)).map((part) => fileURLToPath(part.url)),
       )
       const uniqueTemplateParts = templateParts.filter(
         (part) => part.type !== "file" || !inputFiles.has(fileURLToPath(part.url)),
@@ -2061,12 +2078,12 @@ const layer = Layer.effect(
           if (info === undefined) {
             // R1-4 修复：remove 失败（并发场景下正常）vs 会话不存在（异常情况）
             // 分开两个日志级别，避免误诊 remove 的并发失败为 bug
-            let removeFailed = false
-            try {
-              yield* cronScheduler.remove(task.id)
-            } catch {
-              removeFailed = true
-            }
+            // Effect 的失败不会同步抛到 JS catch：必须用 Effect 的失败通道判断成败，
+            // 否则 removeFailed 恒为 false，失败原因被完全吞掉。
+            const removeFailed = yield* cronScheduler.remove(task.id).pipe(
+              Effect.as(false),
+              Effect.catchCause(() => Effect.succeed(true)),
+            )
             if (removeFailed) {
               yield* Effect.logWarning("cron task session missing, remove failed", { id: task.id })
             } else {

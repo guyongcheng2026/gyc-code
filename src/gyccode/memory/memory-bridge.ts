@@ -6,31 +6,8 @@ import path from "path"
 import { homedir } from "os"
 import { createFileLock } from "./file-lock"
 
-// 简单读写锁：写锁互斥，读可并发（共享 ESM 模块单线程执行，原子性由 JS 事件循环保证）。
-// 多 writer 场景（syncMemories / writeMemoryFile）已由外层 FileLock 保护。
-// 此锁专门保护 readMemoriesCached 的缓存读写竞争：读操作之间可并发，缓存失效时串行写。
-class RWLock {
-  private _writing = false
-  private _readWaitQueue = 0
-  private _readResolve: Array<() => void> = []
-
-  async read<T>(fn: () => T | Promise<T>): Promise<T> {
-    if (!this._writing) {
-      try {
-        return await fn()
-      } finally {
-        // no-op: 读操作不修改锁状态
-      }
-    }
-    // 等待写锁释放后作为读者进入
-    return new Promise<T>((resolve) => {
-      this._readResolve.push(async () => {
-        resolve(await fn())
-      })
-      this._readWaitQueue++
-    })
-  }
-}
+// 缓存一致性：读操作可并发；写入（invalidateMemoryCache）递增代际计数，
+// 使在飞行中的读不再回写快照，避免"写后读到写前内容"（见 readMemoriesCached）。
 
 // P1 修复：跨会话记忆按项目隔离
 // 基于 process.cwd() 生成项目隔离路径，避免不同项目记忆相互污染
@@ -99,10 +76,14 @@ export async function readMemories(): Promise<MemoryEntry[]> {
       .catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
       .catch(() => readFile(PRE_PROJECT_MEMORY_PATH, "utf-8"))
     const blocks = content.split(SEP).filter(Boolean)
+    // tags 只从正文提取：block 以 "#memory_<key>" 头行开头，若直接对整块匹配
+    // 会把 key 当成标签，任何含 "memory" 的查询都会给所有条目加权（检索噪音）。
     return blocks.map((block, i) => ({
-      key: KEY_PREFIX + i,
+      // Keep the key already stored in the file header; deriving it from the
+      // array index made every key drift as soon as entries were added/evicted.
+      key: block.trim().split("\n")[0]?.trim().match(/^#memory_(.+)$/i)?.[1] ?? String(i),
       value: block.trim(),
-      tags: block.match(/#\w+/g) || [],
+      tags: stripKeyHeader(block).match(/#\w+/g) || [],
     }))
   } catch (error) {
     console.warn("[memory-bridge] readMemories failed:", error instanceof Error ? error.message : String(error))
@@ -129,10 +110,28 @@ export function stripKeyHeader(block: string): string {
 
 /** Atomic write: write to temp file then rename to avoid partial/corrupt writes. */
 async function atomicWriteFile(filePath: string, content: string): Promise<void> {
-  const tmpPath = `${filePath}.tmp.${Date.now()}`
+  // pid + random suffix: a bare timestamp collides when two processes write in
+  // the same millisecond, and then one rename clobbers the other's temp file.
+  const tmpPath = `${filePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}`
   await writeFile(tmpPath, content, "utf-8")
   try {
-    await rename(tmpPath, filePath)
+    // Windows can fail the rename with EPERM/EBUSY while another handle is
+    // still open, so retry briefly before giving up.
+    let lastError: unknown
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await rename(tmpPath, filePath)
+        return
+      } catch (error) {
+        lastError = error
+        if (!isMissingError(error)) {
+          await new Promise((resolve) => setTimeout(resolve, 20 * (attempt + 1)))
+          continue
+        }
+        break
+      }
+    }
+    throw lastError
   } catch (error) {
     // Don't leave a half-written .tmp orphan behind if the rename fails.
     // 临时文件可能已被清理，删除失败不阻断
@@ -221,38 +220,63 @@ export const MEMORY_INJECTION_BUDGET = 4_096
 
 // 模块级缓存：记忆文件 mtime/size 未变时复用，避免每轮请求重复读盘（低 IO）
 // 读写锁保护缓存一致性：读操作并发，写操作串行且写时阻塞读。
-const cacheRWLock = new RWLock()
-let cachedStat: { mtimeMs: number; size: number } | undefined
+let cachedKey: string | undefined
 let cachedEntries: MemoryEntry[] | undefined
+let cachedGeneration = 0
+let inflightRead: Promise<MemoryEntry[]> | undefined
 
 async function readMemoriesCached(): Promise<MemoryEntry[]> {
-  return cacheRWLock.read(async () => {
-    try {
-      const [projectStat, legacyStat, preProjectStat] = await Promise.all([
-        optionalStat(MEMORY_PATH),
-        optionalStat(LEGACY_MEMORY_PATH),
-        optionalStat(PRE_PROJECT_MEMORY_PATH),
-      ])
-      const resolvedStat = projectStat ?? legacyStat ?? preProjectStat
-      if (!resolvedStat) return []
-      if (cachedStat && cachedStat.mtimeMs === resolvedStat.mtimeMs && cachedStat.size === resolvedStat.size) {
-        return cachedEntries ?? []
-      }
+  try {
+    const [projectStat, legacyStat, preProjectStat] = await Promise.all([
+      optionalStat(MEMORY_PATH),
+      optionalStat(LEGACY_MEMORY_PATH),
+      optionalStat(PRE_PROJECT_MEMORY_PATH),
+    ])
+    // Cache key must name the file the content actually comes from: the three
+    // candidates can share mtime/size while the fallback chain reads another one.
+    const resolved =
+      (projectStat ? { path: MEMORY_PATH, stat: projectStat } : undefined) ??
+      (legacyStat ? { path: LEGACY_MEMORY_PATH, stat: legacyStat } : undefined) ??
+      (preProjectStat ? { path: PRE_PROJECT_MEMORY_PATH, stat: preProjectStat } : undefined)
+    if (!resolved) return []
+    const nextKey = `${resolved.path}:${resolved.stat.mtimeMs}:${resolved.stat.size}`
+    if (cachedKey === nextKey && cachedEntries) return cachedEntries
+    // Coalesce concurrent reads: without this, N callers each hit the disk.
+    if (inflightRead) return await inflightRead
+    const generation = cachedGeneration
+    inflightRead = (async () => {
       const entries = await readMemories()
-      cachedStat = { mtimeMs: resolvedStat.mtimeMs, size: resolvedStat.size }
-      cachedEntries = entries
+      // Only publish the snapshot when no invalidation happened while reading;
+      // otherwise we would resurrect pre-write content over a fresh clear.
+      if (generation === cachedGeneration) {
+        cachedKey = nextKey
+        cachedEntries = entries
+      }
       return entries
-    } catch (error) {
-      console.warn("[memory-bridge] readMemoriesCached failed:", error instanceof Error ? error.message : String(error))
-      return []
-    }
-  })
+    })()
+    const pending = inflightRead
+    inflightRead = pending.finally(() => {
+      // 只有槽位仍指向本次读取时才清空：invalidateMemoryCache 之后可能已有新的读取
+      // 占用该槽位，无条件清空会让去重失效、并发调用各自读盘（IO 放大）。
+      if (inflightRead === pending) inflightRead = undefined
+    })
+    return await inflightRead
+  } catch (error) {
+    console.warn("[memory-bridge] readMemoriesCached failed:", error instanceof Error ? error.message : String(error))
+    return []
+  }
 }
 
 /** 使缓存失效（写入操作后调用） */
 export function invalidateMemoryCache(): void {
-  cachedStat = undefined
+  cachedGeneration += 1
+  cachedKey = undefined
   cachedEntries = undefined
+  // Drop the in-flight read so callers after a write cannot reuse the pre-write snapshot.
+  inflightRead = undefined
+  // searchCache 命中只看 query 与 TTL，不看文件 stat：不清掉的话，写入新记忆
+  // 后同一查询在 TTL 窗口内仍返回旧检索结果（与上面 stat 缓存失效口径不一致）。
+  searchCache.clear()
 }
 
 function tokenizeForSearch(input: string): string[] {
@@ -309,12 +333,13 @@ const SEARCH_CACHE_TTL_MS = 30_000
 const SEARCH_CACHE_MAX = 20
 
 export async function searchMemories(query: string, limit = 20): Promise<MemoryEntry[]> {
-  const cacheKey = `${query}:${limit}`
-  const hit = searchCache.get(cacheKey)
-  if (hit && Date.now() - hit.time < SEARCH_CACHE_TTL_MS) return hit.entries
-
   const entries = await readMemoriesCached()
   if (entries.length === 0) return []
+  // Include the file revision in the cache key so a cross-process rewrite
+  // cannot keep serving stale results for the rest of the TTL window.
+  const cacheKey = `${cachedKey ?? "unknown"}:${query}:${limit}`
+  const hit = searchCache.get(cacheKey)
+  if (hit && Date.now() - hit.time < SEARCH_CACHE_TTL_MS) return hit.entries
 
   const terms = filterSearchTerms(tokenizeForSearch(query))
   if (terms.length === 0) return []
@@ -390,12 +415,18 @@ export function formatMemoriesForPrompt(
   for (const entry of entries) {
     const line = `- ${cleanEntryValue(entry)}`
     const block = `${line}\n`
-    if (blocks.length === 0 || total + block.length <= budget) {
+    if (total + block.length <= budget) {
       blocks.push(block)
       total += block.length
-    } else {
-      break
+      continue
     }
+    // A single oversized entry used to be injected unconditionally (the old
+    // `blocks.length === 0 ||` short-circuit), blowing the whole budget.
+    if (blocks.length === 0) {
+      const room = budget - total
+      if (room > 1) blocks.push(block.slice(0, room - 1) + "\n")
+    }
+    break
   }
   if (blocks.length === 0) return undefined
 
@@ -420,9 +451,14 @@ export const MEMORY_FRESHNESS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000
  */
 export async function getMemoryAgeMs(): Promise<number | undefined> {
   try {
-    const fileStat = await stat(MEMORY_PATH).catch(() => stat(LEGACY_MEMORY_PATH))
-    const preProjectFile = fileStat ?? (await optionalStat(PRE_PROJECT_MEMORY_PATH))
-    return preProjectFile ? Date.now() - Number(preProjectFile.mtimeMs) : undefined
+    // 三个候选路径都可能出现：项目隔离新名 / Hermes 旧名 / 项目隔离前的旧名。
+    // 全部用 optionalStat 逐个探测：旧实现 stat 链在前两个都缺失时直接 reject
+    // 进外层 catch，pre-project 回退永远走不到，新鲜度告警随之失效。
+    const fileStat =
+      (await optionalStat(MEMORY_PATH)) ??
+      (await optionalStat(LEGACY_MEMORY_PATH)) ??
+      (await optionalStat(PRE_PROJECT_MEMORY_PATH))
+    return fileStat ? Date.now() - fileStat.mtimeMs : undefined
   } catch {
     return undefined
   }

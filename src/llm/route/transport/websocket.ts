@@ -115,8 +115,13 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
                   transportError("open", `Failed to open WebSocket: ${eventMessage(event)}`, { url: input.url, kind: "open" }),
                 ),
               )
-            } catch {
-              // resume already called
+            } catch (error) {
+              // 投递失败时会与已送达的结果冲突，此处 socket 错误无法再送达，记录告警避免被静默吞掉
+              Effect.runFork(
+                Effect.logWarning(
+                  `WebSocket open error dropped: ${eventMessage(event)} (${error instanceof Error ? error.message : String(error)})`,
+                ),
+              )
             }
           }
         }
@@ -132,8 +137,13 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
                   }),
                 ),
               )
-            } catch {
-              // resume already called
+            } catch (error) {
+              // 未连接即关闭同样属于失败路径，投递不出去时记录告警，避免 close 原因被静默吞掉
+              Effect.runFork(
+                Effect.logWarning(
+                  `WebSocket close before open dropped: code ${event.code} (${error instanceof Error ? error.message : String(error)})`,
+                ),
+              )
             }
           }
         }

@@ -59,8 +59,19 @@ const layer = Layer.effect(
     const decode = Schema.decodeUnknownOption(Info)
 
     const all = Effect.fn("Auth.all")(function* () {
-      const data = (yield* fsys.readJson(file).pipe(Effect.orElseSucceed(() => ({})))) as Record<string, unknown>
-      return Record.filterMap(data, (value) => Result.fromOption(decode(value), () => undefined))
+      // auth.json 读取失败（文件缺失 / JSON 损坏 / 权限不足）不再完全静默：
+      // 记录告警后再按空表降级（首次运行文件不存在属正常路径），
+      // 否则上层 set/remove 会以「空数据 + 单条新条目」覆写整文件，其它供应商凭据被无提示清除。
+      const data = (yield* fsys.readJson(file).pipe(
+        Effect.tapError((error) => Effect.logWarning("Failed to read auth data", error)),
+        Effect.orElseSucceed(() => ({})),
+      )) as Record<string, unknown>
+      const result = Record.filterMap(data, (value) => Result.fromOption(decode(value), () => undefined))
+      // 解码失败的条目会被丢掉，而 set/remove 会按这份结果整文件覆写：
+      // 先把被丢弃的 key 报出来，避免其它供应商凭据被无声清除。
+      const dropped = Object.keys(data).filter((key) => !(key in result))
+      if (dropped.length > 0) yield* Effect.logWarning("Dropped undecodable auth entries", { keys: dropped })
+      return result
     })
 
     const get = Effect.fn("Auth.get")(function* (providerID: string) {

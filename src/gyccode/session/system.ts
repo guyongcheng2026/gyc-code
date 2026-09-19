@@ -155,15 +155,18 @@ const layer = Layer.effect(
       }),
 
       memory: Effect.fn("SystemPrompt.memory")(function* (query: string, sessionID: string) {
-        const cached = memoryCache.get(sessionID)
+        // 缓存值由本次 query 检索而来，键必须带上 query：只按 sessionID 缓存时，
+        // TTL 窗口内换话题会继续注入上一轮问题检索到的记忆片段。
+        const cacheKey = `${sessionID}\u0000${query}`
+        const cached = memoryCache.get(cacheKey)
         if (cached) {
           if (Date.now() - cached.time < MEMORY_CACHE_TTL_MS) {
             // LRU refresh: move the hit entry to the most-recently-used slot.
-            memoryCache.delete(sessionID)
-            memoryCache.set(sessionID, cached)
+            memoryCache.delete(cacheKey)
+            memoryCache.set(cacheKey, cached)
             return cached.value
           }
-          memoryCache.delete(sessionID) // expired entry; drop before recompute
+          memoryCache.delete(cacheKey) // expired entry; drop before recompute
         }
         if (!query.trim()) return
         const entries = yield* Effect.promise(() => searchMemories(query))
@@ -179,7 +182,7 @@ const layer = Layer.effect(
           const oldest = memoryCache.keys().next().value
           if (oldest !== undefined) memoryCache.delete(oldest)
         }
-        memoryCache.set(sessionID, { time: Date.now(), value })
+        memoryCache.set(cacheKey, { time: Date.now(), value })
         return value
       }),
 

@@ -74,8 +74,16 @@ export function isOverflow(input: {
   if (input.cfg.compaction?.auto === false) return false
   if (input.model.limit.context === 0) return false
 
+  // 各 token 字段都可能缺失：任一 undefined 都会让累加变成 NaN，而 NaN >= x 恒为
+  // false（自动压缩永不触发），因此每个字段都要补 ?? 0。
+  // 注意：不能对 usable <= 0 做短路——model.limit.context 非 0 但扣掉输出预留后
+  // usable 为 0 时，语义仍是"任何输入都算溢出"（见 overflow.regression 用例）。
   // P1 修复：使用 ?? 而非 ||，当 total 为 0 时仍需累加其他字段
   const count =
-    (input.tokens.total ?? 0) + input.tokens.input + input.tokens.output + input.tokens.cache.read + input.tokens.cache.write
+    (input.tokens.total ?? 0) +
+    (input.tokens.input ?? 0) +
+    (input.tokens.output ?? 0) +
+    (input.tokens.cache.read ?? 0) +
+    (input.tokens.cache.write ?? 0)
   return count >= usable(input)
 }

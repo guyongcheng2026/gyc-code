@@ -99,12 +99,15 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | Path.Path | HttpClient
           yield* Effect.logError("skill entry contains unsafe path, skipped", { url: index, skill: skill.name })
         }
       }
-      const list = data.skills.filter(
-        (skill) =>
-          skill.files.includes("SKILL.md") &&
-          isSafeSegment(skill.name) &&
-          skill.files.every((file) => isSafeRelativePath(file)),
-      )
+      // 远端 index 可能重复声明同名技能：先按名字去重，避免同一目录被并发的下载/rename 互相破坏
+      const seenNames = new Set<string>()
+      const list = data.skills.filter((skill) => {
+        if (!skill.files.includes("SKILL.md")) return false
+        if (!isSafeSegment(skill.name) || !skill.files.every((file) => isSafeRelativePath(file))) return false
+        if (seenNames.has(skill.name)) return false
+        seenNames.add(skill.name)
+        return true
+      })
 
       const dirs = yield* Effect.forEach(
         list,

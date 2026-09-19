@@ -1,0 +1,19 @@
+{
+  "id": "advanced-lsp",
+  "name": "高级LSP特性",
+  "main": "agent.md",
+  "description": "提供高级的语言服务器协议(LSP)特性，包括重构、代码操作和高级导航功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /advanced-lsp 帮助 来查看高级LSP特性选项",
+    "该技能展示了如何提供高级的LSP特性，包括重构、代码操作和高级导航功能"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/advanced-lsp",
+  "publishedAt": "2026-09-07T13:30:00.000Z"
+}

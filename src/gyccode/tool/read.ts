@@ -266,33 +266,6 @@ export const ReadTool = Tool.define<
             () => Effect.succeed(undefined),
           ),
         )
-        // Check cache for unchanged file to avoid sending full content again (token savings)
-        if (stat && stat.type !== "Directory") {
-          const cachedStat = readCache.getStat(filepath)
-          const statMtime = Option.getOrUndefined(stat.mtime)?.getTime?.()
-          const statSize = stat.size === undefined ? undefined : Number(stat.size)
-          if (
-            cachedStat &&
-            cachedStat !== FILE_UNCHANGED_STUB &&
-            cachedStat?.mtime?.getTime?.() === statMtime &&
-            cachedStat?.size === statSize
-          ) {
-            // Content already seen in this session; keep the read-state marker
-            // so the read-before-write guard is satisfied.
-            readCache.markRead(filepath)
-            return {
-              title,
-              output: FILE_UNCHANGED_STUB,
-              metadata: {
-                preview: "",
-                truncated: false,
-                loaded: [],
-              },
-            }
-          }
-        }
-
-
       yield* assertExternalDirectoryEffect(ctx, filepath, {
         bypass: Boolean(ctx.extra?.["bypassCwdCheck"]),
         kind: stat?.type === "Directory" ? "directory" : "file",
@@ -340,6 +313,33 @@ export const ReadTool = Tool.define<
               truncated,
             },
           },
+        }
+      }
+
+      // 缓存短路必须排在外部目录校验与 read 权限询问之后（此前提前 return 会绕过两者），
+      // 且仅对默认的整文件读取生效：带 offset/limit 的请求命中缓存会拿不到请求区段。
+      if (!params.offset && !params.limit) {
+        const cachedStat = readCache.getStat(filepath)
+        const statMtime = Option.getOrUndefined(stat.mtime)?.getTime?.()
+        const statSize = stat.size === undefined ? undefined : Number(stat.size)
+        if (
+          cachedStat &&
+          cachedStat !== FILE_UNCHANGED_STUB &&
+          cachedStat?.mtime?.getTime?.() === statMtime &&
+          cachedStat?.size === statSize
+        ) {
+          // Content already seen in this session; keep the read-state marker
+          // so the read-before-write guard is satisfied.
+          readCache.markRead(filepath)
+          return {
+            title,
+            output: FILE_UNCHANGED_STUB,
+            metadata: {
+              preview: "",
+              truncated: false,
+              loaded: [],
+            },
+          }
         }
       }
 
@@ -410,6 +410,26 @@ export const ReadTool = Tool.define<
 
         // Cache file content and stat for future reads
         readCache.markRead(filepath)
+        // 仅当整文件完整读入（未截断、未带 offset/limit）时才缓存内容，
+        // 否则会把分页窗口缓存成"已读全文"，后续请求会拿到错误的 unchanged 占位。
+        if (truncated || params.offset || params.limit) return {
+          title,
+          output,
+          metadata: {
+            preview: file.raw.slice(0, 20).join("\n"),
+            truncated,
+            loaded: loaded.map((item) => item.filepath),
+            display: {
+              type: "file" as const,
+              path: filepath,
+              text: file.raw.join("\n"),
+              lineStart: file.offset,
+              lineEnd: last,
+              totalLines: file.count,
+              truncated,
+            },
+          },
+        }
         readCache.set(filepath, file.raw.join("\n"), {
           mtime: Option.getOrUndefined(stat.mtime),
           size: stat.size === undefined ? undefined : Number(stat.size),

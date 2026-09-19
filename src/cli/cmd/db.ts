@@ -117,8 +117,10 @@ const CompactCommand = effectCmd({
         const output = state.output
         if (typeof output !== "string" || output.length <= RETRO_COMPACT_CHARS) continue
         state.output = `${output.slice(0, RETRO_COMPACT_CHARS)}…`
+        // 不能把 JSON 直接拼进 SQL 字符串：data 含控制字符/异常内容时会变成
+        // 语法错误，orDie 直接把整条命令打崩；改用参数绑定。
         yield* db
-          .run(sql.raw(`UPDATE part SET data = '${JSON.stringify(data).replace(/'/g, "''")}' WHERE id = '${row.id.replace(/'/g, "''")}'`))
+          .run(sql`UPDATE part SET data = ${JSON.stringify(data)} WHERE id = ${row.id}`)
           .pipe(Effect.orDie)
         truncated++
         freedBytes += output.length - RETRO_COMPACT_CHARS

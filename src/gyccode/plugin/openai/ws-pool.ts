@@ -90,6 +90,11 @@ export function createWebSocketFetch(options?: CreateWebSocketFetchOptions) {
         maxConnectionAge,
         init?.signal,
       )
+      // 建连期间会话可能已被 remove/close 从池中移除；此时该连接已无人负责，立即终止避免句柄泄漏
+      if (pool.get(key) !== entry) {
+        invalidate(entry)
+        return httpFetch(input, httpInit)
+      }
       let resolveFirstEvent: (event: boolean | OpenAIWebSocket.WrappedError) => void = () => {}
       let rejectFirstEvent: (error: Error) => void = () => {}
       const firstEvent = new Promise<boolean | OpenAIWebSocket.WrappedError>((resolve, reject) => {

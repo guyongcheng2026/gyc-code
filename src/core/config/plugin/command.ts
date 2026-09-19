@@ -52,10 +52,19 @@ function loadDirectory(fs: FSUtil.Interface, directory: string) {
   return Effect.gen(function* () {
     const files = yield* fs
       .glob("{command,commands}/**/*.md", { cwd: directory, absolute: true, dot: true, symlink: true })
-      .pipe(Effect.catch(() => Effect.succeed([] as string[])))
+      .pipe(
+        Effect.tapError((error) =>
+          Effect.logWarning("failed to discover command files", { directory, error }),
+        ),
+        Effect.catch(() => Effect.succeed([] as string[])),
+      )
     return yield* Effect.forEach(files.toSorted(), (filepath) =>
       fs.readFileStringSafe(filepath).pipe(
         Effect.map((content) => (content === undefined ? undefined : decode(directory, filepath, content))),
+        // 读取失败时输出告警，便于定位「配置里写了却不生效」；保持原行为：降级为 undefined 跳过该文件
+        Effect.tapError((error) =>
+          Effect.logWarning("failed to read command config file", { filepath, error }),
+        ),
         Effect.catch(() => Effect.succeed(undefined)),
       ),
     ).pipe(

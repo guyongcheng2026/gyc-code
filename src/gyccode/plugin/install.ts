@@ -256,7 +256,23 @@ function patchPluginList(
   }
 }
 
+// 安装前的最小白名单校验，拦截路径穿越与非法插件名
+function pluginSpecAllowed(spec: string) {
+  if (spec.includes("..")) return false
+  // 带 scheme（file://、npm:、git+https://）或本地路径的来源交给既有解析流程
+  if (spec.includes(":") || spec.startsWith("/") || spec.startsWith(".")) return true
+  return /^@?[a-z0-9][a-z0-9._-]*(\/[a-z0-9][a-z0-9._-]*)?$/.test(parsePluginSpecifier(spec).pkg)
+}
+
 export async function installPlugin(spec: string, dep: InstallDeps = defaultInstallDeps): Promise<InstallResult> {
+  if (!pluginSpecAllowed(spec)) {
+    return {
+      ok: false,
+      code: "install_failed",
+      error: new Error(`插件名不合法：${spec}`),
+    }
+  }
+
   const target = await dep.resolve(spec).then(
     (item) => ({
       ok: true as const,

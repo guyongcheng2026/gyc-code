@@ -58,6 +58,10 @@ export const Plugin = define({
             return yield* Effect.forEach(files, (file) =>
               fs.readFileStringSafe(file.filepath).pipe(
                 Effect.map((content) => content && decode(file, content)),
+                // 读取失败时输出告警，便于定位「配置里写了却不生效」；保持原行为：降级为 undefined 跳过该文件
+                Effect.tapError((error) =>
+                  Effect.logWarning("failed to read agent config file", { filepath: file.filepath, error }),
+                ),
                 Effect.catch(() => Effect.succeed(undefined)),
               ),
             ).pipe(
@@ -146,6 +150,10 @@ function discover(fs: FSUtil.Interface, directory: string) {
       ),
   ).pipe(
     Effect.map((files) => files.flat()),
+    // 扫描目录失败时输出告警，便于定位「配置文件存在却未被加载」；保持原行为：返回空列表
+    Effect.tapError((error) =>
+      Effect.logWarning("failed to discover agent config files", { directory, error }),
+    ),
     Effect.catch(() => Effect.succeed([])),
   )
 }

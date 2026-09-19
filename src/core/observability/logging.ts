@@ -112,7 +112,10 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
           const info = await stat(file)
           if (info.size > MAX_LOG_BYTES) {
             // 日志轮转时旧文件可能已被占用或不存在，失败不阻断写入
-            await rename(file, `${file}.1`).catch(() => {})
+            await rename(file, `${file}.1`).catch((error) => {
+              // 轮转失败不能静默：否则 gyccode.log 会一直增长并突破 MAX_LOG_BYTES
+              process.stderr.write(`gyccode: 日志轮转失败 ${file}: ${String(error)}\n`)
+            })
           }
         } catch {
           // File may not exist yet; nothing to rotate.

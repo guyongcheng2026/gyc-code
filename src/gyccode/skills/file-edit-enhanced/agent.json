@@ -1,0 +1,20 @@
+{
+  "id": "file-edit-enhanced",
+  "name": "增强文件编辑工具",
+  "main": "agent.md",
+  "description": "提供带有差异预览、基本历史和LSP集成的增强文件编辑功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /file-edit-enhanced <文件路径> 来查看增强编辑选项",
+    "该技能展示了如何改进文件编辑工具，包括差异预览、历史跟踪和更智能的编辑建议"
+  ],
+  "status": "active",
+  "tags": ["file-editing", "enhancement", "diff-preview", "history"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/file-edit-enhanced",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

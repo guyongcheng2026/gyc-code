@@ -34,14 +34,18 @@ const acquireSendSlot = async (accountId: string): Promise<() => void> => {
   const next = new Promise<void>((resolve) => {
     release = resolve
   })
-  sendGate.set(
-    accountId,
-    previous.then(() => new Promise<void>((resolve) => setTimeout(resolve, SEND_MIN_INTERVAL_MS))).then(() => { release(); }),
-  )
+  // 链尾 Promise 必须留成变量：释放时用它比对才能删掉条目，
+  // 否则 sendGate 条目永不出清、Promise 链随每次发送无限延长
+  const queued = previous
+    .then(() => new Promise<void>((resolve) => setTimeout(resolve, SEND_MIN_INTERVAL_MS)))
+    .then(() => {
+      release()
+    })
+  sendGate.set(accountId, queued)
   await previous
   return () => {
     release()
-    if (sendGate.get(accountId) === next) sendGate.delete(accountId)
+    if (sendGate.get(accountId) === queued) sendGate.delete(accountId)
   }
 }
 

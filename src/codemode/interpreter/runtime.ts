@@ -148,7 +148,11 @@ const parseProgram = (code: string): ProgramNode => {
 }
 
 const publicErrorMessage = (message: string): string =>
-  message.replace(/\/(?:Users|home|private|tmp|var\/folders)\/[^\s"'`]+/g, "<redacted-path>")
+  message
+    .replace(/\/(?:Users|home|private|tmp|var\/folders)\/[^\s"'`]+/g, "<redacted-path>")
+    // Windows 形态同样要脱敏：盘符路径（C:\Users\...、\\?\C:\...）与 UNC 路径（\\server\share\...）
+    .replace(/[A-Za-z]:\\[^\s"'`]+/g, "<redacted-path>")
+    .replace(/\\\\[^\s"'`]+/g, "<redacted-path>")
 
 const normalizeError = (error: unknown): Diagnostic => {
   if (error instanceof InterpreterRuntimeError) {
@@ -1103,7 +1107,15 @@ class Interpreter<R> {
       for (const value of iterable) {
         if (declaration) {
           self.pushScope()
-          yield* self.declarePattern(declaration.pattern, value, declaration.mutable, left)
+          // 绑定失败（如解构抛错）时也必须 popScope：该错误会被外层 try/catch
+          // 捕获，若在绑定处提前返回而不配对 popScope，作用域会永久残留一层。
+          const declared = yield* self
+            .declarePattern(declaration.pattern, value, declaration.mutable, left)
+            .pipe(Effect.exit)
+          if (Exit.isFailure(declared)) {
+            self.popScope()
+            return yield* Effect.failCause(declared.cause)
+          }
         } else if (assignmentName) {
           self.setIdentifierValue(assignmentName, value, left)
         }
@@ -2135,6 +2147,11 @@ class Interpreter<R> {
         // Mark every promise element observed up-front (Promise.all handles all of its
         // members' failures, as in JS), then join in index order; the first failure rejects
         // the whole call while unrelated in-flight members keep running.
+        // 同步登记观察：先把成员移出待结算表，否则首个失败中断后续成员时，它们会被
+        // drainPendingSettlements 误报为「未处理的 rejection」，与 Promise.all 语义矛盾
+        for (const item of items) {
+          if (item instanceof SandboxPromise) this.pendingSettlements.delete(item)
+        }
         const settles = items.map((item) =>
           item instanceof SandboxPromise ? this.settlePromise(item, node) : Effect.succeed(item),
         )

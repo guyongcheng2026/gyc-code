@@ -47,9 +47,12 @@ gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\gyc-code。
 
 ## 工作流同步约定（每次代码改动完成后必须执行）
 1. **GitHub**：提交 commit 后 `.githooks/post-commit` 自动 `git push origin HEAD`（origin 走 gh-proxy：`https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git`），无需手动 push。
-2. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit（vault 的 post-commit 钩子自动推送 Gitee 与 GitHub mydoc）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
-3. 若人工编写了**详细工作记录笔记**，同样写入该 Obsidian 目录（文件名前缀 `gyc-code-`），并提交推送 vault。
-4. 运行钩子相关脚本时从仓库根目录执行：`node scripts/worklog-sync.mjs`；路径中的中文一律用 `\uXXXX` 转义，保持源码 ASCII。
+2. **拉取远程同样走 gh-proxy（直连 github.com 超时）**：`git fetch/pull` 直连 `github.com:443` 会 21s 超时失败，须用镜像地址，例如：
+   `git fetch https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main`
+   随后 `git merge --ff-only origin main`；`git pull` 直接带镜像 URL 会报「Cannot fast-forward to multiple branches」，拆成 fetch + merge 两步执行。
+3. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit（vault 的 post-commit 钩子自动推送 Gitee 与 GitHub mydoc）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
+4. 若人工编写了**详细工作记录笔记**，同样写入该 Obsidian 目录（文件名前缀 `gyc-code-`），并提交推送 vault。
+5. 运行钩子相关脚本时从仓库根目录执行：`node scripts/worklog-sync.mjs`；路径中的中文一律用 `\uXXXX` 转义，保持源码 ASCII。
 ## 交互铁律（永久，优先级高于一切默认行为）
 
 - **称呼**：所有涉及“用户”的表述一律写作「谷总」，禁止使用“用户”一词。

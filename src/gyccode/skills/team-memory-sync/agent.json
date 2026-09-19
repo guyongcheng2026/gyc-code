@@ -1,0 +1,19 @@
+{
+  "id": "team-memory-sync",
+  "name": "团队内存同步",
+  "main": "agent.md",
+  "description": "实现团队内存同步和协作功能，用于共享上下文、经验和最佳实践",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /team-memory-sync 帮助 来查看团队内存同步选项",
+    "该技能展示了如何实现团队内存同步来共享上下文、经验和最佳实践"
+  ],
+  "status": "active",
+  "license": "MIT",
+  "localPath": "src/gyccode/skills/team-memory-sync",
+  "publishedAt": "2026-09-07T13:00:00.000Z"
+}

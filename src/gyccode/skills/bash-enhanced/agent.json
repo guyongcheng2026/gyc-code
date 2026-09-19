@@ -1,0 +1,20 @@
+{
+  "id": "bash-enhanced",
+  "name": "增强Bash工具",
+  "main": "agent.md",
+  "description": "提供带有权限检查、命令验证和安全特性的增强Bash执行功能",
+  "version": "1.0.0",
+  "author": "gyc-code",
+  "category": "development",
+  "dependencies": [],
+  "mcp_servers": [],
+  "usage": [
+    "使用 /bash-enhanced <命令> 来查看增强的bash选项",
+    "该技能展示了如何改进bash工具，包括权限验证、命令安全检查和更好的错误处理"
+  ],
+  "status": "active",
+  "tags": ["bash", "security", "enhancement", "permissions"],
+  "homepage": "https://github.com/gyc-code/skills/tree/main/bash-enhanced",
+  "repository": "https://github.com/gyc-code/skills",
+  "license": "MIT"
+}

@@ -281,10 +281,17 @@ const statusError =
   (response: HttpClientResponse.HttpClientResponse) =>
     Effect.gen(function* () {
       if (response.status < 400) return response
-      // 限制错误响应体读取大小（最多 BODY_LIMIT 字节），避免超大错误页撑爆内存
+      // 限制错误响应体读取大小（最多 BODY_LIMIT 字节），避免超大错误页撑爆内存。
+      // 必须按累计字节数截断：按 chunk 个数截断时，单个大 chunk 会被 slice 成 0 字节，
+      // 而多个小 chunk 则完全不受限制。
+      let seen = 0
       const limitedStream = response.stream.pipe(
-        Stream.takeWhile((_: Uint8Array, i: number) => i < BODY_LIMIT), // 简化：取前 N 个 chunk
-        Stream.map((chunk: Uint8Array) => chunk.slice(0, Math.max(0, BODY_LIMIT - chunk.length))),
+        Stream.takeWhile(() => seen < BODY_LIMIT),
+        Stream.map((chunk: Uint8Array) => {
+          const remaining = BODY_LIMIT - seen
+          seen += chunk.length
+          return remaining >= chunk.length ? chunk : chunk.slice(0, Math.max(0, remaining))
+        }),
       )
       const bodyBytes = yield* Stream.runCollect(limitedStream).pipe(
         Effect.map((chunks: Uint8Array[]) => new Uint8Array(Buffer.concat(chunks))),

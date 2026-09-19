@@ -151,7 +151,11 @@ export const Colors = {
 
 // 进度条渲染
 export function renderProgressBar(current: number, total: number, width = 40): string {
-  const pct = Math.min(1, Math.max(0, current / total))
+  // total 为 0 时按已完成渲染，避免算出 NaN%；宽度至少 1 列，
+  // 否则 "█".repeat(负数) 会抛 RangeError
+  const pct = total > 0 ? Math.min(1, Math.max(0, current / total)) : 1
+  if (!Number.isFinite(width) || width < 1) width = 40
+  width = Math.floor(width)
   const filled = Math.round(pct * width)
   const empty = width - filled
   return "[" + "█".repeat(filled) + "░".repeat(empty) + "] " + Math.round(pct * 100) + "%"
