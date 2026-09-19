@@ -1,0 +1,1296 @@
+Unused dependencies (20)
+@effect/sql-sqlite-bun             package.json:44:6 
+@koromix/koffi-win32-x64           package.json:54:6 
+@openauthjs/openauth               package.json:61:6 
+@opentui/core-win32-x64            package.json:69:6 
+@shikijs/stream                    package.json:73:6 
+@shikijs/transformers              package.json:74:6 
+@solid-primitives/bounds           package.json:78:6 
+@solid-primitives/event-bus        package.json:79:6 
+@solid-primitives/event-listener   package.json:80:6 
+@solid-primitives/media            package.json:81:6 
+@solid-primitives/resize-observer  package.json:82:6 
+@solid-primitives/scheduled        package.json:83:6 
+chokidar                           package.json:91:6 
+luxon                              package.json:112:6
+marked                             package.json:113:6
+marked-shiki                       package.json:114:6
+partial-json                       package.json:120:6
+remend                             package.json:123:6
+tree-sitter-bash                   package.json:129:6
+tree-sitter-powershell             package.json:130:6
+Unused devDependencies (32)
+@babel/helper-compilation-targets                   package.json:144:6
+@babel/helper-define-polyfill-provider              package.json:145:6
+@babel/helper-hoist-variables                       package.json:146:6
+@babel/helper-member-expression-to-functions        package.json:147:6
+@babel/helper-module-imports                        package.json:148:6
+@babel/helper-optimise-call-expression              package.json:149:6
+@babel/helper-plugin-utils                          package.json:150:6
+@babel/helper-simple-access                         package.json:151:6
+@babel/helper-skip-transparent-expression-wrappers  package.json:152:6
+@babel/helper-validator-identifier                  package.json:153:6
+@babel/helper-wrap-function                         package.json:154:6
+@parcel/watcher-darwin-arm64                        package.json:158:6
+@parcel/watcher-darwin-x64                          package.json:159:6
+@parcel/watcher-linux-arm64-glibc                   package.json:160:6
+@parcel/watcher-linux-arm64-musl                    package.json:161:6
+@parcel/watcher-linux-x64-glibc                     package.json:162:6
+@parcel/watcher-linux-x64-musl                      package.json:163:6
+@parcel/watcher-win32-arm64                         package.json:164:6
+@parcel/watcher-win32-x64                           package.json:165:6
+@solidjs/meta                                       package.json:166:6
+@tailwindcss/vite                                   package.json:167:6
+@tsconfig/bun                                       package.json:170:6
+@tsconfig/node22                                    package.json:171:6
+@types/iconv-lite                                   package.json:175:6
+@types/luxon                                        package.json:176:6
+drizzle-kit                                         package.json:193:6
+node-fetch                                          package.json:198:6
+tailwindcss                                         package.json:203:6
+tw-animate-css                                      package.json:204:6
+vite-plugin-icons-spritesheet                       package.json:207:6
+vite-plugin-solid                                   package.json:208:6
+why-is-node-running                                 package.json:211:6
+Unlisted binaries (8)
+netstat  scripts/verify-cli.mjs     
+wmic     scripts/verify-cli.mjs     
+netstat  scripts/verify-tui.mjs     
+wmic     scripts/verify-tui.mjs     
+netstat  scripts/verify-web.mjs     
+wmic     scripts/verify-web.mjs     
+sqlite3  src/gyccode/cli/cmd/db.ts  
+start    src/gyccode/cli/cmd/pair.ts
+Unresolved imports (8)
+./scripts/bun-solid-preload.ts  src/codemode/package.json             
+./scripts/bun-solid-preload.ts  src/core/package.json                 
+./scripts/bun-solid-preload.ts  src/effect-drizzle-sqlite/package.json
+./scripts/bun-solid-preload.ts  src/llm/package.json                  
+./scripts/bun-solid-preload.ts  src/protocol/package.json             
+./scripts/bun-solid-preload.ts  src/schema/package.json               
+./scripts/bun-solid-preload.ts  src/tui/package.json                  
+./scripts/bun-solid-preload.ts  src/ui/package.json                   
+Unused exports (869)
+resolve                                                         src/codemode/openapi/spec.ts:31:14                      
+jsonStatics                                                     src/codemode/stdlib/json.ts:9:14                        
+mathMethods                                                     src/codemode/stdlib/math.ts:3:14                        
+objectStatics                                                   src/codemode/stdlib/object.ts:6:14                      
+catalog                                                         src/codemode/tool-runtime.ts:367:14                     
+searchIndex                                                     src/codemode/tool-runtime.ts:500:14                     
+assertValidTools                                                src/codemode/tool-runtime.ts:503:14                     
+prepare                                                         src/codemode/tool-runtime.ts:520:14                     
+make                                                            src/codemode/tool-runtime.ts:733:14                     
+toTypeScript                                                    src/codemode/tool-schema.ts:198:14                      
+jsonSchemaToTypeScript                                          src/codemode/tool-schema.ts:212:14                      
+withReplicas                                                    …c/effect-drizzle-sqlite/sqlite-core/effect/db.ts:244:14
+upgradeSyncIfNeeded                                   function  src/effect-drizzle-sqlite/up-migrations/sqlite.ts:125:17
+upgradeAsyncIfNeeded                                  function  src/effect-drizzle-sqlite/up-migrations/sqlite.ts:193:23
+AccountID                                                       src/gyccode/account/account.ts:39:3                     
+AccountRepoError                                                src/gyccode/account/account.ts:41:3                     
+AccountServiceError                                             src/gyccode/account/account.ts:42:3                     
+AccountTransportError                                           src/gyccode/account/account.ts:43:3                     
+AccessToken                                                     src/gyccode/account/account.ts:44:3                     
+RefreshToken                                                    src/gyccode/account/account.ts:45:3                     
+DeviceCode                                                      src/gyccode/account/account.ts:46:3                     
+UserCode                                                        src/gyccode/account/account.ts:47:3                     
+Info                                                            src/gyccode/account/account.ts:48:3                     
+Org                                                             src/gyccode/account/account.ts:49:3                     
+OrgID                                                           src/gyccode/account/account.ts:50:3                     
+Login                                                           src/gyccode/account/account.ts:51:3                     
+PollSuccess                                                     src/gyccode/account/account.ts:52:3                     
+PollPending                                                     src/gyccode/account/account.ts:53:3                     
+PollSlow                                                        src/gyccode/account/account.ts:54:3                     
+PollExpired                                                     src/gyccode/account/account.ts:55:3                     
+PollDenied                                                      src/gyccode/account/account.ts:56:3                     
+PollError                                                       src/gyccode/account/account.ts:57:3                     
+PollResult                                                      src/gyccode/account/account.ts:58:3                     
+Service                                               class     src/gyccode/account/account.ts:185:14                   
+use                                                             src/gyccode/account/account.ts:187:14                   
+node                                                            src/gyccode/account/account.ts:484:14                   
+Service                                               class     src/gyccode/account/repo.ts:38:14                       
+use                                                             src/gyccode/account/repo.ts:40:14                       
+node                                                            src/gyccode/account/repo.ts:169:14                      
+DEFAULT_VARIANT_VALUE                                           src/gyccode/acp/config-option.ts:3:14                   
+buildModelSelectOption                                function  src/gyccode/acp/config-option.ts:31:17                  
+buildEffortSelectOption                               function  src/gyccode/acp/config-option.ts:58:17                  
+buildModeSelectOption                                 function  src/gyccode/acp/config-option.ts:78:17                  
+formatCurrentModelId                                  function  src/gyccode/acp/config-option.ts:154:17                 
+formatVariantName                                     function  src/gyccode/acp/config-option.ts:165:17                 
+contentBlockToParts                                   function  src/gyccode/acp/content.ts:30:17                        
+partToContentChunks                                   function  src/gyccode/acp/content.ts:126:17                       
+Loader                                                class     src/gyccode/acp/directory.ts:53:14                      
+Service                                               class     src/gyccode/acp/directory.ts:55:14                      
+modelKey                                                        src/gyccode/acp/directory.ts:57:14                      
+variants                                                        src/gyccode/acp/directory.ts:59:14                      
+build                                                           src/gyccode/acp/directory.ts:61:14                      
+loaderLayer                                                     src/gyccode/acp/directory.ts:106:14                     
+loaderNode                                                      src/gyccode/acp/directory.ts:203:14                     
+node                                                            src/gyccode/acp/directory.ts:209:14                     
+UnsupportedOperationError             ACPError        class     src/gyccode/acp/error.ts:39:14                          
+start                                                 function  src/gyccode/acp/event.ts:33:17                          
+Subscription                                          class     src/gyccode/acp/event.ts:39:14                          
+Handler                                               class     src/gyccode/acp/permission.ts:26:14                     
+mark                                                  function  src/gyccode/acp/profile.ts:4:17                         
+duration                                              function  src/gyccode/acp/profile.ts:9:17                         
+measure                                               function  src/gyccode/acp/profile.ts:18:23                        
+AuthMethodID                          ACPService                src/gyccode/acp/service.ts:49:14                        
+Service                               ACPService      class     src/gyccode/acp/service.ts:73:14                        
+Service                                               class     src/gyccode/acp/session.ts:93:14                        
+node                                                            src/gyccode/acp/session.ts:204:14                       
+toToolKind                                            function  src/gyccode/acp/tool.ts:38:17                           
+completedToolContent                                  function  src/gyccode/acp/tool.ts:103:17                          
+completedToolRawOutput                                function  src/gyccode/acp/tool.ts:230:17                          
+imageContents                                         function  src/gyccode/acp/tool.ts:238:17                          
+extractImageAttachments                               function  src/gyccode/acp/tool.ts:251:17                          
+mapToolKind                                                     src/gyccode/acp/tool.ts:299:14                          
+extractLocations                                                src/gyccode/acp/tool.ts:300:14                          
+buildCompletedToolContent                                       src/gyccode/acp/tool.ts:301:14                          
+buildCompletedRawOutput                                         src/gyccode/acp/tool.ts:302:14                          
+extractShellOutputSnapshot                                      src/gyccode/acp/tool.ts:303:14                          
+buildPendingToolCall                                            src/gyccode/acp/tool.ts:304:14                          
+buildRunningToolUpdate                                          src/gyccode/acp/tool.ts:305:14                          
+buildDuplicateRunningToolUpdate                                 src/gyccode/acp/tool.ts:306:14                          
+buildCompletedToolUpdate                                        src/gyccode/acp/tool.ts:307:14                          
+buildErrorToolUpdate                                            src/gyccode/acp/tool.ts:308:14                          
+MessageLoader                                         class     src/gyccode/acp/usage.ts:62:14                          
+ContextLimitLoader                                    class     src/gyccode/acp/usage.ts:66:14                          
+Service                                               class     src/gyccode/acp/usage.ts:70:14                          
+messageLoaderFromSDK                                  function  src/gyccode/acp/usage.ts:72:17                          
+messageLoaderLayer                                              src/gyccode/acp/usage.ts:83:14                          
+contextTokens                                         function  src/gyccode/acp/usage.ts:85:17                          
+buildUsage                                            function  src/gyccode/acp/usage.ts:89:17                          
+latestAssistantMessage                                function  src/gyccode/acp/usage.ts:104:17                         
+totalSessionCost                                      function  src/gyccode/acp/usage.ts:110:17                         
+findContextLimit                                      function  src/gyccode/acp/usage.ts:116:17                         
+contextLimitLoaderLayer                                         src/gyccode/acp/usage.ts:124:14                         
+messageLoaderNode                                               src/gyccode/acp/usage.ts:234:14                         
+contextLimitLoaderNode                                          src/gyccode/acp/usage.ts:236:14                         
+node                                                            src/gyccode/acp/usage.ts:242:14                         
+Oauth                                                 class     src/gyccode/auth/index.ts:16:14                         
+Api                                                   class     src/gyccode/auth/index.ts:25:14                         
+WellKnown                                             class     src/gyccode/auth/index.ts:31:14                         
+Info                                                            src/gyccode/auth/index.ts:37:14                         
+AuthError                                             class     src/gyccode/auth/index.ts:40:14                         
+Service                                               class     src/gyccode/auth/index.ts:52:14                         
+node                                                            src/gyccode/auth/index.ts:107:14                        
+Service                                                         src/gyccode/background/job.ts:7:3                       
+node                                                            src/gyccode/background/job.ts:35:14                     
+SymbolsCommand                                                  src/gyccode/cli/cmd/debug/lsp.ts:30:14                  
+DocumentSymbolsCommand                                          src/gyccode/cli/cmd/debug/lsp.ts:41:14                  
+writeCopyTempFile                                     function  src/gyccode/cli/cmd/run/copy.shared.ts:17:23            
+toolPath                                              function  src/gyccode/cli/cmd/run/tool.ts:252:17                  
+toolFrame                                             function  src/gyccode/cli/cmd/run/tool.ts:1262:17                 
+toolView                                              function  src/gyccode/cli/cmd/run/tool.ts:1284:17                 
+toolStructuredFinal                                   function  src/gyccode/cli/cmd/run/tool.ts:1293:17                 
+toolScroll                                            function  src/gyccode/cli/cmd/run/tool.ts:1317:17                 
+toolPermissionInfo                                    function  src/gyccode/cli/cmd/run/tool.ts:1344:17                 
+toolSnapshot                                          function  src/gyccode/cli/cmd/run/tool.ts:1362:17                 
+toolEntryBody                                         function  src/gyccode/cli/cmd/run/tool.ts:1423:17                 
+toolFiletype                                          function  src/gyccode/cli/cmd/run/tool.ts:1477:17                 
+start                                                 function  src/gyccode/cli/heap.ts:13:17                           
+stop                                                  function  src/gyccode/cli/heap.ts:60:17                           
+CliTheme                                              class     src/gyccode/cli/theme.ts:183:14                         
+currentTheme                                                    src/gyccode/cli/theme.ts:288:14                         
+workerHeapLimits                                      function  src/gyccode/cli/tui/worker-pool.ts:22:17                
+theme                                                           src/gyccode/cli/ui.ts:7:10                              
+CancelledError                                        class     src/gyccode/cli/ui.ts:16:14                             
+Style                                                           src/gyccode/cli/ui.ts:21:14                             
+println                                               function  src/gyccode/cli/ui.ts:49:17                             
+print                                                 function  src/gyccode/cli/ui.ts:54:17                             
+empty                                                 function  src/gyccode/cli/ui.ts:60:17                             
+logo                                                  function  src/gyccode/cli/ui.ts:66:17                             
+input                                                 function  src/gyccode/cli/ui.ts:124:23                            
+error                                                 function  src/gyccode/cli/ui.ts:139:17                            
+markdown                                              function  src/gyccode/cli/ui.ts:212:17                            
+Event                                                           src/gyccode/command/index.ts:19:14                      
+Info                                                            src/gyccode/command/index.ts:23:14                      
+hints                                                 function  src/gyccode/command/index.ts:37:17                      
+Default                                                         src/gyccode/command/index.ts:47:14                      
+Service                                               class     src/gyccode/command/index.ts:58:14                      
+node                                                            src/gyccode/command/index.ts:187:14                     
+load                                                  function  src/gyccode/config/agent.ts:11:23                       
+loadMode                                              function  src/gyccode/config/agent.ts:34:23                       
+load                                                  function  src/gyccode/config/command.ts:13:23                     
+managedConfigDir                                      function  src/gyccode/config/managed.ts:31:17                     
+parseManagedPlist                                     function  src/gyccode/config/managed.ts:35:17                     
+readManagedPreferences                                function  src/gyccode/config/managed.ts:43:23                     
+FILE_REGEX                            ConfigMarkdown            src/gyccode/config/markdown.ts:5:14                     
+SHELL_REGEX                           ConfigMarkdown            src/gyccode/config/markdown.ts:6:14                     
+jsonc                                                 function  src/gyccode/config/parse.ts:8:17                        
+schema                                                function  src/gyccode/config/parse.ts:37:17                       
+substitute                                            function  src/gyccode/config/variable.ts:34:23                    
+default                                               variable  …ccode/control-plane/dev/debug-workspace-plugin.ts:77:16
+WorkspaceListedInfo                                             src/gyccode/control-plane/types.ts:18:14                
+target                                                          …yccode/control-plane/workspace-adapter-runtime.ts:14:14
+configure                                                       …yccode/control-plane/workspace-adapter-runtime.ts:21:14
+create                                                          …yccode/control-plane/workspace-adapter-runtime.ts:27:14
+list                                                            …yccode/control-plane/workspace-adapter-runtime.ts:38:14
+remove                                                          …yccode/control-plane/workspace-adapter-runtime.ts:44:14
+Info                                                            src/gyccode/control-plane/workspace.ts:38:14            
+ConnectionStatus                                                src/gyccode/control-plane/workspace.ts:44:14            
+Event                                                           src/gyccode/control-plane/workspace.ts:47:14            
+CreateInput                                                     src/gyccode/control-plane/workspace.ts:62:14            
+SessionWarpInput                                                src/gyccode/control-plane/workspace.ts:71:14            
+SyncHttpError                                         class     src/gyccode/control-plane/workspace.ts:78:14            
+WorkspaceNotFoundError                                class     src/gyccode/control-plane/workspace.ts:84:14            
+SessionEventsNotFoundError                            class     src/gyccode/control-plane/workspace.ts:92:14            
+SessionWarpHttpError                                  class     src/gyccode/control-plane/workspace.ts:100:14           
+SyncTimeoutError                                      class     src/gyccode/control-plane/workspace.ts:111:14           
+SyncAbortedError                                      class     src/gyccode/control-plane/workspace.ts:116:14           
+Service                                               class     src/gyccode/control-plane/workspace.ts:149:14           
+use                                                             src/gyccode/control-plane/workspace.ts:151:14           
+node                                                            src/gyccode/control-plane/workspace.ts:948:14           
+build                                                 function  src/gyccode/effect/app-node-builder-v1.ts:8:17          
+bind                                                            src/gyccode/effect/bridge.ts:27:14                      
+fromPromise                                                     src/gyccode/effect/bridge.ts:48:14                      
+make                                                  function  src/gyccode/effect/bridge.ts:54:17                      
+Service                                                         src/gyccode/effect/config-service.ts:42:14              
+invalidate                            InstanceState             src/gyccode/effect/instance-state.ts:80:14              
+refineRejection                                       function  src/gyccode/effect/promise.ts:3:17                      
+makeRuntime                                           function  src/gyccode/effect/run-service.ts:33:17                 
+Cancelled                                             class     src/gyccode/effect/runner.ts:11:14                      
+Busy                                                  class     src/gyccode/effect/runner.ts:12:14                      
+make                                                            src/gyccode/effect/runner.ts:39:14                      
+Service                                               class     src/gyccode/env/index.ts:15:14                          
+use                                                             src/gyccode/env/index.ts:17:14                          
+node                                                            src/gyccode/env/index.ts:39:14                          
+Definitions                                                     src/gyccode/event-manifest.ts:3:10                      
+Durable                                                         src/gyccode/event-manifest.ts:3:23                      
+Latest                                                          src/gyccode/event-manifest.ts:3:32                      
+Service                                               class     src/gyccode/event-v2-bridge.ts:12:14                    
+node                                                            src/gyccode/event-v2-bridge.ts:69:14                    
+Status                                                          src/gyccode/format/index.ts:14:14                       
+Service                                               class     src/gyccode/format/index.ts:27:14                       
+use                                                             src/gyccode/format/index.ts:29:14                       
+node                                                            src/gyccode/format/index.ts:197:14                      
+gatewayError                                                    src/gyccode/gateway/errors.ts:34:14                     
+WEIXIN_DATA_DIR                                                 src/gyccode/gateway/weixin.ts:48:14                     
+Service                                               class     src/gyccode/git/index.ts:101:14                         
+node                                                            src/gyccode/git/index.ts:346:14                         
+HookResult                                            class     src/gyccode/hook/types.ts:24:14                         
+ResizerUnavailableError                               class     src/gyccode/image/image.ts:18:14                        
+InvalidDataUrlError                                   class     src/gyccode/image/image.ts:27:14                        
+DecodeError                                           class     src/gyccode/image/image.ts:35:14                        
+SizeError                                             class     src/gyccode/image/image.ts:41:14                        
+Service                                               class     src/gyccode/image/image.ts:60:14                        
+node                                                            src/gyccode/image/image.ts:173:14                       
+Event                                                           src/gyccode/installation/index.ts:22:14                 
+getReleaseType                                        function  src/gyccode/installation/index.ts:24:17                 
+Info                                                            src/gyccode/installation/index.ts:35:14                 
+userAgent                                             function  src/gyccode/installation/index.ts:41:17                 
+USER_AGENT                                                      src/gyccode/installation/index.ts:45:14                 
+isPreview                                             function  src/gyccode/installation/index.ts:47:17                 
+isLocal                                               function  src/gyccode/installation/index.ts:51:17                 
+UpgradeFailedError                                    class     src/gyccode/installation/index.ts:55:14                 
+Service                                               class     src/gyccode/installation/index.ts:82:14                 
+use                                                             src/gyccode/installation/index.ts:84:14                 
+node                                                            src/gyccode/installation/index.ts:328:14                
+latest                                                          src/gyccode/installation/index.ts:332:14                
+method                                                          src/gyccode/installation/index.ts:333:14                
+upgrade                                                         src/gyccode/installation/index.ts:334:14                
+InitializeError                       LSPClient       class     src/gyccode/lsp/client.ts:29:14                         
+pretty                                                function  src/gyccode/lsp/diagnostic.ts:5:17                      
+report                                                function  src/gyccode/lsp/diagnostic.ts:20:17                     
+Event                                                           src/gyccode/lsp/lsp.ts:18:14                            
+Range                                                           src/gyccode/lsp/lsp.ts:25:14                            
+Symbol                                                          src/gyccode/lsp/lsp.ts:31:14                            
+DocumentSymbol                                                  src/gyccode/lsp/lsp.ts:41:14                            
+Status                                                          src/gyccode/lsp/lsp.ts:50:14                            
+Service                                               class     src/gyccode/lsp/lsp.ts:136:14                           
+node                                                            src/gyccode/lsp/lsp.ts:502:14                           
+Tokens                                                          src/gyccode/mcp/auth.ts:9:14                            
+isTokenExpired                                        function  src/gyccode/mcp/auth.ts:20:17                           
+shouldRefreshToken                                    function  src/gyccode/mcp/auth.ts:25:17                           
+TokenRefreshError                                     class     src/gyccode/mcp/auth.ts:37:14                           
+refreshAccessToken                                    function  src/gyccode/mcp/auth.ts:48:23                           
+ClientInfo                                                      src/gyccode/mcp/auth.ts:105:14                          
+Entry                                                           src/gyccode/mcp/auth.ts:113:14                          
+Service                                               class     src/gyccode/mcp/auth.ts:143:14                          
+use                                                             src/gyccode/mcp/auth.ts:145:14                          
+node                                                            src/gyccode/mcp/auth.ts:249:14                          
+Service                                               class     src/gyccode/mcp/browser.ts:9:14                         
+node                                                            src/gyccode/mcp/browser.ts:45:14                        
+paginate                                              function  src/gyccode/mcp/catalog.ts:26:23                        
+defs                                                  function  src/gyccode/mcp/catalog.ts:46:17                        
+convertTool                                           function  src/gyccode/mcp/catalog.ts:50:17                        
+fetch                                                 function  src/gyccode/mcp/catalog.ts:93:17                        
+sanitize                                                        src/gyccode/mcp/catalog.ts:125:14                       
+toolName                                                        src/gyccode/mcp/catalog.ts:127:14                       
+prompts                                               function  src/gyccode/mcp/catalog.ts:129:17                       
+resources                                             function  src/gyccode/mcp/catalog.ts:137:17                       
+resourceTemplates                                     function  src/gyccode/mcp/catalog.ts:145:17                       
+Resource                                                        src/gyccode/mcp/index.ts:53:14                          
+ToolsChanged                                                    src/gyccode/mcp/index.ts:62:14                          
+BrowserOpenFailed                                               src/gyccode/mcp/index.ts:64:14                          
+Failed                                                          src/gyccode/mcp/index.ts:66:14                          
+NotFoundError                                         class     src/gyccode/mcp/index.ts:70:14                          
+Status                                                          src/gyccode/mcp/index.ts:101:14                         
+resolveTransport                                      function  src/gyccode/mcp/index.ts:140:17                         
+Service                                               class     src/gyccode/mcp/index.ts:229:14                         
+use                                                             src/gyccode/mcp/index.ts:231:14                         
+node                                                            src/gyccode/mcp/index.ts:1049:14                        
+ensureRunning                                         function  src/gyccode/mcp/oauth-callback.ts:105:23                
+waitForCallback                                       function  src/gyccode/mcp/oauth-callback.ts:133:17                
+cancelPending                                         function  src/gyccode/mcp/oauth-callback.ts:149:17                
+isPortInUse                                           function  src/gyccode/mcp/oauth-callback.ts:163:23                
+stop                                                  function  src/gyccode/mcp/oauth-callback.ts:176:23                
+isRunning                                             function  src/gyccode/mcp/oauth-callback.ts:190:17                
+createStandardElementsClient                          function  src/gyccode/mcp/standard-elements.ts:281:17             
+getStandardElementsClient                             function  src/gyccode/mcp/standard-elements.ts:411:17             
+checkStandardCompliance                               function  src/gyccode/mcp/standard-elements.ts:431:23             
+validateDream                                         function  src/gyccode/memory/dream-runner.ts:149:17               
+parseDreamResult                                      function  src/gyccode/memory/dream.ts:56:17                       
+synthesizeDreamWithValidation                         function  src/gyccode/memory/dream.ts:202:23                      
+DEFAULT_EXTRACTION_CONFIG                                       src/gyccode/memory/extract.ts:13:14                     
+shouldExtract                                         function  src/gyccode/memory/extract.ts:19:17                     
+persistExtractedMemories                              function  src/gyccode/memory/extract.ts:55:17                     
+MEMORY_MAX_ENTRIES                                              src/gyccode/memory/memory-bridge.ts:88:14               
+invalidateMemoryCache                                 function  src/gyccode/memory/memory-bridge.ts:218:17              
+MEMORY_FRESHNESS_THRESHOLD_MS                                   src/gyccode/memory/memory-bridge.ts:379:14              
+readStabilityLog                                      function  src/gyccode/memory/training-pipeline.ts:130:23          
+quickBuild                                            function  src/gyccode/memory/training-pipeline.ts:352:23          
+PatchSchema                                                     src/gyccode/patch/index.ts:6:14                         
+parsePatch                                            function  src/gyccode/patch/index.ts:185:17                       
+maybeParseApplyPatch                                  function  src/gyccode/patch/index.ts:244:17                       
+deriveNewContentsFromChunks                           function  src/gyccode/patch/index.ts:307:17                       
+applyHunksToFiles                                               src/gyccode/patch/index.ts:514:14                       
+applyPatch                                                      src/gyccode/patch/index.ts:564:14                       
+maybeParseApplyPatchVerified                                    src/gyccode/patch/index.ts:575:14                       
+prefix                                                function  src/gyccode/permission/arity.ts:1:17                    
+DenialTracker                                         class     src/gyccode/permission/classifier.ts:1:15               
+Event                                                           src/gyccode/permission/index.ts:11:14                   
+Service                                               class     src/gyccode/permission/index.ts:41:14                   
+fromConfig                                            function  src/gyccode/permission/index.ts:206:17                  
+merge                                                 function  src/gyccode/permission/index.ts:220:17                  
+disabled                                              function  src/gyccode/permission/index.ts:224:17                  
+visibleTools                                          function  src/gyccode/permission/index.ts:236:17                  
+node                                                            src/gyccode/permission/index.ts:241:14                  
+PermissionMode                                                  src/gyccode/permission/index.ts:243:10                  
+PermissionAction                                                src/gyccode/permission/index.ts:243:26                  
+resolveAction                                                   src/gyccode/permission/index.ts:243:44                  
+DenialTracker                                                   src/gyccode/permission/index.ts:244:10                  
+PermissionMode                                                  src/gyccode/permission/modes.ts:3:14                    
+PermissionAction                                                src/gyccode/permission/modes.ts:6:14                    
+resolveAction                                         function  src/gyccode/permission/modes.ts:9:17                    
+schema                                                          src/gyccode/plugin/github-copilot/models.ts:59:14       
+get                                                   function  src/gyccode/plugin/github-copilot/models.ts:213:23      
+Service                                               class     src/gyccode/plugin/index.ts:59:14                       
+experimentalWebSocketsEnabled                         function  src/gyccode/plugin/index.ts:61:17                       
+node                                                            src/gyccode/plugin/index.ts:313:14                      
+touchMany                                             function  src/gyccode/plugin/meta.ts:142:23                       
+touch                                                 function  src/gyccode/plugin/meta.ts:161:23                       
+setTheme                                              function  src/gyccode/plugin/meta.ts:169:23                       
+list                                                  function  src/gyccode/plugin/meta.ts:183:23                       
+get                                                   function  src/gyccode/plugin/modal/models.ts:50:23                
+parseJwtClaims                                        function  src/gyccode/plugin/openai/codex.ts:33:17                
+extractAccountIdFromClaims                            function  src/gyccode/plugin/openai/codex.ts:43:17                
+extractAccountId                                      function  src/gyccode/plugin/openai/codex.ts:51:17                
+renderOAuthError                                                src/gyccode/plugin/openai/codex.ts:128:14               
+TITLE_HEADER                                                    src/gyccode/plugin/openai/ws-pool.ts:6:14               
+createWebSocketFetch                                  function  src/gyccode/plugin/openai/ws-pool.ts:31:17              
+withoutInternalHeaders                                function  src/gyccode/plugin/openai/ws-pool.ts:252:17             
+PROTOCOL_HEADER                                                 src/gyccode/plugin/openai/ws.ts:11:14                   
+toWebSocketUrl                                        function  src/gyccode/plugin/openai/ws.ts:39:17                   
+normalizeHeaders                                      function  src/gyccode/plugin/openai/ws.ts:43:17                   
+isAbortError                                          function  src/gyccode/plugin/openai/ws.ts:67:17                   
+connectResponsesWebSocket                             function  src/gyccode/plugin/openai/ws.ts:71:17                   
+streamResponsesWebSocket                              function  src/gyccode/plugin/openai/ws.ts:138:17                  
+layer                                                           src/gyccode/plugin/pty-environment.ts:8:14              
+DEPRECATED_PLUGIN_PACKAGES                                      src/gyccode/plugin/shared.ts:10:14                      
+oauthScope                                            function  src/gyccode/plugin/snowflake-cortex.ts:52:17            
+init                                                  function  src/gyccode/plugin/tui/runtime.ts:1009:23               
+list                                                  function  src/gyccode/plugin/tui/runtime.ts:1034:17               
+activatePlugin                                        function  src/gyccode/plugin/tui/runtime.ts:1039:23               
+deactivatePlugin                                      function  src/gyccode/plugin/tui/runtime.ts:1043:23               
+addPlugin                                             function  src/gyccode/plugin/tui/runtime.ts:1047:23               
+installPlugin                                         function  src/gyccode/plugin/tui/runtime.ts:1051:23               
+dispose                                               function  src/gyccode/plugin/tui/runtime.ts:1055:23               
+accessTokenIsExpiring                                 function  src/gyccode/plugin/xai.ts:59:17                         
+requestDeviceCode                                     function  src/gyccode/plugin/xai.ts:108:23                        
+pollDeviceCodeToken                                   function  src/gyccode/plugin/xai.ts:148:23                        
+Service                                                         src/gyccode/project/bootstrap.ts:14:10                  
+node                                                            src/gyccode/project/bootstrap.ts:52:14                  
+context                                                         src/gyccode/project/instance-context.ts:11:14           
+Service                                               class     src/gyccode/project/instance-store.ts:29:14             
+use                                                             src/gyccode/project/instance-store.ts:31:14             
+bootstrapNode                                                   src/gyccode/project/instance-store.ts:205:14            
+node                                                            src/gyccode/project/instance-store.ts:207:14            
+Event                                 Project                   src/gyccode/project/project.ts:30:14                    
+UpdateInput                           Project                   src/gyccode/project/project.ts:61:14                    
+NotFoundError                         Project         class     src/gyccode/project/project.ts:76:14                    
+use                                   Project                   src/gyccode/project/project.ts:467:14                   
+Event                                 Vcs                       src/gyccode/project/vcs.ts:238:14                       
+Method                                                class     src/gyccode/provider/auth.ts:41:14                      
+Methods                                                         src/gyccode/provider/auth.ts:47:14                      
+Authorization                                         class     src/gyccode/provider/auth.ts:50:14                      
+AuthorizeInput                                                  src/gyccode/provider/auth.ts:56:14                      
+CallbackInput                                                   src/gyccode/provider/auth.ts:62:14                      
+OauthMissing                                          class     src/gyccode/provider/auth.ts:68:14                      
+OauthCodeMissing                                      class     src/gyccode/provider/auth.ts:72:14                      
+OauthCallbackFailed                                   class     src/gyccode/provider/auth.ts:76:14                      
+ValidationFailed                                      class     src/gyccode/provider/auth.ts:81:14                      
+Service                                               class     src/gyccode/provider/auth.ts:105:14                     
+use                                                             src/gyccode/provider/auth.ts:107:14                     
+node                                                            src/gyccode/provider/auth.ts:229:14                     
+HeaderTimeoutError                                    class     src/gyccode/provider/error.ts:7:14                      
+ResponseStreamError                                   class     src/gyccode/provider/error.ts:15:14                     
+parseStreamError                                      function  src/gyccode/provider/error.ts:110:17                    
+parseAPICallError                                     function  src/gyccode/provider/error.ts:173:17                    
+CatalogModelStatus                                              src/gyccode/provider/model-status.ts:3:10               
+normalizeMessages                                     function  src/gyccode/provider/transform.message.ts:123:17        
+message                                               function  src/gyccode/provider/transform.message.ts:333:17        
+temperature                                           function  src/gyccode/provider/transform.options.ts:12:17         
+topP                                                  function  src/gyccode/provider/transform.options.ts:32:17         
+topK                                                  function  src/gyccode/provider/transform.options.ts:43:17         
+options                                               function  src/gyccode/provider/transform.options.ts:54:17         
+smallOptions                                          function  src/gyccode/provider/transform.options.ts:208:17        
+providerOptions                                       function  src/gyccode/provider/transform.options.ts:240:17        
+maxOutputTokens                                       function  src/gyccode/provider/transform.options.ts:300:17        
+schema                                                function  src/gyccode/provider/transform.schema.ts:94:17          
+OUTPUT_TOKEN_MAX                                                src/gyccode/provider/transform.ts:6:10                  
+sanitizeSurrogates                                              src/gyccode/provider/transform.ts:6:28                  
+message                                                         src/gyccode/provider/transform.ts:7:10                  
+normalizeMessages                                               src/gyccode/provider/transform.ts:7:19                  
+options                                                         src/gyccode/provider/transform.ts:9:3                   
+maxOutputTokens                                                 src/gyccode/provider/transform.ts:10:3                  
+providerOptions                                                 src/gyccode/provider/transform.ts:11:3                  
+smallOptions                                                    src/gyccode/provider/transform.ts:12:3                  
+temperature                                                     src/gyccode/provider/transform.ts:13:3                  
+topK                                                            src/gyccode/provider/transform.ts:14:3                  
+topP                                                            src/gyccode/provider/transform.ts:15:3                  
+reasoningVariants                                               src/gyccode/provider/transform.ts:17:10                 
+shouldEnableThinkingByDefault                                   src/gyccode/provider/transform.ts:17:29                 
+variants                                                        src/gyccode/provider/transform.ts:17:60                 
+schema                                                          src/gyccode/provider/transform.ts:18:10                 
+shouldEnableThinkingByDefault                         function  src/gyccode/provider/transform.variants.ts:164:17       
+variants                                              function  src/gyccode/provider/transform.variants.ts:176:17       
+reasoningVariants                                     function  src/gyccode/provider/transform.variants.ts:561:17       
+Option                                                          src/gyccode/question/index.ts:9:14                      
+Info                                                            src/gyccode/question/index.ts:11:14                     
+Prompt                                                          src/gyccode/question/index.ts:13:14                     
+Tool                                                            src/gyccode/question/index.ts:15:14                     
+Request                                                         src/gyccode/question/index.ts:17:14                     
+Answer                                                          src/gyccode/question/index.ts:19:14                     
+Reply                                                           src/gyccode/question/index.ts:21:14                     
+Replied                                                         src/gyccode/question/index.ts:23:14                     
+Rejected                                                        src/gyccode/question/index.ts:24:14                     
+Event                                                           src/gyccode/question/index.ts:25:14                     
+RejectedError                                         class     src/gyccode/question/index.ts:27:14                     
+NotFoundError                                         class     src/gyccode/question/index.ts:33:14                     
+Service                                               class     src/gyccode/question/index.ts:62:14                     
+node                                                            src/gyccode/question/index.ts:159:14                    
+publish                                               function  src/gyccode/server/mdns.ts:6:17                         
+unpublish                                             function  src/gyccode/server/mdns.ts:40:17                        
+headers                                               function  src/gyccode/server/proxy-util.ts:21:17                  
+websocketProtocols                                    function  src/gyccode/server/proxy-util.ts:32:17                  
+websocketTargetURL                                    function  src/gyccode/server/proxy-util.ts:41:17                  
+ServerApi                                                       src/gyccode/server/routes/instance/httpapi/api.ts:48:14 
+UnauthorizedError                     ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:13:14
+ForbiddenError                        ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:19:14
+ConflictError                         ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:25:14
+UpstreamError                         ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:34:14
+ServiceUnavailableError               ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:44:14
+TimeoutError                          ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:53:14
+UnknownError                          ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:62:14
+ProviderNotFoundError                 ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:71:14
+ModelNotFoundError                    ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:80:14
+SessionNotFoundError                  ApiError        class     …/gyccode/server/routes/instance/httpapi/errors.ts:91:14
+MessageNotFoundError                  ApiError        class     …gyccode/server/routes/instance/httpapi/errors.ts:100:14
+InvalidCursorError                    ApiError        class     …gyccode/server/routes/instance/httpapi/errors.ts:110:14
+ControlPaths                                                    …/server/routes/instance/httpapi/groups/control.ts:31:14
+EventPaths                                                      …ode/server/routes/instance/httpapi/groups/event.ts:7:14
+ExperimentalPaths                                               …r/routes/instance/httpapi/groups/experimental.ts:107:14
+FileQuery                                                       …ode/server/routes/instance/httpapi/groups/file.ts:16:14
+FindTextQuery                                                   …ode/server/routes/instance/httpapi/groups/file.ts:21:14
+FindFileQuery                                                   …ode/server/routes/instance/httpapi/groups/file.ts:26:14
+FindSymbolQuery                                                 …ode/server/routes/instance/httpapi/groups/file.ts:36:14
+LegacyMatch                                                     …ode/server/routes/instance/httpapi/groups/file.ts:41:14
+LegacyEntry                                                     …ode/server/routes/instance/httpapi/groups/file.ts:55:14
+LegacyContent                                                   …ode/server/routes/instance/httpapi/groups/file.ts:63:14
+LegacyStatus                                                    …ode/server/routes/instance/httpapi/groups/file.ts:89:14
+FilePaths                                                       …ode/server/routes/instance/httpapi/groups/file.ts:96:14
+GlobalPaths                                                     …e/server/routes/instance/httpapi/groups/global.ts:65:14
+VcsDiffQuery                                                    …server/routes/instance/httpapi/groups/instance.ts:26:14
+InstancePaths                                                   …server/routes/instance/httpapi/groups/instance.ts:43:14
+AuthStartResponse                                               …code/server/routes/instance/httpapi/groups/mcp.ts:17:14
+AuthRemoveResponse                                              …code/server/routes/instance/httpapi/groups/mcp.ts:24:14
+McpPaths                                                        …code/server/routes/instance/httpapi/groups/mcp.ts:32:14
+responseDescription                                   function  …/server/routes/instance/httpapi/groups/metadata.ts:8:17
+GenerateNamePayload                                             …ver/routes/instance/httpapi/groups/project-copy.ts:8:14
+Params                                                          …code/server/routes/instance/httpapi/groups/pty.ts:18:14
+ShellItem                                                       …code/server/routes/instance/httpapi/groups/pty.ts:23:14
+PtyPaths                                                        …code/server/routes/instance/httpapi/groups/pty.ts:29:14
+StatusMap                                                       …/server/routes/instance/httpapi/groups/session.ts:48:14
+SessionPaths                                                    …/server/routes/instance/httpapi/groups/session.ts:79:14
+ReplayEvent                                                     …ode/server/routes/instance/httpapi/groups/sync.ts:12:14
+ReplayResponse                                                  …ode/server/routes/instance/httpapi/groups/sync.ts:23:14
+HistoryEvent                                                    …ode/server/routes/instance/httpapi/groups/sync.ts:30:14
+SyncPaths                                                       …ode/server/routes/instance/httpapi/groups/sync.ts:38:14
+TuiPaths                                                        …code/server/routes/instance/httpapi/groups/tui.ts:36:14
+WorkspacePaths                                                  …erver/routes/instance/httpapi/groups/workspace.ts:40:14
+ServerAuthorization                                             …outes/instance/httpapi/middleware/authorization.ts:8:20
+websocket                                             function  …erver/routes/instance/httpapi/middleware/proxy.ts:14:17
+http                                                  function  …erver/routes/instance/httpapi/middleware/proxy.ts:83:17
+context                                                         …gyccode/server/routes/instance/httpapi/server.ts:120:14
+createRoutes                                          function  …gyccode/server/routes/instance/httpapi/server.ts:272:17
+routes                                                          …gyccode/server/routes/instance/httpapi/server.ts:316:14
+webHandler                                                      …gyccode/server/routes/instance/httpapi/server.ts:318:14
+SERVER_CLOSING_EVENT                                            …erver/routes/instance/httpapi/websocket-tracker.ts:5:14
+Service                                               class     …rver/routes/instance/httpapi/websocket-tracker.ts:15:14
+node                                                            …rver/routes/instance/httpapi/websocket-tracker.ts:48:14
+register                                                        …rver/routes/instance/httpapi/websocket-tracker.ts:50:14
+Config                                                class     src/gyccode/server/shared/auth.ts:28:14                 
+required                                              function  src/gyccode/server/shared/auth.ts:48:17                 
+authorized                                            function  src/gyccode/server/shared/auth.ts:52:17                 
+header                                                function  src/gyccode/server/shared/auth.ts:60:17                 
+headers                                               function  src/gyccode/server/shared/auth.ts:67:17                 
+Authorization                                                   …/gyccode/server/shared/middleware/authorization.ts:4:10
+SchemaErrorMiddleware                                           …c/gyccode/server/shared/middleware/schema-error.ts:5:10
+Service                                               class     src/gyccode/server/shared/pty-environment.ts:10:14      
+layer                                                           src/gyccode/server/shared/pty-environment.ts:12:14      
+node                                                            src/gyccode/server/shared/pty-environment.ts:19:14      
+isPtyConnectPath                                      function  src/gyccode/server/shared/pty-ticket.ts:9:17            
+PUBLIC_UI_PATHS                                                 src/gyccode/server/shared/public-ui.ts:4:14             
+submitTuiRequest                                      function  src/gyccode/server/shared/tui-control.ts:18:17          
+nextTuiResponse                                       function  src/gyccode/server/shared/tui-control.ts:26:17          
+UI_UPSTREAM                                                     src/gyccode/server/shared/ui.ts:12:14                   
+csp                                                             src/gyccode/server/shared/ui.ts:14:14                   
+DEFAULT_CSP                                                     src/gyccode/server/shared/ui.ts:16:14                   
+themePreloadHash                                      function  src/gyccode/server/shared/ui.ts:18:17                   
+cspForHtml                                            function  src/gyccode/server/shared/ui.ts:22:17                   
+upstreamURL                                           function  src/gyccode/server/shared/ui.ts:43:17                   
+embeddedUI                                            function  src/gyccode/server/shared/ui.ts:47:17                   
+serveEmbeddedUIEffect                                 function  src/gyccode/server/shared/ui.ts:94:17                   
+CACHE_DRIFT_PERCENT_THRESHOLD                                   src/gyccode/session/cache-anchor.ts:12:14               
+CACHE_DRIFT_TOKEN_THRESHOLD                                     src/gyccode/session/cache-anchor.ts:13:14               
+Event                                                           src/gyccode/session/compaction.ts:34:14                 
+PRUNE_MINIMUM                                                   src/gyccode/session/compaction.ts:36:14                 
+PRUNE_PROTECT                                                   src/gyccode/session/compaction.ts:37:14                 
+MICROCOMPACT_THRESHOLD                                          src/gyccode/session/compaction.ts:52:14                 
+CACHE_PREFIX_KEEP                                               src/gyccode/session/compaction.ts:53:14                 
+MAX_CONSECUTIVE_COMPACTION_FAILURES                             src/gyccode/session/compaction.ts:54:14                 
+microcompact                                          function  src/gyccode/session/compaction.ts:68:17                 
+consecutiveCompactionFailures                         function  src/gyccode/session/compaction.ts:228:17                
+Service                                               class     src/gyccode/session/compaction.ts:321:14                
+use                                                             src/gyccode/session/compaction.ts:323:14                
+node                                                            src/gyccode/session/compaction.ts:941:14                
+publishGoalUpdated                                              src/gyccode/session/goal.ts:67:14                       
+reset                                                           src/gyccode/session/goal.ts:81:14                       
+clearSession                                                    src/gyccode/session/goal.ts:86:14                       
+make                                                            src/gyccode/session/goal.ts:120:14                      
+fake                                                            src/gyccode/session/goal.ts:194:14                      
+JUDGE_SYSTEM                                                    src/gyccode/session/goal.ts:211:14                      
+judge                                                           src/gyccode/session/goal.ts:234:14                      
+Service                                               class     src/gyccode/session/instruction.ts:70:14                
+loaded                                                function  src/gyccode/session/instruction.ts:352:17               
+node                                                            src/gyccode/session/instruction.ts:356:14               
+OUTPUT_TOKEN_MAX                                                src/gyccode/session/llm.ts:41:14                        
+Service                                               class     src/gyccode/session/llm.ts:68:14                        
+use                                                             src/gyccode/session/llm.ts:70:14                        
+node                                                            src/gyccode/session/llm.ts:444:14                       
+adapterState                                          function  src/gyccode/session/llm/ai-sdk.ts:9:17                  
+toLLMEvents                                           function  src/gyccode/session/llm/ai-sdk.ts:86:17                 
+model                                                           src/gyccode/session/llm/native-request.ts:154:14        
+request                                                         src/gyccode/session/llm/native-request.ts:185:14        
+status                                                function  src/gyccode/session/llm/native-runtime.ts:46:17         
+stream                                                function  src/gyccode/session/llm/native-runtime.ts:74:17         
+nativeTools                                           function  src/gyccode/session/llm/native-runtime.ts:169:17        
+prepare                                                         src/gyccode/session/llm/request.ts:207:14               
+hasToolCalls                                          function  src/gyccode/session/llm/request.ts:364:17               
+SYNTHETIC_ATTACHMENT_PROMPT                                     src/gyccode/session/message-v2.ts:45:14                 
+isMedia                                                         src/gyccode/session/message-v2.ts:46:10                 
+CACHE_FRIENDLY_TOOL_CHARS                                       src/gyccode/session/message-v2.ts:70:14                 
+CACHE_FRIENDLY_AGGREGATE_CHARS                                  src/gyccode/session/message-v2.ts:71:14                 
+CACHE_FRIENDLY_CONTEXT_LIMIT                                    src/gyccode/session/message-v2.ts:72:14                 
+CACHE_FRIENDLY_TOOL_CHARS_LARGE                                 src/gyccode/session/message-v2.ts:78:14                 
+CACHE_FRIENDLY_AGGREGATE_CHARS_LARGE                            src/gyccode/session/message-v2.ts:79:14                 
+CACHE_FRIENDLY_CONTEXT_LIMIT_LARGE                              src/gyccode/session/message-v2.ts:80:14                 
+TOOL_TYPE_CAPS                                                  src/gyccode/session/message-v2.ts:99:14                 
+truncationStatsSnapshot                               function  src/gyccode/session/message-v2.ts:174:17                
+resetTruncationStats                                  function  src/gyccode/session/message-v2.ts:179:17                
+Event                                                           src/gyccode/session/message-v2.ts:261:14                
+cursor                                                          src/gyccode/session/message-v2.ts:277:14                
+toModelMessagesEffect                                           src/gyccode/session/message-v2.ts:337:14                
+page                                                            src/gyccode/session/message-v2.ts:680:14                
+stream                                                function  src/gyccode/session/message-v2.ts:724:17                
+parts                                                 function  src/gyccode/session/message-v2.ts:747:17                
+get                                                             src/gyccode/session/message-v2.ts:761:14                
+filterCompacted                                       function  src/gyccode/session/message-v2.ts:776:17                
+filterCompactedEffect                                           src/gyccode/session/message-v2.ts:829:14                
+latest                                                function  src/gyccode/session/message-v2.ts:840:17                
+fromError                                             function  src/gyccode/session/message-v2.ts:858:17                
+node                                                            src/gyccode/session/message-v2.ts:1007:14               
+maybeSuggest1mUpgrade                                 function  src/gyccode/session/overflow.ts:54:17                   
+Service                                               class     src/gyccode/session/processor.ts:79:14                  
+node                                                            src/gyccode/session/processor.ts:747:14                 
+clearPromptCache                                      function  src/gyccode/session/prompt.ts:171:17                    
+invalidateAllPromptCache                              function  src/gyccode/session/prompt.ts:175:17                    
+Service                                               class     src/gyccode/session/prompt.ts:194:14                    
+PromptInput                                                     src/gyccode/session/prompt.ts:2056:14                   
+LoopInput                                             class     src/gyccode/session/prompt.ts:2080:14                   
+ShellInput                                                      src/gyccode/session/prompt.ts:2084:14                   
+CommandInput                                                    src/gyccode/session/prompt.ts:2093:14                   
+createStructuredOutputTool                            function  src/gyccode/session/prompt.ts:2122:17                   
+node                                                            src/gyccode/session/prompt.ts:2155:14                   
+apply                                                           src/gyccode/session/reminders.ts:16:14                  
+GO_UPSELL_MESSAGE                                               src/gyccode/session/retry.ts:9:14                       
+GO_UPSELL_URL                                                   src/gyccode/session/retry.ts:11:14                      
+RETRY_INITIAL_DELAY                                             src/gyccode/session/retry.ts:29:14                      
+RETRY_BACKOFF_FACTOR                                            src/gyccode/session/retry.ts:30:14                      
+RETRY_MAX_DELAY_NO_HEADERS                                      src/gyccode/session/retry.ts:31:14                      
+RETRY_MAX_DELAY_WITH_HEADERS                                    src/gyccode/session/retry.ts:34:14                      
+RETRY_ABANDON_AFTER_MS                                          src/gyccode/session/retry.ts:36:14                      
+MAX_RETRY_ATTEMPTS                                              src/gyccode/session/retry.ts:38:14                      
+delay                                                 function  src/gyccode/session/retry.ts:52:17                      
+RevertInput                                                     src/gyccode/session/revert.ts:12:14                     
+Service                                               class     src/gyccode/session/revert.ts:25:14                     
+node                                                            src/gyccode/session/revert.ts:139:14                    
+Service                                               class     src/gyccode/session/run-state.ts:27:14                  
+node                                                            src/gyccode/session/run-state.ts:149:14                 
+get                                                             src/gyccode/session/session-cwd.ts:45:14                
+set                                                             src/gyccode/session/session-cwd.ts:48:14                
+clear                                                           src/gyccode/session/session-cwd.ts:52:14                
+publishCwdChanged                                               src/gyccode/session/session-cwd.ts:57:14                
+publishIfChanged                                                src/gyccode/session/session-cwd.ts:71:14                
+reset                                                           src/gyccode/session/session-cwd.ts:83:14                
+Info                                                            src/gyccode/session/status.ts:8:14                      
+Event                                                           src/gyccode/session/status.ts:14:14                     
+Service                                               class     src/gyccode/session/status.ts:22:14                     
+node                                                            src/gyccode/session/status.ts:60:14                     
+Service                                               class     src/gyccode/session/summary.ts:72:14                    
+DiffInput                                                       src/gyccode/session/summary.ts:148:14                   
+node                                                            src/gyccode/session/summary.ts:154:14                   
+provider                                              function  src/gyccode/session/system.ts:32:17                     
+Service                                               class     src/gyccode/session/system.ts:55:14                     
+node                                                            src/gyccode/session/system.ts:192:14                    
+Info                                                            src/gyccode/session/todo.ts:11:14                       
+Event                                                           src/gyccode/session/todo.ts:14:14                       
+Service                                               class     src/gyccode/session/todo.ts:21:14                       
+node                                                            src/gyccode/session/todo.ts:91:14                       
+BUDGET_COMPLETION_THRESHOLD                                     src/gyccode/session/token-budget.ts:55:14               
+BUDGET_DIMINISHING_THRESHOLD                                    src/gyccode/session/token-budget.ts:56:14               
+BUDGET_DIMINISHING_MIN_CONTINUATIONS                            src/gyccode/session/token-budget.ts:57:14               
+resolve                                                         src/gyccode/session/tools.ts:46:14                      
+Service                                               class     src/gyccode/share/session.ts:15:14                      
+node                                                            src/gyccode/share/session.ts:52:14                      
+Service                                               class     src/gyccode/share/share-next.ts:81:14                   
+use                                                             src/gyccode/share/share-next.ts:83:14                   
+node                                                            src/gyccode/share/share-next.ts:365:14                  
+composeSkillsBlock                                    function  src/gyccode/skill/compose/index.ts:109:17               
+Service                                               class     src/gyccode/skill/discovery.ts:54:14                    
+node                                                            src/gyccode/skill/discovery.ts:172:14                   
+Info                                                            src/gyccode/skill/index.ts:40:14                        
+InvalidError                                          class     src/gyccode/skill/index.ts:65:14                        
+NameMismatchError                                     class     src/gyccode/skill/index.ts:71:14                        
+NotFoundError                                         class     src/gyccode/skill/index.ts:77:14                        
+Service                                               class     src/gyccode/skill/index.ts:278:14                       
+fmt                                                   function  src/gyccode/skill/index.ts:356:17                       
+node                                                            src/gyccode/skill/index.ts:383:14                       
+SkillManifestSchema                                             src/gyccode/skills/agent-schema.ts:23:14                
+validateSkillManifest                                 function  src/gyccode/skills/agent-schema.ts:35:17                
+Patch                                                           src/gyccode/snapshot/index.ts:14:14                     
+FileDiff                                                        src/gyccode/snapshot/index.ts:20:14                     
+Service                                               class     src/gyccode/snapshot/index.ts:47:14                     
+node                                                            src/gyccode/snapshot/index.ts:827:14                    
+Service                                               class     src/gyccode/storage/storage.ts:61:14                    
+node                                                            src/gyccode/storage/storage.ts:325:14                   
+BriefLevel                                                      src/gyccode/tool/brief.ts:4:14                          
+parseCronExpression                                   function  src/gyccode/tool/cron.ts:83:17                          
+nextCronRunMs                                         function  src/gyccode/tool/cron.ts:98:17                          
+cronToHuman                                           function  src/gyccode/tool/cron.ts:146:17                         
+SimpleReplacer                                                  src/gyccode/tool/edit.ts:290:14                         
+LineTrimmedReplacer                                             src/gyccode/tool/edit.ts:294:14                         
+BlockAnchorReplacer                                             src/gyccode/tool/edit.ts:334:14                         
+WhitespaceNormalizedReplacer                                    src/gyccode/tool/edit.ts:473:14                         
+IndentationFlexibleReplacer                                     src/gyccode/tool/edit.ts:517:14                         
+EscapeNormalizedReplacer                                        src/gyccode/tool/edit.ts:545:14                         
+MultiOccurrenceReplacer                                         src/gyccode/tool/edit.ts:594:14                         
+TrimmedBoundaryReplacer                                         src/gyccode/tool/edit.ts:608:14                         
+ContextAwareReplacer                                            src/gyccode/tool/edit.ts:634:14                         
+replace                                               function  src/gyccode/tool/edit.ts:728:17                         
+assertExternalDirectory                               function  src/gyccode/tool/external-directory.ts:85:23            
+Parameters                                                      src/gyccode/tool/glob.ts:10:14                          
+Parameters                                                      src/gyccode/tool/grep.ts:10:14                          
+Parameters                                                      src/gyccode/tool/invalid.ts:4:14                        
+fromSchema                                            function  src/gyccode/tool/json-schema.ts:8:17                    
+fromTool                                              function  src/gyccode/tool/json-schema.ts:24:17                   
+parseResponse                         McpWebSearch              src/gyccode/tool/mcp-websearch.ts:30:14                 
+Parameters                                                      src/gyccode/tool/plan.ts:13:14                          
+webSearchEnabled                                      function  src/gyccode/tool/registry.ts:70:17                      
+Service                                               class     src/gyccode/tool/registry.ts:98:14                      
+node                                                            src/gyccode/tool/registry.ts:514:14                     
+ShellBlockedError                                     class     src/gyccode/tool/shell.ts:31:14                         
+toKind                                                function  src/gyccode/tool/shell/id.ts:10:17                      
+ToolID                                                          src/gyccode/tool/shell/id.ts:16:14                      
+parameterSchema                                       function  src/gyccode/tool/shell/prompt.ts:15:17                  
+render                                                function  src/gyccode/tool/shell/prompt.ts:273:17                 
+DANGEROUS_PATTERNS                                              src/gyccode/tool/shell/security.ts:9:14                 
+DEFAULT_SUMMARIZE_THRESHOLD                                     src/gyccode/tool/summarize.ts:9:14                      
+MAX_SUMMARIZE_INPUT_CHARS                                       src/gyccode/tool/summarize.ts:11:14                     
+liveService                                                     src/gyccode/tool/task-manage.ts:19:14                   
+list                                                            src/gyccode/tool/task-manage.ts:87:14                   
+get                                                             src/gyccode/tool/task-manage.ts:92:14                   
+stop                                                            src/gyccode/tool/task-manage.ts:97:14                   
+InvalidArgumentsError                 Tool            class     src/gyccode/tool/tool.ts:26:14                          
+MAX_LINES                             Truncate                  src/gyccode/tool/truncate.ts:14:14                      
+MAX_BYTES                             Truncate                  src/gyccode/tool/truncate.ts:15:14                      
+DIR                                   Truncate                  src/gyccode/tool/truncate.ts:16:14                      
+selectWebSearchProvider                               function  src/gyccode/tool/websearch.ts:30:17                     
+webSearchModelName                                    function  src/gyccode/tool/websearch.ts:45:17                     
+Parameters                                                      src/gyccode/tool/write.ts:23:14                         
+extractZip                                            function  src/gyccode/util/archive.ts:4:23                        
+isDir                                                 function  src/gyccode/util/filesystem.ts:21:23                    
+stat                                                  function  src/gyccode/util/filesystem.ts:30:17                    
+statAsync                                             function  src/gyccode/util/filesystem.ts:34:23                    
+size                                                  function  src/gyccode/util/filesystem.ts:41:23                    
+readJson                                              function  src/gyccode/util/filesystem.ts:50:23                    
+readBytes                                             function  src/gyccode/util/filesystem.ts:54:23                    
+list                                                  function  src/gyccode/util/filesystem.ts:69:23                    
+listSync                                              function  src/gyccode/util/filesystem.ts:87:17                    
+readArrayBuffer                                       function  src/gyccode/util/filesystem.ts:102:23                   
+write                                                 function  src/gyccode/util/filesystem.ts:111:23                   
+writeJson                                             function  src/gyccode/util/filesystem.ts:132:23                   
+writeStream                                           function  src/gyccode/util/filesystem.ts:136:23                   
+mimeType                                              function  src/gyccode/util/filesystem.ts:155:23                   
+normalizePath                                         function  src/gyccode/util/filesystem.ts:165:17                   
+normalizePathPattern                                  function  src/gyccode/util/filesystem.ts:169:17                   
+resolve                                               function  src/gyccode/util/filesystem.ts:176:17                   
+resolveFilePath                                       function  src/gyccode/util/filesystem.ts:180:17                   
+windowsPath                                           function  src/gyccode/util/filesystem.ts:186:17                   
+overlaps                                              function  src/gyccode/util/filesystem.ts:189:17                   
+contains                                              function  src/gyccode/util/filesystem.ts:193:17                   
+findUp                                                function  src/gyccode/util/filesystem.ts:197:23                   
+up                                                    function  src/gyccode/util/filesystem.ts:236:24                   
+globUp                                                function  src/gyccode/util/filesystem.ts:251:23                   
+NotFound                                              class     src/gyccode/util/local-context.ts:3:14                  
+create                                                function  src/gyccode/util/local-context.ts:9:17                  
+lines                                 Process         function  src/gyccode/util/process.ts:173:23                      
+getProxyForUrl                                        function  src/gyccode/util/proxy-env.ts:36:17                     
+work                                                  function  src/gyccode/util/queue.ts:21:23                         
+listen                                                function  src/gyccode/util/rpc.ts:44:17                           
+emit                                                  function  src/gyccode/util/rpc.ts:55:17                           
+client                                                function  src/gyccode/util/rpc.ts:59:17                           
+estimate                                                        src/gyccode/util/token.ts:1:17                          
+match                                                 function  src/gyccode/util/wildcard.ts:3:17                       
+all                                                   function  src/gyccode/util/wildcard.ts:21:17                      
+allStructured                                         function  src/gyccode/util/wildcard.ts:33:17                      
+Event                                                           src/gyccode/worktree/index.ts:22:14                     
+Info                                                            src/gyccode/worktree/index.ts:24:14                     
+CreateInput                                                     src/gyccode/worktree/index.ts:31:14                     
+RemoveInput                                                     src/gyccode/worktree/index.ts:39:14                     
+ResetInput                                                      src/gyccode/worktree/index.ts:44:14                     
+NotGitError                                           class     src/gyccode/worktree/index.ts:49:14                     
+NameGenerationFailedError                             class     src/gyccode/worktree/index.ts:53:14                     
+CreateFailedError                                     class     src/gyccode/worktree/index.ts:60:14                     
+StartCommandFailedError                               class     src/gyccode/worktree/index.ts:64:14                     
+RemoveFailedError                                     class     src/gyccode/worktree/index.ts:71:14                     
+ResetFailedError                                      class     src/gyccode/worktree/index.ts:75:14                     
+ListFailedError                                       class     src/gyccode/worktree/index.ts:79:14                     
+Service                                               class     src/gyccode/worktree/index.ts:120:14                    
+node                                                            src/gyccode/worktree/index.ts:624:14                    
+framing                                                         src/llm/protocols/bedrock-event-stream.ts:89:14         
+Json                                  ProviderShared            src/llm/protocols/shared.ts:19:14                       
+decodeJson                            ProviderShared            src/llm/protocols/shared.ts:20:14                       
+wrapSystemUpdate                      ProviderShared            src/llm/protocols/shared.ts:120:14                      
+VIDEO_MIMES                           ProviderShared            src/llm/protocols/shared.ts:159:14                      
+AUDIO_MIMES                           ProviderShared            src/llm/protocols/shared.ts:160:14                      
+MAX_MEDIA_ENCODED_BYTES               ProviderShared            src/llm/protocols/shared.ts:162:14                      
+MAX_MEDIA_DECODED_BYTES               ProviderShared            src/llm/protocols/shared.ts:163:14                      
+sigV4                                                           src/llm/protocols/utils/bedrock-auth.ts:48:14           
+auth                                                            src/llm/protocols/utils/bedrock-auth.ts:68:14           
+CachePointBlock                                                 src/llm/protocols/utils/bedrock-cache.ts:8:14           
+BEDROCK_BREAKPOINT_CAP                                          src/llm/protocols/utils/bedrock-cache.ts:19:14          
+breakpoints                                                     src/llm/protocols/utils/bedrock-cache.ts:22:14          
+block                                                           src/llm/protocols/utils/bedrock-cache.ts:27:14          
+ImageFormat                                                     src/llm/protocols/utils/bedrock-media.ts:7:14           
+ImageBlock                                                      src/llm/protocols/utils/bedrock-media.ts:10:14          
+DocumentFormat                                                  src/llm/protocols/utils/bedrock-media.ts:20:14          
+DocumentBlock                                                   src/llm/protocols/utils/bedrock-media.ts:23:14          
+lower                                                           src/llm/protocols/utils/bedrock-media.ts:65:14          
+convert                                                         src/llm/protocols/utils/gemini-tool-schema.ts:97:14     
+initial                                                         src/llm/protocols/utils/lifecycle.ts:9:14               
+stepStart                                                       src/llm/protocols/utils/lifecycle.ts:11:14              
+textDelta                                                       src/llm/protocols/utils/lifecycle.ts:17:14              
+reasoningStart                                                  src/llm/protocols/utils/lifecycle.ts:27:14              
+reasoningDelta                                                  src/llm/protocols/utils/lifecycle.ts:39:14              
+reasoningEnd                                                    src/llm/protocols/utils/lifecycle.ts:51:14              
+textEnd                                                         src/llm/protocols/utils/lifecycle.ts:65:14              
+finish                                                          src/llm/protocols/utils/lifecycle.ts:80:14              
+OpenAIReasoningEfforts                                          src/llm/protocols/utils/openai-options.ts:5:14          
+OpenAIResponseIncludables                                       src/llm/protocols/utils/openai-options.ts:12:14         
+OpenAIServiceTiers                                              src/llm/protocols/utils/openai-options.ts:23:14         
+OpenAITextVerbosity                                             src/llm/protocols/utils/openai-options.ts:33:14         
+isReasoningEffort                                               src/llm/protocols/utils/openai-options.ts:40:14         
+store                                                           src/llm/protocols/utils/openai-options.ts:48:14         
+reasoningEffort                                                 src/llm/protocols/utils/openai-options.ts:53:14         
+reasoningSummary                                                src/llm/protocols/utils/openai-options.ts:58:14         
+include                                                         src/llm/protocols/utils/openai-options.ts:66:14         
+promptCacheKey                                                  src/llm/protocols/utils/openai-options.ts:73:14         
+textVerbosity                                                   src/llm/protocols/utils/openai-options.ts:78:14         
+serviceTier                                                     src/llm/protocols/utils/openai-options.ts:83:14         
+instructions                                                    src/llm/protocols/utils/openai-options.ts:88:14         
+empty                                                           src/llm/protocols/utils/tool-stream.ts:40:14            
+isError                                                         src/llm/protocols/utils/tool-stream.ts:97:14            
+start                                                           src/llm/protocols/utils/tool-stream.ts:105:14           
+appendOrStart                                                   src/llm/protocols/utils/tool-stream.ts:117:14           
+appendExisting                                                  src/llm/protocols/utils/tool-stream.ts:146:14           
+finish                                                          src/llm/protocols/utils/tool-stream.ts:164:14           
+finishWithInput                                                 src/llm/protocols/utils/tool-stream.ts:182:14           
+finishAll                                                       src/llm/protocols/utils/tool-stream.ts:200:14           
+gpt5DefaultOptions                                              src/llm/providers/openai-options.ts:44:14               
+openAIDefaultOptions                                            src/llm/providers/openai-options.ts:66:14               
+bearer                                                          src/llm/route/auth-options.ts:47:14                     
+MissingCredentialError                                class     src/llm/route/auth.ts:5:14                              
+isAuth                                                          src/llm/route/auth.ts:40:14                             
+value                                                           src/llm/route/auth.ts:85:14                             
+optional                                                        src/llm/route/auth.ts:87:14                             
+config                                                          src/llm/route/auth.ts:92:14                             
+effect                                                          src/llm/route/auth.ts:94:14                             
+none                                                            src/llm/route/auth.ts:96:14                             
+headers                                                         src/llm/route/auth.ts:98:14                             
+remove                                                          src/llm/route/auth.ts:101:14                            
+custom                                                          src/llm/route/auth.ts:103:14                            
+passthrough                                                     src/llm/route/auth.ts:105:14                            
+bearer                                                function  src/llm/route/auth.ts:112:17                            
+apiKey                                                          src/llm/route/auth.ts:117:14                            
+header                                                function  src/llm/route/auth.ts:119:17                            
+bearerHeader                                          function  src/llm/route/auth.ts:128:17                            
+toEffect                                                        src/llm/route/auth.ts:151:14                            
+generationOptions                                               src/llm/route/client.ts:133:14                          
+httpOptions                                                     src/llm/route/client.ts:136:14                          
+make                                                  function  src/llm/route/client.ts:303:17                          
+prepare                                                         src/llm/route/client.ts:393:14                          
+stream                                                function  src/llm/route/client.ts:396:17                          
+generate                                              function  src/llm/route/client.ts:404:17                          
+streamRequest                                                   src/llm/route/client.ts:410:14                          
+layer                                                           src/llm/route/client.ts:417:14                          
+path                                                            src/llm/route/endpoint.ts:31:14                         
+merge                                                           src/llm/route/endpoint.ts:36:14                         
+render                                                          src/llm/route/endpoint.ts:47:14                         
+sse                                                             src/llm/route/framing.ts:25:14                          
+make                                                            src/llm/route/protocol.ts:78:14                         
+jsonEvent                                                       src/llm/route/protocol.ts:82:14                         
+Service                                               class     src/llm/route/transport/websocket.ts:22:14              
+open                                                            src/llm/route/transport/websocket.ts:173:14             
+layer                                                           src/llm/route/transport/websocket.ts:183:14             
+fromWebSocket                                                   src/llm/route/transport/websocket.ts:185:14             
+messageText                                                     src/llm/route/transport/websocket.ts:254:14             
+json                                                            src/llm/route/transport/websocket.ts:274:14             
+jsonTransport                                                   src/llm/route/transport/websocket.ts:312:14             
+dispatch                                                        src/llm/tool-runtime.ts:23:14                           
+loadSoundFile                         TuiAudio        function  src/tui/audio.ts:25:17                                  
+play                                  TuiAudio        function  src/tui/audio.ts:54:17                                  
+stopVoice                             TuiAudio        function  src/tui/audio.ts:61:17                                  
+copyCommand                                           function  src/tui/clipboard.ts:78:17                              
+toRgb                                                 function  src/tui/component/bg-pulse-render.ts:83:17              
+sortModelOptions                                      function  src/tui/component/dialog-model.tsx:186:17               
+providerOptions                                       function  src/tui/component/dialog-provider.tsx:145:17            
+loadDialogSessionList                                 function  src/tui/component/dialog-session-list.tsx:34:17         
+recentConnectedWorkspaces                             function  src/tui/component/dialog-workspace-create.tsx:35:17     
+warpReminderText                                      function  src/tui/component/dialog-workspace-create.tsx:48:17     
+DialogWorkspaceSelect                                 function  src/tui/component/dialog-workspace-create.tsx:178:17    
+readLocalAttachmentWith                               function  src/tui/component/prompt/local-attachment.ts:36:23      
+parseModel                                            function  src/tui/context/local.tsx:27:17                         
+recentModels                                          function  src/tui/context/local.tsx:35:17                         
+isThinkingMode                                        function  src/tui/context/thinking.ts:19:17                       
+stringWidth                                           function  src/tui/fallback/char-width.ts:93:17                    
+defaultContainer                                                src/tui/fallback/di.ts:69:14                            
+highlightCodeBlock                                    function  src/tui/fallback/highlight.ts:95:17                     
+MD_STYLES                                                       src/tui/fallback/markdown.ts:18:14                      
+parseInline                                           function  src/tui/fallback/markdown.ts:97:17                      
+jsx                                                   function  src/tui/fallback/solid/jsx-runtime.ts:33:17             
+jsxs                                                            src/tui/fallback/solid/jsx-runtime.ts:41:14             
+jsxDEV                                                function  src/tui/fallback/solid/jsx-runtime.ts:43:17             
+Fragment                                              function  src/tui/fallback/solid/jsx-runtime.ts:53:17             
+wrapText                                              function  src/tui/fallback/solid/paint.ts:35:17                   
+wrapSpans                                             function  src/tui/fallback/solid/paint.ts:62:17                   
+wrapTextareaLines                                     function  src/tui/fallback/solid/paint.ts:263:17                  
+cursorDisplayPos                                      function  src/tui/fallback/solid/paint.ts:593:17                  
+createTextNode                                                  src/tui/fallback/solid/renderer.ts:143:48               
+insert                                                          src/tui/fallback/solid/renderer.ts:143:64               
+estimatePart                                          function  src/tui/feature-plugins/sidebar/context-metrics.ts:4:17 
+compareFileTreeNodes                                  function  …re-plugins/system/diff-viewer-file-tree-utils.ts:113:17
+moveFileTreeSelectionToFile                           function  …re-plugins/system/diff-viewer-file-tree-utils.ts:144:17
+createPluginRoutes                                              src/tui/plugin/adapters.tsx:21:10                       
+createTuiApi                                                    src/tui/plugin/adapters.tsx:21:30                       
+MAX_FRECENCY_ENTRIES                                            src/tui/prompt/frecency.tsx:10:14                       
+parseFrecency                                         function  src/tui/prompt/frecency.tsx:12:17                       
+MAX_STASH_ENTRIES                                               src/tui/prompt/stash.tsx:15:14                          
+parsePromptStash                                      function  src/tui/prompt/stash.tsx:17:17                          
+alwaysSeparate                                                  src/tui/routes/session/index.tsx:113:14                 
+InlineToolRow                                         function  src/tui/routes/session/index.tsx:2294:17                
+formatSubagentToolcalls                               function  src/tui/routes/session/index.tsx:2704:17                
+formatSubagentTitle                                   function  src/tui/routes/session/index.tsx:2708:17                
+formatSubagentRetry                                   function  src/tui/routes/session/index.tsx:2712:17                
+formatCompletedSubagentDetail                         function  src/tui/routes/session/index.tsx:2716:17                
+toolDisplay                                           function  src/tui/routes/session/index.tsx:3040:17                
+parseApplyPatchFiles                                  function  src/tui/routes/session/index.tsx:3049:17                
+parseTodos                                            function  src/tui/routes/session/index.tsx:3064:17                
+parseQuestions                                        function  src/tui/routes/session/index.tsx:3074:17                
+parseQuestionAnswers                                  function  src/tui/routes/session/index.tsx:3082:17                
+parseDiagnostics                                      function  src/tui/routes/session/index.tsx:3089:17                
+VIRTUAL_WINDOW                                                  src/tui/routes/session/virtual-window.ts:17:14          
+VIRTUAL_EXPAND_STEP                                             src/tui/routes/session/virtual-window.ts:18:14          
+VIRTUAL_MAX_WINDOW                                              src/tui/routes/session/virtual-window.ts:19:14          
+terminalMode                                          function  src/tui/theme/index.ts:353:17                           
+resetMemoryAlertForTest                               function  src/tui/ui/memory-alert.tsx:20:17                       
+get                                   Model           function  src/tui/util/model.ts:52:17                             
+CustomSpeedScroll                                     class     src/tui/util/scroll.ts:8:14                             
+toolDisplayMetadata                                   function  src/tui/util/tool-display.ts:7:17                       
+formatMessage                                         function  src/tui/util/transcript.ts:48:17                        
+formatAssistantHeader                                 function  src/tui/util/transcript.ts:69:17                        
+formatPart                                            function  src/tui/util/transcript.ts:86:17                        
+Unused exported types (328)
+SourcePosition                                              type       src/codemode/interpreter/model.ts:4:13           
+SourceLocation                                              type       src/codemode/interpreter/model.ts:9:13           
+InputLocation                                               type       src/codemode/openapi/types.ts:74:13              
+HostTool                                                    type       src/codemode/tool-runtime.ts:49:13               
+DiscoveryPlan                                               type       src/codemode/tool-runtime.ts:370:13              
+SearchEntry                                                 type       src/codemode/tool-runtime.ts:376:13              
+JoinNullability                                             type       …-drizzle-sqlite/internal/drizzle-utils.ts:127:15
+SQLiteEffectWithReplicas                                    type       …t-drizzle-sqlite/sqlite-core/effect/db.ts:242:13
+AnySQLiteEffectDatabase                                     type       …t-drizzle-sqlite/sqlite-core/effect/db.ts:295:13
+AnySQLiteEffectSelectBase                                   type       …t-drizzle-sqlite/sqlite-core/effect/db.ts:296:13
+SQLiteEffectDeleteWithout                                   type       …rizzle-sqlite/sqlite-core/effect/delete.ts:23:13
+SQLiteEffectDeleteReturningAll                              type       …rizzle-sqlite/sqlite-core/effect/delete.ts:41:13
+SQLiteEffectDeleteReturning                                 type       …rizzle-sqlite/sqlite-core/effect/delete.ts:57:13
+SQLiteEffectDeleteExecute                                   type       …rizzle-sqlite/sqlite-core/effect/delete.ts:74:13
+SQLiteEffectDeletePrepare                                   type       …rizzle-sqlite/sqlite-core/effect/delete.ts:78:13
+SQLiteEffectDeleteDynamic                                   type       …rizzle-sqlite/sqlite-core/effect/delete.ts:98:13
+SQLiteEffectDelete                                          type       …izzle-sqlite/sqlite-core/effect/delete.ts:105:13
+AnySQLiteEffectDelete                                       type       …izzle-sqlite/sqlite-core/effect/delete.ts:112:13
+SQLiteEffectInsertWithout                                   type       …rizzle-sqlite/sqlite-core/effect/insert.ts:30:13
+SQLiteEffectInsertReturning                                 type       …rizzle-sqlite/sqlite-core/effect/insert.ts:48:13
+SQLiteEffectInsertReturningAll                              type       …rizzle-sqlite/sqlite-core/effect/insert.ts:65:13
+SQLiteEffectInsertDynamic                                   type       …rizzle-sqlite/sqlite-core/effect/insert.ts:81:13
+SQLiteEffectInsertOnConflictDoUpdateConfig                  type       …rizzle-sqlite/sqlite-core/effect/insert.ts:88:13
+SQLiteEffectInsertExecute                                   type       …rizzle-sqlite/sqlite-core/effect/insert.ts:97:13
+SQLiteEffectInsertPrepare                                   type       …izzle-sqlite/sqlite-core/effect/insert.ts:101:13
+SQLiteEffectInsert                                          type       …izzle-sqlite/sqlite-core/effect/insert.ts:121:13
+AnySQLiteEffectInsert                                       type       …izzle-sqlite/sqlite-core/effect/insert.ts:128:13
+SQLiteEffectSelectPrepare                                   type       …rizzle-sqlite/sqlite-core/effect/select.ts:34:13
+SQLiteEffectSelectHKT                                       interface  …izzle-sqlite/sqlite-core/effect/select.ts:139:18
+AnySQLiteEffectSelect                                       type       …izzle-sqlite/sqlite-core/effect/select.ts:281:13
+SQLiteEffectUpdateWithJoins                                 type       …rizzle-sqlite/sqlite-core/effect/update.ts:50:13
+SQLiteEffectUpdateReturningAll                              type       …rizzle-sqlite/sqlite-core/effect/update.ts:69:13
+SQLiteEffectUpdateReturning                                 type       …rizzle-sqlite/sqlite-core/effect/update.ts:86:13
+SQLiteEffectUpdateExecute                                   type       …izzle-sqlite/sqlite-core/effect/update.ts:104:13
+SQLiteEffectUpdatePrepare                                   type       …izzle-sqlite/sqlite-core/effect/update.ts:108:13
+SQLiteEffectUpdateDynamic                                   type       …izzle-sqlite/sqlite-core/effect/update.ts:128:13
+SQLiteEffectUpdate                                          type       …izzle-sqlite/sqlite-core/effect/update.ts:136:13
+AnySQLiteEffectUpdate                                       type       …izzle-sqlite/sqlite-core/effect/update.ts:144:13
+SQLiteEffectUpdateJoinFn                                    type       …izzle-sqlite/sqlite-core/effect/update.ts:146:13
+AccountError                                                type       src/gyccode/account/account.ts:40:8              
+AccountOrgs                                                 type       src/gyccode/account/account.ts:61:13             
+ActiveOrg                                                   type       src/gyccode/account/account.ts:66:13             
+Interface                                                   interface  src/gyccode/account/account.ts:168:18            
+Interface                                                   interface  src/gyccode/account/repo.ts:15:18                
+ConfigOptionModel                                           type       src/gyccode/acp/config-option.ts:5:13            
+ModelOption                                                 type       src/gyccode/acp/directory.ts:12:13               
+ModeOption                                                  type       src/gyccode/acp/directory.ts:19:13               
+ModelVariants                                               type       src/gyccode/acp/directory.ts:25:13               
+DefaultModel                                                type       src/gyccode/acp/directory.ts:27:13               
+Snapshot                                                    type       src/gyccode/acp/directory.ts:32:13               
+LoaderInterface                                             interface  src/gyccode/acp/directory.ts:43:18               
+Interface                                                   interface  src/gyccode/acp/directory.ts:47:18               
+SelectedModel                                               type       src/gyccode/acp/session.ts:9:13                  
+KnownMessagePartMetadata                                    type       src/gyccode/acp/session.ts:14:13                 
+Info                                                        type       src/gyccode/acp/session.ts:24:13                 
+StoreInput                                                  type       src/gyccode/acp/session.ts:35:13                 
+RecordPartMetadataInput                                     type       src/gyccode/acp/session.ts:45:13                 
+PartMetadataLookupInput                                     type       src/gyccode/acp/session.ts:56:13                 
+Interface                                                   type       src/gyccode/acp/session.ts:62:13                 
+ToolAttachment                                              type       src/gyccode/acp/tool.ts:6:13                     
+ImageAttachment                                             type       src/gyccode/acp/tool.ts:33:13                    
+AssistantTokenCost                                          type       src/gyccode/acp/usage.ts:12:13                   
+AssistantMessage                                            type       src/gyccode/acp/usage.ts:14:13                   
+SessionMessage                                              type       src/gyccode/acp/usage.ts:18:13                   
+MessagesInput                                               type       src/gyccode/acp/usage.ts:22:13                   
+SDK                                                         type       src/gyccode/acp/usage.ts:27:13                   
+MessageLoaderInterface                                      interface  src/gyccode/acp/usage.ts:36:18                   
+ContextLimitLoaderInterface                                 interface  src/gyccode/acp/usage.ts:40:18                   
+UsageConnection                                             type       src/gyccode/acp/usage.ts:44:13                   
+Interface                                                   interface  src/gyccode/acp/usage.ts:46:18                   
+Interface                                                   interface  src/gyccode/auth/index.ts:45:18                  
+ExtendInput                                                 type       src/gyccode/background/job.ts:8:8                
+Info                                                        type       src/gyccode/background/job.ts:9:8                
+Interface                                                   type       src/gyccode/background/job.ts:10:8               
+StartInput                                                  type       src/gyccode/background/job.ts:11:8               
+Status                                                      type       src/gyccode/background/job.ts:12:8               
+WaitInput                                                   type       src/gyccode/background/job.ts:13:8               
+WaitResult                                                  type       src/gyccode/background/job.ts:14:8               
+StreamInteractive                                           type       src/gyccode/cli/cmd/run/stream-cli.ts:119:13     
+StreamQuestion                                              type       src/gyccode/cli/cmd/run/stream-cli.ts:124:13     
+ToolView                                                    type       src/gyccode/cli/cmd/run/tool.ts:40:13            
+ToolPhase                                                   type       src/gyccode/cli/cmd/run/tool.ts:46:13            
+ToolDict                                                    type       src/gyccode/cli/cmd/run/tool.ts:48:13            
+ToolFrame                                                   type       src/gyccode/cli/cmd/run/tool.ts:50:13            
+ToolPermissionInfo                                          type       src/gyccode/cli/cmd/run/tool.ts:70:13            
+ToolProps                                                   type       src/gyccode/cli/cmd/run/tool.ts:78:13            
+RunFilePart                                                 type       src/gyccode/cli/cmd/run/types.ts:17:13           
+RunPromptPart                                               type       src/gyccode/cli/cmd/run/types.ts:27:13           
+RunCommand                                                  type       src/gyccode/cli/cmd/run/types.ts:29:13           
+RunProvider                                                 type       src/gyccode/cli/cmd/run/types.ts:31:13           
+RunPrompt                                                   type       src/gyccode/cli/cmd/run/types.ts:33:13           
+FooterQueuedPrompt                                          type       src/gyccode/cli/cmd/run/types.ts:45:13           
+RunAgent                                                    type       src/gyccode/cli/cmd/run/types.ts:51:13           
+RunResource                                                 type       src/gyccode/cli/cmd/run/types.ts:55:13           
+RunInput                                                    type       src/gyccode/cli/cmd/run/types.ts:57:13           
+EntryKind                                                   type       src/gyccode/cli/cmd/run/types.ts:76:13           
+FooterPhase                                                 type       src/gyccode/cli/cmd/run/types.ts:79:13           
+FooterState                                                 type       src/gyccode/cli/cmd/run/types.ts:83:13           
+FooterPatch                                                 type       src/gyccode/cli/cmd/run/types.ts:96:13           
+RunDiffStyle                                                type       src/gyccode/cli/cmd/run/types.ts:98:13           
+TurnSummary                                                 type       src/gyccode/cli/cmd/run/types.ts:100:13          
+ScrollbackOptions                                           type       src/gyccode/cli/cmd/run/types.ts:106:13          
+ToolCodeSnapshot                                            type       src/gyccode/cli/cmd/run/types.ts:111:13          
+ToolDiffSnapshot                                            type       src/gyccode/cli/cmd/run/types.ts:118:13          
+ToolTaskSnapshot                                            type       src/gyccode/cli/cmd/run/types.ts:128:13          
+ToolTodoSnapshot                                            type       src/gyccode/cli/cmd/run/types.ts:135:13          
+ToolQuestionSnapshot                                        type       src/gyccode/cli/cmd/run/types.ts:144:13          
+EntryLayout                                                 type       src/gyccode/cli/cmd/run/types.ts:160:13          
+FooterView                                                  type       src/gyccode/cli/cmd/run/types.ts:173:13          
+FooterPromptRoute                                           type       src/gyccode/cli/cmd/run/types.ts:178:13          
+FooterSubagentTab                                           type       src/gyccode/cli/cmd/run/types.ts:188:13          
+FooterSubagentDetail                                        type       src/gyccode/cli/cmd/run/types.ts:201:13          
+FooterSubagentState                                         type       src/gyccode/cli/cmd/run/types.ts:206:13          
+FooterOutput                                                type       src/gyccode/cli/cmd/run/types.ts:214:13          
+FooterEvent                                                 type       src/gyccode/cli/cmd/run/types.ts:223:13          
+PermissionReply                                             type       src/gyccode/cli/cmd/run/types.ts:283:13          
+QuestionReply                                               type       src/gyccode/cli/cmd/run/types.ts:285:13          
+QuestionReject                                              type       src/gyccode/cli/cmd/run/types.ts:287:13          
+RunTuiConfig                                                type       src/gyccode/cli/cmd/run/types.ts:289:13          
+StreamPhase                                                 type       src/gyccode/cli/cmd/run/types.ts:293:13          
+StreamSource                                                type       src/gyccode/cli/cmd/run/types.ts:295:13          
+StreamToolState                                             type       src/gyccode/cli/cmd/run/types.ts:297:13          
+LocalReplayAnchor                                           type       src/gyccode/cli/cmd/run/types.ts:322:13          
+LocalReplayRow                                              type       src/gyccode/cli/cmd/run/types.ts:332:13          
+FooterApi                                                   type       src/gyccode/cli/cmd/run/types.ts:340:13          
+ThemeToken                                                  type       src/gyccode/cli/theme.ts:173:13                  
+ThemeBgToken                                                type       src/gyccode/cli/theme.ts:174:13                  
+CliThemeType                                                type       src/gyccode/cli/theme.ts:285:13                  
+Interface                                                   interface  src/gyccode/command/index.ts:53:18               
+Interface                                                   interface  src/gyccode/control-plane/workspace.ts:131:18    
+Shape                                                       interface  src/gyccode/effect/bridge.ts:7:18                
+Shape                                                       type       src/gyccode/effect/config-service.ts:8:13        
+ServiceClass                                                type       src/gyccode/effect/config-service.ts:15:13       
+State                                                       type       src/gyccode/effect/runner.ts:33:13               
+Interface                                                   interface  src/gyccode/env/index.ts:8:18                    
+Interface                                                   interface  src/gyccode/format/index.ts:21:18                
+GatewayTarget                                               interface  src/gyccode/gateway/adapter.ts:7:18              
+Kind                                                        type       src/gyccode/git/index.ts:31:13                   
+Base                                                        type       src/gyccode/git/index.ts:33:13                   
+Item                                                        type       src/gyccode/git/index.ts:38:13                   
+Stat                                                        type       src/gyccode/git/index.ts:44:13                   
+Patch                                                       type       src/gyccode/git/index.ts:50:13                   
+PatchOptions                                                interface  src/gyccode/git/index.ts:55:18                   
+Result                                                      interface  src/gyccode/git/index.ts:60:18                   
+Options                                                     interface  src/gyccode/git/index.ts:68:18                   
+Interface                                                   interface  src/gyccode/git/index.ts:75:18                   
+Error                                                       type       src/gyccode/image/image.ts:54:13                 
+Interface                                                   interface  src/gyccode/image/image.ts:56:18                 
+Method                                                      type       src/gyccode/installation/index.ts:18:13          
+ReleaseType                                                 type       src/gyccode/installation/index.ts:20:13          
+Interface                                                   interface  src/gyccode/installation/index.ts:75:18          
+Interface                                                   interface  src/gyccode/lsp/lsp.ts:119:18                    
+OAuthTokenState                                             type       src/gyccode/mcp/auth.ts:18:13                    
+TokenRefreshResult                                          interface  src/gyccode/mcp/auth.ts:31:18                    
+Interface                                                   interface  src/gyccode/mcp/auth.ts:128:18                   
+Interface                                                   interface  src/gyccode/mcp/browser.ts:5:18                  
+MCPTransportKind                                            type       src/gyccode/mcp/index.ts:131:13                  
+ServerInstructions                                          interface  src/gyccode/mcp/index.ts:179:18                  
+McpTool                                                     interface  src/gyccode/mcp/index.ts:186:18                  
+Interface                                                   interface  src/gyccode/mcp/index.ts:193:18                  
+AuthStatus                                                  type       src/gyccode/mcp/index.ts:1047:13                 
+StandardElement                                             interface  src/gyccode/mcp/standard-elements.ts:8:18        
+ComplianceCheckResult                                       interface  src/gyccode/mcp/standard-elements.ts:21:18       
+ComplianceViolation                                         interface  src/gyccode/mcp/standard-elements.ts:29:18       
+StandardElementsClient                                      interface  src/gyccode/mcp/standard-elements.ts:37:18       
+MemPalaceConfig                                             interface  src/gyccode/mcp/standard-elements.ts:45:18       
+ExtractionConfig                                            interface  src/gyccode/memory/extract.ts:4:18               
+ExtractionConfig                                            interface  src/gyccode/memory/extraction-runner.ts:6:18     
+ExtractionInput                                             interface  src/gyccode/memory/extraction-runner.ts:16:18    
+TrainingSample                                              interface  src/gyccode/memory/training-pipeline.ts:33:18    
+DatasetStats                                                interface  src/gyccode/memory/training-pipeline.ts:51:18    
+PatchParams                                                 type       src/gyccode/patch/index.ts:10:13                 
+ApplyPatchArgs                                              interface  src/gyccode/patch/index.ts:13:18                 
+Hunk                                                        type       src/gyccode/patch/index.ts:19:13                 
+UpdateFileChunk                                             interface  src/gyccode/patch/index.ts:24:18                 
+ApplyPatchAction                                            interface  src/gyccode/patch/index.ts:31:18                 
+ApplyPatchFileChange                                        type       src/gyccode/patch/index.ts:37:13                 
+AffectedPaths                                               interface  src/gyccode/patch/index.ts:42:18                 
+ApplyPatchError                                             enum       src/gyccode/patch/index.ts:48:13                 
+MaybeApplyPatch                                             enum       src/gyccode/patch/index.ts:55:13                 
+MaybeApplyPatchVerified                                     enum       src/gyccode/patch/index.ts:62:13                 
+Interface                                                   interface  src/gyccode/permission/index.ts:13:18            
+Interface                                                   interface  src/gyccode/plugin/index.ts:45:18                
+Target                                                      type       src/gyccode/plugin/install.ts:21:13              
+PatchItem                                                   type       src/gyccode/plugin/install.ts:64:13              
+Theme                                                       type       src/gyccode/plugin/meta.ts:13:13                 
+Entry                                                       type       src/gyccode/plugin/meta.ts:20:13                 
+State                                                       type       src/gyccode/plugin/meta.ts:36:13                 
+Touch                                                       type       src/gyccode/plugin/meta.ts:38:13                 
+IdTokenClaims                                               interface  src/gyccode/plugin/openai/codex.ts:24:18         
+CreateWebSocketFetchOptions                                 interface  src/gyccode/plugin/openai/ws-pool.ts:8:18        
+ConnectResponsesWebSocketOptions                            interface  src/gyccode/plugin/openai/ws.ts:13:18            
+StreamResponsesWebSocketOptions                             interface  src/gyccode/plugin/openai/ws.ts:20:18            
+WrappedError                                                interface  src/gyccode/plugin/openai/ws.ts:33:18            
+DeviceCodeResponse                                          interface  src/gyccode/plugin/xai.ts:94:18                  
+Interface                                                   type       src/gyccode/project/bootstrap.ts:15:15           
+Interface                                                   interface  src/gyccode/project/instance-store.ts:20:18      
+Error                                                       type       src/gyccode/provider/auth.ts:86:13               
+Interface                                                   interface  src/gyccode/provider/auth.ts:90:18               
+ParsedStreamError                                           type       src/gyccode/provider/error.ts:97:13              
+ParsedAPICallError                                          type       src/gyccode/provider/error.ts:157:13             
+Interface                                                   interface  src/gyccode/question/index.ts:48:18              
+RootHttpApiType                                             type       …code/server/routes/instance/httpapi/api.ts:96:13
+InstanceHttpApiType                                         type       …code/server/routes/instance/httpapi/api.ts:97:13
+Interface                                                   interface  …outes/instance/httpapi/websocket-tracker.ts:9:18
+Credentials                                                 type       src/gyccode/server/shared/auth.ts:13:13          
+DecodedCredentials                                          type       src/gyccode/server/shared/auth.ts:18:13          
+Info                                                        type       src/gyccode/server/shared/auth.ts:23:13          
+Interface                                                   interface  src/gyccode/server/shared/pty-environment.ts:6:18
+CacheAnchor                                                 type       src/gyccode/session/cache-anchor.ts:15:13        
+MicrocompactBlock                                           interface  src/gyccode/session/compaction.ts:56:18          
+Interface                                                   interface  src/gyccode/session/compaction.ts:294:18         
+GoalState                                                   interface  src/gyccode/session/goal.ts:26:18                
+JudgeVerdict                                                interface  src/gyccode/session/goal.ts:35:18                
+GoalRunnerContext                                           interface  src/gyccode/session/goal.ts:42:18                
+GoalRunner                                                  type       src/gyccode/session/goal.ts:48:13                
+Options                                                     interface  src/gyccode/session/goal.ts:99:18                
+GoalService                                                 interface  src/gyccode/session/goal.ts:106:18               
+Interface                                                   interface  src/gyccode/session/instruction.ts:52:18         
+StreamInput                                                 type       src/gyccode/session/llm.ts:43:13                 
+StreamRequest                                               type       src/gyccode/session/llm.ts:60:13                 
+Interface                                                   interface  src/gyccode/session/llm.ts:64:18                 
+RequestInput                                                type       src/gyccode/session/llm/native-request.ts:22:13  
+RuntimeStatus                                               type       src/gyccode/session/llm/native-runtime.ts:22:13  
+StreamResult                                                type       src/gyccode/session/llm/native-runtime.ts:25:13  
+Prepared                                                    type       src/gyccode/session/llm/request.ts:58:13         
+Result                                                      type       src/gyccode/session/processor.ts:30:13           
+Handle                                                      interface  src/gyccode/session/processor.ts:32:18           
+Interface                                                   interface  src/gyccode/session/processor.ts:56:18           
+Interface                                                   interface  src/gyccode/session/prompt.ts:185:18             
+RetryReason                                                 type       src/gyccode/session/retry.ts:12:13               
+Interface                                                   interface  src/gyccode/session/revert.ts:19:18              
+Interface                                                   interface  src/gyccode/session/run-state.ts:11:18           
+Entry                                                       interface  src/gyccode/session/session-cwd.ts:25:18         
+Interface                                                   interface  src/gyccode/session/status.ts:16:18              
+Interface                                                   interface  src/gyccode/session/summary.ts:66:18             
+Interface                                                   interface  src/gyccode/session/system.ts:48:18              
+Interface                                                   interface  src/gyccode/session/todo.ts:16:18                
+Interface                                                   interface  src/gyccode/share/session.ts:9:18                
+Api                                                         type       src/gyccode/share/share-next.ts:25:13            
+Req                                                         type       src/gyccode/share/share-next.ts:32:13            
+Share                                                       type       src/gyccode/share/share-next.ts:43:13            
+Interface                                                   interface  src/gyccode/share/share-next.ts:73:18            
+ComposeSkillMeta                                            interface  src/gyccode/skill/compose/index.ts:43:18         
+Interface                                                   interface  src/gyccode/skill/discovery.ts:50:18             
+Interface                                                   interface  src/gyccode/skill/index.ts:103:18                
+SkillManifest                                               type       src/gyccode/skills/agent-schema.ts:29:13         
+MarketplaceIndex                                            interface  src/gyccode/skills/marketplace-client.ts:26:18   
+Interface                                                   interface  src/gyccode/snapshot/index.ts:36:18              
+Error                                                       type       src/gyccode/storage/storage.ts:19:13             
+Interface                                                   interface  src/gyccode/storage/storage.ts:53:18             
+CronTask                                                    interface  src/gyccode/tool/cron.ts:160:18                  
+Replacer                                                    type       src/gyccode/tool/edit.ts:263:13                  
+Interface                                                   interface  src/gyccode/tool/registry.ts:86:18               
+Kind                                                        type       src/gyccode/tool/shell/id.ts:2:13                
+Limits                                                      type       src/gyccode/tool/shell/prompt.ts:10:13           
+DynamicDescription                          Tool            type       src/gyccode/tool/tool.ts:18:13                   
+Result                                      Truncate        type       src/gyccode/tool/truncate.ts:19:13               
+Options                                     Truncate        interface  src/gyccode/tool/truncate.ts:21:18               
+BomMeta                                     Bom             interface  src/gyccode/util/bom.ts:23:18                    
+DirectoryEntry                                              interface  src/gyccode/util/filesystem.ts:58:18             
+Stdio                                       Process         type       src/gyccode/util/process.ts:7:13                 
+Shell                                       Process         type       src/gyccode/util/process.ts:8:13                 
+RemoteReference                                             type       src/gyccode/util/repository.ts:14:13             
+FileReference                                               type       src/gyccode/util/repository.ts:18:13             
+Reference                                                   type       src/gyccode/util/repository.ts:23:13             
+Error                                                       type       src/gyccode/worktree/index.ts:83:13              
+Interface                                                   interface  src/gyccode/worktree/index.ts:111:18             
+ValidatedMedia                              ProviderShared  interface  src/llm/protocols/shared.ts:167:18               
+Breakpoints                                                 type       src/llm/protocols/utils/bedrock-cache.ts:21:15   
+State                                                       interface  src/llm/protocols/utils/lifecycle.ts:3:18        
+OpenAIReasoningEffort                                       type       src/llm/protocols/utils/openai-options.ts:8:13   
+PendingTool                                                 interface  src/llm/protocols/utils/tool-stream.ts:12:18     
+State                                                       type       src/llm/protocols/utils/tool-stream.ts:25:13     
+AppendOutcome                                               interface  src/llm/protocols/utils/tool-stream.ts:33:18     
+OpenAIServiceTier                                           type       src/llm/providers/openai-options.ts:5:41         
+OptionalApiKeyAuth                                          type       src/llm/route/auth-options.ts:11:13              
+RequiredApiKeyAuth                                          type       src/llm/route/auth-options.ts:16:13              
+ModelOptions                                                type       src/llm/route/auth-options.ts:25:13              
+ModelArgs                                                   type       src/llm/route/auth-options.ts:27:13              
+ModelFactory                                                type       src/llm/route/auth-options.ts:31:13              
+AuthError                                                   type       src/llm/route/auth.ts:14:13                      
+RouteBody                                                   interface  src/llm/route/client.ts:29:18                    
+HttpOptionsInput                                            type       src/llm/route/client.ts:61:13                    
+RoutePatch                                                  interface  src/llm/route/client.ts:83:18                    
+StreamMethod                                                interface  src/llm/route/client.ts:157:18                   
+GenerateMethod                                              interface  src/llm/route/client.ts:161:18                   
+MakeInput                                                   interface  src/llm/route/client.ts:182:18                   
+MakeTransportInput                                          interface  src/llm/route/client.ts:201:18                   
+EndpointPart                                                type       src/llm/route/endpoint.ts:9:13                   
+ProtocolBody                                                interface  src/llm/route/protocol.ts:45:18                  
+ProtocolStream                                              interface  src/llm/route/protocol.ts:52:18                  
+WebSocketRequest                                            interface  src/llm/route/transport/websocket.ts:7:18        
+WebSocketConnection                                         interface  src/llm/route/transport/websocket.ts:12:18       
+JsonPrepared                                                interface  src/llm/route/transport/websocket.ts:257:18      
+JsonInput                                                   interface  src/llm/route/transport/websocket.ts:263:18      
+JsonPatch                                                   type       src/llm/route/transport/websocket.ts:268:13      
+JsonTransport                                               interface  src/llm/route/transport/websocket.ts:270:18      
+DialogStatusProps                                           type       src/tui/component/dialog-status.tsx:8:13         
+SessionCwdEvent                                             type       src/tui/context/event.ts:10:13                   
+SessionInstructionsEvent                                    type       src/tui/context/event.ts:21:13                   
+SessionGoalEvent                                            type       src/tui/context/event.ts:32:13                   
+LocalTheme                                                  type       src/tui/context/local.tsx:17:13                  
+HomeRoute                                                   type       src/tui/context/route.tsx:6:13                   
+SessionRoute                                                type       src/tui/context/route.tsx:11:13                  
+PluginRoute                                                 type       src/tui/context/route.tsx:17:13                  
+RouteContext                                                type       src/tui/context/route.tsx:55:13                  
+DialogType                                                  type       src/tui/fallback/dialog.ts:24:13                 
+TranslationKey                                              type       src/tui/fallback/i18n.ts:24:13                   
+RendererBackendKind                                         type       src/tui/fallback/renderer-backend.ts:52:13       
+SelectionSource                                             type       src/tui/fallback/selection.ts:19:13              
+Selection                                                   interface  src/tui/fallback/selection.ts:21:18              
+BoxProps                                                    interface  src/tui/fallback/solid/jsx-runtime.ts:78:18      
+TextProps                                                   interface  src/tui/fallback/solid/jsx-runtime.ts:85:18      
+ScrollBoxProps                                              interface  src/tui/fallback/solid/jsx-runtime.ts:90:18      
+TextareaProps                                               interface  src/tui/fallback/solid/jsx-runtime.ts:97:18      
+BorderKind                                                  type       src/tui/fallback/solid/paint.ts:118:13           
+TextareaDisplayRow                                          interface  src/tui/fallback/solid/paint.ts:257:18           
+ToastVariant                                                type       src/tui/fallback/toast.ts:16:13                  
+GoalStateView                                               type       src/tui/feature-plugins/sidebar/goal.tsx:15:13   
+FileTreeNode                                                type       …gins/system/diff-viewer-file-tree-utils.ts:11:13
+DiffViewerFileTreeTheme                                     type       …e-plugins/system/diff-viewer-file-tree.tsx:11:13
+RouteMap                                                    type       src/tui/plugin/adapters.tsx:20:15                
+RouteMap                                                    type       src/tui/plugin/api.ts:9:13                       
+NextStepTodo                                                interface  src/tui/prompt/next-step.ts:4:18                 
+PromptMode                                                  type       src/tui/prompt/traits.ts:3:13                    
+DialogConfirmResult                                         type       src/tui/ui/dialog-confirm.tsx:16:13              
+MemoryAlertLevel                                            type       src/tui/util/memory-alert.ts:12:13               
+Unused exported namespace members (6)
+Plan                      PluginLoader  src/gyccode/plugin/loader.ts:17:15          
+Resolved                  PluginLoader  src/gyccode/plugin/loader.ts:24:15          
+Missing                   PluginLoader  src/gyccode/plugin/loader.ts:32:15          
+resolve                   PluginLoader  src/gyccode/plugin/loader.ts:86:25          
+load                      PluginLoader  src/gyccode/plugin/loader.ts:136:25         
+ElementChildrenAttribute  JSX           src/tui/fallback/solid/jsx-runtime.ts:111:19
+Duplicate exports (17)
+toToolKind|mapToolKind                                      src/gyccode/acp/tool.ts                                
+toLocations|extractLocations                                src/gyccode/acp/tool.ts                                
+completedToolContent|buildCompletedToolContent              src/gyccode/acp/tool.ts                                
+completedToolRawOutput|buildCompletedRawOutput              src/gyccode/acp/tool.ts                                
+shellOutputSnapshot|extractShellOutputSnapshot              src/gyccode/acp/tool.ts                                
+pendingToolCall|buildPendingToolCall                        src/gyccode/acp/tool.ts                                
+runningToolUpdate|buildRunningToolUpdate                    src/gyccode/acp/tool.ts                                
+duplicateRunningToolUpdate|buildDuplicateRunningToolUpdate  src/gyccode/acp/tool.ts                                
+completedToolUpdate|buildCompletedToolUpdate                src/gyccode/acp/tool.ts                                
+errorToolUpdate|buildErrorToolUpdate                        src/gyccode/acp/tool.ts                                
+theme|currentTheme                                          src/gyccode/cli/theme.ts                               
+DebugWorkspacePlugin|default                                src/gyccode/control-plane/dev/debug-workspace-plugin.ts
+none|passthrough                                            src/llm/route/auth.ts                                  
+bearer|apiKey                                               src/llm/route/auth.ts                                  
+FolderWorkspacePlugin|default                               src/protocol/plugin/example-workspace.d.ts             
+FolderWorkspacePlugin|default                               src/protocol/plugin/example-workspace.js               
+jsx|jsxs                                                    src/tui/fallback/solid/jsx-runtime.ts                  
