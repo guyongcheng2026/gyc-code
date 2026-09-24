@@ -4,7 +4,34 @@ import { resolve as pathResolve, isAbsolute as pathIsAbsolute } from "path"
 import { effectCmd } from "../effect-cmd"
 import { UI } from "../ui"
 import { readStdin } from "@core/util/read-stdin"
+import { logWarn } from "@core/observability/log-error"
 import { Filesystem } from "@/util/filesystem"
+
+/**
+ * `gyc cli` 的全部 yargs 选项。builder 已声明这些字段，但 yargs 的泛型长链
+ * （`Argv<Args>` 经 `WithDoubleDash` 包装）推断会丢字段，原先只能逐个 `(args as any)`；
+ * 这里显式建模一次，用一处受控断言替代 16 处 any。
+ */
+interface CliArgs {
+  message?: string[]
+  command?: string
+  file?: string[]
+  model?: string
+  variant?: string
+  agent?: string
+  session?: string
+  continue?: boolean
+  fork?: boolean
+  attach?: string
+  username?: string
+  password?: string
+  dir?: string
+  thinking?: boolean
+  auto?: boolean
+  yolo?: boolean
+  "dangerously-skip-permissions"?: boolean
+  "--"?: string[]
+}
 
 /**
  * `gyc cli` —— 纯命令行界面（原 bare `gyc` 行为）。
@@ -95,6 +122,7 @@ export const CliCommand = effectCmd({
         default: false,
       }),
   handler: Effect.fn("Cli.cli")(function* (args) {
+    const a = args as unknown as CliArgs
     const auto = args.auto || args.yolo || args["dangerously-skip-permissions"]
     const thinking = args.thinking ?? false
     const die = (message: string): never => {
@@ -103,9 +131,9 @@ export const CliCommand = effectCmd({
     }
 
     if (args["dangerously-skip-permissions"]) {
-      console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
-      console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
-      console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
+      logWarn("cli.cli", "\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
+      logWarn("cli.cli", "\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
+      logWarn("cli.cli", "\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
     }
 
     let message = [...args.message, ...(args["--"] || [])]
@@ -134,21 +162,23 @@ export const CliCommand = effectCmd({
       const { runPipeline } = yield* Effect.promise(() => import("../core"))
       const result = yield* Effect.promise(() => runPipeline({
         message: message || undefined,
-        command: (args as any).command,
-        commandArgs: [(args as any).message, ...((args as any)["--"] || [])].join(" "),
-        files: (args as any).file,
-        model: (args as any).model,
-        variant: (args as any).variant,
-        agent: (args as any).agent,
+        command: a.command,
+        // 原写法 `[(args as any).message, ...rest]` 未展开 message 数组，
+        // join 会得到 "m1,m2 rest"（数组 toString 用逗号），这里正确展开。
+        commandArgs: [...(a.message ?? []), ...(a["--"] ?? [])].join(" "),
+        files: a.file,
+        model: a.model,
+        variant: a.variant,
+        agent: a.agent,
         thinking,
         auto,
-        sessionID: (args as any).session,
-        continue: (args as any).continue,
-        fork: (args as any).fork,
+        sessionID: a.session,
+        continue: a.continue,
+        fork: a.fork,
         directory,
-        attachUrl: (args as any).attach,
-        attachHeaders: (args.password || (args as any).username) ? {
-          Authorization: `Basic ${btoa(`${args.username || "gyccode"}:${(args as any).password || ""}`)}`,
+        attachUrl: a.attach,
+        attachHeaders: (args.password || a.username) ? {
+          Authorization: `Basic ${btoa(`${args.username || "gyccode"}:${a.password || ""}`)}`,
         } : {},
         pipedInput: piped,
       }))
@@ -166,15 +196,15 @@ export const CliCommand = effectCmd({
       const { runPipeline } = yield* Effect.promise(() => import("../core"))
       const result = yield* Effect.promise(() => runPipeline({
         message,
-        files: (args as any).file,
-        model: (args as any).model,
-        variant: (args as any).variant,
-        agent: (args as any).agent,
+        files: a.file,
+        model: a.model,
+        variant: a.variant,
+        agent: a.agent,
         thinking,
         auto,
-        sessionID: (args as any).session,
-        continue: (args as any).continue,
-        fork: (args as any).fork,
+        sessionID: a.session,
+        continue: a.continue,
+        fork: a.fork,
         directory,
       }))
       if (result.error) die(result.error)
@@ -187,14 +217,14 @@ export const CliCommand = effectCmd({
       const { runInteractiveLoop } = yield* Effect.promise(() => import("../core"))
       yield* Effect.promise(() => runInteractiveLoop({
         directory,
-        model: (args as any).model,
-        variant: (args as any).variant,
-        agent: (args as any).agent,
+        model: a.model,
+        variant: a.variant,
+        agent: a.agent,
         thinking,
         auto,
-        sessionId: (args as any).session,
-        continue: (args as any).continue,
-        fork: (args as any).fork,
+        sessionId: a.session,
+        continue: a.continue,
+        fork: a.fork,
       }))
     }
   }),

@@ -367,6 +367,10 @@ const layer = Layer.effect(
             )
             const recentParts = parts.slice(-DOOM_LOOP_THRESHOLD)
 
+            // 签名提到循环外：原先每轮迭代都重新序列化同一份 input（N 次），
+            // 现在只算一次；part 侧仍需逐个序列化，但 tool/status 两个短路条件
+            // 已排在前面，只有同名工具的已完成 part 才会走到这一步。
+            const inputSignature = JSON.stringify(input)
             if (
               recentParts.length !== DOOM_LOOP_THRESHOLD ||
               !recentParts.every(
@@ -374,7 +378,7 @@ const layer = Layer.effect(
                   part.type === "tool" &&
                   part.tool === value.name &&
                   part.state.status !== "pending" &&
-                  JSON.stringify(part.state.input) === JSON.stringify(input),
+                  JSON.stringify(part.state.input) === inputSignature,
               )
             ) {
               return

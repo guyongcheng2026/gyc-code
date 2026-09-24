@@ -33,7 +33,8 @@ import { ModelV2 } from "@gyccode/core/model"
 import { ModelStatus } from "./model-status"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
-import { strip1mSuffix } from "../session/llm/context-1m"
+import { logError } from "@core/observability/log-error"
+import { strip1mSuffix } from "../../llm/model-id"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 // Default per-request timeouts applied when a provider does not configure its
@@ -49,8 +50,9 @@ const DEFAULT_CHUNK_TIMEOUT_MS = 120_000
 function timeoutController(ms: number, label?: string) {
   const ctl = new AbortController()
   const id = setTimeout(() => {
-    console.error(`[provider] header timeout after ${ms}ms${label ? ` (${label})` : ""}`)
-    ctl.abort(new ProviderError.HeaderTimeoutError(ms))
+    const error = new ProviderError.HeaderTimeoutError(ms)
+    logError("provider.client", error, { timeoutMs: ms, label })
+    ctl.abort(error)
   }, ms)
   return {
     signal: ctl.signal,
@@ -1650,7 +1652,7 @@ const layer = Layer.effect(
                 }
               }
             } catch (e) {
-              console.error("[provider] gitlab model discovery failed:", e)
+              logError("provider.client", e)
             }
           })
         }
@@ -1853,7 +1855,11 @@ const layer = Layer.effect(
 
           if (!chunkAbortCtl) return res
           return wrapSSE(res, chunkTimeout, chunkAbortCtl, (message) => {
-            console.error(`[provider] SSE chunk timeout after ${chunkTimeout}ms (${model.providerID}/${model.api.id})`)
+            logError("provider.client", new ProviderError.ResponseStreamError(message), {
+              providerID: model.providerID,
+              modelID: model.api.id,
+              chunkTimeout,
+            })
             return new ProviderError.ResponseStreamError(message)
           })
         }

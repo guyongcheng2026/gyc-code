@@ -14,18 +14,15 @@
  * for local compaction/overflow decisions regardless of the advertised window.
  */
 
+// 纯 model-id 工具已下沉到 llm 层：provider 解析 wire id 时也要用，而 provider
+// 不允许反向依赖 session（否则形成 provider↔session 环）。这里 import 进本地
+// 作用域再转出——`export {x} from "mod"` 不会在本地绑定符号，而本文件 107 行
+// 自己要调用 parse1mSuffix。session 侧既有 import 路径与测试不受影响。
+import { parse1mSuffix, strip1mSuffix } from "../../../llm/model-id"
+export { parse1mSuffix, strip1mSuffix }
+
 export const CONTEXT_1M_BETA_HEADER = "context-1m-2025-08-07" as const
 const CONTEXT_1M_THRESHOLD = 1_000_000
-
-/** True when the model id carries an explicit `[1m]` opt-in suffix (case-insensitive). */
-export function parse1mSuffix(modelId: string): boolean {
-  return /\[1m\]\s*$/i.test(modelId)
-}
-
-/** Strip a trailing [1m] opt-in suffix from a model id so it never reaches the wire. */
-export function strip1mSuffix(modelId: string): string {
-  return modelId.replace(/\[1m\]\s*$/i, "").trimEnd()
-}
 
 const DEFAULT_CONTEXT_WINDOW = 200_000
 
