@@ -82,6 +82,10 @@ export class Service extends Context.Service<Service, Interface>()("@gyccode/v2/
 /** 进程内活跃驱动集合（runID），用于避免重复拉起与进程退出清理 */
 const activeDrivers = new Set<string>()
 
+/** 已请求中止的 run（runID）。executeStep 轮询据此立即退出，
+ *  否则 abort 要等当前步骤超时（默认 30 分钟）才生效。 */
+const abortedRuns = new Set<string>()
+
 const loadFromDir = (dir: string, fs: FSUtil.Interface) =>
   Effect.gen(function* () {
     const exists = yield* fs.existsSafe(dir)
@@ -192,22 +196,35 @@ const layer = Layer.effect(
 
         const deadline = Date.now() + Duration.toMillis(STEP_TIMEOUT)
         // P0 修复：session 存活健康检查，防止永久等待
-        // 当 session 不再活跃但 step.failed 事件未触发时，记录警告日志
+        // prompt 只做 Admitted（不阻塞），因此轮询是唯一的完成检测手段：
+        // - 观察到 session 活跃过、再变为不活跃 → 本步骤完成
+        // - 从未活跃且连续 N 次不活跃 → 视为死机（此时才判定失败）
         let inactiveCount = 0
+        let sawActive = false
         const INACTIVE_WARN_THRESHOLD = 5 // 连续 5 次轮询 session 不活跃但无失败事件，认为可能死机
 
         for (;;) {
           const active = yield* (sessions.active as Effect.Effect<ReadonlySet<string>>) as Effect.Effect<Set<string>>
-          if (!active.has(run.sessionID)) {
-            inactiveCount++
+          if (abortedRuns.has(run.id)) {
+            return { ok: false as const, error: `步骤 ${step.name} 已取消（工作流已中止）`, summary: "" }
+          }
+          if (active.has(run.sessionID)) {
+            sawActive = true
+            inactiveCount = 0 // session 活跃，重置计数
+          } else {
             const failed = yield* stepFailedSince(run.sessionID, cursor)
             if (failed) {
-              inactiveCount = 0
               return { ok: false as const, error: `步骤 ${step.name} 执行失败（检测到步骤失败事件）`, summary: "" }
             }
-            // P0 修复：session 死机检测
+            if (sawActive) {
+              // 活跃过 → 现在空闲，说明本次 prompt 已跑完
+              const summary = yield* lastAssistantSummary(run.sessionID)
+              return { ok: true as const, summary }
+            }
+            inactiveCount++
+            // 死机检测：prompt 已投递但 session 始终没跑起来
             if (inactiveCount >= INACTIVE_WARN_THRESHOLD) {
-              yield* Effect.logError("Workflow session inactive threshold exceeded, marking step as failed", {
+              yield* Effect.logError("Workflow session never became active, marking step as failed", {
                 runID: run.id,
                 step: step.name,
                 inactiveCount,
@@ -219,10 +236,6 @@ const layer = Layer.effect(
                 summary: "",
               }
             }
-            const summary = yield* lastAssistantSummary(run.sessionID)
-            return { ok: true as const, summary }
-          } else {
-            inactiveCount = 0 // session 活跃，重置计数
           }
           if (Date.now() > deadline) {
             return {
@@ -276,11 +289,16 @@ const layer = Layer.effect(
               continue
             }
             yield* patchSteps(runID, run, transitionSteps)
-            yield* updateRun(runID, { status: "failed", error: transition.error })
+            // 已中止的 run 不应被失败状态覆盖（abort 先写入 aborted）
+            const latest = yield* readRun(runID)
+            if (latest?.status === "running") {
+              yield* updateRun(runID, { status: "failed", error: transition.error })
+            }
             return
           }
         } finally {
           activeDrivers.delete(runID)
+          abortedRuns.delete(runID)
         }
       })
 
@@ -328,7 +346,10 @@ const layer = Layer.effect(
         Effect.gen(function* () {
           const run = yield* readRun(runID)
           if (!run) return yield* Effect.fail(new NotFoundError({ id: runID }))
+          abortedRuns.add(runID)
           yield* updateRun(runID, { status: "aborted" })
+          // 同步中断会话，让正在执行的步骤立即停下（否则要等步骤超时）
+          yield* sessions.interrupt(run.sessionID as any).pipe(Effect.catch(() => Effect.void))
         }),
     })
   }),

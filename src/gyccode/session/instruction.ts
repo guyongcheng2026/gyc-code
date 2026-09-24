@@ -121,7 +121,16 @@ const layer: Layer.Layer<
     // `rules/` (both recursive) under a root directory. Thin adapter over the
     // pure `loadRulesFromDirs` helper; missing dirs yield no files and
     // unparseable/empty files are skipped.
+    // 规则文件目录级缓存：loadRules 在每次 read 工具调用与每条消息构建系统提示时都会执行，
+    // 全量递归 glob + 逐文件 readFile + frontmatter 解析的开销随 rules/ 规模线性增长
+    const RULES_CACHE_TTL_MS = 5_000
+    const RULES_CACHE_MAX = 64
+    const rulesCache = new Map<string, { at: number; rules: Rule[] }>()
+
     const loadRules = Effect.fnUntraced(function* (dir: string) {
+      const cached = rulesCache.get(dir)
+      if (cached && Date.now() - cached.at < RULES_CACHE_TTL_MS) return cached.rules
+
       const bases = [path.join(dir, ".claude", "rules"), path.join(dir, "rules")]
       const readFile = (p: string) => Effect.runPromise(read(p))
       const listMd = (d: string) =>
@@ -130,9 +139,12 @@ const layer: Layer.Layer<
             .glob("**/*.md", { cwd: d, absolute: true, include: "file" })
             .pipe(Effect.catch(() => Effect.succeed([] as string[]))),
         )
-      return yield* Effect.tryPromise(() => loadRulesFromDirs(bases, readFile, listMd)).pipe(
+      const rules = yield* Effect.tryPromise(() => loadRulesFromDirs(bases, readFile, listMd)).pipe(
         Effect.catch(() => Effect.succeed([] as Rule[])),
       )
+      if (rulesCache.size >= RULES_CACHE_MAX) rulesCache.clear()
+      rulesCache.set(dir, { at: Date.now(), rules })
+      return rules
     })
 
     // Recursively resolve `@include` references in an instruction file.

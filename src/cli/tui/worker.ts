@@ -39,7 +39,13 @@ const logWorkerCrash = (() => {
   }
 })()
 
-const onUnhandledRejection = (error: unknown) => logWorkerCrash("unhandledRejection", error)
+const onUnhandledRejection = (error: unknown) => {
+  logWorkerCrash("unhandledRejection", error)
+  // Exit the worker so the pool can restart it with a fresh heap.
+  // This prevents silent failure accumulation that could leave the worker
+  // in an inconsistent state. The main process will respawn via worker-exit handler.
+  process.exit(1)
+}
 
 // 堆超限（resourceLimits.maxOldGenerationSizeMb 触发）抛出的 RangeError：
 // 堆已满且无法回收，继续存活只会进入"每次分配都抛异常 + GC 风暴"的性能死

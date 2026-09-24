@@ -15,6 +15,9 @@ export interface PeerMessage {
 }
 
 const INBOX_CAP = 500
+// 桶数量上限：桶内截断只限制单桶条数，handle 集合本身（每次 swarm/子代理都是新 sessionID）
+// 在长运行 server 下会无限增长，因此按 LRU 淘汰整桶
+const INBOX_KEYS_CAP = 200
 // P0-1 修复：原版 inbox 是裸 Map，enqueue/read 内部使用 in-place push/splice。
 // 现改为不可变更新（concat + slice 重建新数组）替代 in-place 修改：
 //   1. 任何 reader 看到的 list 是不可变引用，不会读到「被改一半」的状态。
@@ -23,9 +26,20 @@ const INBOX_CAP = 500
 // 不可变更新主要价值是消除「读到 list 内部状态被并发修改」的隐性耦合。
 const inbox: { current: Map<string, PeerMessage[]> } = { current: new Map() }
 
+function setInbox(target: string, list: PeerMessage[]) {
+  // delete + set 把该 key 移到 Map 末尾（最新使用），配合 evictInboxKeys 做 LRU
+  inbox.current.delete(target)
+  inbox.current.set(target, list)
+  while (inbox.current.size > INBOX_KEYS_CAP) {
+    const oldest = inbox.current.keys().next().value
+    if (oldest === undefined) break
+    inbox.current.delete(oldest)
+  }
+}
+
 function enqueue(msg: PeerMessage) {
   const list = (inbox.current.get(msg.to) ?? []).concat([msg]).slice(-INBOX_CAP)
-  inbox.current.set(msg.to, list)
+  setInbox(msg.to, list)
 }
 
 function readMessages(target: string, from: string | undefined, limit: number, markRead: boolean): PeerMessage[] {
@@ -34,7 +48,9 @@ function readMessages(target: string, from: string | undefined, limit: number, m
   const slice = matched.slice(-limit)
   if (markRead && slice.length > 0) {
     const sliceSet = new Set(slice)
-    inbox.current.set(target, list.map((m) => (sliceSet.has(m) ? { ...m, read: true } : m)))
+    setInbox(target, list.map((m) => (sliceSet.has(m) ? { ...m, read: true } : m)))
+  } else {
+    setInbox(target, list)
   }
   return slice
 }

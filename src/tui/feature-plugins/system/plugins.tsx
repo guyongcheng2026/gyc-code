@@ -10,7 +10,7 @@ const id = "internal:plugin-manager"
 
 function state(api: TuiPluginApi, item: TuiPluginStatus) {
   if (!item.enabled) {
-    return <span style={{ fg: api.theme.current.textMuted }}>已禁用</span>
+    return <span style={{ fg: api.theme.current.textMuted }}>Disabled</span>
   }
 
   return (

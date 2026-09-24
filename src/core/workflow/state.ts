@@ -94,11 +94,20 @@ export const transitionAfterStep = (
   }
   if (policy !== "stop") {
     const targetIndex = def.steps.findIndex((s) => s.id === policy)
-    if (targetIndex >= 0) {
+    // 只允许跳到当前步骤之后的步骤：跳回自身或更早的步骤时，该步 retries 已达上限、
+    // 状态恒为 failed，回跳后会再次失败再回跳，每圈都真实调用一次模型且无护栏 → 无限循环
+    if (targetIndex > index) {
       const jumped = failedSteps.map((s, i) =>
         i > index && i < targetIndex ? new WorkflowRunStepSchema({ ...s, status: "skipped", timeEnded: now }) : s,
       ) as WorkflowRunStep[]
       return { kind: "jump", steps: jumped, currentStepIndex: targetIndex }
+    }
+    if (targetIndex >= 0) {
+      return {
+        kind: "fail",
+        steps: failedSteps,
+        error: `步骤 ${stepDef.id} 的 onFailure 指向 "${policy}"，它不是当前步骤之后的步骤，已终止以避免无限循环`,
+      }
     }
   }
   return { kind: "fail", steps: failedSteps, error: outcome.error ?? "步骤失败" }

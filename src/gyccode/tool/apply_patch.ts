@@ -20,6 +20,9 @@ export const Parameters = Schema.Struct({
   patchText: Schema.String.annotate({ description: "The full patch text that describes all changes to be made" }),
 })
 
+// 与 edit 工具一致的上限：update/delete 必须整读文件内容，超大文件整读会吃掉内存
+const MAX_PATCH_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+
 export const ApplyPatchTool = Tool.define(
   "apply_patch",
   Effect.gen(function* () {
@@ -122,6 +125,15 @@ export const ApplyPatchTool = Tool.define(
               )
             }
 
+            // 与 edit 工具一致的上限：update 必须整读旧内容才能算 diff
+            if (Number(stats.size) > MAX_PATCH_FILE_SIZE) {
+              return yield* Effect.fail(
+                new Error(
+                  `apply_patch verification failed: file too large to patch: ${filePath} (${Math.round(Number(stats.size) / 1024 / 1024)}MB)`,
+                ),
+              )
+            }
+
             const source = yield* Bom.readFile(afs, filePath)
             const oldContent = source.text
             let newContent = oldContent
@@ -175,6 +187,15 @@ export const ApplyPatchTool = Tool.define(
           }
 
           case "delete": {
+            // delete 也要整读内容生成 diff，同样设上限
+            const deleteInfo = yield* afs.stat(filePath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            if (deleteInfo && deleteInfo.type !== "Directory" && Number(deleteInfo.size) > MAX_PATCH_FILE_SIZE) {
+              return yield* Effect.fail(
+                new Error(
+                  `apply_patch verification failed: file too large to delete via patch: ${filePath} (${Math.round(Number(deleteInfo.size) / 1024 / 1024)}MB)`,
+                ),
+              )
+            }
             const source = yield* Bom.readFile(afs, filePath).pipe(
               Effect.catch((error) =>
                 Effect.fail(

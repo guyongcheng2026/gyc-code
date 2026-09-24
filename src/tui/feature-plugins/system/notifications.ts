@@ -18,7 +18,7 @@ function notify(api: TuiPluginApi, sessionID: string | undefined, message: strin
 }
 
 function sessionErrorMessage(error: SessionError) {
-  if (error?.name === "MessageAbortedError") return "会话已中断"
+  if (error?.name === "MessageAbortedError") return "Session interrupted"
   const data = error?.data
   if (data && typeof data === "object" && "message" in data && data.message === "SSE read timed out") {
     return "模型停止响应"

@@ -29,7 +29,11 @@ export const tuiHandlers = HttpApiBuilder.group(InstanceHttpApi, "tui", (handler
     const events = yield* EventV2Bridge.Service
     const session = yield* Session.Service
     const publishCommand = (command: typeof TuiEvent.CommandExecute.data.Type.command | undefined) =>
-      events.publish(TuiEvent.CommandExecute, { command } as typeof TuiEvent.CommandExecute.data.Type)
+      // 未知别名会得到 undefined，而 schema 的 command 是必填：
+      // 直接发布会让客户端按 event-manifest 解码失败，或把 undefined 传给命令分发器
+      command === undefined
+        ? Effect.logWarning("unknown tui command alias; no command event published")
+        : events.publish(TuiEvent.CommandExecute, { command })
 
     const appendPrompt = Effect.fn("TuiHttpApi.appendPrompt")(function* (ctx: {
       payload: typeof TuiEvent.PromptAppend.data.Type

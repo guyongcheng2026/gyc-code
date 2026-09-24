@@ -818,7 +818,8 @@ async function findVscodeRazorExtension() {
 
   for (const root of [...new Set(roots)]) {
     const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => [])
-    const candidates = await Promise.all(
+    // Use Promise.allSettled to avoid failing fast on any individual stat error
+    const settled = await Promise.allSettled(
       entries
         .filter((entry) => entry.isDirectory() && entry.name.startsWith("ms-dotnettools.csharp-"))
         .map(async (entry) => ({
@@ -826,6 +827,9 @@ async function findVscodeRazorExtension() {
           modified: (await fs.stat(path.join(root, entry.name)).catch(() => undefined))?.mtimeMs ?? 0,
         })),
     )
+    const candidates = settled
+      .filter((r): r is PromiseFulfilledResult<{ path: string; modified: number }> => r.status === "fulfilled")
+      .map((r) => r.value)
     for (const entry of candidates.sort((a, b) => b.modified - a.modified).map((candidate) => candidate.path)) {
       const result = {
         compiler: path.join(entry, "Microsoft.CodeAnalysis.Razor.Compiler.dll"),

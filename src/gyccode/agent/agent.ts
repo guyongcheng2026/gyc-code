@@ -51,7 +51,9 @@ export const Info = Schema.Struct({
   variant: Schema.optional(Schema.String),
   prompt: Schema.optional(Schema.String),
   options: Schema.Record(Schema.String, Schema.Unknown),
-  steps: Schema.optional(Schema.Finite),
+  // 与 src/schema/agent.ts 的 PositiveInt 对齐：Schema.Finite 允许 0/负数，
+  // 而 steps=0 会让 prompt 循环首轮就判定 isLastStep、直接进入收尾提示
+  steps: Schema.optional(Schema.Int.check(Schema.isGreaterThan(0))),
 }).annotate({ identifier: "Agent" })
 export type Info = DeepMutable<Schema.Schema.Type<typeof Info>>
 

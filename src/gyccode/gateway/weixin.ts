@@ -3,7 +3,7 @@
 // - base: https://ilinkai.weixin.qq.com，Bearer token 认证
 // - 发送必须携带 context_token（用户向 bot 发消息后由服务端下发），过期报 ret=-2 "prepare failed"
 // - 收信走 getupdates 长轮询，游标 get_updates_buf 断点续传；消息顶层 context_token 即新凭证
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { readFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -133,12 +133,20 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 async function readJson<T>(file: string): Promise<T | undefined> {
   const raw = await readFile(join(WEIXIN_DATA_DIR, file), "utf-8").catch(() => undefined)
   if (!raw) return undefined
-  return JSON.parse(raw) as T
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    // 半写/损坏的状态文件（进程被杀、断电）不应炸掉 poll 协程
+    return undefined
+  }
 }
 
 async function writeJson(file: string, data: unknown): Promise<void> {
   await mkdir(WEIXIN_DATA_DIR, { recursive: true })
-  await writeFile(join(WEIXIN_DATA_DIR, file), JSON.stringify(data, null, 2), "utf-8")
+  const target = join(WEIXIN_DATA_DIR, file)
+  const tmp = `${target}.tmp`
+  await writeFile(tmp, JSON.stringify(data, null, 2), "utf-8")
+  await rename(tmp, target)
 }
 
 function randomUin(): string {
@@ -171,7 +179,13 @@ async function apiPost(config: WeixinConfig, endpoint: string, payload: unknown,
   })
   const raw = await response.text()
   if (!response.ok) throw new GatewayError("network", `${endpoint} HTTP ${response.status}: ${raw.slice(0, 200)}`)
-  return JSON.parse(raw) as IlinkBaseResponse
+  try {
+    return JSON.parse(raw) as IlinkBaseResponse
+  } catch {
+    // 200 但非 JSON（网关降级/代理错误页）：必须转成 GatewayError，
+    // 否则调用方的 `instanceof GatewayError` 判定会把解析异常当作成功响应
+    throw new GatewayError("network", `${endpoint} 返回非 JSON 响应: ${raw.slice(0, 200)}`)
+  }
 }
 
 /** 按 hermes 实证语义切分超长文本（微信单条上限 2000 字符）。 */

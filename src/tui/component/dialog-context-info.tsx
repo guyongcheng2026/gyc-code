@@ -137,7 +137,7 @@ export function DialogContextInfo() {
     <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Context — 上下文详情
+          Context Details
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
           esc
@@ -148,7 +148,7 @@ export function DialogContextInfo() {
         {(w) => (
           <text fg={contextColor()}>
             {tokens().toLocaleString()} / {Token.format(w().effective)} tokens（{percent()}%）
-            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : undefined}
+            {w().source === "config" ? ` (config limit ${Token.format(w().hard)})` : undefined}
           </text>
         )}
       </Show>
@@ -160,7 +160,7 @@ export function DialogContextInfo() {
       <text fg={theme.textMuted}>
         cache read {totals().cacheRead.toLocaleString()} · cache write {totals().cacheWrite.toLocaleString()}
       </text>
-      <text fg={theme.textMuted}>费用 {money.format(cost())}</text>
+      <text fg={theme.textMuted}>Cost {money.format(cost())}</text>
 
       <box>
         <text fg={theme.text}>
@@ -186,7 +186,7 @@ export function DialogContextInfo() {
           paddingBottom={1}
           onMouseDown={compact}
         >
-          <text fg={theme.text}>压缩上下文（/compact）</text>
+          <text fg={theme.text}>Compact Context (/compact)</text>
         </box>
       </box>
     </box>

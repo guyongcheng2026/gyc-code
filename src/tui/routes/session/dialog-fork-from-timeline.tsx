@@ -26,8 +26,14 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
       value: undefined,
       onSelect: async (dialog: DialogContext) => {
         const forked = await sdk.client.session.fork({ sessionID: props.sessionID })
+        // fork 失败时 forked.data 为 undefined：用非空断言会直接抛 TypeError，
+        // 导航到一个不存在的会话。失败就保持原样并清掉对话框。
+        if (!forked.data) {
+          dialog.clear()
+          return
+        }
         route.navigate({
-          sessionID: forked.data!.id,
+          sessionID: forked.data.id,
           type: "session",
         })
         dialog.clear()
@@ -60,8 +66,12 @@ export function DialogForkFromTimeline(props: { sessionID: string; onMove: (mess
             },
             { input: "", parts: [] as PromptInfo["parts"] },
           )
+          if (!forked.data) {
+            dialog.clear()
+            return
+          }
           route.navigate({
-            sessionID: forked.data!.id,
+            sessionID: forked.data.id,
             type: "session",
             prompt,
           })

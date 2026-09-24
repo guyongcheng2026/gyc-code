@@ -20,7 +20,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
   return (
     <box>
       <text fg={theme().text}>
-        <b>工作目录</b>
+        <b>Working Directory</b>
       </text>
       <text fg={theme().textMuted}>{display()}</text>
     </box>

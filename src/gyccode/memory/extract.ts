@@ -17,7 +17,10 @@ export const DEFAULT_EXTRACTION_CONFIG: ExtractionConfig = {
 }
 
 export function shouldExtract(turnCount: number, config: ExtractionConfig = DEFAULT_EXTRACTION_CONFIG): boolean {
-  return turnCount >= config.minTurns && turnCount % config.minTurns === 0
+  // minTurns 允许为 0（Schema.optional(NonNegativeInt)），但 `n % 0` 是 NaN，
+  // `NaN === 0` 恒 false 会让抽取永久失效；0 的语义是"每轮都抽"，故下限取 1
+  const period = config.minTurns > 0 ? config.minTurns : 1
+  return turnCount >= period && turnCount % period === 0
 }
 
 export function deduplicateMemories(

@@ -47,7 +47,7 @@ function View(props: { api: TuiPluginApi; session_id: string }) {
             <text fg={theme().text}>{open() ? "\u25BC" : "\u25B6"}</text>
           </Show>
           <text fg={theme().text}>
-            <b>待办</b>
+            <b>Todo</b>
           </text>
         </box>
         <Show when={!collapsible() || open()}>

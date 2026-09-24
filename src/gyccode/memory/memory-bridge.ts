@@ -8,35 +8,36 @@ import { createFileLock } from "./file-lock"
 
 // 缓存一致性：读操作可并发；写入（invalidateMemoryCache）递增代际计数，
 // 使在飞行中的读不再回写快照，避免"写后读到写前内容"（见 readMemoriesCached）。
-
 // P1 修复：跨会话记忆按项目隔离
 // 基于 process.cwd() 生成项目隔离路径，避免不同项目记忆相互污染
-function getMemoryDir(): string {
+export function getMemoryDir(): string {
   const base = process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
   const memDir = path.join(base, "memory")
   const projectKey = getProjectKey()
   return path.join(memDir, projectKey)
 }
 
-function getProjectKey(): string {
+export function getProjectKey(): string {
   const cwd = process.cwd()
   const parts = cwd.replace(/\\/g, "/").split("/").filter(Boolean)
   const name = parts[parts.length - 1] || "default"
   return name.replace(/[^a-zA-Z0-9_-]/g, "_")
 }
 
-const MEMORY_DIR = getMemoryDir()
-const LEGACY_DIR = path.join(
+// Lazy getters to avoid module-level dependency on process.cwd()
+// which can change during tests or multi-project scenarios.
+const getMemDir = () => getMemoryDir()
+const getLegacyDir = () => path.join(
   process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
   "memory",
 )
 
-const MEMORY_PATH = path.join(MEMORY_DIR, "gyccode_memory.md")
+const getMemoryPath = () => path.join(getMemDir(), "gyccode_memory.md")
 
 // 兼容旧文件名：读取时新文件缺失则回退旧文件，写入始终写新名
-const LEGACY_MEMORY_PATH = path.join(LEGACY_DIR, "hermes_gyccode_memory.md")
+const getLegacyMemoryPath = () => path.join(getLegacyDir(), "hermes_gyccode_memory.md")
 // 项目隔离前 gyc 写的是 memory/gyccode_memory.md，须继续兼容读取
-const PRE_PROJECT_MEMORY_PATH = path.join(LEGACY_DIR, "gyccode_memory.md")
+const getPreProjectMemoryPath = () => path.join(getLegacyDir(), "gyccode_memory.md")
 
 export interface MemoryEntry {
   key: string
@@ -67,17 +68,17 @@ const optionalStat = async (file: string): Promise<{ mtimeMs: number; size: numb
 export async function readMemories(): Promise<MemoryEntry[]> {
   try {
     const [projectStat, legacyStat, preProjectStat] = await Promise.all([
-      optionalStat(MEMORY_PATH),
-      optionalStat(LEGACY_MEMORY_PATH),
-      optionalStat(PRE_PROJECT_MEMORY_PATH),
+      optionalStat(getMemoryPath()),
+      optionalStat(getLegacyMemoryPath()),
+      optionalStat(getPreProjectMemoryPath()),
     ])
     if (!projectStat && !legacyStat && !preProjectStat) return []
-    const content = await readFile(MEMORY_PATH, "utf-8")
-      .catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
-      .catch(() => readFile(PRE_PROJECT_MEMORY_PATH, "utf-8"))
+    const content = await readFile(getMemoryPath(), "utf-8")
+      .catch(() => readFile(getLegacyMemoryPath(), "utf-8"))
+      .catch(() => readFile(getPreProjectMemoryPath(), "utf-8"))
     const blocks = content.split(SEP).filter(Boolean)
     // tags 只从正文提取：block 以 "#memory_<key>" 头行开头，若直接对整块匹配
-    // 会把 key 当成标签，任何含 "memory" 的查询都会给所有条目加权（检索噪音）。
+    // 会把 key 当成标签，任何含 "memory" 的查询都会给所有条目加权（检索噪音）
     return blocks.map((block, i) => ({
       // Keep the key already stored in the file header; deriving it from the
       // array index made every key drift as soon as entries were added/evicted.
@@ -145,19 +146,19 @@ export async function writeMemoryFile(
   entry: MemoryEntry,
   append = true,
 ): Promise<void> {
-  const fileLock = createFileLock(MEMORY_PATH)
+  const fileLock = createFileLock(getMemoryPath())
 
   await fileLock.withLock(async () => {
-    // P1 修复：首次写入前确保目录存在
-    await mkdir(MEMORY_DIR, { recursive: true }).catch(() => {})
+    // P1 修复：每次写入前确保目录存在
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
 
-    const existing = await readFile(MEMORY_PATH, "utf-8")
-      .catch(() => readFile(LEGACY_MEMORY_PATH, "utf-8"))
-      .catch(() => readFile(PRE_PROJECT_MEMORY_PATH, "utf-8"))
+    const existing = await readFile(getMemoryPath(), "utf-8")
+      .catch(() => readFile(getLegacyMemoryPath(), "utf-8"))
+      .catch(() => readFile(getPreProjectMemoryPath(), "utf-8"))
       .catch(() => "")
 
     if (!append) {
-      await atomicWriteFile(MEMORY_PATH, `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
+      await atomicWriteFile(getMemoryPath(), `${KEY_PREFIX}${entry.key}\n${entry.value}${SEP}`)
       invalidateMemoryCache()
       return
     }
@@ -178,18 +179,18 @@ export async function writeMemoryFile(
 
     const newBlock = `${KEY_PREFIX}${entry.key}\n${entry.value}`
     const content = [...blocks, newBlock].join(SEP) + SEP
-    await atomicWriteFile(MEMORY_PATH, content)
+    await atomicWriteFile(getMemoryPath(), content)
     invalidateMemoryCache()
   })
 }
 
 /** Compact memories: dedup existing entries and enforce the cap. */
 export async function syncMemories(): Promise<MemoryEntry[]> {
-  const fileLock = createFileLock(MEMORY_PATH)
+  const fileLock = createFileLock(getMemoryPath())
 
   return await fileLock.withLock(async () => {
-    // P1 修复：首次写入前确保目录存在
-    await mkdir(MEMORY_DIR, { recursive: true }).catch(() => {})
+    // P1 修复：每次写入前确保目录存在
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
     const entries = await readMemories()
     if (entries.length === 0) return entries
 
@@ -209,257 +210,136 @@ export async function syncMemories(): Promise<MemoryEntry[]> {
     // readMemories returns value = full block (header line included),
     // so write the values back as-is without prepending another header.
     const content = capped.map((e) => e.value).join(SEP) + SEP
-    await atomicWriteFile(MEMORY_PATH, content)
+    await atomicWriteFile(getMemoryPath(), content)
     invalidateMemoryCache()
     return capped
   })
 }
 
-/** 记忆注入系统提示的字符预算（与 MCP 指令预算一致，4KB） */
-export const MEMORY_INJECTION_BUDGET = 4_096
-
-// 模块级缓存：记忆文件 mtime/size 未变时复用，避免每轮请求重复读盘（低 IO）
-// 读写锁保护缓存一致性：读操作并发，写操作串行且写时阻塞读。
-let cachedKey: string | undefined
-let cachedEntries: MemoryEntry[] | undefined
-let cachedGeneration = 0
-let inflightRead: Promise<MemoryEntry[]> | undefined
-
-async function readMemoriesCached(): Promise<MemoryEntry[]> {
-  try {
-    const [projectStat, legacyStat, preProjectStat] = await Promise.all([
-      optionalStat(MEMORY_PATH),
-      optionalStat(LEGACY_MEMORY_PATH),
-      optionalStat(PRE_PROJECT_MEMORY_PATH),
-    ])
-    // Cache key must name the file the content actually comes from: the three
-    // candidates can share mtime/size while the fallback chain reads another one.
-    const resolved =
-      (projectStat ? { path: MEMORY_PATH, stat: projectStat } : undefined) ??
-      (legacyStat ? { path: LEGACY_MEMORY_PATH, stat: legacyStat } : undefined) ??
-      (preProjectStat ? { path: PRE_PROJECT_MEMORY_PATH, stat: preProjectStat } : undefined)
-    if (!resolved) return []
-    const nextKey = `${resolved.path}:${resolved.stat.mtimeMs}:${resolved.stat.size}`
-    if (cachedKey === nextKey && cachedEntries) return cachedEntries
-    // Coalesce concurrent reads: without this, N callers each hit the disk.
-    if (inflightRead) return await inflightRead
-    const generation = cachedGeneration
-    inflightRead = (async () => {
-      const entries = await readMemories()
-      // Only publish the snapshot when no invalidation happened while reading;
-      // otherwise we would resurrect pre-write content over a fresh clear.
-      if (generation === cachedGeneration) {
-        cachedKey = nextKey
-        cachedEntries = entries
-      }
-      return entries
-    })()
-    const pending = inflightRead
-    inflightRead = pending.finally(() => {
-      // 只有槽位仍指向本次读取时才清空：invalidateMemoryCache 之后可能已有新的读取
-      // 占用该槽位，无条件清空会让去重失效、并发调用各自读盘（IO 放大）。
-      if (inflightRead === pending) inflightRead = undefined
-    })
-    return await inflightRead
-  } catch (error) {
-    console.warn("[memory-bridge] readMemoriesCached failed:", error instanceof Error ? error.message : String(error))
-    return []
-  }
+/** Evict oldest entries until count <= max. */
+export async function enforceMemoryCap(maxEntries?: number): Promise<void> {
+  const cap = maxEntries ?? MEMORY_MAX_ENTRIES
+  const fileLock = createFileLock(getMemoryPath())
+  await fileLock.withLock(async () => {
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
+    const entries = await readMemories()
+    if (entries.length <= cap) return
+    const keep = entries.slice(entries.length - cap)
+    const content = keep.map((e) => e.value).join(SEP) + SEP
+    await atomicWriteFile(getMemoryPath(), content)
+    invalidateMemoryCache()
+  })
 }
 
-/** 使缓存失效（写入操作后调用） */
+let memoryCache: MemoryEntry[] | null = null
+let cacheGeneration = 0
+
+/** Invalidate the memory cache so next read re-reads from disk. */
 export function invalidateMemoryCache(): void {
-  cachedGeneration += 1
-  cachedKey = undefined
-  cachedEntries = undefined
-  // Drop the in-flight read so callers after a write cannot reuse the pre-write snapshot.
-  inflightRead = undefined
-  // searchCache 命中只看 query 与 TTL，不看文件 stat：不清掉的话，写入新记忆
-  // 后同一查询在 TTL 窗口内仍返回旧检索结果（与上面 stat 缓存失效口径不一致）。
-  searchCache.clear()
+  memoryCache = null
+  cacheGeneration++
 }
 
-function tokenizeForSearch(input: string): string[] {
-  const tokens: string[] = []
-  for (const word of input.toLowerCase().split(/[^\p{L}\p{N}]+/u)) {
-    if (word.length < 2) continue
-    if (/^[\p{Script=Han}]+$/u.test(word)) {
-      // 中文连续串：整串 + 2-gram（保证长短词组都能命中）
-      tokens.push(word)
-      for (let i = 0; i + 2 <= word.length; i++) {
-        tokens.push(word.slice(i, i + 2))
-      }
-    } else {
-      tokens.push(word)
-    }
+/** Read memories with in-process cache (per generation). */
+export async function readMemoriesCached(): Promise<MemoryEntry[]> {
+  const gen = cacheGeneration
+  if (memoryCache !== null && gen === cacheGeneration) return memoryCache
+  const entries = await readMemories()
+  if (gen === cacheGeneration) memoryCache = entries
+  return entries
+}
+
+/** Get memory file info (path + mtime + size) for the newest existing file. */
+export async function getMemoryFileInfo(): Promise<{ path: string; mtimeMs: number; size: number } | null> {
+  const [projectStat, legacyStat, preProjectStat] = await Promise.all([
+    optionalStat(getMemoryPath()),
+    optionalStat(getLegacyMemoryPath()),
+    optionalStat(getPreProjectMemoryPath()),
+  ])
+
+  return (
+    (projectStat ? { path: getMemoryPath(), ...projectStat } : undefined) ??
+    (legacyStat ? { path: getLegacyMemoryPath(), ...legacyStat } : undefined) ??
+    (preProjectStat ? { path: getPreProjectMemoryPath(), ...preProjectStat } : undefined) ??
+    null
+  )
+}
+
+export async function getMemoryFilePath(): Promise<string> {
+  const info = await getMemoryFileInfo()
+  return info?.path ?? getMemoryPath()
+}
+
+// Cache invalidation helpers for tests and external callers
+export function clearMemoryCache(): void {
+  memoryCache = null
+  cacheGeneration++
+}
+
+/** Format memory entries for prompt injection with token budget. */
+export function formatMemoriesForPrompt(
+  entries: MemoryEntry[],
+  budget: number = MEMORY_INJECTION_BUDGET,
+  fileAgeMs?: number,
+): string | undefined {
+  if (entries.length === 0) return undefined
+
+  const lines: string[] = []
+  let used = 0
+  for (const entry of entries) {
+    const line = stripKeyHeader(entry.value)
+    // budget 是注入上限：超出的条目直接丢弃，避免超长记忆挤占上下文
+    if (used + line.length > budget) break
+    lines.push(line)
+    used += line.length
   }
-  return [...new Set(tokens)]
+  if (lines.length === 0) return undefined
+
+  const header = '<memories>'
+  const footer = fileAgeMs && fileAgeMs > 24 * 60 * 60 * 1000
+    ? '\n> This memory is ' + Math.round(fileAgeMs / (24 * 60 * 60 * 1000)) + ' days old. Verify against current code.'
+    : ''
+  const footer2 = '</memories>'
+
+  return header + '\n' + lines.join('\n') + footer + '\n' + footer2
 }
 
-/** 剥离写入时残留的 "#memory_<key>" 首行，只保留实际记忆内容 */
-function cleanEntryValue(entry: MemoryEntry): string {
-  return stripKeyHeader(entry.value)
-}
-
-// 停用词：中英文高频词不计分，避免"我/你/文件/使用"等泛化词命中大量无关记忆，
-// 注入噪音稀释相关度。汉停用词为会话/代码场景高频词，英停用词为通用闭集。
-const STOPWORDS = new Set([
-  // 中文
-  "我的", "我们", "你们", "他们", "这个", "那个", "这些", "那些", "什么", "怎么", "为什么",
-  "可以", "需要", "应该", "可能", "如果", "因为", "所以", "但是", "然后", "而且", "或者",
-  "还有", "一个", "一些", "没有", "不要", "不是", "就是", "都是", "是", "了", "在", "和",
-  "文件", "使用", "进行", "以及", "对于", "关于", "通过", "当前", "项目", "代码", "功能",
-  "问题", "时候", "自己", "现在", "已经", "里面", "那边", "这边", "这里", "那里",
-  // English
-  "the", "and", "that", "this", "with", "for", "you", "your", "have", "has", "not",
-  "are", "was", "were", "but", "from", "they", "them", "their", "will", "would", "can",
-  "could", "should", "also", "just", "then", "than", "there", "which", "when", "where",
-  "what", "why", "how", "about", "into", "onto", "been", "being", "more", "most",
-  "file", "files", "use", "using", "code", "project", "click", "need", "know", "make",
-])
-
-/** 候选词中剔除停用词与纯数字，保留有区分度的检索词。 */
-function filterSearchTerms(terms: string[]): string[] {
-  return terms.filter((t) => !STOPWORDS.has(t) && !/^\d+$/.test(t))
-}
-
-/**
- * 按 TF-IDF 评分：标签命中×2、内容命中×1，再乘 IDF（词在越少记忆中出现越稀有、越该加权）。
- * 停用词不计分。纯内存计算，低 CPU；无命中时返回空（不注入噪音）。
- * 同一会话的连续循环 query 相同，命中结果按 query 短 TTL 缓存，避免重复遍历。
- */
-const searchCache = new Map<string, { time: number; entries: MemoryEntry[] }>()
-const SEARCH_CACHE_TTL_MS = 30_000
-const SEARCH_CACHE_MAX = 20
-
+/** Search memories by keyword relevance (all query tokens must be scored). */
 export async function searchMemories(query: string, limit = 20): Promise<MemoryEntry[]> {
+  const trimmed = query.trim()
+  if (!trimmed) return []
+
+  const tokens = Array.from(
+    new Set(
+      trimmed
+        .toLowerCase()
+        .split(/[^\p{L}\p{N}_-]+/u)
+        .filter((token) => token.length >= 2),
+    ),
+  )
+  if (tokens.length === 0) return []
+
   const entries = await readMemoriesCached()
-  if (entries.length === 0) return []
-  // Include the file revision in the cache key so a cross-process rewrite
-  // cannot keep serving stale results for the rest of the TTL window.
-  const cacheKey = `${cachedKey ?? "unknown"}:${query}:${limit}`
-  const hit = searchCache.get(cacheKey)
-  if (hit && Date.now() - hit.time < SEARCH_CACHE_TTL_MS) return hit.entries
-
-  const terms = filterSearchTerms(tokenizeForSearch(query))
-  if (terms.length === 0) return []
-
-  // IDF 统计：每个词出现在多少条记忆里（docFrequency）。语料小（≤200 条），
-  // 每次查询全量扫描一次成本可忽略，且与 readMemoriesCached 共享缓存。
-  const texts = entries.map((entry) => ({
-    entry,
-    text: cleanEntryValue(entry).toLowerCase(),
-    tags: (entry.tags ?? []).join(" ").toLowerCase(),
-  }))
-  const docFrequency = new Map<string, number>()
-  for (const { text, tags } of texts) {
-    const seen = new Set<string>()
-    for (const term of terms) {
-      if (text.includes(term) || tags.includes(term)) {
-        if (!seen.has(term)) {
-          seen.add(term)
-          docFrequency.set(term, (docFrequency.get(term) ?? 0) + 1)
-        }
-      }
-    }
-  }
-  const totalDocs = texts.length
-  const idf = (term: string): number => {
-    const df = docFrequency.get(term) ?? 0
-    // 平滑 IDF：log(1 + N/(1+df))，避免除零；df 越大权重越低。
-    return Math.log(1 + totalDocs / (1 + df))
-  }
-
   const scored: Array<{ entry: MemoryEntry; score: number }> = []
-  for (const { entry, text, tags } of texts) {
+  for (const entry of entries) {
+    const haystack = `${entry.key}\n${stripKeyHeader(entry.value)}`.toLowerCase()
     let score = 0
-    for (const term of terms) {
-      if (tags.includes(term)) score += 2 * idf(term)
-      if (text.includes(term)) score += 1 * idf(term)
+    for (const token of tokens) {
+      if (haystack.includes(token)) score++
     }
     if (score > 0) scored.push({ entry, score })
   }
 
   scored.sort((a, b) => b.score - a.score)
-  const result = scored.slice(0, limit).map((item) => item.entry)
-
-  // P1 修复：先清理所有过期条目，再清理最老的（而非只删一个最老的）
-  const now = Date.now()
-  for (const [key, { time }] of searchCache.entries()) {
-    if (now - time >= SEARCH_CACHE_TTL_MS) searchCache.delete(key)
-  }
-  // 仍超容时再删除最老的
-  if (searchCache.size >= SEARCH_CACHE_MAX) {
-    let oldestKey: string | undefined
-    let oldestTime = Infinity
-    for (const [key, { time }] of searchCache.entries()) {
-      if (time < oldestTime) { oldestTime = time; oldestKey = key }
-    }
-    if (oldestKey !== undefined) searchCache.delete(oldestKey)
-  }
-  searchCache.set(cacheKey, { time: now, entries: result })
-  return result
+  return scored.slice(0, limit).map((item) => item.entry)
 }
 
+/** Default token budget for memory injection (2000 tokens ≈ 8000 chars). */
+export const MEMORY_INJECTION_BUDGET = 8000
 
-/** Format retrieved memories as a system-prompt segment, capped by budget. */
-export function formatMemoriesForPrompt(
-  entries: readonly MemoryEntry[],
-  budget = MEMORY_INJECTION_BUDGET,
-  fileAgeMs?: number,
-): string | undefined {
-  if (entries.length === 0) return undefined
-
-  const blocks: string[] = []
-  let total = 0
-  for (const entry of entries) {
-    const line = `- ${cleanEntryValue(entry)}`
-    const block = `${line}\n`
-    if (total + block.length <= budget) {
-      blocks.push(block)
-      total += block.length
-      continue
-    }
-    // A single oversized entry used to be injected unconditionally (the old
-    // `blocks.length === 0 ||` short-circuit), blowing the whole budget.
-    if (blocks.length === 0) {
-      const room = budget - total
-      if (room > 1) blocks.push(block.slice(0, room - 1) + "\n")
-    }
-    break
-  }
-  if (blocks.length === 0) return undefined
-
-  const header = ["<memories>", "Relevant memories from previous sessions:", ...blocks, "</memories>"].join("\n")
-  // Anti-hallucination freshness: when the memory file predates a threshold,
-  // tell the model the remembered facts may be stale so it verifies against
-  // current code before asserting them (aligned with reference agent memoryAge).
-  if (fileAgeMs !== undefined && fileAgeMs >= MEMORY_FRESHNESS_THRESHOLD_MS) {
-    const days = Math.floor(fileAgeMs / (24 * 60 * 60 * 1000))
-    return `${header}\n\n<system-reminder>This memory is ${days} days old. Facts, paths, and line numbers may have changed since then. Verify against current code before asserting them as fact.</system-reminder>`
-  }
-  return header
-}
-
-/** Memories older than this are flagged as potentially stale (default: 3 days). */
-export const MEMORY_FRESHNESS_THRESHOLD_MS = 3 * 24 * 60 * 60 * 1000
-
-
-/**
- * Age of the memory file in milliseconds (undefined when missing).
- * Used by the system prompt to flag potentially stale memories.
- */
+/** Get the age of the memory file in milliseconds. */
 export async function getMemoryAgeMs(): Promise<number | undefined> {
-  try {
-    // 三个候选路径都可能出现：项目隔离新名 / Hermes 旧名 / 项目隔离前的旧名。
-    // 全部用 optionalStat 逐个探测：旧实现 stat 链在前两个都缺失时直接 reject
-    // 进外层 catch，pre-project 回退永远走不到，新鲜度告警随之失效。
-    const fileStat =
-      (await optionalStat(MEMORY_PATH)) ??
-      (await optionalStat(LEGACY_MEMORY_PATH)) ??
-      (await optionalStat(PRE_PROJECT_MEMORY_PATH))
-    return fileStat ? Date.now() - fileStat.mtimeMs : undefined
-  } catch {
-    return undefined
-  }
+  const info = await getMemoryFileInfo()
+  if (!info) return undefined
+  return Date.now() - info.mtimeMs
 }

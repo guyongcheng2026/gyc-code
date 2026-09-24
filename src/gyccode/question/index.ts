@@ -1,5 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
-import { Deferred, Effect, Layer, Schema, Context } from "effect"
+import { Deferred, Duration, Effect, Layer, Schema, Context } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { SessionID } from "@/session/schema"
 import { QuestionID } from "./schema"
@@ -34,9 +34,18 @@ export class NotFoundError extends Schema.TaggedErrorClass<NotFoundError>()("Que
   requestID: QuestionID,
 }) {}
 
+export class TimeoutError extends Schema.TaggedErrorClass<TimeoutError>()("Question.TimeoutError", {
+  requestID: QuestionID,
+  timeoutMs: Schema.Number,
+}) {
+  override get message() {
+    return `Question timed out after ${this.timeoutMs}ms`
+  }
+}
+
 interface PendingEntry {
   info: Request
-  deferred: Deferred.Deferred<ReadonlyArray<Answer>, RejectedError>
+  deferred: Deferred.Deferred<ReadonlyArray<Answer>, RejectedError | TimeoutError>
 }
 
 interface State {
@@ -50,7 +59,9 @@ export interface Interface {
     sessionID: SessionID
     questions: ReadonlyArray<Info>
     tool?: Tool
-  }) => Effect.Effect<ReadonlyArray<Answer>, RejectedError>
+    /** Optional timeout in milliseconds. If omitted, waits indefinitely. */
+    timeoutMs?: number
+  }) => Effect.Effect<ReadonlyArray<Answer>, RejectedError | TimeoutError>
   readonly reply: (input: {
     requestID: QuestionID
     answers: ReadonlyArray<Answer>
@@ -88,12 +99,13 @@ const layer = Layer.effect(
       sessionID: SessionID
       questions: ReadonlyArray<Info>
       tool?: Tool
+      timeoutMs?: number
     }) {
       const pending = (yield* InstanceState.get(state)).pending
       const id = QuestionID.ascending()
       yield* Effect.logInfo("asking", { id, questions: input.questions.length })
 
-      const deferred = yield* Deferred.make<ReadonlyArray<Answer>, RejectedError>()
+      const deferred = yield* Deferred.make<ReadonlyArray<Answer>, RejectedError | TimeoutError>()
       const info: Request = {
         id,
         sessionID: input.sessionID,
@@ -103,8 +115,18 @@ const layer = Layer.effect(
       pending.set(id, { info, deferred })
       yield* events.publish(Event.Asked, info)
 
+      const timeoutMs = input.timeoutMs
+      const awaitWithTimeout = timeoutMs !== undefined
+        ? Deferred.await(deferred).pipe(
+            Effect.timeout(Duration.millis(timeoutMs)),
+            // Effect.timeout 抛出的是内置 Cause.TimeoutError；换算为领域错误，
+            // 否则调用方拿不到 requestID/timeoutMs，错误通道也与接口声明不符
+            Effect.catchTag("TimeoutError", () => Effect.fail(new TimeoutError({ requestID: id, timeoutMs }))),
+          )
+        : Deferred.await(deferred)
+
       return yield* Effect.ensuring(
-        Deferred.await(deferred),
+        awaitWithTimeout,
         Effect.sync(() => {
           pending.delete(id)
         }),

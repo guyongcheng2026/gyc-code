@@ -93,6 +93,21 @@ function normalizeLanguage(lang: string | undefined): string | undefined {
  * `/*.ts` hits both `src/app.ts` and `src/a/b/c.ts`.
  */
 export function globToRegExp(glob: string): RegExp {
+  const cached = globCache.get(glob)
+  if (cached) return cached
+  const compiled = compileGlobToRegExp(glob)
+  // 上限保护：glob 只来自规则文件，数量有限，超限时整体重建
+  if (globCache.size >= GLOB_CACHE_MAX) globCache.clear()
+  globCache.set(glob, compiled)
+  return compiled
+}
+
+// matchRules 对每个文件 × 每条规则 × 每个 glob 都会调用一次，
+// 每次重新编译正则是纯浪费，这里按 glob 字符串记忆化
+const globCache = new Map<string, RegExp>()
+const GLOB_CACHE_MAX = 500
+
+function compileGlobToRegExp(glob: string): RegExp {
   let out = ""
   let i = 0
   while (i < glob.length) {

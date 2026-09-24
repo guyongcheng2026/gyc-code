@@ -5,6 +5,7 @@ import { Global } from "@gyccode/core/global"
 import { Effect, Layer, Context, Option, Schema } from "effect"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { EffectFlock } from "@gyccode/core/util/effect-flock"
+import { protectSecret, unprotectSecret } from "@gyccode/core/util/dpapi"
 
 export const Tokens = Schema.Struct({
   accessToken: Schema.mutableKey(Schema.String),
@@ -125,6 +126,55 @@ type AuthData = Record<string, Entry>
 const filepath = path.join(Global.Path.data, "mcp-auth.json")
 const lockKey = `mcp-auth:${filepath}`
 
+// OAuth 令牌/PKCE verifier/clientSecret 不应明文落盘（受同用户其他进程、备份与云同步读取）。
+// 复用凭据模块的加密通道：Windows 走 DPAPI，非 Windows 为恒等函数（见 core/util/dpapi）。
+const protectEntry = (entry: Entry): Entry => ({
+  ...entry,
+  ...(entry.tokens
+    ? {
+        tokens: {
+          ...entry.tokens,
+          accessToken: protectSecret(entry.tokens.accessToken),
+          ...(entry.tokens.refreshToken ? { refreshToken: protectSecret(entry.tokens.refreshToken) } : {}),
+        },
+      }
+    : {}),
+  ...(entry.clientInfo
+    ? {
+        clientInfo: {
+          ...entry.clientInfo,
+          ...(entry.clientInfo.clientSecret ? { clientSecret: protectSecret(entry.clientInfo.clientSecret) } : {}),
+        },
+      }
+    : {}),
+  ...(entry.codeVerifier ? { codeVerifier: protectSecret(entry.codeVerifier) } : {}),
+})
+
+const protectAll = (data: AuthData): AuthData =>
+  Object.fromEntries(Object.entries(data).map(([name, entry]) => [name, protectEntry(entry)]))
+
+const unprotectEntry = (entry: Entry): Entry => ({
+  ...entry,
+  ...(entry.tokens
+    ? {
+        tokens: {
+          ...entry.tokens,
+          accessToken: unprotectSecret(entry.tokens.accessToken),
+          ...(entry.tokens.refreshToken ? { refreshToken: unprotectSecret(entry.tokens.refreshToken) } : {}),
+        },
+      }
+    : {}),
+  ...(entry.clientInfo
+    ? {
+        clientInfo: {
+          ...entry.clientInfo,
+          ...(entry.clientInfo.clientSecret ? { clientSecret: unprotectSecret(entry.clientInfo.clientSecret) } : {}),
+        },
+      }
+    : {}),
+  ...(entry.codeVerifier ? { codeVerifier: unprotectSecret(entry.codeVerifier) } : {}),
+})
+
 export interface Interface {
   readonly all: () => Effect.Effect<Record<string, Entry>>
   readonly get: (mcpName: string) => Effect.Effect<Entry | undefined>
@@ -150,11 +200,21 @@ const layer = Layer.effect(
     const fs = yield* FSUtil.Service
     const flock = yield* EffectFlock.Service
 
-    const read = Effect.fn("McpAuth.read")(function* () {
-      return yield* fs.readJson(filepath).pipe(
-        Effect.map((data): AuthData => Option.getOrElse(decodeAuthData(data), () => ({}) as AuthData) as AuthData),
-        Effect.catch(() => Effect.succeed({} as AuthData)),
+    // trusted=false 表示文件存在但内容无法解析：此时只能读空，绝不能写回（会覆盖既有凭据）
+    const readState = Effect.fn("McpAuth.readState")(function* () {
+      const raw = yield* fs.readJson(filepath).pipe(Effect.option)
+      if (Option.isNone(raw)) return { data: {} as AuthData, trusted: true }
+      const decoded = decodeAuthData(raw.value)
+      if (Option.isNone(decoded)) return { data: {} as AuthData, trusted: false }
+      const data: AuthData = Object.fromEntries(
+        Object.entries(decoded.value).map(([name, entry]) => [name, unprotectEntry(entry)]),
       )
+      return { data, trusted: true }
+    })
+
+    const read = Effect.fn("McpAuth.read")(function* () {
+      const state = yield* readState()
+      return state.data
     })
 
     const all = Effect.fn("McpAuth.all")(function* () {
@@ -163,9 +223,15 @@ const layer = Layer.effect(
 
     const mutate = Effect.fn("McpAuth.mutate")(function* (update: (data: AuthData) => AuthData | undefined) {
       yield* Effect.gen(function* () {
-        const next = update(yield* read())
+        const state = yield* readState()
+        if (!state.trusted) {
+          // 内容无法解析时若继续写入，会把其他 server 的凭据整份覆盖掉
+          yield* Effect.logError("McpAuth: mcp-auth.json 无法解析，跳过写入以免覆盖既有凭据")
+          return
+        }
+        const next = update(state.data)
         if (!next) return
-        yield* fs.writeJson(filepath, next, 0o600).pipe(Effect.orDie)
+        yield* fs.writeJson(filepath, protectAll(next), 0o600).pipe(Effect.orDie)
       }).pipe(flock.withLock(lockKey), Effect.orDie)
     })
 

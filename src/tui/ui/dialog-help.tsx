@@ -27,7 +27,7 @@ export function DialogHelp() {
       </box>
       <box paddingBottom={1}>
         <text fg={theme.textMuted}>
-          按 {commandShortcut()} 可在任意上下文中查看所有可用的操作与命令。
+          Press {commandShortcut()} to view all available actions and commands in any context.
         </text>
       </box>
       <box flexDirection="row" justifyContent="flex-end" paddingBottom={1}>

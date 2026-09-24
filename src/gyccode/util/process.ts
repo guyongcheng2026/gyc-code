@@ -21,6 +21,8 @@ export interface Options {
 
 export interface RunOptions extends Omit<Options, "stdout" | "stderr"> {
   nothrow?: boolean
+  /** Maximum buffer size in bytes for stdout/stderr. Default 10MB. */
+  maxBuffer?: number
 }
 
 export interface Result {
@@ -111,6 +113,24 @@ export function spawn(cmd: string[], opts: Options = {}): Child {
   return child
 }
 
+// Helper to consume stream with max buffer limit
+async function limitedBuffer(stream: NodeJS.ReadableStream, maxBytes: number): Promise<Buffer> {
+  const chunks: Buffer[] = []
+  let total = 0
+  for await (const chunk of stream) {
+    const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+    total += buf.length
+    if (total > maxBytes) {
+      // Truncate and add indicator
+      const truncated = Buffer.concat(chunks, maxBytes)
+      const indicator = Buffer.from(`\n...[truncated ${total - maxBytes} bytes]...`)
+      return Buffer.concat([truncated, indicator])
+    }
+    chunks.push(buf)
+  }
+  return Buffer.concat(chunks)
+}
+
 export async function run(cmd: string[], opts: RunOptions = {}): Promise<Result> {
   const proc = spawn(cmd, {
     cwd: opts.cwd,
@@ -126,7 +146,13 @@ export async function run(cmd: string[], opts: RunOptions = {}): Promise<Result>
 
   if (!proc.stdout || !proc.stderr) throw new Error("Process output not available")
 
-  const out = await Promise.all([proc.exited, buffer(proc.stdout), buffer(proc.stderr)])
+  const maxBuffer = opts.maxBuffer ?? 10 * 1024 * 1024 // 10MB default
+
+  const out = await Promise.all([
+    proc.exited,
+    limitedBuffer(proc.stdout, maxBuffer),
+    limitedBuffer(proc.stderr, maxBuffer),
+  ])
     .then(([code, stdout, stderr]) => ({
       code,
       stdout,

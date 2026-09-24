@@ -198,6 +198,9 @@ export class Service extends Context.Service<Service, Interface>()("@gyccode/v2/
 const attemptLifetime = Duration.toMillis(Duration.minutes(10))
 const terminalRetention = Duration.toMillis(Duration.minutes(1))
 const scrubInterval = Duration.seconds(30)
+// Maximum number of OAuth attempts to keep in memory. Prevents unbounded growth
+// in long-running processes with many auth attempts.
+const MAX_ATTEMPTS = 500
 
 type AttemptTime = { created: number; expires: number }
 type PendingAttempt = {
@@ -446,8 +449,9 @@ export const locationLayer = Layer.effect(
           const id = AttemptID.create()
           const created = yield* Clock.currentTimeMillis
           const time = { created, expires: created + attemptLifetime }
-          yield* SynchronizedRef.update(attempts, (current) =>
-            new Map(current).set(id, {
+          let evictedScope: Scope.Closeable | undefined
+          yield* SynchronizedRef.update(attempts, (current) => {
+            const next = new Map(current).set(id, {
               status: "pending",
               completing: authorization.mode === "auto",
               authorization,
@@ -456,8 +460,30 @@ export const locationLayer = Layer.effect(
               label: input.label,
               scope: attemptScope,
               time,
-            }),
-          )
+            })
+            // LRU eviction: remove oldest pending attempt if over limit
+            if (next.size > MAX_ATTEMPTS) {
+              let oldestId: AttemptID | undefined
+              let oldestTime = Infinity
+              for (const [k, v] of next) {
+                if (v.status === "pending" && v.time.created < oldestTime) {
+                  oldestTime = v.time.created
+                  oldestId = k
+                }
+              }
+              if (oldestId !== undefined && oldestId !== id) {
+                const evicted = next.get(oldestId)
+                if (evicted && evicted.status === "pending") {
+                  evictedScope = evicted.scope
+                }
+                next.delete(oldestId)
+              }
+            }
+            return next
+          })
+          if (evictedScope !== undefined) {
+            yield* Scope.close(evictedScope, Exit.void)
+          }
           if (authorization.mode === "auto") {
             yield* authorization.callback.pipe(
               Effect.exit,

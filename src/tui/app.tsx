@@ -1407,7 +1407,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       },
       {
         name: "app.toggle.file_context",
-        title: kv.get("file_context_enabled", true) ? "关闭文件上下文" : "开启文件上下文",
+        title: kv.get("file_context_enabled", true) ? "Disable File Context" : "Enable File Context",
         category: "系统",
         run: () => {
           kv.set("file_context_enabled", !kv.get("file_context_enabled", true))

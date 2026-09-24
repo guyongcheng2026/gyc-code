@@ -159,6 +159,14 @@ const layer = Layer.effectDiscard(
                     source: permissionSource,
                   }),
                 )
+                // 与 gyccode/tool/edit.ts 一致的上限：整读旧内容才能算 diff，超大文件会吃掉内存
+                const MAX_EDIT_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+                const info = yield* fs.stat(target.canonical).pipe(Effect.catch(() => Effect.succeed(undefined)))
+                if (info && Number(info.size) > MAX_EDIT_FILE_SIZE) {
+                  return yield* new ToolFailure({
+                    message: `File too large to edit: ${target.canonical} (${Math.round(Number(info.size) / 1024 / 1024)}MB). Use the write tool for a full-file replacement.`,
+                  })
+                }
                 const source = decodeText(yield* unableToEdit(fs.readFile(target.canonical)))
                 const ending = detectLineEnding(source.text)
                 const oldString = convertToLineEnding(input.oldString, ending)

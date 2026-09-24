@@ -75,7 +75,7 @@ export function DialogPlan() {
       <Show when={planActive()} fallback={
         <box>
           <text fg={theme.textMuted}>计划模式下，助手会：</text>
-          <text fg={theme.textMuted}>  1. 分析需求并理解上下文</text>
+          <text fg={theme.textMuted}>  1. Analyze requirements and understand context</text>
           <text fg={theme.textMuted}>  2. 制定详细实施计划</text>
           <text fg={theme.textMuted}>  3. 不修改任何文件</text>
           <text fg={theme.textMuted}>  4. 等待用户确认后再执行</text>

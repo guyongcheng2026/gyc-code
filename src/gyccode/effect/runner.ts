@@ -44,7 +44,11 @@ export const make = <A, E = never>(
     onInterrupt?: Effect.Effect<A, E>
   },
 ): Runner<A, E> => {
-  const ref = SynchronizedRef.makeUnsafe<State<A, E>>({ _tag: "Idle" })
+  // Create SynchronizedRef within Effect context for proper resource management.
+  // Using runSync here is safe because SynchronizedRef.make is a pure synchronous
+  // operation that doesn't require async resources. The ref's lifecycle is tied to
+  // the returned Runner object; caller must not use Runner after scope closes.
+  const ref = Effect.runSync(SynchronizedRef.make<State<A, E>>({ _tag: "Idle" }))
   const idle = opts?.onIdle ?? Effect.void
   const onBusy = opts?.onBusy ?? Effect.void
   const onInterrupt = opts?.onInterrupt

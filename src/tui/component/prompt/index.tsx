@@ -378,7 +378,7 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "移除编辑器上下文",
+        title: "Remove Editor Context",
         name: "prompt.editor_context.clear",
         category: "提示词",
         enabled: Boolean(editorContext()),
@@ -410,7 +410,7 @@ export function Prompt(props: PromptProps) {
         },
       },
       {
-        title: "中断会话",
+        title: "Interrupt Session",
         name: "session.interrupt",
         category: "会话",
         hidden: true,
@@ -1634,7 +1634,7 @@ title: "打开编辑器",
                 <text fg={store.interrupt > 0 ? theme.primary : theme.text}>
                   esc{" "}
                   <span style={{ fg: store.interrupt > 0 ? theme.primary : theme.textMuted }}>
-                    {store.interrupt > 0 ? "再次中断" : "中断"}
+                    {store.interrupt > 0 ? "Interrupt again" : "Interrupt"}
                   </span>
                 </text>
               </box>
@@ -1723,7 +1723,7 @@ title: "打开编辑器",
                             {[
                               u.context,
                               u.compacting ? "compacting…" : undefined,
-                              full ? "上下文将满" : undefined,
+                              full ? "context nearly full" : undefined,
                               u.cost,
                             ]
                               .filter(Boolean)

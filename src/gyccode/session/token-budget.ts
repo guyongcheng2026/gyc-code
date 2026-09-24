@@ -5,7 +5,7 @@
   t: 1_000,  // "t" for thousand (ambiguous, prefer k)
 }
 
-const TOKEN_PATTERN = /^[+]?(\d+[.]?\d*)\s*(k|m|g|t|tokens?)?$/i
+const TOKEN_PATTERN = /^[+]?(\d+(?:\.\d+)?)\s*(k|m|g|t|tokens?)?$/i
 
 export function parseTokenBudget(input: string): number | null {
   const trimmed = input.trim().toLowerCase()
@@ -22,19 +22,20 @@ export function parseTokenBudget(input: string): number | null {
   return Math.round(value)
 }
 
-// Natural language variants
+// Natural language variants - use non-greedy number capture (\d+(?:\.\d+)?)
+// and include all suffixes (k|m|g|t) to match TOKEN_SUFFIX_MAP
 const NL_PATTERNS: Array<{ regex: RegExp; extract: (m: RegExpMatchArray) => number }> = [
-  { regex: /use\s+(\d+[.]?\d*)\s*(k|m)?\s*tokens?/i, extract: (m) => {
+  { regex: /use\s+(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
     const v = parseFloat(m[1])
     const s = m[2]?.toLowerCase()
     return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
   }},
-  { regex: /limit\s+(?:to\s+)?(\d+[.]?\d*)\s*(k|m)?\s*tokens?/i, extract: (m) => {
+  { regex: /limit\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
     const v = parseFloat(m[1])
     const s = m[2]?.toLowerCase()
     return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
   }},
-  { regex: /budget\s+(?:of\s+)?(\d+[.]?\d*)\s*(k|m)?\s*tokens?/i, extract: (m) => {
+  { regex: /budget\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
     const v = parseFloat(m[1])
     const s = m[2]?.toLowerCase()
     return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
@@ -66,8 +67,9 @@ export interface BudgetState {
   /** Token increment of the most recent continuation turn. */
   lastIncrement: number
   /**
-   * 最近一次已计入 used 的 assistant 消息 id。run loop 的 continue 会让同一条
-   * 消息再次进入累加分支，用它去重，避免同一份 usage 被重复累计。
+   * Prevent double-counting: track the last assistant message ID whose usage
+   * was counted toward `used` in this run loop iteration. If the same message
+   * appears again (e.g., streamed update), skip re-adding its usage.
    */
   countedMessageID?: string
 }
@@ -78,7 +80,7 @@ export type BudgetAction = "continue" | "complete"
  * Decide whether the run loop should keep going toward a token budget.
  * Continues while usage is below 90% of the target; stops once the target is
  * reached or when continuation turns stop producing meaningful progress
- * (3+ continuations with <500 token increments — diminishing returns).
+ * (3+ continuations with <500 token increments = diminishing returns).
  */
 export function checkTokenBudget(state: BudgetState): { action: BudgetAction } {
   // Diminishing returns takes priority: if continuation turns stopped making
@@ -97,5 +99,5 @@ export function checkTokenBudget(state: BudgetState): { action: BudgetAction } {
 /** Synthetic user message that nudges the model to keep working toward the budget. */
 export function budgetContinuationMessage(pct: number): string {
   const percent = Math.round(pct * 100)
-  return `Stopped at ${percent}% of token target. Keep working — do not summarize. Continue the task until the token budget is used or the work is complete.`
+  return `Stopped at ${percent}% of token target. Keep working -- do not summarize. Continue the task until the token budget is used or the work is complete.`
 }

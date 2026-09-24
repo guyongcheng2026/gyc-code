@@ -52,6 +52,16 @@ export const WriteTool = Tool.define(
               `File has not been read in this session: ${filepath}. Read it first with the read tool to confirm current content before writing.`,
             )
           }
+          // 与 edit 工具一致：write 也要读旧内容算 diff，超大文件整读会吃掉内存
+          const MAX_WRITE_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+          const existsInfo = exists
+            ? yield* fs.stat(filepath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            : undefined
+          if (existsInfo && Number(existsInfo.size) > MAX_WRITE_FILE_SIZE) {
+            throw new Error(
+              `File too large to overwrite: ${filepath} (${Math.round(Number(existsInfo.size) / 1024 / 1024)}MB). Delete it first or write a smaller target.`,
+            )
+          }
           const source = exists
             ? yield* Bom.readFile(fs, filepath)
             : { bom: false, text: "", encoding: "utf-8" as const }

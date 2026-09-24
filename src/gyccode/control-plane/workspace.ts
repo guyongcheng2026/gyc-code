@@ -542,7 +542,8 @@ const layer = Layer.effect(
             timeout: TIMEOUT,
             fn(event) {
               if (event.workspace === info.id && event.payload.type === Event.Status.type) {
-                const { status } = event.payload.properties
+                // GlobalEvent 的 payload.properties 是 unknown，按 Event.Status 的定义取值
+                const { status } = event.payload.properties as { status?: string }
                 return status === "error" || status === "connected"
               }
               return false

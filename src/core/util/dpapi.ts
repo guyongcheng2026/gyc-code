@@ -7,9 +7,74 @@
  * 无前缀的历史明文数据原样返回（平滑迁移：凭据下次被重写时自动加密）。
  * 非 Windows 平台 protect/unprotect 均为恒等函数（保持明文，与旧行为一致）。
  */
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto"
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
+import { homedir } from "node:os"
+import { dirname, join } from "node:path"
 import { platform } from "node:process"
 
 export const DPAPI_PREFIX = "dpapi.v1:"
+
+// 非 Windows 平台的兜底加密：无 DPAPI 时改用本机密钥文件的 AES-256-GCM，
+// 至少避免凭据以明文进入备份/云同步/日志。密钥文件 0600，仅本用户可读，
+// 因此它挡不住"同用户进程读取密钥后再解密"，但显著缩小明文暴露面。
+export const FALLBACK_PREFIX = "fallback.v1:"
+
+let fallbackKeyCache: Buffer | null | undefined
+
+function fallbackKeyPath() {
+  const base = process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || join(homedir(), ".gyc")
+  return join(base, "secret.key")
+}
+
+function loadFallbackKey(): Buffer | undefined {
+  if (fallbackKeyCache !== undefined) return fallbackKeyCache ?? undefined
+  try {
+    const file = fallbackKeyPath()
+    mkdirSync(dirname(file), { recursive: true })
+    if (existsSync(file)) {
+      const key = Buffer.from(readFileSync(file, "utf8").trim(), "hex")
+      fallbackKeyCache = key.length === 32 ? key : null
+      return fallbackKeyCache ?? undefined
+    }
+    const key = randomBytes(32)
+    writeFileSync(file, key.toString("hex"), { mode: 0o600 })
+    fallbackKeyCache = key
+    return key
+  } catch {
+    // 无写权限等情况下退回明文（保持旧行为，绝不因此崩溃）
+    fallbackKeyCache = null
+    return undefined
+  }
+}
+
+function fallbackProtect(plain: string): string | undefined {
+  const key = loadFallbackKey()
+  if (!key) return undefined
+  try {
+    const iv = randomBytes(12)
+    const cipher = createCipheriv("aes-256-gcm", key, iv)
+    const encrypted = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()])
+    return FALLBACK_PREFIX + Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString("base64")
+  } catch {
+    return undefined
+  }
+}
+
+function fallbackUnprotect(value: string): string | undefined {
+  const key = loadFallbackKey()
+  if (!key) return undefined
+  try {
+    const raw = Buffer.from(value.slice(FALLBACK_PREFIX.length), "base64")
+    const iv = raw.subarray(0, 12)
+    const tag = raw.subarray(12, 28)
+    const decipher = createDecipheriv("aes-256-gcm", key, iv)
+    decipher.setAuthTag(tag)
+    return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString("utf8")
+  } catch {
+    return undefined
+  }
+}
 
 type Api = {
   readonly protect: (plain: string) => string
@@ -95,18 +160,23 @@ function init(): Api | undefined {
   }
 }
 
-/** 加密机密字符串：win32 可用时返回 `dpapi.v1:` 前缀密文，否则原样返回。 */
+/**
+ * 加密机密字符串：win32 可用时返回 `dpapi.v1:` 前缀密文；其他平台走
+ * `fallback.v1:`（AES-256-GCM + 本机密钥文件）；两者都不可用时原样返回。
+ */
 export function protectSecret(plain: string): string {
-  if (plain.startsWith(DPAPI_PREFIX)) return plain
+  if (plain.startsWith(DPAPI_PREFIX) || plain.startsWith(FALLBACK_PREFIX)) return plain
   const api = load()
-  return api ? api.protect(plain) : plain
+  if (api) return api.protect(plain)
+  return fallbackProtect(plain) ?? plain
 }
 
 /**
  * 解密机密字符串：`dpapi.v1:` 前缀解密（失败抛错，由调用方决定丢弃该
- * 凭据）；无前缀按历史明文原样返回。
+ * 凭据）；`fallback.v1:` 前缀用本机密钥解密；无前缀按历史明文原样返回。
  */
 export function unprotectSecret(value: string): string {
+  if (value.startsWith(FALLBACK_PREFIX)) return fallbackUnprotect(value) ?? value
   if (!value.startsWith(DPAPI_PREFIX)) return value
   const hit = unprotectCache.get(value)
   if (hit !== undefined) {

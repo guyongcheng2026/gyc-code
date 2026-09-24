@@ -1,13 +1,40 @@
 import { EventEmitter } from "events"
 import { Identifier } from "@/id/id"
 
+export interface BaseEventPayload {
+  id?: string
+  syncEvent?: { id: string }
+  [key: string]: unknown
+}
+
+export interface SessionEventPayload extends BaseEventPayload {
+  type: "session"
+  sessionId?: string
+  action?: string
+}
+
+export interface ProviderEventPayload extends BaseEventPayload {
+  type: "provider"
+  providerId?: string
+  action?: string
+}
+
+export interface UpdateEventPayload extends BaseEventPayload {
+  type: "update"
+  version?: string
+}
+
+export type GlobalEventPayload =
+  | SessionEventPayload
+  | ProviderEventPayload
+  | UpdateEventPayload
+  | BaseEventPayload
+
 export type GlobalEvent = {
   directory?: string
   project?: string
   workspace?: string
-  // payload 为异构事件总线载体（session/provider/update 等各类事件），
-  // 且 emit 时会就地补写 id 字段，统一结构化类型会破坏全部发布方。
-  payload: any
+  payload: GlobalEventPayload
 }
 
 class GlobalBusEmitter extends EventEmitter {

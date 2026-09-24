@@ -52,7 +52,7 @@ export function DialogSummary() {
     const ok = await DialogConfirm.show(
       dialog,
       "生成会话摘要",
-      "将使用当前模型生成会话摘要并压缩上下文。继续？",
+      "A session summary will be generated with the current model and the context compacted. Continue?",
     )
     if (ok !== true) return
 
@@ -110,7 +110,7 @@ export function DialogSummary() {
           </text>
           <text fg={theme.textMuted}>总 Token: {totalTokens().toLocaleString()}</text>
           <text fg={theme.textMuted}>
-            总花费: ${totalCost().toFixed(4)}
+            Total Cost: ${totalCost().toFixed(4)}
           </text>
         </box>
 
@@ -123,12 +123,12 @@ export function DialogSummary() {
             paddingBottom={1}
             onMouseDown={generateSummary}
           >
-            <text fg={theme.text}>生成摘要并压缩上下文</text>
+            <text fg={theme.text}>Generate Summary & Compact Context</text>
           </box>
         </box>
 
         <text fg={theme.textMuted}>
-          压缩后会话历史将被摘要替代，释放上下文窗口
+          After compaction the session history is replaced by the summary, freeing context window space
         </text>
       </Show>
     </box>

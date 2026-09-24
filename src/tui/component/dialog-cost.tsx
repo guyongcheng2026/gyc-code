@@ -116,7 +116,7 @@ export function DialogCost() {
   const copy = () => {
     const t = totals()
     const text = [
-      `费用：${money.format(cost())}`,
+      `Cost: ${money.format(cost())}`,
       `词元：${totalTokens().toLocaleString()}`,
       `  输入：${t.input.toLocaleString()}`,
       `  输出：${t.output.toLocaleString()}`,
@@ -126,19 +126,19 @@ export function DialogCost() {
     ].join("\n")
     void clipboard
       .write?.(text)
-      .then(() => toast.show({ message: "花费信息已复制到剪贴板", variant: "info" }))
+      .then(() => toast.show({ message: "Cost info copied to clipboard", variant: "info" }))
       .catch(toast.error)
   }
 
   useBindings(() => ({
-    bindings: [{ key: "return", desc: "复制花费信息", group: "对话框", cmd: copy }],
+    bindings: [{ key: "return", desc: "Copy cost info", group: "对话框", cmd: copy }],
   }))
 
   return (
     <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
       <box flexDirection="row" justifyContent="space-between">
         <text fg={theme.text} attributes={TextAttributes.BOLD}>
-          Cost — 会话花费
+          Cost — Session Spend
         </text>
         <text fg={theme.textMuted} onMouseUp={() => dialog.clear()}>
           esc
@@ -146,14 +146,14 @@ export function DialogCost() {
       </box>
 
       <text fg={theme.text}>
-        总花费: <b>{money.format(cost())}</b>
+        Total Cost: <b>{money.format(cost())}</b>
       </text>
 
       <Show when={win()}>
         {(w) => (
           <text fg={theme.textMuted}>
             {totalTokens().toLocaleString()} / {Token.format(w().effective)} tokens（{percent()}%）
-            {w().source === "config" ? `，配置上限 ${Token.format(w().hard)}` : undefined}
+            {w().source === "config" ? ` (config limit ${Token.format(w().hard)})` : undefined}
           </text>
         )}
       </Show>
@@ -167,7 +167,7 @@ export function DialogCost() {
         <text fg={theme.textMuted}>推理 {totals().reasoning.toLocaleString()}</text>
         <text fg={theme.textMuted}>缓存读取 {totals().cacheRead.toLocaleString()}</text>
         <text fg={theme.textMuted}>缓存写入 {totals().cacheWrite.toLocaleString()}</text>
-        <text fg={theme.accent}>缓存命中 {(cacheHitRate().rate * 100).toFixed(1)}%（{cacheHitRate().hitTokens.toLocaleString()} / {cacheHitRate().totalInput.toLocaleString()}）</text>
+        <text fg={theme.accent}>Cache Hit {(cacheHitRate().rate * 100).toFixed(1)}% ({cacheHitRate().hitTokens.toLocaleString()} / {cacheHitRate().totalInput.toLocaleString()})</text>
       </box>
 
       <box>

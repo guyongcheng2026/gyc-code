@@ -5,17 +5,25 @@ export function waitEvent(input: { timeout: number; signal?: AbortSignal; fn: (e
   if (input.signal?.aborted) return Effect.fail(input.signal.reason ?? new Error("Request aborted"))
 
   return Effect.callback<void, unknown>((resume) => {
+    let cleanedUp = false
+
     const abort = () => {
+      if (cleanedUp) return
+      cleanedUp = true
       cleanup()
       resume(Effect.fail(input.signal?.reason ?? new Error("Request aborted")))
     }
 
     const handler = (event: GlobalEvent) => {
+      if (cleanedUp) return
       try {
         if (!input.fn(event)) return
+        cleanedUp = true
         cleanup()
         resume(Effect.void)
       } catch (error) {
+        if (cleanedUp) return
+        cleanedUp = true
         cleanup()
         resume(Effect.fail(error))
       }
@@ -28,6 +36,8 @@ export function waitEvent(input: { timeout: number; signal?: AbortSignal; fn: (e
     }
 
     const timeout = setTimeout(() => {
+      if (cleanedUp) return
+      cleanedUp = true
       cleanup()
       resume(Effect.fail(new Error("Timed out waiting for global event")))
     }, input.timeout)

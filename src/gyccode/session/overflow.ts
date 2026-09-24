@@ -12,13 +12,18 @@ export function usable(input: { cfg: ConfigV1.Info; model: Provider.Model; outpu
   const context = effectiveContextWindow(input.model.limit)
   if (context === 0) return 0
 
-  const reserved =
-    input.cfg.compaction?.reserved ??
-    Math.min(COMPACTION_BUFFER, ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax))
-  const inputCap = input.model.limit.input !== undefined ? Math.min(input.model.limit.input, context) : context
-  return input.model.limit.input
-    ? Math.max(0, inputCap - reserved)
-    : Math.max(0, context - ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax))
+  const maxOutput = ProviderTransform.maxOutputTokens(input.model, input.outputTokenMax)
+  const reserved = input.cfg.compaction?.reserved ?? Math.min(COMPACTION_BUFFER, maxOutput)
+
+  // If model declares input limit, usable is min(input_limit, context) - reserved
+  // Otherwise usable is context - max_output (reserved for output)
+  const usableTokens = input.model.limit.input !== undefined
+    ? Math.max(0, Math.min(input.model.limit.input, context) - reserved)
+    : Math.max(0, context - maxOutput)
+
+  // Defensive: usableTokens should never be negative due to Math.max(0, ...) above
+  // but add assertion for clarity
+  return usableTokens
 }
 
 export function calculateTokenWarningState(input: {
@@ -28,8 +33,8 @@ export function calculateTokenWarningState(input: {
   outputTokenMax?: number
   limit?: number
 }) {
-  // 对齐 reference agent autoCompact.ts 三级告警：WARNING(20K)/ERROR(13K)/BLOCKING(3K)
-  // 缓冲相对 usable 有效窗口计算，percentLeft 表示剩余可用比例。
+  // Align with reference agent autoCompact.ts three-tier warning: WARNING(20K)/ERROR(13K)/BLOCKING(3K)
+  // Buffer calculated relative to usable effective window, percentLeft = remaining usable ratio.
   const WARNING_BUFFER = 20_000
   const ERROR_BUFFER = 13_000
   const BLOCKING_BUFFER = 3_000
@@ -45,7 +50,6 @@ export function calculateTokenWarningState(input: {
     remaining,
   }
 }
-
 
 /**
  * Suggest 1M context upgrade when usage exceeds 70% and model supports 1M.
@@ -65,6 +69,7 @@ export function maybeSuggest1mUpgrade(input: {
   if (modelId.includes('[1m]')) return undefined
   return 'Context usage at ' + Math.round(percentUsed) + '%. Consider upgrading to a 1M context model (append [1m] to model ID).'
 }
+
 export function isOverflow(input: {
   cfg: ConfigV1.Info
   tokens: SessionV1.Assistant["tokens"]
@@ -74,11 +79,12 @@ export function isOverflow(input: {
   if (input.cfg.compaction?.auto === false) return false
   if (input.model.limit.context === 0) return false
 
-  // 各 token 字段都可能缺失：任一 undefined 都会让累加变成 NaN，而 NaN >= x 恒为
-  // false（自动压缩永不触发），因此每个字段都要补 ?? 0。
-  // 注意：不能对 usable <= 0 做短路——model.limit.context 非 0 但扣掉输出预留后
-  // usable 为 0 时，语义仍是"任何输入都算溢出"（见 overflow.regression 用例）。
-  // P1 修复：使用 ?? 而非 ||，当 total 为 0 时仍需累加其他字段
+  // All token fields may be missing: any undefined makes sum NaN, NaN >= x is always
+  // false (auto-compact never triggers), so each field must be ?? 0
+  // Note: cannot short-circuit on usable <= 0 -- model.limit.context = 0 but after
+  // subtracting output reserve usable = 0 means "any input counts as overflow"
+  // (see overflow.regression test case)
+  // P1 fix: use ?? not ||, so when total = 0 we still sum other fields
   const count =
     (input.tokens.total ?? 0) +
     (input.tokens.input ?? 0) +

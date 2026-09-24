@@ -736,7 +736,11 @@ export const ShellTool = Tool.define(
           if (exit.kind === "abort" || exit.kind === "timeout") {
             if (exit.kind === "abort") aborted = true
             else expired = true
-            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(Effect.orDie)
+            // 尽力而为：进程可能刚好自行退出，此时 kill 会失败（proc.kill 返回 false）。
+            // 用 orDie 会让这种竞态变成 defect 直接打断工具调用，改为只记警告。
+            yield* handle.kill({ forceKillAfter: "3 seconds" }).pipe(
+              Effect.catchCause((cause) => Effect.logWarning("failed to kill shell process after abort/timeout", { cause })),
+            )
             // 等待进程真正退出：scoped 释放后就没有人再等它了，若 3 秒宽限内
             // 没死，detached 的子进程（及其孙进程）会变成孤儿继续读写工作区。
             yield* handle.exitCode.pipe(Effect.timeout("5 seconds"), Effect.ignore)

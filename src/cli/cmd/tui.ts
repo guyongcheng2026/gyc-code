@@ -163,7 +163,14 @@ export const TuiThreadCommand = cmd({
       const network = resolveNetworkOptionsNoConfig(args)
       const external = hasArg("--port") || hasArg("--hostname") || network.mdns === true
       const pool = createWorkerPool({ file, external })
-      const ensureWorker = pool.ensure
+      const ensureWorker = (): RpcClient => {
+        const c = pool.ensure()
+        if (!c) {
+          UI.error("TUI worker unavailable (circuit breaker opened after repeated crashes). Restart gyc.")
+          process.exit(1)
+        }
+        return c
+      }
       // 立即预热：与主进程的 TuiConfig/网络选项准备并行（不等到首请求才冷启）。
       const client = ensureWorker()
       tuiTiming("worker created")

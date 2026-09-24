@@ -1482,7 +1482,11 @@ const layer = Layer.effect(
           // recent conversation and persist them to the memory file.
           // Non-blocking: failures never interrupt the main loop.
           const memoryCfg = (yield* config.get()).memory?.extraction
-          if (memoryCfg?.enabled !== false && step % (memoryCfg?.min_turns ?? 3) === 0) {
+          // min_turns 允许配 0（Schema.optional(NonNegativeInt)），但 0 会让 step % 0 = NaN、
+          // 条件恒 false，记忆抽取永久失效；0 的语义是"每轮都抽"，故周期下限取 1
+          const memoryMinTurns = memoryCfg?.min_turns ?? 3
+          const memoryPeriod = memoryMinTurns > 0 ? memoryMinTurns : 1
+          if (memoryCfg?.enabled !== false && step % memoryPeriod === 0) {
             // P1 修复：检查前先清理过期条目，避免过期条目占用 cap 空间
             cleanupExpiredCooldowns()
             const coolingDown = Date.now() < (extractionCooldowns.get(sessionID) ?? 0)
@@ -1535,7 +1539,7 @@ const layer = Layer.effect(
                 existing,
                 conversation: recent,
                 config: {
-                  minTurns: cfg?.min_turns ?? 3,
+                  minTurns: memoryPeriod,
                   model: cfg?.model ?? "",
                   maxMemories: cfg?.max_memories ?? 5,
                 },

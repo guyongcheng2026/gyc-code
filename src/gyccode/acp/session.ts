@@ -160,10 +160,16 @@ const layer = Layer.effect(
         toolCallId: input.toolCallId,
         metadata: input.metadata,
       }
-      return update(input.sessionId, (session) => ({
-        ...session,
-        knownParts: new Map(session.knownParts).set(partMetadataKey(input), metadata),
-      })).pipe(Effect.as(metadata))
+      return update(input.sessionId, (session) => {
+        const key = partMetadataKey(input)
+        // 原地写入：knownParts 只在本模块内演进，对外一律经 snapshot() 拷贝；
+        // 若每次都 new Map(session.knownParts) 拷贝，重放 N 个 part 会退化成 O(N²)
+        if (session.knownParts instanceof Map) {
+          session.knownParts.set(key, metadata)
+          return session
+        }
+        return { ...session, knownParts: new Map(session.knownParts).set(key, metadata) }
+      }).pipe(Effect.as(metadata))
     })
 
     return Service.of({

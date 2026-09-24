@@ -16,10 +16,13 @@ const MAX_REDIRECTS = 5
 
 // 检查主机名是否为私网/回环/链路本地地址（SSRF 防护）
 function isPrivateHost(hostname: string): boolean {
-  // 回环地址
-  if (hostname === "localhost" || hostname === "::1" || hostname === "0.0.0.0") return true
+  // URL.hostname 对 IPv6 字面量返回带方括号的形式（如 "[fd00::1]"），
+  // 先去括号，否则下面的 fc/fd/fe80 前缀判断会被 "[" 挡住而失效
+  const bare = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname
+  const h = bare.toLowerCase()
 
-  const h = hostname.toLowerCase()
+  // 回环地址
+  if (h === "localhost" || h === "::1" || h === "0.0.0.0") return true
 
   // IPv4-mapped IPv6（::ffff:a.b.c.d）：提取内嵌 IPv4 后按 IPv4 规则校验，
   // 防止用映射地址形式绕过私网拦截（如 ::ffff:10.1.2.3 实际连接 10.1.2.3）
@@ -27,21 +30,25 @@ function isPrivateHost(hostname: string): boolean {
   if (mapped) return isPrivateIPv4(mapped[1])
 
   // IPv4 私网/回环/链路本地
-  if (isIPv4(hostname)) return isPrivateIPv4(hostname)
+  if (isIPv4(bare)) return isPrivateIPv4(bare)
 
-  // IPv6 私网/链路本地
-  if (hostname.includes(":")) {
+  // IPv6 私网/链路本地/未指定地址
+  if (h.includes(":")) {
     if (h.startsWith("fc") || h.startsWith("fd")) return true // 私网 fc00::/7
     if (h.startsWith("fe80")) return true // 链路本地 fe80::/10
+    if (h === "::" || h === "0:0:0:0:0:0:0:0") return true // 未指定地址
+    // IPv4-mapped/compatible 的十六进制写法（::ffff:7f00:1 之类）无法可靠反解，
+    // 一律视为不安全（fail-closed）
+    if (h.startsWith("::ffff:") || h.startsWith("::")) return true
   }
 
   // 云元数据端点常见主机名
   const blocklist = ["169.254.169.254", "metadata.google.internal", "instance-data/latest"]
-  if (blocklist.includes(hostname)) return true
+  if (blocklist.includes(bare)) return true
   return false
 }
 
-// 判断 IPv4 地址是否属于私网/回环/链路本地/当前网络段
+// 判断 IPv4 地址是否属于私网/回环/链路本地/保留段（SSRF 防护，fail-closed）
 function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split(".").map(Number)
   // 非法地址（非数字/越界）一律视为不安全，fail-closed
@@ -52,6 +59,13 @@ function isPrivateIPv4(ip: string): boolean {
   if (parts[0] === 192 && parts[1] === 168) return true // 私网 192.168.0.0/16
   if (parts[0] === 169 && parts[1] === 254) return true // 链路本地 169.254.0.0/16
   if (parts[0] === 0) return true // 当前网络 0.0.0.0/8
+  if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true // CGNAT 100.64.0.0/10（含阿里云元数据 100.100.100.200）
+  if (parts[0] === 198 && (parts[1] === 18 || parts[1] === 19)) return true // 基准测试 198.18.0.0/15
+  if (parts[0] === 192 && parts[1] === 0 && parts[2] === 0) return true // IETF 保留 192.0.0.0/24
+  if (parts[0] === 192 && parts[1] === 0 && parts[2] === 2) return true // TEST-NET-1
+  if (parts[0] === 198 && parts[1] === 51 && parts[2] === 100) return true // TEST-NET-2
+  if (parts[0] === 203 && parts[1] === 0 && parts[2] === 113) return true // TEST-NET-3
+  if (parts[0] >= 240) return true // 保留 240.0.0.0/4（含 255.255.255.255）
   return false
 }
 

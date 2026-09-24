@@ -112,7 +112,8 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
           const existing = cache.get(directory)
           if (existing) return yield* restore(Deferred.await(existing.deferred))
 
-          const entry: Entry = { deferred: Deferred.makeUnsafe<InstanceContext>() }
+          const deferred = yield* Deferred.make<InstanceContext>()
+          const entry: Entry = { deferred }
           cache.set(directory, entry)
           yield* Effect.gen(function* () {
             yield* Effect.logInfo("creating instance", { directory: directory })
@@ -128,7 +129,8 @@ const layer: Layer.Layer<Service, never, Project.Service | InstanceBootstrap.Ser
       return Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
           const previous = cache.get(directory)
-          const entry: Entry = { deferred: Deferred.makeUnsafe<InstanceContext>() }
+          const deferred = yield* Deferred.make<InstanceContext>()
+          const entry: Entry = { deferred }
           cache.set(directory, entry)
           yield* Effect.gen(function* () {
             yield* Effect.logInfo("reloading instance", { directory: directory })

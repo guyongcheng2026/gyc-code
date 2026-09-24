@@ -59,7 +59,11 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@gyccode/Plugin") {}
 
 export function experimentalWebSocketsEnabled(input: { enabled: boolean; channel?: string }) {
-  return input.enabled || ["local", "dev", "beta"].includes(input.channel ?? InstallationChannel)
+  // input.enabled 来自 bool("GYCCODE_EXPERIMENTAL_WEBSOCKETS")，无法区分"未设置"与"显式 0"。
+  // 显式设置环境变量时以它为准（否则 =0 会被下面的渠道默认覆盖，排障时关不掉），
+  // 未设置时才回退到渠道默认（local/dev/beta 默认开启）。
+  if (process.env.GYCCODE_EXPERIMENTAL_WEBSOCKETS !== undefined) return input.enabled
+  return ["local", "dev", "beta"].includes(input.channel ?? InstallationChannel)
 }
 
 // Built-in plugins that are directly imported (not installed from npm)

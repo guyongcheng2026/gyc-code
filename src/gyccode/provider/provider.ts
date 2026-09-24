@@ -1590,10 +1590,20 @@ const layer = Layer.effect(
           if (!stored) continue
           if (!plugin.auth.loader) continue
 
+          // database 里没有该 provider 时 toPublicInfo(undefined) 会抛错，
+          // 直接跳过并留日志，而不是让整个 provider 列表构建失败
+          const base = database[plugin.auth.provider]
+          if (!base) {
+            yield* Effect.logWarning("plugin auth provider missing from provider database, skipping loader", {
+              provider: plugin.auth.provider,
+            })
+            continue
+          }
+
           const options = yield* Effect.promise(() =>
             plugin.auth!.loader!(
               () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
-              toPublicInfo(database[plugin.auth!.provider]),
+              toPublicInfo(base),
             ),
           )
           const opts = options ?? {}

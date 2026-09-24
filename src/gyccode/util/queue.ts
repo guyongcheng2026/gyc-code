@@ -20,13 +20,23 @@ export class AsyncQueue<T> implements AsyncIterable<T> {
 
 export async function work<T>(concurrency: number, items: T[], fn: (item: T) => Promise<void>) {
   const pending = [...items]
+  const errors: Error[] = []
   await Promise.all(
     Array.from({ length: concurrency }, async () => {
       while (true) {
         const item = pending.pop()
         if (item === undefined) return
-        await fn(item)
+        try {
+          await fn(item)
+        } catch (error) {
+          errors.push(error instanceof Error ? error : new Error(String(error)))
+        }
       }
     }),
   )
+  if (errors.length > 0) {
+    const aggregate = new Error(`${errors.length} task(s) failed`)
+    aggregate.cause = errors
+    throw aggregate
+  }
 }

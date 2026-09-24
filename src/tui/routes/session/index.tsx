@@ -730,7 +730,7 @@ export function Session() {
         },
       },
       {
-        title: "查看花费",
+        title: "View Cost",
         value: "session.cost",
         category: "会话",
         slash: {
@@ -741,7 +741,7 @@ export function Session() {
         },
       },
       {
-        title: "上下文详情",
+        title: "Context Details",
         value: "session.context",
         category: "会话",
         slash: {
@@ -1192,14 +1192,14 @@ export function Session() {
       }),
     },
     {
-      title: "添加工作目录",
+      title: "Add Working Directory",
       value: "session.add_dir",
       category: "工作区",
       slash: {
         name: "add-dir",
       },
       run: async () => {
-        const value = await DialogPrompt.show(dialog, "添加工作目录", {
+        const value = await DialogPrompt.show(dialog, "Add Working Directory", {
           placeholder: "输入要加入会话工作范围的目录绝对路径",
         })
         if (!value || !value.trim()) return
@@ -1230,7 +1230,7 @@ export function Session() {
               平台：{process.platform}（{process.arch}）
             </text>
             <text fg={theme.textMuted}>运行时：{typeof Bun !== "undefined" ? `Bun ${Bun.version}` : `Node ${process.version}`}</text>
-            <text fg={theme.textMuted}>工作目录：{paths.cwd}</text>
+            <text fg={theme.textMuted}>Working Directory: {paths.cwd}</text>
             <text fg={theme.textMuted}>会话目录：{session()?.directory ?? paths.cwd}</text>
           </box>
         ))
@@ -1938,7 +1938,7 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
                 <span style={{ fg: theme.textMuted }}> · {Locale.duration(duration())}</span>
               </Show>
               <Show when={props.message.error?.name === "MessageAbortedError"}>
-                <span style={{ fg: theme.textMuted }}> · 已中断</span>
+                <span style={{ fg: theme.textMuted }}> · Interrupted</span>
               </Show>
             </text>
           </box>
