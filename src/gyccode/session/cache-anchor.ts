@@ -55,3 +55,25 @@ export function cacheDriftFromUsage(
     prevInputTokens: prev.inputTokens,
   })
 }
+
+const ANCHOR_MAX = 1000
+
+/**
+ * 会话级跨消息 drift 追踪：与「该会话上一次请求」的 cacheRead 比较。
+ * 旧口径用当前消息的 step 累计作 prev——单 step 消息恒为 0，detectCacheDrift
+ * 的 prevCacheRead<=0 短路使跨消息漂移 100% 漏检（实测 cacheDrift 告警 0 条）。
+ * 每次调用后更新锚点为本次值；anchor 有界，超限淘汰最旧会话。
+ */
+export function trackCacheDrift(
+  anchor: Map<string, { cacheRead: number; inputTokens: number }>,
+  sessionID: string,
+  cur: { cacheRead: number; inputTokens: number },
+): CacheDrift | null {
+  const prev = anchor.get(sessionID)
+  if (anchor.size >= ANCHOR_MAX && !prev) {
+    const oldest = anchor.keys().next().value
+    if (oldest !== undefined) anchor.delete(oldest)
+  }
+  anchor.set(sessionID, cur)
+  return prev ? cacheDriftFromUsage(prev, cur) : null
+}

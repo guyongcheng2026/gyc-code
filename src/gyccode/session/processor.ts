@@ -25,6 +25,11 @@ import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@gyccode/core/database/database"
 import { Usage, type LLMEvent } from "@gyccode/llm"
+import { trackCacheDrift } from "./cache-anchor"
+
+// 会话级 cacheRead 锚点：与该会话上一次请求比较（消息内 step 累计口径对单
+// step 消息恒为 0，跨消息前缀漂移 100% 漏检——实测 cacheDrift 告警 0 条）。
+const cacheDriftAnchors = new Map<string, { cacheRead: number; inputTokens: number }>()
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -455,10 +460,17 @@ const layer = Layer.effect(
               model: ctx.model,
               usage: value.usage ?? new Usage({}),
               metadata: value.providerMetadata,
-              prevCacheRead: ctx.assistantMessage.tokens?.cache?.read ?? 0,
             })
-            // 可观测：缓存命中骤降（system prompt 漂移/压缩/工具集变化）时告警，
-            // 记录当前请求输入规模与命中量，便于实测收集真实前缀破坏源并定向优化。
+            // 可观测：会话级跨消息检测（与上一次请求的 cacheRead 比较；消息内
+            // step 累计口径对单 step 恒为 0，跨消息漂移会漏检）。命中骤降
+            // （system prompt 漂移/压缩/工具集变化/注入重算）时告警并落盘 gyccode.log。
+            const curCacheRead = usage.tokens.cache?.read ?? 0
+            const curInputTotal =
+              (usage.tokens.input ?? 0) + curCacheRead + (usage.tokens.cache?.write ?? 0)
+            usage.tokens.cacheDrift = trackCacheDrift(cacheDriftAnchors, input.sessionID, {
+              cacheRead: curCacheRead,
+              inputTokens: curInputTotal,
+            })
             if (usage.tokens.cacheDrift) {
               yield* Effect.logWarning("prompt cache drift detected", {
                 "session.id": input.sessionID,

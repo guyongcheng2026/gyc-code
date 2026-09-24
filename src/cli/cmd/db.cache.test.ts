@@ -96,4 +96,22 @@ describe("classifyMiss（区分缓存窗口过期 vs 前缀漂移）", () => {
   test("边界：间隔恰好等于窗口阈值视为 drift（窗口内）", () => {
     expect(classifyMiss(high(0), low(CACHE_WINDOW_MS))).toBe("drift")
   })
+
+  test("窗口内部分前缀丢失（gap>5% 且 >2K）→ partial-drift（实测 #14/#31/#43 型）", () => {
+    const prev: PerMessageRow = { time: 0, total: 213_654, cached: 212_608 }
+    const cur: PerMessageRow = { time: 96_000, total: 215_031, cached: 171_584 }
+    expect(classifyMiss(prev, cur)).toBe("partial-drift")
+  })
+
+  test("窗口外部分前缀丢失 → window-expiry（长间隔部分过期，非代码漂移）", () => {
+    const prev: PerMessageRow = { time: 0, total: 224_521, cached: 223_744 }
+    const cur: PerMessageRow = { time: CACHE_WINDOW_MS + 1000, total: 226_674, cached: 175_168 }
+    expect(classifyMiss(prev, cur)).toBe("window-expiry")
+  })
+
+  test("窗口内 gap 未超阈值 → null（大新增不误标，实测 #24 型）", () => {
+    const prev: PerMessageRow = { time: 0, total: 184_943, cached: 182_848 }
+    const cur: PerMessageRow = { time: 16_000, total: 202_253, cached: 184_896 }
+    expect(classifyMiss(prev, cur)).toBeNull()
+  })
 })

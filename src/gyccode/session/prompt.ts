@@ -73,6 +73,7 @@ import { ShardCache, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
 import { thinkingKeywordTarget, resolveThinkingVariant } from "./thinking-keywords"
 import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
+import { freezeInject, type InjectSnapshot } from "./inject-freeze"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -82,6 +83,9 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 // 冷却期内跳过，冷却结束仍会重试，瞬态故障可自愈。
 const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
 const extractionCooldowns = new Map<string, number>()
+// 注入快照会话级冻结（date/记忆/画像首轮定型，见 inject-freeze.ts）：
+// 实时重算（换话题重检索、跨天、画像更新）会改变第一条 user 字节并折断 CH 前缀。
+const injectSnapshots = new Map<string, InjectSnapshot>()
 
 // P1 修复：清理过期条目，释放内存
 const cleanupExpiredCooldowns = () => {
@@ -1749,24 +1753,31 @@ const layer = Layer.effect(
                   .join(" ")
                   .slice(0, 500)
               : ""
+            // 冻结命中后跳过记忆/画像重取（换话题重检索、画像文件更新都不再执行）
+            const injectFrozen = injectSnapshots.has(sessionID)
             const [skills, env, instructionResolved, mcpInstructions, memories, owner] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
               instruction.system().pipe(Effect.orDie),
               sys.mcp(agent, session.permission),
-              sys.memory(memoryQuery, sessionID),
-              sys.userModel(),
+              injectFrozen ? Effect.succeed(undefined) : sys.memory(memoryQuery, sessionID),
+              injectFrozen ? Effect.succeed(undefined) : sys.userModel(),
             ])
-            // modelMsgs 依赖 memories（记忆前缀固定注入），故与上方解耦后单独计算
+            // 会话级冻结注入：首轮定型 date+画像+记忆，后续轮字节恒定。
+            // 实时重算会改变第一条 user 消息字节，从注入点折断整段 prompt
+            // 前缀缓存（实测断点集中在 162K-175K，即 tools+system+首条 user 处）。
+            const inject = freezeInject(injectSnapshots, sessionID, () => ({
+              date: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
+              memories:
+                [owner, memories].filter((part): part is string => !!part).join("\n\n") || undefined,
+            }))
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
               toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
               toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
               // 日期/记忆前缀固定注入：追加到第一条 user 消息末尾，注入位置不逐轮游走，
               // 连续请求间前缀字节稳定（对齐 CH 99.9% 机制）
-              injectDate: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
-              // 画像段与记忆段共用同一个注入位（同为末尾追加、同样不改历史前缀），
-              // 画像在前：它是稳定背景，记忆是本轮检索结果。
-              injectMemories: [owner, memories].filter((part): part is string => !!part).join("\n\n") || undefined,
+              injectDate: inject.date,
+              injectMemories: inject.memories,
               // 用户文本上限：与聚合预算同档，限制病态大粘贴的每轮增量
               maxUserTextChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,
             })
