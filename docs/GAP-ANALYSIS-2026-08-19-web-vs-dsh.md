@@ -1,5 +1,7 @@
 # gyc·web 对标 DSH Desktop 差距分析与对齐记录（2026-08-19）
 
+> **归档注（2026-09-24）**：本文 P1 清单归入产品 backlog（非缺陷待办），按季度从 roadmap 筛选执行；「本轮已对齐」行已完成，「暂缓」行（pendingInteraction 服务端投影等）保留为候选。不作缺陷跟踪。
+
 基准：`E:\myAI\deepseek harness\DSH Desktop`（Electron 壳 + `@deepseek-ai/dsh-client-ui-*` 0.1.0-rc.6 全家桶）。
 对象：`src/webapp`（React 18 + Vite，零运行时 UI 库）。
 辅助资源：`E:\myAI\Geeker-Admin-master`（Vue3 后台模板，仅供后续管理页设计参考，组件不可直接复用——技术栈不同）。

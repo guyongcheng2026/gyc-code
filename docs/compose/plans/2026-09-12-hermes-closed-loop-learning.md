@@ -1,5 +1,7 @@
 # Hermes 闭环学习机制移植 Implementation Plan
 
+> **状态更新（2026-09-24）**：实现已 100% 落地（`src/gyccode/learning/` 17 文件含 9 组测试：ledger/lifecycle/paths/review-prompt/runner/skill-store/trigger/usage/review-fixes）。文末验证清单 L445（全量测试全绿）与 L446（build 成功）已由 2026-09-24 实测勾销；L447（≥10 次工具真实会话端到端）与 L453（compose hidden 确认）保留待人工会话验证。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use compose:subagent (recommended) or compose:execute to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 把 Hermes Agent 的「任务完成 → 梳理流程 → 沉淀技能文档 → 跨会话索引 → 更新画像 → 多层记忆 → 下一任务」闭环移植进 gyc-code。
@@ -442,8 +444,8 @@ yield* Effect.promise(() => bumpView(gycHome(), info.name)).pipe(Effect.ignore)
 
 ## Task 19 — 收尾验证
 
-- [ ] `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp` 全绿
-- [ ] `bun run build` 成功
+- [x] `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp` 全绿
+- [x] `bun run build` 成功
 - [ ] 端到端手工验证：跑一个 ≥10 次工具调用的真实会话，确认
   - `$GYC_HOME/skills/` 下产生新技能或补丁
   - `.usage.json` 有对应条目

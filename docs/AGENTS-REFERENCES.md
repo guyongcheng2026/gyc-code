@@ -18,3 +18,13 @@
 ## 行数口径
 
 `bun scripts/linescan.mjs` 复测（代码包总量 = src 下 TS/TSX；人工维护核心 = 总量 − gen − 测试）。宣传口径用"约 18 万行人工维护核心代码"。
+
+## 工具可见性三层机制（勿再叠加第四层）
+
+按权威级排序，改动工具可见性时只动已有层：
+
+1. **permission ruleset**（权威层，`agent.permission` + session 规则）——同时决定 tool schema 可见（`Permission.disabled`：整工具 `*:deny` 会从每轮请求裁掉）与运行时执行。agent 级裁剪先例：plan（`plan-tools.ts` 14 项）、explore（`agent.ts` 白名单）。
+2. **user.tools**（config 层，`{tool: false}`）——仅关 schema，不影响 permission 执行面。
+3. **experimental.primary_tools**（subagent 通道）——spawn 子代理时的白名单快捷方式，经 `subagent-permissions.ts` 合成 deny。
+
+**约束**：不得新增并行的第四套可见性机制（历史评估 2026-09-24：三套已够用且职责清晰，profile 类配置若引入必须编译降级为第 1 层 ruleset）。已知风险观察项：explore 白名单含 `bash`（只读语义的执行面残留，探索类只读命令有价值，暂不裁，见真实滥用再议）。
