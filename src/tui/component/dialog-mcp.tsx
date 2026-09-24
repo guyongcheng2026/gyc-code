@@ -6,6 +6,7 @@ import { DialogSelect, type DialogSelectRef, type DialogSelectOption } from "../
 import { useTheme } from "../context/theme"
 import { TextAttributes } from "@opentui/core"
 import { useSDK } from "../context/sdk"
+import { logError, logWarn } from "@core/observability/log-error"
 
 function Status(props: { enabled: boolean; loading: boolean }) {
   const { theme } = useTheme()
@@ -60,10 +61,10 @@ export function DialogMcp() {
           if (status.data) {
             sync.set("mcp", status.data)
           } else {
-            console.error("刷新 MCP 状态失败：未返回数据")
+            logWarn("tui.mcp", "刷新 MCP 状态失败：未返回数据")
           }
         } catch (error) {
-          console.error("切换 MCP 失败：", error)
+          logError("tui.mcp", error)
         } finally {
           setLoading(null)
         }

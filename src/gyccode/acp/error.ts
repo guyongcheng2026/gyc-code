@@ -1,4 +1,5 @@
 import { RequestError } from "@agentclientprotocol/sdk"
+import { logError } from "@core/observability/log-error"
 import { Schema } from "effect"
 
 export class SessionNotFoundError extends Schema.TaggedErrorClass<SessionNotFoundError>()("ACPSessionNotFoundError", {
@@ -94,7 +95,7 @@ export function toRequestError(error: Error) {
 
 export function fromUnknownDefect(defect: unknown, safeMessage = "Internal service failure") {
   // Log the original defect so it's not silently swallowed
-  console.error("[ACP] fromUnknownDefect:", defect)
+  logError("acp.error", defect)
   return new ServiceFailureError({
     safeMessage,
     ...(defect instanceof Error ? { errorName: defect.name } : {}),

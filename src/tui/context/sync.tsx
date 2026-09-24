@@ -20,6 +20,7 @@ import type {
   SnapshotFileDiff,
   ConsoleState,
 } from "@gyccode/protocol/v2"
+import { logError } from "@core/observability/log-error"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useProject } from "./project"
 import { useEvent } from "./event"
@@ -705,7 +706,7 @@ export const {
           })
         })
         .catch(async (e) => {
-          console.error("tui bootstrap failed", {
+          logError("tui.sync", e, {
             error: e instanceof Error ? e.message : String(e),
             name: e instanceof Error ? e.name : undefined,
             stack: e instanceof Error ? e.stack : undefined,

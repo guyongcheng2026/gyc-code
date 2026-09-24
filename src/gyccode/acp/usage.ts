@@ -1,3 +1,4 @@
+import { logError } from "@core/observability/log-error"
 import type { AgentSideConnection, Usage } from "@agentclientprotocol/sdk"
 import type { AssistantMessage as GycCodeAssistantMessage, Message } from "@gyccode/protocol/v2"
 import { InstanceRef } from "@/effect/instance-ref"
@@ -216,7 +217,7 @@ const layer = Layer.effect(
             },
           })
           .catch((e) => {
-            console.error(`[acp] 上报会话用量失败：${String(e)}`)
+            logError("acp.usage", e, { sessionID: input.sessionID })
           }),
       )
     })

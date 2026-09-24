@@ -3,6 +3,7 @@ import path from "path"
 import { writeHeapSnapshot } from "node:v8"
 import { Flag } from "@gyccode/core/flag/flag"
 import { Global } from "@gyccode/core/global"
+import { logError } from "@core/observability/log-error"
 const MINUTE = 60_000
 const LIMIT = 1024 * 1024 * 1024 // 1 GiB 常驻基线：超过即记录堆快照
 
@@ -46,7 +47,7 @@ export function start() {
     }
     await Promise.resolve()
       .then(() => writeHeapSnapshot(file))
-      .catch((error) => console.error(`[heap] 堆快照写入失败: ${String(error)}`))
+      .catch((error) => logError("cli.heap", error, { file }))
 
     lock = false
   }

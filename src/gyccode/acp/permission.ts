@@ -1,3 +1,4 @@
+import { logError } from "@core/observability/log-error"
 import type {
   AgentSideConnection,
   PermissionOption,
@@ -40,10 +41,10 @@ export class Handler {
     const next = previous
       .then(() => this.process(event))
       .catch((error) => {
-        console.error("[ACP] permission handler error:", error)
+        logError("acp.permission", error, { sessionID: permission.sessionID })
         // Retry once on failure
         return this.process(event).catch((retryError) => {
-          console.error("[ACP] permission handler retry failed:", retryError)
+          logError("acp.permission", retryError, { sessionID: permission.sessionID })
         })
       })
       .finally(() => {
@@ -90,7 +91,7 @@ export class Handler {
     if (permission.permission === "edit") {
       // 写入建议编辑失败需留痕，否则用户看不到待确认的改动且无从排查
       await this.writeProposedEdit(session.id, permission.metadata).catch((e) => {
-        console.error(`[acp] 写入建议编辑失败：${String(e)}`)
+        logError("acp.permission", e, { sessionID: session.id })
       })
     }
 

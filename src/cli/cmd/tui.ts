@@ -1,4 +1,5 @@
 import { readStdin } from "@core/util/read-stdin"
+import { logError, logWarn } from "@core/observability/log-error"
 import { cmd } from "./cmd"
 import { Rpc } from "@/util/rpc"
 import { type rpc } from "../tui/worker"
@@ -138,9 +139,9 @@ export const TuiThreadCommand = cmd({
       }
 
       if (args["dangerously-skip-permissions"]) {
-        console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
-        console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
-        console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
+        logWarn("cli.tui", "\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
+        logWarn("cli.tui", "\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
+        logWarn("cli.tui", "\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
       }
 
       // Resolve relative --project paths from PWD, then use the real cwd after
@@ -192,7 +193,7 @@ export const TuiThreadCommand = cmd({
       const reload = () => {
         // reload 失败需留痕，否则 SIGUSR2 触发后界面无变化且无从排查
         ensureWorker().call("reload", undefined).catch((e) => {
-          console.error(`[tui] 重载失败：${String(e)}`)
+          logError("cli.tui", e)
         })
       }
       process.on("SIGUSR2", reload)

@@ -1,5 +1,6 @@
 // Legacy `api.command` bridge for v1 plugins; remove in v2.
 import type { TuiCommand, TuiPluginApi } from "@gyccode/protocol/plugin/tui"
+import { logWarn } from "@core/observability/log-error"
 import { TuiKeybind } from "../config/keybind"
 import type { DialogContext } from "../ui/dialog"
 
@@ -13,7 +14,7 @@ type LegacyKeybinds = TuiPluginApi["tuiConfig"]["keybinds"]
 
 function warnCommandShim(api: string, replacement: string) {
   // Warn v1 plugins about deprecated `api.command`; remove this shim path in v2.
-  console.warn("[tui.plugin] deprecated TUI plugin API", { api, replacement })
+  logWarn("tui.plugin", "deprecated TUI plugin API", { api, replacement })
 }
 
 function createCommandShimDialog(dialog: CommandShimDialog): LegacyDialog {

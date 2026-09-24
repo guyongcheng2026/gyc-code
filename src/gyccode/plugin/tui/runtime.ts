@@ -42,6 +42,7 @@ import { createCommandShim } from "@gyccode/tui/plugin/command-shim"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { Effect } from "effect"
 import { createPluginRuntime, type PluginRuntime, type TuiPluginHost } from "@gyccode/tui/plugin/runtime"
+import { logError, logWarn } from "@core/observability/log-error"
 
 type PluginLoad = {
   options: ConfigPluginV1.Options | undefined
@@ -136,17 +137,17 @@ async function ensureRuntimePluginSupportCompat() {
 
 function fail(message: string, data: Record<string, unknown>) {
   if (!("error" in data)) {
-    console.error(`[tui.plugin] ${message}`, data)
+    logError("tui.plugin", message, data)
     return
   }
 
   const text = `${message}: ${errorMessage(data.error)}`
   const next = { ...data, error: errorData(data.error) }
-  console.error(`[tui.plugin] ${text}`, next)
+  logError("tui.plugin", text, next)
 }
 
 function warn(message: string, data: Record<string, unknown>) {
-  console.warn(`[tui.plugin] ${message}`, data)
+  logWarn("tui.plugin", message, data)
 }
 
 function createScopedKeymap(keymap: TuiPluginApi["keymap"], scope: PluginScope): TuiPluginApi["keymap"] {
@@ -282,7 +283,7 @@ function createThemeInstaller(
         plugin.themes[name] = info
         // 主题元数据持久化失败会导致主题设置重启后丢失，需留痕
         await PluginMeta.setTheme(plugin.id, name, info).catch((e: unknown) => {
-          console.error(`[plugin] 保存主题元数据失败：${String(e)}`)
+          logError("tui.plugin", e)
         })
       }
 
@@ -314,7 +315,7 @@ function createThemeInstaller(
       if (exists || !(await Filesystem.exists(dest))) {
         // 主题文件写入失败会导致主题无法加载，需留痕
         await Filesystem.write(dest, text).catch((e: unknown) => {
-          console.error(`[plugin] 写入主题文件失败：${String(e)}`)
+          logError("tui.plugin", e)
         })
       }
 
@@ -322,7 +323,7 @@ function createThemeInstaller(
       await save()
     }).catch((e: unknown) => {
       // 主题安装整体失败，恢复到默认主题而非中断启动
-      console.error(`[plugin] 安装主题失败：${String(e)}`)
+      logError("tui.plugin", e)
     })
   }
 }

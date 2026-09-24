@@ -1,6 +1,7 @@
 import { createGyccodeClient } from "@gyccode/protocol/v2"
 import type { GlobalEvent } from "@gyccode/protocol/v2"
 import { Flag } from "@gyccode/core/flag/flag"
+import { logError } from "@core/observability/log-error"
 import { createSimpleContext } from "./helper"
 import { batch, onCleanup, onMount } from "solid-js"
 
@@ -112,7 +113,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
             // （仅 abort 时退出）。此前无 try/catch，错误被 .catch(() => {})
             // 吞掉导致 TUI 事件流失联、界面卡死但进程存活。
             if (abort.signal.aborted || ctrl.signal.aborted) break
-            console.error("[tui] SSE event stream error, will retry:", error)
+            logError("tui.sdk", error)
           }
           attempt += 1
           if (abort.signal.aborted || ctrl.signal.aborted) break

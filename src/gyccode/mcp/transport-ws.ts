@@ -1,4 +1,5 @@
 import WebSocket from "ws"
+import { logError } from "@core/observability/log-error"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 
@@ -51,7 +52,7 @@ export class WSTransport implements Transport {
             try {
               socket.terminate()
             } catch (err) {
-              console.error("WebSocket terminate failed:", err)
+              logError("mcp.transport", err)
             }
             // 超时后必须摘掉监听：否则重连时旧 socket 的 close 仍会触发 onclose，
             // 把新建立的连接误标为已关闭。error 需留一个空监听，避免 uncaught。

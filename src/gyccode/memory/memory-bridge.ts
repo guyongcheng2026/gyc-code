@@ -4,6 +4,7 @@
 import { mkdir, readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
 import { homedir } from "os"
+import { logWarn } from "@core/observability/log-error"
 import { createFileLock } from "./file-lock"
 
 // 缓存一致性：读操作可并发；写入（invalidateMemoryCache）递增代际计数，
@@ -87,7 +88,7 @@ export async function readMemories(): Promise<MemoryEntry[]> {
       tags: stripKeyHeader(block).match(/#\w+/g) || [],
     }))
   } catch (error) {
-    console.warn("[memory-bridge] readMemories failed:", error instanceof Error ? error.message : String(error))
+    logWarn("memory.bridge", `readMemories failed: ${error instanceof Error ? error.message : String(error)}`)
     return []
   }
 }

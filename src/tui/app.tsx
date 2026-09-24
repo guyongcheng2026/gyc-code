@@ -6,6 +6,7 @@ import { Deferred, Effect } from "effect"
 import { Global } from "@gyccode/core/global"
 import { Flag } from "@gyccode/core/flag/flag"
 import { InstallationVersion } from "@gyccode/core/installation/version"
+import { logError } from "@core/observability/log-error"
 import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
@@ -360,7 +361,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           try {
             await input.pluginHost.dispose()
           } catch (error) {
-            console.error("Failed to dispose TUI plugins", error)
+            logError("tui.app", error)
           }
         }),
       )
@@ -729,7 +730,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             if (!Flag.GYCCODE_DISABLE_MOUSE && resolved.mouse) renderer.useMouse = true
             keymapOff = registerGyccodeKeymap(keymap, renderer, resolved)
           } catch (error) {
-            console.error("Failed to apply TUI config after splash", error)
+            logError("tui.app", error)
             exit.reason = error
             if (!renderer.isDestroyed) destroyRenderer(renderer)
           }
@@ -927,7 +928,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       dispose: () => attention.dispose(),
     })
     .catch((error) => {
-      console.error("Failed to load TUI plugins", error)
+      logError("tui.app", error)
     })
     .finally(() => {
       setReady(true)

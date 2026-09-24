@@ -6,6 +6,7 @@
 // 自动转换只调整 .usage.json 里的状态元数据，**不搬迁目录**。归档搬目录是显式
 // 动作（走 skill-store 的 archive），避免自动流程动到文件系统。
 
+import { logWarn } from "@core/observability/log-error"
 import { setState, type SkillUsageTable } from "./usage"
 
 export interface LifecycleConfig {
@@ -81,9 +82,9 @@ export async function applyTransitions(root: string, transitions: readonly Trans
     try {
       await setState(root, transition.name, transition.to)
     } catch (error) {
-      console.warn(
-        `[learning] 生命周期转换失败：${transition.name} -> ${transition.to}`,
-        error instanceof Error ? error.message : String(error),
+      logWarn(
+        "learning.lifecycle",
+        `生命周期转换失败：${transition.name} -> ${transition.to}：${error instanceof Error ? error.message : String(error)}`,
       )
     }
   }

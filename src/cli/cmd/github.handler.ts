@@ -34,6 +34,7 @@ import { Process } from "@/util/process"
 import { parseGitHubRemote } from "@/util/repository"
 import { Effect } from "effect"
 import { extractResponseText, formatPromptTooLargeError } from "./github.shared"
+import { logError, logWarn } from "@core/observability/log-error"
 
 type GitHubAuthor = {
   login: string
@@ -602,7 +603,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       }
     } catch (e) {
       exitCode = 1
-      console.error(e instanceof Error ? e.message : String(e))
+      logError("cli.github", e)
       let msg: string | Error = e instanceof Error ? e : String(e)
       if (e instanceof Process.RunFailedError) {
         msg = e.stderr.toString()
@@ -766,7 +767,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           },
         })
         if (!res.ok) {
-          console.error(`Failed to download image: ${url}`)
+          logWarn("cli.github", `Failed to download image: ${url}`, { url })
           continue
         }
 
@@ -900,7 +901,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
           if (result.info.role === "assistant" && result.info.error) {
             const err = result.info.error
-            console.error("Agent error:", err)
+            logError("cli.github", err, { sessionID: session.id })
             if (err.name === "ContextOverflowError") throw new Error(formatPromptTooLargeError(files))
             const message = "message" in err.data ? err.data.message : ""
             throw new Error(`${err.name}: ${message}`)
@@ -930,7 +931,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
           if (summary.info.role === "assistant" && summary.info.error) {
             const err = summary.info.error
-            console.error("Summary agent error:", err)
+            logError("cli.github", err, { sessionID: session.id })
             if (err.name === "ContextOverflowError") throw new Error(formatPromptTooLargeError(files))
             const message = "message" in err.data ? err.data.message : ""
             throw new Error(`${err.name}: ${message}`)
@@ -947,7 +948,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
       try {
         return await core.getIDToken("gyccode-github-action")
       } catch (error) {
-        console.error("Failed to get OIDC token:", error instanceof Error ? error.message : error)
+        logError("cli.github", error)
         throw new Error(
           "无法获取 OIDC 令牌。请确保在工作流权限中添加 `id-token: write`。",
           { cause: error },
@@ -1141,7 +1142,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         permission = response.data.permission
         console.log(`  permission: ${permission}`)
       } catch (error) {
-        console.error(`Failed to check permissions: ${error}`)
+        logError("cli.github", error, { actor })
         throw new Error(`检查用户 ${actor} 的权限失败：${error}`, { cause: error })
       }
 

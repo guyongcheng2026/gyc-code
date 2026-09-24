@@ -31,6 +31,7 @@ import type { WorkspaceAdapter } from "@/control-plane/types"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { InstallationChannel } from "@gyccode/core/installation/version"
+import { logError } from "@core/observability/log-error"
 
 type State = {
   hooks: Hooks[]
@@ -253,7 +254,7 @@ const layer = Layer.effect(
               // 单个插件 hook 抛错不应影响其他插件与事件分发，但需留痕
               void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
                 .catch((e: unknown) => {
-                  console.error(`[plugin] 事件 hook 执行失败：${String(e)}`)
+                  logError("plugin.runtime", e)
                 })
             }
           })

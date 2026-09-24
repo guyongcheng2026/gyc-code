@@ -4,6 +4,7 @@ import { readLedger, rollbackEntry } from "@/learning/ledger"
 import { make as makeSkillStore } from "@/learning/skill-store"
 import { applyTransitions, planTransitions } from "@/learning/lifecycle"
 import { gycSkillsHome, skillsRoot } from "@/learning/paths"
+import { logError } from "@core/observability/log-error"
 
 /** 技能沉淀闭环的运维入口：查看账本、回滚单次变更、归档与恢复技能。 */
 export const LearningCommand = cmd({
@@ -64,7 +65,7 @@ export const LearningCommand = cmd({
             await rollbackEntry(gycSkillsHome(), argv.id as string)
             console.log(`已回滚账本条目 ${argv.id}。`)
           } catch (error) {
-            console.error(`回滚失败: ${error instanceof Error ? error.message : String(error)}`)
+            logError("cli.learning", error, { id: argv.id })
             process.exitCode = 1
           }
         },
@@ -81,7 +82,7 @@ export const LearningCommand = cmd({
             console.log(`已归档 ${name}。`)
             return
           }
-          console.error(`归档失败: ${result.reason} ${result.message}`)
+          logError("cli.learning", `归档失败: ${result.reason} ${result.message}`, { name })
           process.exitCode = 1
         },
       })
@@ -97,7 +98,7 @@ export const LearningCommand = cmd({
             console.log(`已恢复 ${name}。`)
             return
           }
-          console.error(`恢复失败: ${result.reason} ${result.message}`)
+          logError("cli.learning", `恢复失败: ${result.reason} ${result.message}`, { name })
           process.exitCode = 1
         },
       })

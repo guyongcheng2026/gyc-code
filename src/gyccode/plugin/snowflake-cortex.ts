@@ -1,5 +1,6 @@
 import type { Hooks, PluginInput } from "@gyccode/protocol/plugin"
 import { OAUTH_DUMMY_KEY } from "../auth"
+import { logError } from "@core/observability/log-error"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { generatePKCE, generateRandomString } from "@gyccode/core/util/pkce"
 import { OauthCallbackPage } from "@gyccode/core/oauth/page"
@@ -295,10 +296,10 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
               })
               .catch(() => {
                 // 保存刷新后的 token 失败会导致用户下次需重新登录，必须留痕
-                console.error("[snowflake-cortex] 保存刷新后的 OAuth token 失败")
+                logError("plugin.snowflake-cortex", new Error("保存刷新后的 OAuth token 失败"))
               })
           } catch (e) {
-            console.error(`[snowflake-cortex] token 刷新失败：${String(e)}`)
+            logError("plugin.snowflake-cortex", e)
           }
         }
 
@@ -337,7 +338,7 @@ export async function SnowflakeCortexAuthPlugin(_input: PluginInput): Promise<Ho
                       })
                       .catch(() => {
                         // 保存刷新后的凭证失败会导致用户下次需重新登录，必须留痕
-                        console.error("[snowflake-cortex] 保存刷新后的 OAuth 凭证失败")
+                        logError("plugin.snowflake-cortex", new Error("保存刷新后的 OAuth 凭证失败"))
                       })
                     return {
                       access: tokens.access_token,

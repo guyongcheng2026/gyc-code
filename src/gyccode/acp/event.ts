@@ -9,6 +9,7 @@ import type {
   ToolPart,
 } from "@gyccode/protocol/v2"
 import { Effect } from "effect"
+import { logError } from "@core/observability/log-error"
 import { ACPSession } from "./session"
 import { ACPPermission } from "./permission"
 import { partsToContentChunks, type ReplayPart } from "./content"
@@ -170,7 +171,7 @@ export class Subscription {
       if (!event.payload) continue
       // 单个事件处理失败不应中断整个事件循环，但需留痕便于定位
       await this.handle(event.payload).catch((e) => {
-        console.error(`[acp] 处理事件失败：${String(e)}`)
+        logError("acp.event", e)
       })
     }
   }

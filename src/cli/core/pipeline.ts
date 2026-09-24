@@ -7,6 +7,7 @@ import { Filesystem } from "@/util/filesystem"
 import { pathToFileURL } from "url"
 import path from "path"
 import { readStdin } from "@core/util/read-stdin"
+import { logError, logWarn } from "@core/observability/log-error"
 import { streamLoop } from "../cmd/run/stream-cli"
 
 export interface PipelineInput {
@@ -108,7 +109,7 @@ export async function resolveFileParts(files: string[], directory?: string, opti
     const resolved = path.resolve(directory ?? process.cwd(), filePath)
     if (!(await Filesystem.exists(resolved))) {
       if (skipMissing) {
-        console.error(`文件不存在：${filePath}`)
+        logWarn("cli.pipeline", `文件不存在：${filePath}`, { path: resolved })
         continue
       }
       throw new Error(`文件不存在: ${filePath}`)
@@ -181,7 +182,7 @@ export async function fetchDynamicCommands(sdk: GyccodeClient, directory: string
     }
   } catch (e) {
     // 拉取失败时降级为仅内置命令，但必须留痕，否则用户只看到"命令不存在"无从排查
-    console.error(`[pipeline] 拉取动态命令失败，已降级为仅内置命令：${String(e)}`)
+    logError("cli.pipeline", e, { directory })
   }
   return commands
 }
@@ -265,7 +266,7 @@ export async function executeTurn(ctx: ExecutionContext): Promise<string | undef
         if (subagents.length > 100) subagents.splice(0, subagents.length - 100)
       },
     }).catch((e) => {
-      console.error(e)
+      logError("cli.pipeline", e, { sessionID })
       process.exitCode = 1
     })
 

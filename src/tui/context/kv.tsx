@@ -3,6 +3,7 @@ import { createStore, unwrap } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { Flock } from "@gyccode/core/util/flock"
 import { Global } from "@gyccode/core/global"
+import { logError } from "@core/observability/log-error"
 import { readJson, writeJsonAtomic } from "../util/persistence"
 import { useTuiPaths } from "./runtime"
 import path from "path"
@@ -24,7 +25,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         setStore(x)
       })
       .catch((error) => {
-        console.error("读取 KV 状态失败", { error })
+        logError("tui.kv", error, { error })
       })
       .finally(() => {
         setReady(true)
@@ -57,7 +58,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
         write = write
           .then(() => Flock.withLock(lock, () => writeJsonAtomic(file, snapshot)))
           .catch((error) => {
-            console.error("写入 KV 状态失败", { error })
+            logError("tui.kv", error, { error })
           })
       },
     }

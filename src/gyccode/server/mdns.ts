@@ -1,4 +1,5 @@
 import { Bonjour } from "bonjour-service"
+import { logError } from "@core/observability/log-error"
 
 let bonjour: Bonjour | undefined
 let currentPort: number | undefined
@@ -20,7 +21,7 @@ export function publish(port: number, domain?: string) {
     })
 
     service.on("error", (err) => {
-      console.error("[mdns] bonjour service error:", err)
+      logError("server.mdns", err)
     })
 
     currentPort = port

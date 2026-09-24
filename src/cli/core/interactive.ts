@@ -11,6 +11,7 @@ import { UI } from "../ui"
 import { executeBuiltinCommand, ExecutorContext } from "./executor"
 import { HistorySearchResult } from "./history"
 import { TokyoNight, Typography } from "../theme"
+import { logError } from "@core/observability/log-error"
 
 export interface InteractiveOptions {
   directory?: string
@@ -234,7 +235,7 @@ async function renderWelcome(sdk: GyccodeClient, sessionId: string, input: Execu
     }
   } catch (e) {
     // 读取配置/会话失败时降级为默认模型，留痕以便排查显示异常
-    console.error(`[interactive] 读取当前模型配置失败，已回退默认：${String(e)}`)
+    logError("cli.interactive", e, { sessionId })
   }
 
   const shortModel = modelID.includes("/") ? modelID.slice(modelID.lastIndexOf("/") + 1) : modelID

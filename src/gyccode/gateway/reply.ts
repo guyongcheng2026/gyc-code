@@ -6,6 +6,7 @@
 //    完成后把输出截断回传微信；互斥锁防并发；/status 报告网关状态。
 import { generateText } from "ai"
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible"
+import { logWarn } from "@core/observability/log-error"
 import { readFileSync, existsSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -269,7 +270,7 @@ export class Replier {
         console.log(`[gyc gateway] 任务开始：${runMatch[1].slice(0, 60)}`)
         return await runTask(runMatch[1].trim())
       } catch (cause) {
-        console.warn(`[gyc gateway] 任务异常：${String(cause).slice(0, 200)}`)
+        logWarn("gateway.reply", `任务异常：${String(cause).slice(0, 200)}`)
         return `任务执行失败：${String(cause).slice(0, 200)}`
       }
     }

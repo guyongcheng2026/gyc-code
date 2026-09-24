@@ -10,6 +10,7 @@ import { EOL } from "os"
 import type { Argv } from "yargs"
 import { Effect } from "effect"
 import { effectCmd } from "../effect-cmd"
+import { logError } from "@core/observability/log-error"
 
 type AgentMode = "all" | "primary" | "subagent"
 
@@ -212,7 +213,7 @@ const AgentCreateCommand = effectCmd({
 
       if (await Filesystem.exists(filePath)) {
         if (isFullyNonInteractive) {
-          console.error(`Error: Agent file already exists: ${filePath}`)
+          logError("cli.agent", `Error: Agent file already exists: ${filePath}`, { path: filePath })
           process.exit(1)
         }
         prompts.log.error(`智能体文件已存在：${filePath}`)

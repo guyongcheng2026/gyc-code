@@ -1,3 +1,4 @@
+import { logError } from "@core/observability/log-error"
 import {
   type AgentSideConnection,
   type AuthenticateRequest,
@@ -709,7 +710,7 @@ function makeUsageService(sdk: GyccodeClient) {
           },
         })
         .catch((e) => {
-          console.error(`[acp] 上报会话用量失败：${String(e)}`)
+          logError("acp.usage.report", e)
         }),
     )
   })
@@ -729,7 +730,7 @@ function replayMessages(subscription: ACPEvent.Subscription | undefined, message
     for (const message of messages) {
       // 单条消息重放失败不应中断其余消息，但需留痕
       await subscription.replayMessage(message).catch((e) => {
-        console.error(`[acp] 重放消息失败：${String(e)}`)
+        logError("acp.replay", e)
       })
     }
   })
@@ -1002,7 +1003,7 @@ function sendAvailableCommands(
             description: command.description ?? "",
           })),
         },
-      }).catch((error) => console.error("[acp] push available_commands failed:", error))
+      }).catch((error) => logError("acp.available_commands", error))
     }, 0)
   })
 }

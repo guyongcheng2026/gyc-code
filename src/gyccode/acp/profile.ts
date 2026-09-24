@@ -1,3 +1,5 @@
+import { logError } from "@core/observability/log-error"
+
 const enabled = process.env.GYCCODE_ACP_PROFILE === "1"
 const started = performance.now()
 
@@ -36,7 +38,7 @@ function write(name: string, durationMs: number, fields?: Record<string, string 
         .map(([key, value]) => `${key}=${value}`)
         .join(" ")
     : ""
-  console.error(`[acp-profile] ${name} ${Math.round(durationMs)}ms${extra ? ` ${extra}` : ""}`)
+  logError("acp.profile", `${name} ${Math.round(durationMs)}ms${extra ? ` ${extra}` : ""}`)
 }
 
 export * as ACPProfile from "./profile"

@@ -1,5 +1,6 @@
 import type { Hooks, PluginInput } from "@gyccode/protocol/plugin"
 import type { Model } from "@gyccode/protocol/v2"
+import { logError } from "@core/observability/log-error"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { OauthCallbackPage } from "@gyccode/core/oauth/page"
 import { createServer } from "http"
@@ -255,7 +256,7 @@ export async function DigitalOceanAuthPlugin(input: PluginInput): Promise<Hooks>
               })
               .catch(() => {
                 // 保存更新后的元数据失败会导致下次重新拉取，必须留痕
-                console.error("[digitalocean] 保存 auth 元数据失败")
+                logError("plugin.digitalocean", new Error("保存 auth 元数据失败"))
               })
           } else if (result.status === 401 || result.status === 403) {
           } else if (result.status !== 0) {

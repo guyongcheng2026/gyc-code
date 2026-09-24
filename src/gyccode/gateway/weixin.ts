@@ -9,6 +9,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 import type { GatewayAdapter, GatewayMessage, GatewaySendResult } from "./adapter"
+import { logWarn } from "@core/observability/log-error"
 import { classifyIlinkResponse, GatewayError, GatewayErrorKind } from "./errors"
 
 const ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
@@ -296,7 +297,7 @@ export class WeixinAdapter implements GatewayAdapter {
       }
       if (lastError) return { ok: false, error: lastError.message, kind: lastError.kind }
       const stale = await recordHeartbeat().catch(() => null)
-      if (stale) console.warn(`[gyc] 注意：检测到另一存活进程 ${stale} 亦在使用 bot 凭证，存在消息竞争风险`)
+      if (stale) logWarn("gateway.weixin", `注意：检测到另一存活进程 ${stale} 亦在使用 bot 凭证，存在消息竞争风险`)
       return { ok: true, messageId: lastMessageId || `gyc-weixin-${Date.now().toString(16)}` }
     } finally {
       release()
@@ -325,7 +326,7 @@ export class WeixinAdapter implements GatewayAdapter {
       )
       if (failure) {
         // 诊断可见性：原始响应落日志，杜绝静默失败
-        console.warn(`[gyc gateway] getupdates 异常响应: ${JSON.stringify(response).slice(0, 300)}`)
+        logWarn("gateway.weixin", `getupdates 异常响应: ${JSON.stringify(response).slice(0, 300)}`)
         if (failure.kind === "session_expired") throw failure
         await sleep(2_000)
         continue
@@ -349,7 +350,7 @@ export class WeixinAdapter implements GatewayAdapter {
           await onMessage({ from: senderId, text, timestamp: Date.now() })
         } catch (cause) {
           // 回调故障只记录不传播：守护的存活高于单条消息的处理成败
-          console.warn(`[gyc gateway] onMessage 回调异常: ${String(cause).slice(0, 200)}`)
+          logWarn("gateway.weixin", `onMessage 回调异常: ${String(cause).slice(0, 200)}`)
         }
       }
     }

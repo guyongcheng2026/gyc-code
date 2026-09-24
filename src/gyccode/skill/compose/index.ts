@@ -8,6 +8,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { InstallationLocal } from "@gyccode/core/installation/version"
 import { ConfigMarkdown } from "@/config/markdown"
+import { logWarn } from "@core/observability/log-error"
 
 type ComposeBundle = Record<string, Record<string, string>>
 
@@ -18,7 +19,7 @@ function safeLoadComposeBundle(): ComposeBundle {
     const mod = require("./bundle.gen")
     return (mod.COMPOSE_BUNDLE ?? mod.default?.COMPOSE_BUNDLE ?? {}) as ComposeBundle
   } catch (cause) {
-    console.warn("[compose] Failed to load COMPOSE_BUNDLE, falling back to empty bundle:", cause)
+    logWarn("skill.compose", `Failed to load COMPOSE_BUNDLE, falling back to empty bundle: ${String(cause)}`)
     return {}
   }
 }

@@ -18,6 +18,7 @@ import type {
   SkillV2Info,
   V2Event,
 } from "@gyccode/protocol/v2"
+import { logError } from "@core/observability/log-error"
 import { createStore, produce } from "solid-js/store"
 import { createSimpleContext } from "./helper"
 import { useSDK } from "./sdk"
@@ -575,7 +576,7 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
         dataResult.location.skill.refresh(),
       ]).then((settled) => {
         for (const failure of settled.filter((item) => item.status === "rejected"))
-          console.error("刷新默认位置数据失败", failure.reason)
+          logError("tui.data", failure.reason)
       })
     })
 

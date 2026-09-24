@@ -6,6 +6,7 @@ import { join, dirname } from "path"
 import { homedir } from "os"
 import { DatabaseSync } from "node:sqlite"
 import fuzzysort from "fuzzysort"
+import { logWarn } from "@core/observability/log-error"
 import { HistoryEntry } from "./interactive-types"
 
 const DB_PATH = join(homedir(), ".gyc", "history.db")
@@ -253,7 +254,7 @@ export async function createHistoryManager(sessionId: string): Promise<IHistoryM
     await manager.ensureInit()
     return manager
   } catch (error) {
-    console.warn("[history] SQLite 初始化失败，使用内存历史:", error instanceof Error ? error.message : String(error))
+    logWarn("cli.history", "SQLite 初始化失败，使用内存历史", { sessionId, error: error instanceof Error ? error.message : String(error) })
     return new MemoryHistoryManager(sessionId)
   }
 }

@@ -1,5 +1,6 @@
 import type { PermissionV1 } from "@gyccode/core/v1/permission"
 import { readStdin } from "@core/util/read-stdin"
+import { logError, logWarn } from "@core/observability/log-error"
 import { FSUtil } from "@gyccode/core/fs-util"
 // CLI entry point for `gyccode run`.
 //
@@ -192,9 +193,9 @@ export const RunCommand = effectCmd({
       }
 
       if (args["dangerously-skip-permissions"]) {
-        console.error("\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
-        console.error("\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
-        console.error("\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
+        logWarn("cli.run", "\x1b[33m⚠ 警告：--dangerously-skip-permissions 已禁用所有权限检查，存在安全风险！\x1b[0m")
+        logWarn("cli.run", "\x1b[33m⚠ 此模式下 AI 代理可以执行任何命令，包括删除文件、修改系统配置等危险操作。\x1b[0m")
+        logWarn("cli.run", "\x1b[33m⚠ 仅在受信任的环境中使用，切勿在生产环境或敏感项目中使用。\x1b[0m\n")
       }
 
       let message = [...args.message, ...(args["--"] || [])]
@@ -545,7 +546,7 @@ export const RunCommand = effectCmd({
             reject: (requestID) => client.v2.session.question.reject({ sessionID, requestID }),
           },
         }).catch((e) => {
-          console.error(e)
+          logError("cli.run", e, { sessionID })
           process.exitCode = 1
         })
         // streamLoop 是否已通过 session.error 事件展示了可读错误明细

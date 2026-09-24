@@ -10,6 +10,7 @@ import { appendFile, mkdir } from "node:fs/promises"
 import { Global } from "@gyccode/core/global"
 import { Rpc } from "@/util/rpc"
 import { withTimeout } from "@/util/timeout"
+import { logError } from "@core/observability/log-error"
 import type { rpc } from "./worker"
 
 type RpcClient = ReturnType<typeof Rpc.client<typeof rpc>>
@@ -125,7 +126,7 @@ export function createWorkerPool(opts: { file: URL | string; external: boolean }
           spawnWorker()
         } catch (e) {
           // Worker restart failure must be silent; otherwise TUI main thread crashes.
-          console.error(`[tui] worker restart failed: ${String(e)}`)
+          logError("cli.tui", e, { code, restarts })
         }
       }, delayMs).unref?.()
     })

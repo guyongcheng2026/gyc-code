@@ -2,6 +2,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { Effect, Stream } from "effect"
 import { HttpBody, HttpClient, HttpClientRequest, HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
 import { createHash } from "node:crypto"
+import { logWarn } from "@core/observability/log-error"
 import { existsSync } from "node:fs"
 import { dirname, isAbsolute, join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -73,7 +74,7 @@ export function embeddedUI(disableEmbeddedWebUi: boolean) {
       })
       .catch((cause) => {
         // 内嵌 UI 清单缺失或损坏时回落到上游代理，记录原因便于排障
-        console.warn(`[ui] 内嵌 Web UI 清单加载失败，回落上游代理: ${String(cause).slice(0, 200)}`)
+        logWarn("server.ui", `内嵌 Web UI 清单加载失败，回落上游代理: ${String(cause).slice(0, 200)}`)
         return null
       }))
 }
