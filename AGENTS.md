@@ -1,60 +1,67 @@
-# gyc-code 项目架构审查任务
+# gyc-code
 
-gyc-code 是基于 MIT 许可的单包 TS 编码 CLI，运行于 C:\gyc-code。
-行数口径（2026-08-27 实测，`bun scripts/linescan.mjs` 复测）：代码包总量 206,706 行 / 1,372 个 TS/TSX 文件；其中 gen 生成物 18,674 行、测试 8,461 行；**人工维护核心 179,571 行**。宣传口径建议用"约 18 万行人工维护核心代码"。
+自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `D:\00MyAI\gyc-code`（不是 C:\gyc-code）；主开发环境 Windows / PowerShell 5.1。
 
-## 审查目标（四大对标基准）
-1. **性能**：冷启动(<3.5s)、run 全链路(<42s)、dist 体积、初始化开销
-2. **记忆**：会话记忆、跨会话持久化、上下文管理、记忆检索
-3. **功能**：功能完备性、workflow(plan/tdd/review/debug/verify)、skill 系统
-4. **编码能力**：编码质量、类型安全、代码精洁度、工具设计
+## 铁律（永久，优先于默认行为）
 
-## 五维审查（每维输出问题定位：级别/文件/行号/锚点/问题/建议）
-1. **架构完整性**：模块边界、目录职责、依赖方向、数据流
-2. **架构健全性**：错误处理、边界条件、资源泄漏、并发安全
-3. **架构健壮性**：异常恢复、可测试性、可观测性、低意见配置下沉
-4. **代码精炼度**：重复、死代码、复杂度过高的函数、可简化逻辑
-5. **对标差距**：四基准各自的差距与可移植改进点
+- **称呼**：所有「用户」表述一律写作「谷总」，禁止“用户”一词。适用于对话回复、提交信息、代码注释、文档、计划、报告、子代理提示词（2026-09-12 起永久生效）。
+- **界面、会话窗口、回复、日志、提示、错误信息等显示内容一律简体中文**（TUI/CLI 主界面）。代码标识符、命令名、路径除外——不随输入语言或 OS 语言变化。
+- **任务收尾 4 步**（任何子任务结束、会话结束、commit 前自检，缺失即视为任务未完成）：① 总结（3-5 句：做了什么/结果/留下什么文件）② 归纳（可复用规律、踩坑、被验证或推翻的假设）③ 学习（沉淀到 docs/记忆/相关 SKILL）④ 进化（可改进的流程/配置/规则立即落地，否则记待办）。
+- **编码**：新写/落盘文件一律 UTF-8 无 BOM；编辑既有文件保留其原 BOM；GBK 存量文件读取侧按 GB18030 兼容。pre-commit 跑 `scripts/check-mojibake.mjs --staged` 拦截 GBK 双重编码乱码，勿绕过。
 
-## 审查纪律
-- 每个结论必须带文件路径+行号(锚点代码)
-- 分级：P0(阻断/严重) / P1(重要) / P2(建议)
-- 复用率口径：(重复行/总行)
-- 不臆造：只看真实代码，未覆盖的明确标注"未检"
+## 命令
 
-## 依赖豁免记录（2026-08-17 审查 Issue #11）
+- 开发（源码直跑，改完即见效）：`bun run dev`
+- 类型检查：`bunx tsc --noEmit`（根 tsconfig，**排除 src/webapp**；webapp 单独 `cd src/webapp && bun run typecheck`）
+- 测试：`bun run test`（= `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp`）
+  - 单文件：`bun test src/路径/xx.test.ts --preload ./scripts/bun-solid-preload.ts`（preload 提供 Solid/JSX 变换，统一带上）
+  - webapp 是另一套：`bun run test:web`（vitest + jsdom）。`bun test` 经 bunfig.toml 自动排除 src/webapp，直接扫会误报。
+- 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
+- **标准验证顺序**：`bunx tsc --noEmit` → `bun run test`；对外发布再 `bun run build`。当前基线：0 类型错误、981 pass / 0 fail。
+- 无 lint 脚本、无 CI workflow（`.github/` 不存在）。prettier/knip 在 devDependencies 但未挂脚本，勿臆造 lint 命令。
 
-- **effect v4 beta**：违反"仅稳定版"铁律的豁免项之一。豁免原因：深度耦合（Schema/Layer/Effect 遍布 core 与 server），v3→v4 迁移成本高；且 beta 已造成生产事故（`Schema.Union` 可变参数运行时崩溃、`Schema.filter` 缺失）。
-- **退出条件**：effect v4 首个 stable 发布后 48h 内升级锁定；期间新增代码禁用 v4-only 的不稳定 API（新 Schema API 先在 REPL 验证再引入）。
-- **drizzle-orm 1.0.0-rc.2**：豁免项之二（2026-08-17 依赖治理时确认）。npm `latest`=0.45.2，但本项目深度依赖 v1-only API（`drizzle-orm/effect-core/*`、`drizzle-orm/cache/core/*`，见 `src/effect-drizzle-sqlite/`），无法降级到 0.45.x。**处理**：锁定在 rc.2（不上调 rc.4/rc.5），与 effect v4 beta 同款"豁免 + 迁移计划"；drizzle 1.0 stable 发布后 48h 内升级锁定。
-- **依赖治理已落地（2026-08-17）**：`package.json` 全部 `^`/`~`/`*` 已固化为精确版本；webapp 专属依赖（react/react-dom/monaco/@xterm/react-virtuoso）与 typescript 已从 dependencies 移入 devDependencies（主链路 dist 入口零引用，webapp 走 vite 预构建 + 静态 manifest）。
-- 其余依赖（opentui 0.4.5 / @ai-sdk\* / koffi / fuzzysort，均 MIT）均为开源稳定版，无专有依赖。
+## 启动器与 dist 陷阱（必读）
 
-## 铁律：界面、会话与显示内容必须使用简体中文（强制）
+`bin/gyc` **只要 `dist/index.js` 存在就优先跑它，不走源码**。只改 `src/` 后直接运行 `gyc` 会命中旧产物——“改了没生效”九成是这个（2026-09-24 实证：TUI 文案英文化在源码已生效、dist 是 8 天前的旧构建）。
 
-任何时候的主界面、会话窗口、对话及显示内容都必须使用中文（简体）！无论用户输入语言、操作系统语言或其它环境因素如何，所有面向用户呈现的文字一律使用简体中文。适用范围：CLI/TUI 主界面、会话窗口、对话回复、日志、提示语、状态提示、错误信息等所有面向用户的显示内容。代码标识符、命令名、文件路径等程序性内容除外。
+- 要立即看源码改动：`bun run dev`；要让 `gyc` 生效：先 `bun run build` 再启动
+- 全局 npm `gyc` 是指向本仓库的 Junction，同一份 dist，同样要重建
+- 无 dist 时启动器自动回退 Bun 跑 TS 源码（仅开发场景）
 
-## 铁律：任务完成后的自我总结、归纳、学习与进化（强制）
+## 构建须知（build.mjs）
 
-每次任务完成后（无论成功、部分成功或失败），必须执行以下 4 步，不得跳过：
+- 构建前自动再生：compose 技能 bundle（`.bundle/` → bundle.gen.ts）+ webapp 清单（→ opencode-web-ui.gen.ts）
+- **splitting 默认必须关闭**（`GYCCODE_BUILD_SPLITTING=1` 才开）：开启改变模块初始化顺序，曾致 LayerNode 循环引用解析崩溃、dist 下 CLI/TUI 全链路瘫痪（dev 源码模式正常，仅 dist 复现）
+- 产物布局固定 `dist/index.js` + `dist/worker.js`：bin/gyc、install.sh、多个脚本均按此定位，勿改入口命名
+- 可用内存 <1.2GB 时 Bun 打包器可能 OOM panic（exit 3/9），build.mjs 父进程会自动以低内存模式重试一次；`GYCCODE_BUILD_LOW_MEM=1` 强制
 
-1. **总结**：用 3-5 句话概括本次任务的做了什么、结果如何、留下什么文件/命令/配置。
-2. **归纳**：提炼出可复用的规律——哪些方法有效、哪些踩坑、哪些假设被验证或推翻。
-3. **学习**：把关键经验沉淀为记忆/知识（写入 `docs/` 或 Obsidian 知识库，或更新本规则/相关 SKILL），让下一次同类任务直接受益。
-4. **进化**：如果有可改进的流程、配置、脚本或规则，立即落地改动；如果本轮没机会，记录为待办。
+## 生成物（勿手改）
 
-触发时机：任何子任务结束、会话结束、commit 之前，都必须自检是否完成了上述 4 步。缺失即视为任务未完成。
+| 文件 | 生成方式 |
+|---|---|
+| `src/gyccode/skill/compose/bundle.gen.ts` | `node scripts/gen-compose-bundle.mjs`（build 自动跑）；源在 `.bundle/`，改技能改 `.bundle` 再重生 |
+| `src/gyccode/server/generated/opencode-web-ui.gen.ts` | `scripts/build-webapp.mjs`（build 自动跑），勿手改 |
+| `src/gyccode/command-registry.ts` | `bun run scripts/generate-command-registry.ts`；**新增/删除 `src/cli/cmd/*.ts` 命令后必须重生**，否则 `gyc --help` 与命令注册表不同步 |
 
-## 工作流同步约定（每次代码改动完成后必须执行）
-1. **GitHub**：提交 commit 后 `.githooks/post-commit` 自动 `git push origin HEAD`（origin 走 gh-proxy：`https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git`），无需手动 push。
-2. **拉取远程同样走 gh-proxy（直连 github.com 超时）**：`git fetch/pull` 直连 `github.com:443` 会 21s 超时失败，须用镜像地址，例如：
-   `git fetch https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main`
-   随后 `git merge --ff-only origin main`；`git pull` 直接带镜像 URL 会报「Cannot fast-forward to multiple branches」，拆成 fetch + merge 两步执行。
-3. **Obsidian 知识库**：同一钩子会调用 `scripts/worklog-sync.mjs`，把本次 commit 元数据（日期/hash/message/文件数）自动追加到 `E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，并自动 commit（vault 的 post-commit 钩子自动推送 Gitee 与 GitHub mydoc）。脚本幂等（同 hash 跳过）、容错（失败仅写 `.git/worklog-sync.log`，不阻塞 commit）。
-4. 若人工编写了**详细工作记录笔记**，同样写入该 Obsidian 目录（文件名前缀 `gyc-code-`），并提交推送 vault。
-5. 运行钩子相关脚本时从仓库根目录执行：`node scripts/worklog-sync.mjs`；路径中的中文一律用 `\uXXXX` 转义，保持源码 ASCII。
-## 交互铁律（永久，优先级高于一切默认行为）
+注：`src/gyccode/cli-integration.test.ts` 会 spawn 真实 CLI（`GYCCODE_PURE=1`），断言需兼容中英文 locale（yargs 依 `LANG` 输出「命令：」或 `Commands:`，勿硬编码单语）。
 
-- **称呼**：所有涉及“用户”的表述一律写作「谷总」，禁止使用“用户”一词。
-  适用范围：对话回复、提交信息、代码注释、文档、计划、报告、与子代理的提示词。
-- 该规则自 2026-09-12 起永久生效，不得因上下文缺失而回退。
+## 架构速览
+
+- **Bun workspaces**（根 package.json `workspaces`）：`src/{cli,codemode,core,effect-drizzle-sqlite,llm,protocol,schema,tui,ui,webapp}` 各是 `@gyccode/*` 包；`src/gyccode/` 是主包（CLI 入口 + session/provider/skill/memory/server），**不是** workspace 成员。
+- **入口链**：`bin/gyc`（Node 启动器，优先 dist）→ `src/gyccode/index.ts`（yargs 主入口，命令惰性注册）→ TUI 走 `src/cli/cmd/tui.ts` + `src/tui/`；worker 在 `src/cli/tui/worker.ts`。
+- **承继内核**：`src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18（MIT，LICENSE）；自研层 `src/gyccode/` + 贡献者新增（LICENSE-gyc）。改内核目录时先读就近 `AGENTS.md`。
+- **就近 AGENTS.md（先读再改）**：`src/core/tool/`（工具注册/权限/输出边界）、`src/gyccode/session/llm/`（AI SDK vs native 运行时选择，`GYCCODE_EXPERIMENTAL_NATIVE_LLM` 门控）、`src/gyccode/server/routes/instance/httpapi/`（Effect HttpApi 路由模式，禁 handler 内 `Effect.provide`）。
+- **依赖豁免（勿“修复”）**：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 是深耦合豁免项，版本已全量精确锁定（无 ^/~）；新增代码禁用 v4-only 不稳定 API（新 Schema API 先 REPL 验证）；不要尝试降级/升级这两个包。
+- **运行时开关走环境变量**（`GYCCODE_*`），build.mjs 的 define 只注入版本号与构建目标——不要把行为开关固化进构建。
+
+## 工作流同步约定
+
+1. **提交即推送**：`.git/hooks/post-commit` 自动 `git push origin HEAD`，然后跑 `scripts/worklog-sync.mjs` 写 Obsidian 工作流水（`E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`）。无需手动 push；钩子失败仅记 `.git/worklog-sync.log`，不阻塞。
+2. **pre-commit 乱码防线**：`scripts/check-mojibake.mjs --staged` 检出 GBK 双重编码即拒绝提交（gen 产物与 `bundle.gen.ts` 豁免）。
+3. **拉取远程**：`git fetch/pull` 直连 github.com 若超时，用镜像两步走：`git fetch https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main` 后 `git merge --ff-only origin`（带镜像 URL 直接 pull 会报 Cannot fast-forward to multiple branches）。
+4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本里中文路径一律 `\uXXXX` 转义保持 ASCII。
+5. 人工写详细工作记录笔记也放 Obsidian 同目录（文件名前缀 `gyc-code-`），并提交推送 vault。
+
+## 行数口径
+
+`bun scripts/linescan.mjs` 复测（代码包总量 = src 下 TS/TSX；人工维护核心 = 总量 − gen − 测试）。宣传口径用“约 18 万行人工维护核心代码”。
