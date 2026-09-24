@@ -56,7 +56,7 @@
 
 ## 工作流同步约定
 
-1. **提交即推送**：`.git/hooks/post-commit` 自动 `git push origin HEAD`，然后跑 `scripts/worklog-sync.mjs` 写 Obsidian 工作流水（`E:\谷勇成的知识库\2001.我的助手工具链\gyc-code-工作流水.md`）。无需手动 push；push / worklog 任一步失败均追加错误到 `.git/worklog-sync.log`，不阻塞提交（用 `git status` 的 `[ahead N]` 交叉核对是否漏推）。
+1. **提交即推送**：`.git/hooks/post-commit` 自动 `git push origin HEAD`，然后跑 `scripts/worklog-sync.mjs` 写 Obsidian 工作流水（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程为 gitee `wwkceldn/gu-yongchengs-knowledge-base`）。无需手动 push；push / worklog 任一步失败均追加错误到 `.git/worklog-sync.log`，不阻塞提交（用 `git status` 的 `[ahead N]` 交叉核对是否漏推）。
 2. **pre-commit 乱码防线**：`scripts/check-mojibake.mjs --staged` 检出 GBK 双重编码即拒绝提交（gen 产物与 `bundle.gen.ts` 豁免）。
 3. **直连 github.com 超时的 gh-proxy 两步走（fetch / push 均适用）**：
    - 拉取：`git fetch https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main` 后 `git merge --ff-only origin`（带镜像 URL 直接 pull 会报 Cannot fast-forward to multiple branches）。
