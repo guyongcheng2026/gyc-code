@@ -15,6 +15,7 @@ import PROMPT_EXPLORE from "./prompt/explore.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
+import { PLAN_PRUNED_TOOLS } from "./plan-tools"
 import { mergeDeep, pipe, sortBy, values } from "remeda"
 import { Global } from "@gyccode/core/global"
 import path from "path"
@@ -167,6 +168,9 @@ const layer = Layer.effect(
                 task: {
                   general: "deny",
                 },
+                // T1 token 优化：plan 裁剪集（见 plan-tools.ts）*:deny → schema 自动
+                // 去除；edit/write/apply_patch 属 edit 族、保留 plans/*.md 写入，不裁。
+                ...Object.fromEntries(PLAN_PRUNED_TOOLS.map((key) => [key, "deny"])),
                 external_directory: {
                   [path.join(Global.Path.data, "plans", "*")]: "allow",
                 },

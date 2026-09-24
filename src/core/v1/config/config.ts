@@ -316,7 +316,7 @@ export const Info = Schema.Struct({
             description: "Enable automatic cross-session memory extraction (default: true)",
           }),
           min_turns: Schema.optional(NonNegativeInt).annotate({
-            description: "Extract memories every N turns (default: 3)",
+            description: "Extract memories every N turns (default: 8)",
           }),
           model: Schema.optional(Schema.String).annotate({
             description: "Model to use for extraction, e.g. deepseek/deepseek-chat (default: provider small model)",

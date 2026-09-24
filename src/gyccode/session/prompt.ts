@@ -1487,8 +1487,10 @@ const layer = Layer.effect(
           // Non-blocking: failures never interrupt the main loop.
           const memoryCfg = (yield* config.get()).memory?.extraction
           // min_turns 允许配 0（Schema.optional(NonNegativeInt)），但 0 会让 step % 0 = NaN、
-          // 条件恒 false，记忆抽取永久失效；0 的语义是"每轮都抽"，故周期下限取 1
-          const memoryMinTurns = memoryCfg?.min_turns ?? 3
+          // 条件恒 false，记忆抽取永久失效；0 的语义是"每轮都抽"，故周期下限取 1。
+          // 默认 8（原 3）：对齐最小 token 目标，抽取是每轮 fork 的后台 LLM 调用，
+          // 拉长周期可减约 60% 抽取开销（10min 冷却仍然兜底）。
+          const memoryMinTurns = memoryCfg?.min_turns ?? 8
           const memoryPeriod = memoryMinTurns > 0 ? memoryMinTurns : 1
           if (memoryCfg?.enabled !== false && step % memoryPeriod === 0) {
             // P1 修复：检查前先清理过期条目，避免过期条目占用 cap 空间

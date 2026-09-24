@@ -334,8 +334,10 @@ export async function searchMemories(query: string, limit = 20): Promise<MemoryE
   return scored.slice(0, limit).map((item) => item.entry)
 }
 
-/** Default token budget for memory injection (2000 tokens ≈ 8000 chars). */
-export const MEMORY_INJECTION_BUDGET = 8000
+/** Default token budget for memory injection (1000 tokens ≈ 4000 chars).
+ * 对齐 hermes（2200 字符）量级的最小可用集：检索结果已按相关分排序，预算只
+ * 取 top 条目——填不满不硬凑，降低每轮固定注入字节（T1 token 优化）。 */
+export const MEMORY_INJECTION_BUDGET = 4000
 
 /** Get the age of the memory file in milliseconds. */
 export async function getMemoryAgeMs(): Promise<number | undefined> {
