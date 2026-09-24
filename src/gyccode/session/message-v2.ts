@@ -429,13 +429,14 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
   // 否则每轮都会在"上一条最新 user 消息"处折断缓存前缀，实测 CH 99.3% 的主要泄漏源）。
   let firstUserIdx = -1
   for (let i = 0; i < input.length; i++) {
-    if (input[i].info.role === "user") {
+    if (input[i]?.info.role === "user") {
       firstUserIdx = i
       break
     }
   }
   for (let i = 0; i < input.length; i++) {
     const msg = input[i]
+    if (msg === undefined) continue
     if (msg.parts.length === 0) continue
 
     if (msg.info.role === "user") {

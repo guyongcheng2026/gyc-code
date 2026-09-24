@@ -348,12 +348,12 @@ function expand(text: string, cwd: string, shell: string) {
 function provider(text: string) {
   const match = text.match(/^([A-Za-z]+)::(.*)$/)
   if (match) {
-    if (match[1].toLowerCase() !== "filesystem") return
+    if (match[1]?.toLowerCase() !== "filesystem") return
     return match[2]
   }
   const prefix = text.match(/^([A-Za-z]+):(.*)$/)
   if (!prefix) return text
-  if (prefix[1].length === 1) return text
+  if (prefix[1]?.length === 1) return text
   return
 }
 
@@ -420,18 +420,20 @@ function tail(text: string, maxLines: number, maxBytes: number) {
   const out: string[] = []
   let bytes = 0
   for (let i = lines.length - 1; i >= 0 && out.length < maxLines; i--) {
-    const size = Buffer.byteLength(lines[i], "utf-8") + (out.length > 0 ? 1 : 0)
+    const line = lines[i]
+    if (line === undefined) continue
+    const size = Buffer.byteLength(line, "utf-8") + (out.length > 0 ? 1 : 0)
     if (bytes + size > maxBytes) {
       if (out.length === 0) {
-        const buf = Buffer.from(lines[i], "utf-8")
+        const buf = Buffer.from(line, "utf-8")
         let start = buf.length - maxBytes
         if (start < 0) start = 0
-        while (start < buf.length && (buf[start] & 0xc0) === 0x80) start++
+        while (start < buf.length && ((buf[start] ?? 0) & 0xc0) === 0x80) start++
         out.unshift(buf.subarray(start).toString("utf-8"))
       }
       break
     }
-    out.unshift(lines[i])
+    out.unshift(line)
     bytes += size
   }
   return {
@@ -789,7 +791,7 @@ export const ShellTool = Tool.define(
     return () =>
       Effect.gen(function* () {
         const cfg = yield* config.get()
-        const shell = Shell.acceptable(cfg.shell)
+        const shell = Shell.acceptable(cfg.shell) ?? ""
         const name = Shell.name(shell)
         const limits = yield* trunc.limits()
         const prompt = ShellPrompt.render(name, process.platform, limits, defaultTimeoutMs)

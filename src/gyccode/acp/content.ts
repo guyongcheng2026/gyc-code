@@ -207,13 +207,17 @@ function filePartToContentChunks(part: Extract<ReplayPart, { type: "file" }>): C
 
   const data = decodeDataUrl(part.url)
   if (!data) return []
-  if (data.mime.startsWith("image/")) {
+  // 解出局部变量并兜底：decodeDataUrl 的 mime/base64 是可选的，直接解引用会在
+  // noUncheckedIndexedAccess 下报错，缺省值对协议层也比 undefined 更安全。
+  const mime = data.mime ?? "application/octet-stream"
+  const base64 = data.base64 ?? ""
+  if (mime.startsWith("image/")) {
     return [
       {
         content: {
           type: "image",
-          mimeType: data.mime,
-          data: data.base64,
+          mimeType: mime,
+          data: base64,
           uri: pathToFileURL(part.filename ?? "image").href,
         },
       },
@@ -225,16 +229,16 @@ function filePartToContentChunks(part: Extract<ReplayPart, { type: "file" }>): C
       content: {
         type: "resource",
         resource:
-          data.mime.startsWith("text/") || data.mime === "application/json"
+          mime.startsWith("text/") || mime === "application/json"
             ? {
                 uri: pathToFileURL(part.filename ?? "file").href,
-                mimeType: data.mime,
-                text: Buffer.from(data.base64, "base64").toString("utf8"),
+                mimeType: mime,
+                text: Buffer.from(base64, "base64").toString("utf8"),
               }
             : {
                 uri: pathToFileURL(part.filename ?? "file").href,
-                mimeType: data.mime,
-                blob: data.base64,
+                mimeType: mime,
+                blob: base64,
               },
       },
     },

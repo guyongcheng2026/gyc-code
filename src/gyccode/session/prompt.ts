@@ -633,7 +633,9 @@ const layer = Layer.effect(
           }).pipe(Effect.ensuring(markReady))
 
           const cfg = yield* config.get()
-          const sh = Shell.preferred(cfg.shell)
+          // Shell.preferred 可能返回 undefined（无可用 shell）：沿用仓库既有约定补空串
+          // （tool/shell.ts 亦为 Shell.acceptable(cfg.shell) ?? ""），非新增行为。
+          const sh = Shell.preferred(cfg.shell) ?? ""
           const args = Shell.args(sh, input.command, cwd)
           let output = ""
           let aborted = false
@@ -968,7 +970,7 @@ const layer = Layer.effect(
                 let limit: number | undefined
                 const range = { start: url.searchParams.get("start"), end: url.searchParams.get("end") }
                 if (range.start != null) {
-                  const filePathURI = part.url.split("?")[0]
+                  const filePathURI = part.url.split("?")[0] ?? part.url
                   let start = parseInt(range.start)
                   let end = range.end ? parseInt(range.end) : undefined
                   if (start === end) {
@@ -1211,7 +1213,9 @@ const layer = Layer.effect(
       const match = yield* sessions.findMessage(sessionID, (m) => m.info.role !== "user").pipe(Effect.orDie)
       if (Option.isSome(match)) return match.value
       const msgs = yield* sessions.messages({ sessionID, limit: 1 }).pipe(Effect.orDie)
-      if (msgs.length > 0) return msgs[0]
+      // 索引取值可能为 undefined：取不到消息就是原来的"不可能"分支，保持抛出语义。
+      const first = msgs[0]
+      if (first !== undefined) return first
       throw new Error("Impossible")
     })
 
@@ -1985,7 +1989,7 @@ const layer = Layer.effect(
         const argIndex = position - 1
         if (argIndex >= args.length) return ""
         if (position === last) return args.slice(argIndex).join(" ")
-        return args[argIndex]
+        return args[argIndex] ?? ""
       })
       const usesArgumentsPlaceholder = templateCommand.includes("$ARGUMENTS")
       let template = withArgs.replaceAll("$ARGUMENTS", input.arguments)
@@ -1997,10 +2001,10 @@ const layer = Layer.effect(
       const shellMatches = ConfigMarkdown.shell(template)
       if (shellMatches.length > 0) {
         const cfg = yield* config.get()
-        const sh = Shell.preferred(cfg.shell)
+        const sh = Shell.preferred(cfg.shell) ?? ""
         const results = yield* Effect.promise(() =>
           Promise.all(
-            shellMatches.map(async ([, cmd]) => (await Process.text([cmd], { shell: sh, nothrow: true })).text),
+            shellMatches.map(async ([, cmd]) => (await Process.text([cmd ?? ""], { shell: sh, nothrow: true })).text),
           ),
         )
         let index = 0

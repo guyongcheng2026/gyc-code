@@ -78,17 +78,21 @@ export function microcompact(
   // Keep cache prefix intact, mark middle blocks as expired
   const result: Message[] = []
   for (let i = 0; i < messages.length; i++) {
+    // 索引取值可能是 undefined（noUncheckedIndexedAccess）：缺失即跳过，
+    // 保持原"存在才处理该下标的语义"，不造替身消息。
+    const msg = messages[i]
+    if (msg === undefined) continue
     if (i < CACHE_PREFIX_KEEP || i >= messages.length - 5) {
       // Keep cache prefix and recent messages
-      result.push(messages[i])
-    } else if (messages[i].role === "tool") {
+      result.push(msg)
+    } else if (msg.role === "tool") {
       // Mark expired tool outputs
       result.push({
-        ...messages[i],
+        ...msg,
         content: "[This tool output has been compacted. The result was processed in earlier context.]",
       })
     } else {
-      result.push(messages[i])
+      result.push(msg)
     }
   }
   return result
@@ -133,6 +137,7 @@ export function findUsageAnchor(messages: SessionV1.WithParts[]): {
 } {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
+    if (msg === undefined) continue
     if (msg.info.role !== "assistant") continue
     const stepFinish = msg.parts.findLast((p): p is SessionV1.StepFinishPart => p.type === "step-finish")
     if (!stepFinish) continue
@@ -208,6 +213,7 @@ function completedCompactions(messages: SessionV1.WithParts[]) {
   const users = new Map<MessageID, number>()
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
+    if (msg === undefined) continue
     if (msg.info.role !== "user") continue
     if (!msg.parts.some((part) => part.type === "compaction")) continue
     users.set(msg.info.id, i)
@@ -232,6 +238,7 @@ export function consecutiveCompactionFailures(messages: SessionV1.WithParts[]) {
   let failures = 0
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]
+    if (msg === undefined) continue
     if (msg.info.role !== "user" || !msg.parts.some((part) => part.type === "compaction")) continue
     if (successful.has(msg.info.id)) break
     failures += 1
@@ -250,6 +257,7 @@ function turns(messages: SessionV1.WithParts[]) {
   const result: Turn[] = []
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
+    if (msg === undefined) continue
     if (msg.info.role !== "user") continue
     if (msg.parts.some((part) => part.type === "compaction")) continue
     result.push({
@@ -259,7 +267,10 @@ function turns(messages: SessionV1.WithParts[]) {
     })
   }
   for (let i = 0; i < result.length - 1; i++) {
-    result[i].end = result[i + 1].start
+    const cur = result[i]
+    const next = result[i + 1]
+    if (cur === undefined || next === undefined) continue
+    cur.end = next.start
   }
   return result
 }
@@ -557,7 +568,9 @@ const layer = Layer.effect(
       for (let i = recent.length - 1; i >= 0; i--) {
         const turn = recent[i]!
         const size = sizes[i]
-        if (total + size <= budget) {
+        // sizes 与 recent 非同源，索引处可能未定义：原行为是 NaN 比较落空后走 split 分支，
+        // 这里显式判存在，避免 NaN 参与运算（语义不变）。
+        if (size !== undefined && total + size <= budget) {
           total += size
           keep = { start: turn.start, id: turn.id }
           continue
@@ -603,11 +616,13 @@ const layer = Layer.effect(
 
       loop: for (let msgIndex = msgs.length - 1; msgIndex >= 0; msgIndex--) {
         const msg = msgs[msgIndex]
+        if (msg === undefined) continue
         if (msg.info.role === "user") turns++
         if (turns < 2) continue
         if (msg.info.role === "assistant" && msg.info.summary) break loop
         for (let partIndex = msg.parts.length - 1; partIndex >= 0; partIndex--) {
           const part = msg.parts[partIndex]
+          if (part === undefined) continue
           if (part.type !== "tool") continue
           if (part.state.status !== "completed") continue
           if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue
@@ -657,6 +672,7 @@ const layer = Layer.effect(
         const idx = input.messages.findIndex((m) => m.info.id === input.parentID)
         for (let i = idx - 1; i >= 0; i--) {
           const msg = input.messages[i]
+          if (msg === undefined) continue
           if (msg.info.role === "user" && !msg.parts.some((p) => p.type === "compaction")) {
             replay = { info: msg.info, parts: msg.parts }
             messages = input.messages.slice(0, i)

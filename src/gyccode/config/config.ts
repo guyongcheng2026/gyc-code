@@ -109,7 +109,9 @@ async function resolveLoadedPlugins<T extends { plugin?: ConfigPluginV1.Spec[] }
   for (let i = 0; i < config.plugin.length; i++) {
     // Normalize path-like plugin specs while we still know which config file declared them.
     // This prevents `./plugin.ts` from being reinterpreted relative to some later merge location.
-    config.plugin[i] = await ConfigPlugin.resolvePluginSpec(config.plugin[i], filepath)
+    const spec = config.plugin[i]
+    if (spec === undefined) continue
+    config.plugin[i] = await ConfigPlugin.resolvePluginSpec(spec, filepath)
   }
   return config
 }
@@ -149,7 +151,7 @@ function globalConfigFile() {
   for (const file of candidates) {
     if (existsSync(file)) return file
   }
-  return candidates[0]
+  return candidates[0] ?? path.join(Global.Path.config, "gyccode.jsonc")
 }
 
 function patchJsonc(input: string, patch: unknown, path: string[] = []): string {

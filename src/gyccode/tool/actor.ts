@@ -151,6 +151,7 @@ function tokenizeScript(script: string): string[][] {
 
   for (let i = 0; i < script.length; i++) {
     const ch = script[i]
+    if (ch === undefined) continue
     if (quote) {
       // bash 双引号语义：反斜杠仅在转义引号或反斜杠本身时生效，其余保留字面。
       if (ch === "\\" && i + 1 < script.length && (script[i + 1] === quote || script[i + 1] === "\\")) {
@@ -193,6 +194,7 @@ function extractFlags(args: string[], names: string[]): { ok: true; flags: Recor
   const rest: string[] = []
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
+    if (arg === undefined) continue
     const bare = names.find((n) => arg === `--${n}`)
     if (bare) {
       const next = args[i + 1]
@@ -222,18 +224,28 @@ function suggestVerb(input: string): string | undefined {
     if (m === 0) return n
     if (n === 0) return m
     const dp = Array.from({ length: m + 1 }, () => new Array<number>(n + 1).fill(0))
-    for (let i = 0; i <= m; i++) dp[i][0] = i
-    for (let j = 0; j <= n; j++) dp[0][j] = j
+    for (let i = 0; i <= m; i++) {
+      const row = dp[i]
+      if (row === undefined) continue
+      row[0] = i
+    }
+    const first = dp[0]
+    if (first !== undefined) {
+      for (let j = 0; j <= n; j++) first[j] = j
+    }
     for (let i = 1; i <= m; i++) {
+      const row = dp[i]
+      const prev = dp[i - 1]
+      if (row === undefined || prev === undefined) continue
       for (let j = 1; j <= n; j++) {
-        dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+        row[j] = Math.min((prev[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (prev[j - 1] ?? 0) + (a[i - 1] === b[j - 1] ? 0 : 1))
       }
     }
-    return dp[m][n]
+    return dp[m]?.[n] ?? 0
   }
   const candidates = KNOWN_VERBS.map((v) => ({ v, d: distance(input, v) })).filter((c) => c.d <= 2)
   if (candidates.length !== 1) return undefined
-  return candidates[0].v
+  return candidates[0]?.v
 }
 
 function parseVerbLine(tokens: string[]): ParseResult {
@@ -272,7 +284,9 @@ function parseVerbLine(tokens: string[]): ParseResult {
 
   if (verb === "status") {
     if (args.length !== 1) return { ok: false, error: `actor: status: expected actor status <actor_id>` }
-    return { ok: true, op: { action: "status", actor_id: args[0] } }
+    const id = args[0]
+    if (id === undefined) return { ok: false, error: `actor: status: expected actor status <actor_id>` }
+    return { ok: true, op: { action: "status", actor_id: id } }
   }
 
   if (verb === "wait") {
@@ -280,11 +294,13 @@ function parseVerbLine(tokens: string[]): ParseResult {
     if (!extracted.ok) return extracted
     const { flags, rest } = extracted
     if (rest.length !== 1) return { ok: false, error: `actor: wait: expected actor wait <actor_id> [--timeout <ms>]` }
+    const id = rest[0]
+    if (id === undefined) return { ok: false, error: `actor: wait: expected actor wait <actor_id> [--timeout <ms>]` }
     return {
       ok: true,
       op: {
         action: "wait",
-        actor_id: rest[0],
+        actor_id: id,
         ...(flags.timeout !== undefined ? { timeout_ms: Number(flags.timeout) } : {}),
       },
     }
@@ -292,7 +308,9 @@ function parseVerbLine(tokens: string[]): ParseResult {
 
   if (verb === "cancel") {
     if (args.length !== 1) return { ok: false, error: `actor: cancel: expected actor cancel <actor_id>` }
-    return { ok: true, op: { action: "cancel", actor_id: args[0] } }
+    const id = args[0]
+    if (id === undefined) return { ok: false, error: `actor: cancel: expected actor cancel <actor_id>` }
+    return { ok: true, op: { action: "cancel", actor_id: id } }
   }
 
   if (verb === "send") {
@@ -317,7 +335,9 @@ function parseActorScript(script: string): ParseResult {
   const lines = tokenizeScript(script)
   if (lines.length === 0) return { ok: false, error: "actor: empty script" }
   if (lines.length > 1) return { ok: false, error: "actor: one operation per call; multiple lines are not supported" }
-  return parseVerbLine(lines[0])
+  const line = lines[0]
+  if (line === undefined) return { ok: false, error: "actor: empty script" }
+  return parseVerbLine(line)
 }
 
 // 供测试直接验证 shell 脚本解析（无需完整工具环境）。

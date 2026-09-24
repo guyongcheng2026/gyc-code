@@ -170,13 +170,18 @@ const layer = Layer.effect(
                 id: name,
                 root: existing?.root ?? (async (_file, ctx) => ctx.directory),
                 extensions: item.extensions ?? existing?.extensions ?? [],
-                spawn: async (root) => ({
-                  process: lspspawn(item.command[0], item.command.slice(1), {
-                    cwd: root,
-                    env: { ...process.env, ...item.env },
-                  }),
-                  initialization: item.initialization,
-                }),
+                spawn: async (root) => {
+                  const bin = item.command[0]
+                  // 配置缺 command 时在启动点明确报错，而不是把 undefined 递给 spawn
+                  if (!bin) throw new Error(`LSP server ${name} has no command`)
+                  return {
+                    process: lspspawn(bin, item.command.slice(1), {
+                      cwd: root,
+                      env: { ...process.env, ...item.env },
+                    }),
+                    initialization: item.initialization,
+                  }
+                },
               }
             }
           }
@@ -317,7 +322,7 @@ const layer = Layer.effect(
       for (const client of s.clients) {
         result.push({
           id: client.serverID,
-          name: s.servers[client.serverID].id,
+          name: s.servers[client.serverID]?.id ?? client.serverID,
           root: path.relative(ctx.directory, client.root),
           status: "connected",
         })

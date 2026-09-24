@@ -29,8 +29,8 @@ function parseField(expr: string, min: number, max: number, names?: string[]): C
 
     // 步进：*/N 或 A-B/N 或 A/N
     const stepMatch = part.match(/^(.+?)\/(\d+)$/)
-    const step = stepMatch ? parseInt(stepMatch[2], 10) : 1
-    const rangePart = stepMatch ? stepMatch[1] : part
+    const step = stepMatch ? parseInt(stepMatch[2] ?? "", 10) : 1
+    const rangePart = stepMatch?.[1] ?? part
 
     if (rangePart === "*") {
       for (let i = min; i <= max; i += step) result.add(i)
@@ -40,8 +40,8 @@ function parseField(expr: string, min: number, max: number, names?: string[]): C
     // 范围：A-B
     const rangeMatch = rangePart.match(/^(\w+)-(\w+)$/)
     if (rangeMatch) {
-      const start = parseValue(rangeMatch[1], min, max, names)
-      const end = parseValue(rangeMatch[2], min, max, names)
+      const start = parseValue(rangeMatch[1] ?? "", min, max, names)
+      const end = parseValue(rangeMatch[2] ?? "", min, max, names)
       for (let i = start; i <= end; i += step) result.add(i)
       continue
     }
@@ -85,12 +85,22 @@ export function parseCronExpression(expr: string): CronExpression {
   if (parts.length !== 5) {
     throw new Error(`Invalid cron expression "${expr}". Expected 5 fields: M H DoM Mon DoW.`)
   }
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts
+  if (
+    minute === undefined ||
+    hour === undefined ||
+    dayOfMonth === undefined ||
+    month === undefined ||
+    dayOfWeek === undefined
+  ) {
+    throw new Error(`Invalid cron expression "${expr}". Expected 5 fields: M H DoM Mon DoW.`)
+  }
   return {
-    minute: parseField(parts[0], 0, 59),
-    hour: parseField(parts[1], 0, 23),
-    dayOfMonth: parseField(parts[2], 1, 31),
-    month: parseField(parts[3], 1, 12, MONTH_NAMES),
-    dayOfWeek: parseField(parts[4], 0, 7, DAY_NAMES), // 0 和 7 都是周日
+    minute: parseField(minute, 0, 59),
+    hour: parseField(hour, 0, 23),
+    dayOfMonth: parseField(dayOfMonth, 1, 31),
+    month: parseField(month, 1, 12, MONTH_NAMES),
+    dayOfWeek: parseField(dayOfWeek, 0, 7, DAY_NAMES), // 0 和 7 都是周日
   }
 }
 
@@ -301,7 +311,9 @@ const layer = Layer.effect(
       const durable = yield* readDurable()
       const idx = durable.findIndex((t) => t.id === id)
       if (idx === -1) return
-      durable[idx] = { ...durable[idx], ...patch }
+      const target = durable[idx]
+      if (target === undefined) return
+      durable[idx] = { ...target, ...patch }
       yield* writeDurable(durable)
     })
 

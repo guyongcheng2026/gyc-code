@@ -67,7 +67,7 @@ export function buildEffortSelectOption(input: {
     description: "Available effort levels for this model",
     category: "thought_level",
     type: "select",
-    currentValue: selectVariant(input.currentVariant, input.variants),
+    currentValue: selectVariant(input.currentVariant, input.variants) ?? "",
     options: input.variants.map((variant) => ({
       value: variant,
       name: formatVariantName(variant),

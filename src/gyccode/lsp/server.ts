@@ -1169,7 +1169,7 @@ function isModuleOf(pomContent: string, modulePath: string): boolean {
   for (const block of modulesBlocks) {
     const stripped = block.replace(/<!--[\s\S]*?-->/g, "")
     for (const m of stripped.matchAll(/<module>\s*([^<]+?)\s*<\/module>/g)) {
-      const decl = m[1].replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "")
+      const decl = (m[1] ?? "").replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "")
       if (decl === normalized) return true
     }
   }
@@ -1195,12 +1195,15 @@ export const JDTLS: Info = {
 
     // 3. Maven: walk up pom.xml chain verifying <module> relationships
     const pomFiles = await Filesystem.findUp("pom.xml", path.dirname(file), ctx.directory)
-    if (pomFiles.length > 0) {
-      let root = path.dirname(pomFiles[0])
+    const firstPom = pomFiles[0]
+    if (firstPom !== undefined) {
+      let root = path.dirname(firstPom)
       for (let i = 1; i < pomFiles.length; i++) {
-        const parentDir = path.dirname(pomFiles[i])
+        const parentPom = pomFiles[i]
+        if (parentPom === undefined) break
+        const parentDir = path.dirname(parentPom)
         const rel = path.relative(parentDir, root)
-        const content = await fs.readFile(pomFiles[i], "utf-8").catch(() => null)
+        const content = await fs.readFile(parentPom, "utf-8").catch(() => null)
         if (content && isModuleOf(content, rel)) {
           root = parentDir
         } else {
