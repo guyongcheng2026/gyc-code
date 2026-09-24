@@ -200,13 +200,17 @@ export interface PerMessageRow {
   cached: number
 }
 
-export type CacheMissCause = "window-expiry" | "drift"
+export type CacheMissCause = "window-expiry" | "drift" | "partial-drift"
 
 /**
- * 分类"该轮近乎全 miss"（ratio < 20% 且上一轮 ≥ 80%）的原因：
- * - window-expiry：与上一轮间隔超过缓存窗口 → 服务商缓存已过期，前缀未变也会 miss
- * - drift：间隔在窗口内却近乎全 miss → 前缀字节确实与上轮不同（记忆/技能/指令/工具集等变化）
- * - null：非明显 miss，或没有上一轮可比（报告窗口首行无法判断，不再误标）
+ * 分类低命中行的原因：
+ * - window-expiry：与上一轮间隔超过缓存窗口 → 服务商缓存已过期（全 miss 或大
+ *   部分丢失），前缀未变也会 miss——物理限制，不是前缀漂移。
+ * - drift：间隔在窗口内却近乎全 miss → 前缀字节确实与上轮不同（记忆/技能/指令/工具集等变化）。
+ * - partial-drift：间隔在窗口内、命中仍高，但较上轮总输入丢失超过 5% 且 >2K token
+ *   → 前缀中段折断（实测记忆实时检索注入首条 user 的典型形态；此前 ratio<0.2
+ *   的全 miss 阈值漏掉 79-94% 的部分漂移行）。
+ * - null：增量正常或无上一轮可比（报告窗口首行无法判断，不再误标）。
  */
 export function classifyMiss(
   prev: PerMessageRow | undefined,
@@ -216,8 +220,14 @@ export function classifyMiss(
   if (!prev) return null
   const prevRatio = prev.total > 0 ? prev.cached / prev.total : 1
   const ratio = cur.total > 0 ? cur.cached / cur.total : 0
-  if (!(ratio < 0.2 && prevRatio >= 0.8)) return null
-  return cur.time - prev.time > windowMs ? "window-expiry" : "drift"
+  const inWindow = cur.time - prev.time <= windowMs
+  if (ratio < 0.2 && prevRatio >= 0.8) return inWindow ? "drift" : "window-expiry"
+  // 部分前缀丢失：上轮总输入中本轮未命中的部分（gap），对齐 cache-anchor 的
+  // 双阈值（>5% 且 >2K），大新增行（gap 为负或很小）不会误标。
+  const gap = prev.total - cur.cached
+  const threshold = Math.max(2_000, prev.total * 0.05)
+  if (gap > threshold) return inWindow ? "partial-drift" : "window-expiry"
+  return null
 }
 
 const CacheCommand = effectCmd({
@@ -266,7 +276,9 @@ const CacheCommand = effectCmd({
           ? "  ← 缓存窗口过期（与上轮间隔超过服务商缓存窗口，属物理 miss）"
           : cause === "drift"
             ? "  ← 前缀漂移疑似（该轮前缀与上轮不同，排查记忆/技能/指令/工具集变化）"
-            : ""
+            : cause === "partial-drift"
+              ? `  ← 前缀部分漂移疑似（窗口内较上轮总输入丢 ${Math.max(0, asc[i - 1]!.total - m.cached).toLocaleString()} token，排查记忆/指令/工具集变化）`
+              : ""
       const time = new Date(m.time).toLocaleTimeString()
       console.log(
         `  ${String(i + 1).padStart(3)}. ${time}  ${r.padStart(5)}%  (${m.cached.toLocaleString()} / ${m.total.toLocaleString()})${flag}`,
