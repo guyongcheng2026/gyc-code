@@ -2,6 +2,11 @@
 # gyc-code auto-sync: push to GitHub (via gh-proxy), then append sync work log to Obsidian vault
 # 兼容两种安装位置（.githooks/ 或 .git/hooks/）：一律以 git 仓库根解析脚本路径。
 ROOT="$(git rev-parse --show-toplevel)"
-git push origin HEAD >/dev/null 2>&1
+# push 失败（如 github.com 直连超时）时追加错误到日志便于发现，不阻塞提交；
+# 成功与 worklog 步骤保持静默。推送镜像应急方法见 AGENTS.md 工作流同步约定。
+if ! err=$(git push --quiet origin HEAD 2>&1); then
+  # 时间戳取最近提交时间（精简 sh 无 date 命令，git 必可用）
+  printf '%s post-commit push failed: %s\n' "$(git log -1 --format='%cI %h')" "$err" >>"$ROOT/.git/worklog-sync.log"
+fi
 node "$ROOT/scripts/worklog-sync.mjs" >/dev/null 2>&1
 exit 0
