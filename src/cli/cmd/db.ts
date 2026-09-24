@@ -138,6 +138,7 @@ const CompactCommand = effectCmd({
 export interface CacheRowLike {
   data: string
   time_created?: number | string
+  session_id?: string | null
 }
 
 export interface PromptCacheStats {
@@ -147,7 +148,15 @@ export interface PromptCacheStats {
   totalInput: number
   /** 缓存命中读取 token，命中率分子 */
   cacheRead: number
-  perMessage: { time: number; total: number; cached: number }[]
+  perMessage: { time: number; total: number; cached: number; sessionID: string }[]
+  /** 窗口内相邻行的前缀命中累计：Σ min(cur.cached, prev.total) */
+  prefixHit: number
+  /** 窗口内相邻行的前缀基数累计：Σ prev.total（首行与窗口过期行不计入） */
+  prefixBase: number
+  /** 稳态前缀命中累计：在 prefixHit 基础上再剔除漂移事件行（classifyMiss 非 null） */
+  steadyHit: number
+  /** 稳态前缀基数累计 */
+  steadyBase: number
 }
 
 /**
@@ -162,11 +171,13 @@ export function promptCacheStats(rows: CacheRowLike[]): PromptCacheStats {
   let input = 0
   let cacheRead = 0
   let withTokens = 0
-  const perMessage: { time: number; total: number; cached: number }[] = []
+  const perMessage: { time: number; total: number; cached: number; sessionID: string }[] = []
   for (const row of rows) {
     try {
       const data = JSON.parse(row.data) as {
         tokens?: { input?: unknown; total?: unknown; cache?: { read?: unknown; write?: unknown } }
+        sessionID?: unknown
+        info?: { sessionID?: unknown }
       }
       const t = data.tokens
       if (!t) continue
@@ -182,12 +193,48 @@ export function promptCacheStats(rows: CacheRowLike[]): PromptCacheStats {
       withTokens++
       input += totalInput
       cacheRead += cacheReadTokens
-      perMessage.push({ time: Number(row.time_created ?? 0), total: totalInput, cached: cacheReadTokens })
+      perMessage.push({
+        time: Number(row.time_created ?? 0),
+        total: totalInput,
+        cached: cacheReadTokens,
+        sessionID:
+          typeof row.session_id === "string" && row.session_id !== ""
+            ? row.session_id
+            : typeof data.sessionID === "string"
+              ? data.sessionID
+              : typeof data.info?.sessionID === "string"
+                ? data.info.sessionID
+                : "",
+      })
     } catch {
       // skip malformed rows
     }
   }
-  return { withTokens, totalInput: input, cacheRead, perMessage }
+  // 前缀命中率：只衡量对「上一轮已有前缀」的命中——新增内容本就不可命中（不计入
+  // 分母）；窗口过期（物理 miss）、报告首行与跨会话边界（无共同前缀）不计入。
+  // 稳态健康线 ≥99.5%（128 块对齐滞后锚约 −0.1%）。rows 可能按时间降序（SQL
+  // DESC）传入，先按 time 升序副本配对，避免倒序比较语义错误。
+  let prefixHit = 0
+  let prefixBase = 0
+  let steadyHit = 0
+  let steadyBase = 0
+  const asc = [...perMessage].sort((a, b) => a.time - b.time)
+  for (let i = 1; i < asc.length; i++) {
+    const prev = asc[i - 1]!
+    const cur = asc[i]!
+    if (cur.time - prev.time > CACHE_WINDOW_MS) continue
+    if (prev.sessionID === "" || cur.sessionID !== prev.sessionID) continue
+    const hit = Math.min(cur.cached, prev.total)
+    prefixHit += hit
+    prefixBase += prev.total
+    // 稳态口径：漂移事件行（字节变更折断，如工具描述/指令改动后的首轮）如实
+    // 计入 prefixHit，但单列为事件——稳态行只保留前缀未变的轮次。
+    if (classifyMiss(prev, cur) === null) {
+      steadyHit += hit
+      steadyBase += prev.total
+    }
+  }
+  return { withTokens, totalInput: input, cacheRead, perMessage, prefixHit, prefixBase, steadyHit, steadyBase }
 }
 
 /** 服务商 prompt 缓存窗口阈值（DeepSeek 等约 5min/1h）。间隔超过它时缓存自然过期，
@@ -240,7 +287,7 @@ const CacheCommand = effectCmd({
     const { db } = yield* Database.Service
     const rows = yield* db
       .all<{ data: string; time_created: number | string }>(
-        sql.raw(`SELECT data, time_created FROM message ORDER BY time_created DESC LIMIT 50`),
+        sql.raw(`SELECT data, time_created, session_id FROM message ORDER BY time_created DESC LIMIT 50`),
       )
       .pipe(Effect.orDie)
     const stats = promptCacheStats(rows)
@@ -249,10 +296,16 @@ const CacheCommand = effectCmd({
       return
     }
     const rate = stats.totalInput > 0 ? ((stats.cacheRead / stats.totalInput) * 100).toFixed(1) : "0.0"
+    const prefixRate =
+      stats.prefixBase > 0 ? ((stats.prefixHit / stats.prefixBase) * 100).toFixed(1) : "n/a"
+    const steadyRate =
+      stats.steadyBase > 0 ? ((stats.steadyHit / stats.steadyBase) * 100).toFixed(1) : "n/a"
     console.log(`含用量的消息数：${stats.withTokens}`)
     console.log(`总输入 token：${stats.totalInput.toLocaleString()}`)
     console.log(`缓存读取 token：${stats.cacheRead.toLocaleString()}`)
-    console.log(`prompt 缓存命中率：${rate}%`)
+    console.log(`prompt 缓存命中率（含新增）：${rate}%`)
+    console.log(`前缀命中率（窗口内）：${prefixRate}%  ← 含漂移事件行，新增与窗口过期不计入`)
+    console.log(`稳态前缀命中率（剔除漂移行）：${steadyRate}%  ← 健康线 ≥99.5%；漂移事件见下方逐条标注`)
     if (rate === "0.0" && stats.totalInput > 0) {
       console.log("注意：命中率为 0% 说明当前模型/服务商未上报 prompt 缓存，")
       console.log("或系统提示前缀在多次请求间发生了变化。")

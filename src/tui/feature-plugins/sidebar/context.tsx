@@ -130,14 +130,14 @@ export function View(props: { api: TuiPluginApi; session_id: string }) {
       <Show when={state().compacting}>
         <text fg={theme().warning}>压缩中…</text>
       </Show>
-      <text fg={contextColor()}>{state().tokens.toLocaleString()} 词元</text>
+      <text fg={contextColor()}>{state().tokens.toLocaleString()} token</text>
       <Show when={state().percent !== null}>
         {(pct) => <text fg={contextColor()}>Used {pct()}%</text>}
       </Show>
       <Show when={chRate()}>
         {(r) => (
-          <text fg={r().actual >= r().theory - 5 ? theme().textMuted : theme().warning}>
-            Cache Hit {r().actual.toFixed(1)}%
+          <text fg={r().prefix >= 99.5 ? theme().textMuted : theme().warning}>
+            Cache Hit {r().prefix.toFixed(1)}%
           </text>
         )}
       </Show>

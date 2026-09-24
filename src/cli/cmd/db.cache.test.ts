@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { classifyMiss, promptCacheStats, CACHE_WINDOW_MS, type PerMessageRow } from "./db"
 
-function row(tokens: unknown, time: number | string = 0): { data: string; time_created: number | string } {
-  return { data: JSON.stringify({ tokens }), time_created: time }
+function row(tokens: unknown, time: number | string = 0, sessionID = "s1"): { data: string; time_created: number | string } {
+  return { data: JSON.stringify({ tokens, sessionID }), time_created: time }
 }
 
 describe("promptCacheStats（gyc db cache 命中率口径）", () => {
@@ -46,6 +46,58 @@ describe("promptCacheStats（gyc db cache 命中率口径）", () => {
     expect(stats.totalInput).toBe(0)
   })
 
+  test("前缀命中率：窗口内 min(cached, prev.total)/prev.total，首行与窗口过期行不计入", () => {
+    const stats = promptCacheStats([
+      // 首行无上一轮 → 不进前缀分母（totalInput = 0 + 10_000 + 500）
+      row({ input: 0, total: 10_500, cache: { read: 10_000, write: 500 } }, 0),
+      // 窗口内（5s）：read 14,500 ≥ 上一轮 total 10,500 → 全命中 10,500；新增不计入
+      row({ input: 1_000, total: 16_000, cache: { read: 14_500, write: 500 } }, 5_000),
+      // 间隔 >10min：窗口过期（物理 miss）→ 跳过
+      row({ input: 1_000, total: 17_000, cache: { read: 0, write: 500 } }, 5_000 + 11 * 60 * 1000),
+    ])
+    expect(stats.prefixHit).toBe(10_500)
+    expect(stats.prefixBase).toBe(10_500)
+  })
+
+  test("前缀命中率对漂移敏感：read 骤降按实际命中计", () => {
+    const stats = promptCacheStats([
+      row({ input: 0, total: 100_000, cache: { read: 99_000, write: 1_000 } }, 0),
+      row({ input: 20_000, total: 101_000, cache: { read: 80_000, write: 1_000 } }, 60_000),
+    ])
+    // prev totalInput = 0 + 99_000 + 1_000 = 100_000；cur read 80_000 → 80_000/100_000
+    expect(stats.prefixBase).toBe(100_000)
+    expect(stats.prefixHit).toBe(80_000)
+  })
+
+  test("前缀命中率跨会话边界跳过（不同会话无共同前缀）", () => {
+    const stats = promptCacheStats([
+      row({ input: 0, total: 10_000, cache: { read: 9_000, write: 500 } }, 0, "sessA"),
+      // totalInput = input + read + write = 15000 + 0 + 0
+      row({ input: 15_000, total: 15_000, cache: { read: 0, write: 0 } }, 5_000, "sessB"),
+      row({ input: 1_000, total: 16_000, cache: { read: 15_000, write: 0 } }, 10_000, "sessB"),
+    ])
+    // 边界（A→B）跳过；B→B 计 min(15000, 15000)/15000
+    expect(stats.prefixBase).toBe(15_000)
+    expect(stats.prefixHit).toBe(15_000)
+  })
+
+  test("稳态口径剔除漂移事件行（classifyMiss 非 null），prefix 仍如实计入", () => {
+    const stats = promptCacheStats([
+      // 高命中基线
+      row({ input: 0, total: 100_000, cache: { read: 99_000, write: 1_000 } }, 0),
+      // 漂移行：窗口内 ratio 0.4 <0.2? 否——用 read=10K/ratio0.1<0.2 全 miss 级
+      row({ input: 90_000, total: 100_000, cache: { read: 10_000, write: 0 } }, 60_000),
+      // 恢复稳态：read 95K ≥0.9×100K，gap=min(100K,101K)-95K=5K < max(2K,5K)→null
+      row({ input: 6_000, total: 101_000, cache: { read: 95_000, write: 0 } }, 120_000),
+    ])
+    // prefix 含漂移行：min(10K,100K)+min(95K,100K)=105K / 200K
+    expect(stats.prefixBase).toBe(200_000)
+    expect(stats.prefixHit).toBe(105_000)
+    // steady 剔除漂移行（第二对 classifyMiss=drift）：只剩第三对 95K/100K
+    expect(stats.steadyBase).toBe(100_000)
+    expect(stats.steadyHit).toBe(95_000)
+  })
+
   test("多行累计与逐条记录（保持行序）", () => {
     const stats = promptCacheStats([
       row({ input: 100, output: 20, total: 120, cache: { read: 90, write: 0 } }, 1),
@@ -55,8 +107,8 @@ describe("promptCacheStats（gyc db cache 命中率口径）", () => {
     // 分母各为 190 / 380，命中 90 / 180
     expect(stats.totalInput).toBe(190 + 380)
     expect(stats.cacheRead).toBe(90 + 180)
-    expect(stats.perMessage[0]).toEqual({ time: 1, total: 190, cached: 90 })
-    expect(stats.perMessage[1]).toEqual({ time: 2, total: 380, cached: 180 })
+    expect(stats.perMessage[0]).toEqual({ time: 1, total: 190, cached: 90, sessionID: "s1" })
+    expect(stats.perMessage[1]).toEqual({ time: 2, total: 380, cached: 180, sessionID: "s1" })
   })
 
   test("负值钳制与非数字容错", () => {

@@ -393,7 +393,7 @@ registerBuiltinCommand("context", async (ctx) => {
     console.log([
       `上下文：${messages.length} 条消息`,
       ...(model ? [`模型:   ${model}`] : []),
-      ...(tokens ? [`词元：  ${tokens}`] : []),
+      ...(tokens ? [`token：  ${tokens}`] : []),
       `消息:   用户 ${userCount} · 助手 ${assistantCount}${otherCount > 0 ? ` · 其他 ${otherCount}` : ""}`,
     ].join("\n"))
   } catch (e) {

@@ -84,15 +84,24 @@ export function DialogCost() {
   })
 
   const cacheHitRate = createMemo(() => {
-    const t = totals()
-    // 全量输入 = miss(input) + cache.read + cache.write；CH = read / 全量输入
-    const totalInput = t.input + t.cacheRead + t.cacheWrite
-    if (totalInput === 0) return { rate: 0, hitTokens: 0, totalInput: 0 }
-    return {
-      rate: t.cacheRead / totalInput,
-      hitTokens: t.cacheRead,
-      totalInput,
-    }
+    // 前缀命中率口径（与 sidebar computeChRate.prefix 一致）：只衡量对已有前缀
+    // 的命中 min(read, 上一轮总输入)；新增内容本就不可命中，不计入分母。
+    const completed = messages().filter(
+      (m): m is AssistantMessage => m.role === "assistant" && m.time.completed !== undefined,
+    )
+    let hit = 0
+    let base = 0
+    let prevTotal = 0
+    completed.forEach((m, i) => {
+      const inclusive = m.tokens.input + m.tokens.cache.read + m.tokens.cache.write
+      if (i > 0) {
+        hit += Math.min(m.tokens.cache.read, prevTotal)
+        base += prevTotal
+      }
+      prevTotal = inclusive
+    })
+    if (base === 0) return { rate: 0, hitTokens: 0, totalInput: 0 }
+    return { rate: hit / base, hitTokens: hit, totalInput: base }
   })
 
   const cost = createMemo(() =>
@@ -117,7 +126,7 @@ export function DialogCost() {
     const t = totals()
     const text = [
       `Cost: ${money.format(cost())}`,
-      `词元：${totalTokens().toLocaleString()}`,
+      `token：${totalTokens().toLocaleString()}`,
       `  输入：${t.input.toLocaleString()}`,
       `  输出：${t.output.toLocaleString()}`,
       `  推理：${t.reasoning.toLocaleString()}`,
@@ -177,9 +186,9 @@ export function DialogCost() {
         <For each={messages().slice(-10)}>
           {(item) => (
             <text fg={theme.textMuted} wrapMode="none">
-              {item.role === "assistant"
-                ? `助手：${messageTokens(item).toLocaleString()} 词元`
-                : `用户：${estimateParts(partOf(item.id)).toLocaleString()} 词元（估算）`}
+{item.role === "assistant"
+                  ? `助手：${messageTokens(item).toLocaleString()} token`
+                  : `用户：${estimateParts(partOf(item.id)).toLocaleString()} token（估算）`}
             </text>
           )}
         </For>

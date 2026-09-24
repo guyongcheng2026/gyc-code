@@ -25,11 +25,13 @@ const theme = {
 }
 
 test("View renders real tokens, CH, and cost", async () => {
+  // 健康轮组：read 命中上一轮全部前缀（a2 read=1050=a1 total；a3 read=1080=a2
+  // total）→ 稳态前缀 100.0%；tokens 合计 1250+1260+1260=3,770。
   const msgs: Message[] = [
     { id: "u1", role: "user", sessionID: "ses1", time: { created: 0 }, parts: [] } as unknown as Message,
-    assistant("a1", { input: 100, output: 0, reasoning: 200, cache: { read: 900, write: 50 } }),
-    assistant("a2", { input: 100, output: 0, reasoning: 180, cache: { read: 800, write: 50 } }),
-    assistant("a3", { input: 100, output: 0, reasoning: 160, cache: { read: 700, write: 50 } }),
+    assistant("a1", { input: 50, output: 0, reasoning: 200, cache: { read: 950, write: 50 } }),
+    assistant("a2", { input: 30, output: 0, reasoning: 180, cache: { read: 1050, write: 0 } }),
+    assistant("a3", { input: 20, output: 0, reasoning: 160, cache: { read: 1080, write: 0 } }),
   ]
   const api: any = {
     theme,
@@ -44,8 +46,8 @@ test("View renders real tokens, CH, and cost", async () => {
   const setup = await testRender(() => <View api={api} session_id="ses1" />, { width: 80, height: 10 })
   await setup.flush()
   const frame = setup.captureCharFrame()
-  expect(frame).toContain("3,390 词元")
-  expect(frame).toContain("Cache Hit 84.2%")
+  expect(frame).toContain("3,770 token")
+  expect(frame).toContain("Cache Hit 100.0%")
   expect(frame).toContain("Cost $0.33")
 })
 
@@ -88,5 +90,5 @@ test("View shows non-zero tokens for reasoning-only DeepSeek turns", async () =>
   const setup = await testRender(() => <View api={api} session_id="ses1" />, { width: 80, height: 10 })
   await setup.flush()
   const frame = setup.captureCharFrame()
-  expect(frame).toContain("600 词元")
+  expect(frame).toContain("600 token")
 })
