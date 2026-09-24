@@ -11,7 +11,8 @@ test("gyc --help prints help", async () => {
   const result = await runCLI(["--help"], 30000)
   assert.exitCode(result, 0)
   assert.contains(result, "gyc", "stderr")
-  assert.contains(result, "Commands:", "stderr")
+  // yargs 依 LANG 本地化：zh_CN 输出「命令：」，英文环境输出「Commands:」，两者均视为通过
+  assert.matches(result, /Commands:|命令/, "stderr")
 }, 40000)
 
 test("gyc cli --help prints cli command help", async () => {
