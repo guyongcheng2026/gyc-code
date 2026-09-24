@@ -23,7 +23,12 @@ export interface Interface {
   ) => Effect.Effect<{ readonly sessionID: SessionSchema.ID; readonly message: SessionMessage.Message } | undefined>
   readonly costStats: () => Effect.Effect<{
     readonly totalCost: number
-    readonly totalTokens: { input: number; output: number; reasoning: number }
+    readonly totalTokens: {
+      input: number
+      output: number
+      reasoning: number
+      cache: { read: number; write: number }
+    }
     readonly sessionCount: number
     readonly byModel: Record<string, { cost: number; tokens: number }>
   }>
@@ -69,6 +74,8 @@ const layer = Layer.effect(
             tokens_input: SessionTable.tokens_input,
             tokens_output: SessionTable.tokens_output,
             tokens_reasoning: SessionTable.tokens_reasoning,
+            tokens_cache_read: SessionTable.tokens_cache_read,
+            tokens_cache_write: SessionTable.tokens_cache_write,
             model: SessionTable.model,
           })
           .from(SessionTable)
@@ -79,6 +86,8 @@ const layer = Layer.effect(
         let totalInput = 0
         let totalOutput = 0
         let totalReasoning = 0
+        let totalCacheRead = 0
+        let totalCacheWrite = 0
         const byModel: Record<string, { cost: number; tokens: number }> = {}
 
         for (const row of rows) {
@@ -86,6 +95,8 @@ const layer = Layer.effect(
           totalInput += row.tokens_input ?? 0
           totalOutput += row.tokens_output ?? 0
           totalReasoning += row.tokens_reasoning ?? 0
+          totalCacheRead += row.tokens_cache_read ?? 0
+          totalCacheWrite += row.tokens_cache_write ?? 0
 
           const model = row.model as { providerID?: string; id?: string } | null
           const modelKey = model?.providerID && model.id ? `${model.providerID}/${model.id}` : "unknown"
@@ -96,7 +107,12 @@ const layer = Layer.effect(
 
         return {
           totalCost,
-          totalTokens: { input: totalInput, output: totalOutput, reasoning: totalReasoning },
+          totalTokens: {
+            input: totalInput,
+            output: totalOutput,
+            reasoning: totalReasoning,
+            cache: { read: totalCacheRead, write: totalCacheWrite },
+          },
           sessionCount: rows.length,
           byModel,
         }

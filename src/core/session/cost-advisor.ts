@@ -15,6 +15,29 @@ export interface Interface {
   readonly analyze: () => Effect.Effect<Advice[]>
 }
 
+/**
+ * Cache-opportunity 判定（纯函数，便于误报回归防护）：只有当缓存读占「含缓存
+ * 的总输入」比例过低（<10%）且规模过 100K 才提示未充分利用。修复前 cacheRatio
+ * 恒为 0，任何 >100K 输入会话都会误报——而实测稳态前缀命中可达 100%。
+ */
+export function cacheOpportunityAdvice(totalTokens: {
+  readonly input: number
+  readonly cache: { readonly read: number; readonly write: number }
+}): Advice | undefined {
+  const totalInput = totalTokens.input + totalTokens.cache.read + totalTokens.cache.write
+  if (totalInput <= 0) return undefined
+  const cacheRatio = totalTokens.cache.read / totalInput
+  if (cacheRatio < 0.1 && totalInput > 100_000) {
+    return {
+      type: "cache_opportunity",
+      severity: "info",
+      message: `Total input ${totalInput.toLocaleString()} tokens but cache hit rate only ${Math.round(cacheRatio * 100)}%. Enable prompt caching (AUTO policy) to reduce repeated-context cost.`,
+      savings: { tokens: Math.round(totalInput * 0.3) },
+    }
+  }
+  return undefined
+}
+
 export class Service extends Context.Service<Service, Interface>()("@gyccode/CostAdvisor") {}
 
 const layer = Layer.effect(
@@ -29,18 +52,9 @@ const layer = Layer.effect(
       const budgetConfig = Config.latest(configEntries, "token_budget")
       const advice: Advice[] = []
 
-      // 1. Cache opportunity analysis: high input-to-cache ratio means cache is underutilized
-      if (stats.totalTokens.input > 0) {
-        const cacheRatio = 0 // TODO: compute from session-level cache stats when available
-        if (cacheRatio < 0.1 && stats.totalTokens.input > 100_000) {
-          advice.push({
-            type: "cache_opportunity",
-            severity: "info",
-            message: `Input tokens ${stats.totalTokens.input.toLocaleString()} but cache hit rate low. Enable prompt caching (AUTO policy) to reduce重复上下文成本。`,
-            savings: { tokens: Math.round(stats.totalTokens.input * 0.3) },
-          })
-        }
-      }
+      // 1. Cache opportunity（判定逻辑抽至 cacheOpportunityAdvice 纯函数）
+      const cacheAdvice = cacheOpportunityAdvice(stats.totalTokens)
+      if (cacheAdvice) advice.push(cacheAdvice)
 
       // 2. Model downgrade opportunity: small model heuristic disabled or expensive model for simple tasks
       const smallModelConfig = Config.latest(configEntries, "small_model_heuristic")
