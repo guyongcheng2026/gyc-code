@@ -114,4 +114,10 @@ describe("classifyMiss（区分缓存窗口过期 vs 前缀漂移）", () => {
     const cur: PerMessageRow = { time: 16_000, total: 202_253, cached: 184_896 }
     expect(classifyMiss(prev, cur)).toBeNull()
   })
+
+  test("compact/上下文收缩（cur.total 远小于 prev.total）→ null 不误标 partial-drift", () => {
+    const prev: PerMessageRow = { time: 0, total: 200_000, cached: 195_000 }
+    const cur: PerMessageRow = { time: 30_000, total: 50_000, cached: 48_000 }
+    expect(classifyMiss(prev, cur)).toBeNull()
+  })
 })

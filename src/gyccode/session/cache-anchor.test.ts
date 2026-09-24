@@ -109,6 +109,29 @@ describe("trackCacheDrift（会话级跨消息检测）", () => {
     expect(anchor.size).toBeLessThanOrEqual(1000)
     expect(anchor.has("s0")).toBe(false)
   })
+
+  test("全零 usage（step-finish 空 Usage 兜底）不比较也不写锚点", () => {
+    const anchor = new Map<string, { cacheRead: number; inputTokens: number }>()
+    trackCacheDrift(anchor, "s1", { cacheRead: 100_000, inputTokens: 120_000 })
+    // 空 usage 不得比出 100% 骤降误报
+    expect(trackCacheDrift(anchor, "s1", { cacheRead: 0, inputTokens: 0 })).toBeNull()
+    // 锚点未被清零：下一次真实漂移仍可检出
+    expect(anchor.get("s1")).toEqual({ cacheRead: 100_000, inputTokens: 120_000 })
+    expect(trackCacheDrift(anchor, "s1", { cacheRead: 80_000, inputTokens: 130_000 })).not.toBeNull()
+  })
+
+  test("已有会话更新时 LRU touch（活跃会话不因插入序冻结被淘汰）", () => {
+    const anchor = new Map<string, { cacheRead: number; inputTokens: number }>()
+    trackCacheDrift(anchor, "sA", { cacheRead: 1, inputTokens: 1 })
+    trackCacheDrift(anchor, "sB", { cacheRead: 1, inputTokens: 1 })
+    for (let i = 0; i < 998; i++) trackCacheDrift(anchor, `x${i}`, { cacheRead: 1, inputTokens: 1 })
+    // 满员后 touch sB → 重排到最新位；无 touch 时 sB 仍挤在最旧区
+    trackCacheDrift(anchor, "sB", { cacheRead: 2, inputTokens: 2 })
+    trackCacheDrift(anchor, "new1", { cacheRead: 1, inputTokens: 1 }) // 淘汰最旧 sA
+    trackCacheDrift(anchor, "new2", { cacheRead: 1, inputTokens: 1 }) // 无 touch 会淘汰 sB
+    expect(anchor.has("sA")).toBe(false)
+    expect(anchor.has("sB")).toBe(true)
+  })
 })
 
 describe("thresholds", () => {

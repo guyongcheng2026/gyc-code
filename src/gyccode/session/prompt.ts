@@ -73,7 +73,7 @@ import { ShardCache, hashShard } from "./prompt-shard"
 import { escalateOutputMax } from "./llm/output-cap"
 import { thinkingKeywordTarget, resolveThinkingVariant } from "./thinking-keywords"
 import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
-import { freezeInject, type InjectSnapshot } from "./inject-freeze"
+import { freezeInject, injectSnapshots } from "./inject-freeze"
 
 // @ts-ignore
 globalThis.AI_SDK_LOG_WARNINGS = false
@@ -83,9 +83,9 @@ globalThis.AI_SDK_LOG_WARNINGS = false
 // 冷却期内跳过，冷却结束仍会重试，瞬态故障可自愈。
 const MEMORY_EXTRACTION_COOLDOWN_MS = 10 * 60 * 1000
 const extractionCooldowns = new Map<string, number>()
-// 注入快照会话级冻结（date/记忆/画像首轮定型，见 inject-freeze.ts）：
-// 实时重算（换话题重检索、跨天、画像更新）会改变第一条 user 字节并折断 CH 前缀。
-const injectSnapshots = new Map<string, InjectSnapshot>()
+// 注入快照（date/记忆/画像首轮定型冻结，见 inject-freeze.ts）：模块级 Map 随
+// freezeInject 导出，此处仅引用——实时重算（换话题重检索、跨天、画像更新）会
+// 改变第一条 user 字节并折断 CH 前缀。
 
 // P1 修复：清理过期条目，释放内存
 const cleanupExpiredCooldowns = () => {
@@ -1746,15 +1746,17 @@ const layer = Layer.effect(
 
             yield* plugin.trigger("experimental.chat.messages.transform", {}, { messages: msgs })
 
-            const memoryQuery = lastUserMsg
-              ? lastUserMsg.parts
-                  .filter((part) => part.type === "text")
-                  .map((part) => part.text)
-                  .join(" ")
-                  .slice(0, 500)
-              : ""
             // 冻结命中后跳过记忆/画像重取（换话题重检索、画像文件更新都不再执行）
             const injectFrozen = injectSnapshots.has(sessionID)
+            // 冻结后不再检索记忆，query 仅首轮定型需要（避免每轮死计算）
+            const memoryQuery =
+              injectFrozen || !lastUserMsg
+                ? ""
+                : lastUserMsg.parts
+                    .filter((part) => part.type === "text")
+                    .map((part) => part.text)
+                    .join(" ")
+                    .slice(0, 500)
             const [skills, env, instructionResolved, mcpInstructions, memories, owner] = yield* Effect.all([
               sys.skills(agent),
               sys.environment(model),
@@ -1766,11 +1768,23 @@ const layer = Layer.effect(
             // 会话级冻结注入：首轮定型 date+画像+记忆，后续轮字节恒定。
             // 实时重算会改变第一条 user 消息字节，从注入点折断整段 prompt
             // 前缀缓存（实测断点集中在 162K-175K，即 tools+system+首条 user 处）。
-            const inject = freezeInject(injectSnapshots, sessionID, () => ({
-              date: `Today's date: ${new Date().toISOString().slice(0, 10)}\n`,
-              memories:
-                [owner, memories].filter((part): part is string => !!part).join("\n\n") || undefined,
-            }))
+            // date 不永久冻结：跨天单独滚动更新（跨天折断一次是原设计已接受的代价，
+            // 见下方注入位注释），memories/owner 永久冻结。
+            const freshDate = `Today's date: ${new Date().toISOString().slice(0, 10)}\n`
+            // 双读防 TOCTOU：取数窗口内快照若被 LRU 淘汰，本轮已跳过记忆重取、
+            // compute 只能拿到空记忆——不持久化该快照，下轮按首轮重新定型。
+            const staleFrozen = injectFrozen && !injectSnapshots.has(sessionID)
+            const inject = freezeInject(
+              injectSnapshots,
+              sessionID,
+              () => ({
+                date: freshDate,
+                memories:
+                  [owner, memories].filter((part): part is string => !!part).join("\n\n") || undefined,
+              }),
+              freshDate,
+              !staleFrozen,
+            )
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
               toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
               toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,

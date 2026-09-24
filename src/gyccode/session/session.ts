@@ -25,7 +25,8 @@ import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@gyccode/core/session/sql"
 import { ProjectTable } from "@gyccode/core/project/sql"
 import { MessageV2 } from "./message-v2"
-import { cacheDriftFromUsage } from "./cache-anchor"
+import type { CacheDrift } from "./cache-anchor"
+import { dropInjectSnapshot } from "./inject-freeze"
 import { SessionCwd } from "./session-cwd"
 import { Goal } from "./goal"
 import { makeKeyedLock } from "./keyed-lock"
@@ -329,8 +330,7 @@ export function plan(input: { slug: string; time: { created: number } }, instanc
   return path.join(base, [input.time.created, input.slug].join("-") + ".md")
 }
 
-export const getUsage = (input: { model: Provider.Model; usage: Usage; prevCacheRead?: number
-  metadata?: ProviderMetadata }) => {
+export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?: ProviderMetadata }) => {
   const safe = (value: number) => {
     if (!Number.isFinite(value)) return 0
     return Math.max(0, value)
@@ -360,11 +360,6 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; prevCache
   // tokens to get the non-cached input count for separate cost calculation.
   const adjustedInputTokens = safe(inputTokens - cacheReadInputTokens - cacheWriteInputTokens)
 
-  const cacheDrift = cacheDriftFromUsage(
-    input.prevCacheRead === undefined ? undefined : { cacheRead: input.prevCacheRead, inputTokens },
-    { cacheRead: cacheReadInputTokens, inputTokens },
-  )
-
   const total = input.usage.totalTokens
 
   const tokens = {
@@ -376,7 +371,9 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; prevCache
       write: cacheWriteInputTokens,
       read: cacheReadInputTokens,
     },
-    cacheDrift,
+    // 旧口径（step 内 prevCacheRead 比较）恒为 null 后被 processor 的会话级
+    // trackCacheDrift 覆写——这里不再重复计算，见 cache-anchor.ts 会话级锚点。
+    cacheDrift: null as CacheDrift | null,
   }
 
   const contextTokens = inputTokens
@@ -642,6 +639,9 @@ const layer: Layer.Layer<
         SessionCwd.clear(sessionID)
         // Drop any active goal state for the ended session.
         Goal.clearSession(sessionID)
+        // Drop the frozen inject snapshot so a same-ID session recreated later
+        // does not inherit the old date/memories (see inject-freeze.ts).
+        dropInjectSnapshot(sessionID)
       } catch (error) {
         yield* Effect.logError("failed to remove session", { sessionID, error })
       }

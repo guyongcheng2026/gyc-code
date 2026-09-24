@@ -465,6 +465,8 @@ const layer = Layer.effect(
             // step 累计口径对单 step 恒为 0，跨消息漂移会漏检）。命中骤降
             // （system prompt 漂移/压缩/工具集变化/注入重算）时告警并落盘 gyccode.log。
             const curCacheRead = usage.tokens.cache?.read ?? 0
+            // 口径依据 src/llm/schema/events.ts 不变式：inputTokens 含缓存（全协议
+            // 一致），getUsage 已减去 read/write 得到 input，加回即原始 inputTokens。
             const curInputTotal =
               (usage.tokens.input ?? 0) + curCacheRead + (usage.tokens.cache?.write ?? 0)
             usage.tokens.cacheDrift = trackCacheDrift(cacheDriftAnchors, input.sessionID, {

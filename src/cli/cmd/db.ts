@@ -223,8 +223,10 @@ export function classifyMiss(
   const inWindow = cur.time - prev.time <= windowMs
   if (ratio < 0.2 && prevRatio >= 0.8) return inWindow ? "drift" : "window-expiry"
   // 部分前缀丢失：上轮总输入中本轮未命中的部分（gap），对齐 cache-anchor 的
-  // 双阈值（>5% 且 >2K），大新增行（gap 为负或很小）不会误标。
-  const gap = prev.total - cur.cached
+  // 双阈值（>5% 且 >2K），大新增行（gap 为负或很小）不会误标。gap 以双方总
+  // 输入的较小值为基准：compact/截断后 cur.total 远小于 prev.total 时，直接用
+  // prev.total 会把正常的上下文收缩误标为部分漂移。
+  const gap = Math.min(prev.total, cur.total) - cur.cached
   const threshold = Math.max(2_000, prev.total * 0.05)
   if (gap > threshold) return inWindow ? "partial-drift" : "window-expiry"
   return null
@@ -277,7 +279,7 @@ const CacheCommand = effectCmd({
           : cause === "drift"
             ? "  ← 前缀漂移疑似（该轮前缀与上轮不同，排查记忆/技能/指令/工具集变化）"
             : cause === "partial-drift"
-              ? `  ← 前缀部分漂移疑似（窗口内较上轮总输入丢 ${Math.max(0, asc[i - 1]!.total - m.cached).toLocaleString()} token，排查记忆/指令/工具集变化）`
+              ? `  ← 前缀部分漂移疑似（窗口内较上轮总输入丢 ${Math.max(0, Math.min(asc[i - 1]!.total, m.total) - m.cached).toLocaleString()} token，排查记忆/指令/工具集变化）`
               : ""
       const time = new Date(m.time).toLocaleTimeString()
       console.log(

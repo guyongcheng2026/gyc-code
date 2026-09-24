@@ -157,6 +157,8 @@ const layer = Layer.effect(
       memory: Effect.fn("SystemPrompt.memory")(function* (query: string, sessionID: string) {
         // 缓存值由本次 query 检索而来，键必须带上 query：只按 sessionID 缓存时，
         // TTL 窗口内换话题会继续注入上一轮问题检索到的记忆片段。
+        // （prompt 层会话级冻结后本函数每会话通常仅首轮调用；键带 query 保留用于
+        //   冻结定型前的 TTL 窗口与冻结失效重取，防止换话题注入旧检索结果。）
         const cacheKey = `${sessionID}\u0000${query}`
         const cached = memoryCache.get(cacheKey)
         if (cached) {

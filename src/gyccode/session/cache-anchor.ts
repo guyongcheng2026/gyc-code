@@ -69,8 +69,15 @@ export function trackCacheDrift(
   sessionID: string,
   cur: { cacheRead: number; inputTokens: number },
 ): CacheDrift | null {
+  // 全零 usage（step-finish 缺 usage 时的空 Usage 兜底）不比较也不更新锚点：
+  // 否则会拿 {0,0} 与真实基线比出 100% 骤降误报，并把锚点清零、漏掉下一次真实漂移。
+  if (cur.inputTokens <= 0 && cur.cacheRead <= 0) return null
   const prev = anchor.get(sessionID)
-  if (anchor.size >= ANCHOR_MAX && !prev) {
+  if (prev) {
+    // LRU touch：命中项重排到最新位，避免活跃会话插入序冻结在首次位置、
+    // 被后续新会话挤到最旧后误淘汰（与 inject-freeze 的 touch 行为对齐）。
+    anchor.delete(sessionID)
+  } else if (anchor.size >= ANCHOR_MAX) {
     const oldest = anchor.keys().next().value
     if (oldest !== undefined) anchor.delete(oldest)
   }
