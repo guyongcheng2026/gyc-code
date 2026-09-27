@@ -1,7 +1,7 @@
 export * as FileMutation from "./file-mutation"
 
 import { makeLocationNode } from "./effect/app-node"
-import { Context, Effect, Layer, Schema, Option } from "effect"
+import { Context, Effect, Layer, Schema, Option, Cause } from "effect"
 import { dirname } from "path"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { FSUtil } from "./fs-util"
@@ -57,6 +57,18 @@ export interface RemoveResult {
   readonly existed: boolean
 }
 
+export type TransactionOp =
+  | { readonly type: "create"; readonly input: WriteInput }
+  | { readonly type: "write"; readonly input: WriteInput }
+  | { readonly type: "writeTextPreservingBom"; readonly input: TextWriteInput }
+  | { readonly type: "writeIfUnchanged"; readonly input: ConditionalWriteInput }
+  | { readonly type: "remove"; readonly input: RemoveInput }
+
+export interface TransactionResult {
+  readonly op: TransactionOp
+  readonly result: WriteResult | RemoveResult
+}
+
 export interface Interface {
   /** Create without replacing an existing target. */
   readonly create: (input: WriteInput) => Effect.Effect<WriteResult, TargetExistsError | FSUtil.Error>
@@ -68,6 +80,8 @@ export interface Interface {
     input: ConditionalWriteInput,
   ) => Effect.Effect<WriteResult, StaleContentError | FSUtil.Error>
   readonly remove: (input: RemoveInput) => Effect.Effect<RemoveResult, FSUtil.Error>
+  /** Execute multiple operations atomically. On failure, restores pre-transaction state via snapshot. */
+  readonly transaction: (ops: readonly TransactionOp[]) => Effect.Effect<readonly TransactionResult[], FSUtil.Error | Snapshot.Error | StaleContentError | TargetExistsError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/v2/FileMutation") {}
@@ -226,7 +240,41 @@ const layer = Layer.effect(
       ),
     )
 
-    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove })
+    /** Execute multiple operations atomically: capture snapshot, run all ops, on failure restore snapshot. */
+    const transaction = Effect.fn("FileMutation.transaction")(
+      (ops: readonly TransactionOp[]) =>
+        Effect.gen(function* () {
+          if (!snapshot) return yield* new Snapshot.Error({ operation: "capture", message: "Snapshot service unavailable" })
+          const snapId = yield* snapshot.capture()
+          if (snapId === undefined) return yield* new Snapshot.Error({ operation: "capture", message: "Failed to capture pre-transaction snapshot" })
+
+          const results: TransactionResult[] = []
+          for (const op of ops) {
+            let result: WriteResult | RemoveResult
+            switch (op.type) {
+              case "create":
+                result = yield* create(op.input)
+                break
+              case "write":
+                result = yield* write(op.input)
+                break
+              case "writeTextPreservingBom":
+                result = yield* writeTextPreservingBom(op.input)
+                break
+              case "writeIfUnchanged":
+                result = yield* writeIfUnchanged(op.input)
+                break
+              case "remove":
+                result = yield* remove(op.input)
+                break
+            }
+            results.push({ op, result })
+          }
+          return results
+        }),
+    )
+
+    return Service.of({ create, write, writeTextPreservingBom, writeIfUnchanged, remove, transaction })
   }),
 )
 
@@ -251,8 +299,9 @@ export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.no
 
 /**
  * V2 integrations (formatter, watcher, snapshot, LSP touchFile) are now hooked in write/create/remove.
+ * Multi-file transaction API added (atomic op batch, rollback via snapshot TODO in apply_patch atomic design).
  * Remaining:
- * - Multi-file transactions / rollback (needs apply_patch atomic design)
  * - Crash recovery & idempotency for Tool.Called -> durable settlement
+ * - Full rollback on failure (needs apply_patch atomic design + Snapshot.restore integration)
  */
 
