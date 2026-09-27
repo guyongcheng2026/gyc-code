@@ -300,8 +300,9 @@ export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.no
 /**
  * V2 integrations (formatter, watcher, snapshot, LSP touchFile) are now hooked in write/create/remove.
  * Multi-file transaction API added (atomic op batch, rollback via snapshot TODO in apply_patch atomic design).
+ * Crash recovery & idempotency for Tool.Called -> durable settlement defined in
+ * SessionRunner.failInterruptedTools (fail-closed deterministic settlement, callID as idempotency key).
  * Remaining:
- * - Crash recovery & idempotency for Tool.Called -> durable settlement
  * - Full rollback on failure (needs apply_patch atomic design + Snapshot.restore integration)
  */
 

@@ -118,6 +118,12 @@ const layer = Layer.effect(
     const getContext = Effect.fn("SessionRunner.getContext")(function* (sessionID: SessionSchema.ID) {
       return yield* store.context(sessionID)
     })
+    /**
+     * 崩溃恢复（fail-closed）：Tool.Called 已在副作用开始前持久化，重启后恢复路径
+     * 以确定性失败结算未落定的工具调用，不重放副作用（shell/网络等非幂等操作重跑
+     * 会重复执行）。幂等键即 callID：Tool.Called 记录先于副作用，结算事件按 callID
+     * 去重（publish-llm-event 对重复结算 die），同一 callID 至多结算一次。
+     */
     const failInterruptedTools = Effect.fn("SessionRunner.failInterruptedTools")(function* (
       sessionID: SessionSchema.ID,
     ) {
@@ -125,6 +131,12 @@ const layer = Layer.effect(
         if (message.type !== "assistant") continue
         for (const tool of message.content) {
           if (tool.type !== "tool" || (tool.state.status !== "pending" && tool.state.status !== "running")) continue
+          yield* Effect.logWarning("settling interrupted tool call", {
+            sessionID,
+            callID: tool.id,
+            tool: tool.name,
+            status: tool.state.status,
+          })
           yield* events.publish(SessionEvent.Tool.Failed, {
             sessionID,
             timestamp: yield* DateTime.now,
