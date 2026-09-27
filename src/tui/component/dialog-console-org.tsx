@@ -51,7 +51,7 @@ export function DialogConsoleOrg() {
     if (listed === undefined) {
       return [
         {
-          title: "加载组织中...",
+          title: "加载组织中…",
           value: "loading",
           onSelect: () => {},
         },

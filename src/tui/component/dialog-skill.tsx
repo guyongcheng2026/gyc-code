@@ -52,7 +52,7 @@ export function DialogSkill(props: DialogSkillProps) {
   return (
     <DialogSelect
       title="技能"
-      placeholder="搜索技能..."
+      placeholder="搜索技能…"
       options={options()}
       renderFilter={!showError()}
       locked={showError()}

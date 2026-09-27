@@ -99,11 +99,11 @@ export function DialogPrompt(props: DialogPromptProps) {
           cursorStyle={tuiConfig.cursor}
         />
         <Show when={props.busy}>
-          <Spinner color={theme.textMuted}>{props.busyText ?? "处理中..."}</Spinner>
+          <Spinner color={theme.textMuted}>{props.busyText ?? "处理中…"}</Spinner>
         </Show>
       </box>
       <box paddingBottom={1} gap={1} flexDirection="row">
-        <Show when={!props.busy} fallback={<text fg={theme.textMuted}>处理中...</text>}>
+        <Show when={!props.busy} fallback={<text fg={theme.textMuted}>处理中…</text>}>
           <Show when={submitShortcut()}>
             <text fg={theme.text}>
               {submitShortcut()} <span style={{ fg: theme.textMuted }}>提交</span>

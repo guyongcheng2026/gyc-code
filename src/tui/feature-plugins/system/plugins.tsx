@@ -49,7 +49,7 @@ function Install(props: { api: TuiPluginApi }) {
       title="安装插件"
       placeholder="npm 包名"
       busy={busy()}
-      busyText="正在安装插件..."
+      busyText="正在安装插件…"
       description={() => (
         <box flexDirection="row" gap={1}>
           <text fg={props.api.theme.current.textMuted}>作用域：</text>

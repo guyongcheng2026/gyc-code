@@ -385,7 +385,7 @@ function AutoMethod(props: AutoMethodProps) {
         <Link href={props.authorization.url} fg={theme.primary} />
         <text fg={theme.textMuted}>{props.authorization.instructions}</text>
       </box>
-      <text fg={theme.textMuted}>正在等待授权...</text>
+      <text fg={theme.textMuted}>正在等待授权…</text>
       <text fg={theme.text}>
         c <span style={{ fg: theme.textMuted }}>复制</span>
       </text>

@@ -2197,7 +2197,7 @@ function GenericTool(props: ToolProps) {
     <Show
       when={props.output && ctx.showGenericToolOutput()}
       fallback={
-        <InlineTool icon="⚙" pending="正在写入命令..." complete={true} part={props.part}>
+        <InlineTool icon="⚙" pending="正在写入命令…" complete={true} part={props.part}>
           {props.tool} {input(props.input)}
         </InlineTool>
       }
@@ -2479,7 +2479,7 @@ function Shell(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="$" pending="正在写入命令..." complete={stringValue(props.input.command)} part={props.part}>
+        <InlineTool icon="$" pending="正在写入命令…" complete={stringValue(props.input.command)} part={props.part}>
           {stringValue(props.input.command)}
         </InlineTool>
       </Match>
@@ -2513,7 +2513,7 @@ function Write(props: ToolProps) {
       <Match when={true}>
         <InlineTool
           icon="←"
-          pending="正在准备写入..."
+          pending="正在准备写入…"
           complete={stringValue(props.input.filePath)}
           part={props.part}
         >
@@ -2527,7 +2527,7 @@ function Write(props: ToolProps) {
 function Glob(props: ToolProps) {
   const pathFormatter = usePathFormatter()
   return (
-    <InlineTool icon="✱" pending="正在查找文件..." complete={stringValue(props.input.pattern)} part={props.part}>
+    <InlineTool icon="✱" pending="正在查找文件…" complete={stringValue(props.input.pattern)} part={props.part}>
       查找文件 "{stringValue(props.input.pattern)}"{" "}
       <Show when={stringValue(props.input.path)}>于 {pathFormatter.format(stringValue(props.input.path))} </Show>
       <Show when={numberValue(props.metadata.count)}>
@@ -2552,7 +2552,7 @@ function Read(props: ToolProps) {
     <>
       <InlineTool
         icon="→"
-        pending="正在读取文件..."
+        pending="正在读取文件…"
         complete={stringValue(props.input.filePath)}
         spinner={isRunning()}
         part={props.part}
@@ -2575,7 +2575,7 @@ function Read(props: ToolProps) {
 function Grep(props: ToolProps) {
   const pathFormatter = usePathFormatter()
   return (
-    <InlineTool icon="✱" pending="正在搜索内容..." complete={stringValue(props.input.pattern)} part={props.part}>
+    <InlineTool icon="✱" pending="正在搜索内容…" complete={stringValue(props.input.pattern)} part={props.part}>
       搜索内容 "{stringValue(props.input.pattern)}"{" "}
       <Show when={stringValue(props.input.path)}>于 {pathFormatter.format(stringValue(props.input.path))} </Show>
       <Show when={numberValue(props.metadata.matches)}>
@@ -2587,7 +2587,7 @@ function Grep(props: ToolProps) {
 
 function WebFetch(props: ToolProps) {
   return (
-    <InlineTool icon="%" pending="正在从网络获取..." complete={stringValue(props.input.url)} part={props.part}>
+    <InlineTool icon="%" pending="正在从网络获取…" complete={stringValue(props.input.url)} part={props.part}>
       抓取网页 {stringValue(props.input.url)}
     </InlineTool>
   )
@@ -2595,7 +2595,7 @@ function WebFetch(props: ToolProps) {
 
 function WebSearch(props: ToolProps) {
   return (
-    <InlineTool icon="◈" pending="正在搜索网络..." complete={stringValue(props.input.query)} part={props.part}>
+    <InlineTool icon="◈" pending="正在搜索网络…" complete={stringValue(props.input.query)} part={props.part}>
       {webSearchProviderLabel(props.metadata.provider)} "{stringValue(props.input.query)}"{" "}
       <Show when={numberValue(props.metadata.numResults)}>({numberValue(props.metadata.numResults)} results)</Show>
     </InlineTool>
@@ -2691,7 +2691,7 @@ function Task(props: ToolProps) {
       color={retry() ? theme.error : undefined}
       spinner={isRunning()}
       complete={stringValue(props.input.description)}
-      pending="正在委派..."
+      pending="正在委派…"
       part={props.part}
       onClick={() => {
         if (sessionID()) {
@@ -2828,7 +2828,7 @@ function Edit(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="←" pending="正在准备编辑..." complete={stringValue(props.input.filePath)} part={props.part}>
+        <InlineTool icon="←" pending="正在准备编辑…" complete={stringValue(props.input.filePath)} part={props.part}>
           编辑 {pathFormatter.format(stringValue(props.input.filePath))} {input({ replaceAll: props.input.replaceAll })}
         </InlineTool>
       </Match>
@@ -2904,7 +2904,7 @@ function ApplyPatch(props: ToolProps) {
         </For>
       </Match>
       <Match when={true}>
-        <InlineTool icon="%" pending="正在准备补丁..." failure="补丁失败" complete={false} part={props.part}>
+        <InlineTool icon="%" pending="正在准备补丁…" failure="补丁失败" complete={false} part={props.part}>
           Patch
         </InlineTool>
       </Match>
@@ -2926,7 +2926,7 @@ function TodoWrite(props: ToolProps) {
       <Match when={true}>
         <InlineTool
           icon="⚙"
-          pending="正在更新待办..."
+          pending="正在更新待办…"
           failure="待办更新失败"
           complete={false}
           part={props.part}
@@ -2966,7 +2966,7 @@ function Question(props: ToolProps) {
         </BlockTool>
       </Match>
       <Match when={true}>
-        <InlineTool icon="→" pending="正在提问..." complete={count()} part={props.part}>
+        <InlineTool icon="→" pending="正在提问…" complete={count()} part={props.part}>
           Asked {count()} question{count() !== 1 ? "s" : ""}
         </InlineTool>
       </Match>
@@ -2976,7 +2976,7 @@ function Question(props: ToolProps) {
 
 function Skill(props: ToolProps) {
   return (
-    <InlineTool icon="→" pending="正在加载技能..." complete={stringValue(props.input.name)} part={props.part}>
+    <InlineTool icon="→" pending="正在加载技能…" complete={stringValue(props.input.name)} part={props.part}>
       Skill "{stringValue(props.input.name)}"
     </InlineTool>
   )

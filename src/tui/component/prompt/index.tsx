@@ -1363,7 +1363,7 @@ title: "打开编辑器",
       return `执行命令…… "${example}"`
     }
     if (!list().length) return undefined
-    return `输入消息... "${list()[store.placeholder % list().length]}"`
+    return `输入消息…… "${list()[store.placeholder % list().length]}"`
   })
 
   const spinnerDef = createMemo(() => {
@@ -1584,7 +1584,7 @@ title: "打开编辑器",
                         if (!r) return
                         if (r.message.includes("exceeded your current quota") && r.message.includes("gemini"))
                           return "gemini 当前负载过高，请稍后重试"
-                        if (r.message.length > 80) return r.message.slice(0, 80) + "..."
+                        if (r.message.length > 80) return r.message.slice(0, 80) + "…"
                         return r.message
                       })
                       const isTruncated = createMemo(() => {

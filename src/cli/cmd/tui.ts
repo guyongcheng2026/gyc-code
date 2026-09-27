@@ -289,6 +289,6 @@ export const TuiThreadCommand = cmd({
         // 进程即将退出，Ctrl+C 守卫移除失败可忽略
       }
     }
-    process.exit(0)
+    process.exit()
   },
 })

@@ -219,7 +219,7 @@ function buildIssueURL(message: string, stack: string) {
   // clipped trace is obvious. searchParams.set handles encoding without throwing,
   // so measuring url.toString() is both correct and safe on any input.
   const MAX_URL_LENGTH = 6000
-  const marker = "\n...（已截断）"
+  const marker = "\n…（已截断）"
   const head = `gyccode TUI 发生意外错误而崩溃。\n\n**错误：** ${message}\n\n**堆栈跟踪：**\n`
   const setBody = (body: string) => url.searchParams.set("description", head + "```\n" + body + "\n```")
 

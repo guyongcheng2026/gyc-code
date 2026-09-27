@@ -41,7 +41,7 @@ export function wrapSSE(
         pendingId = setTimeout(() => {
           const err = makeError ? makeError("SSE read timed out") : new Error("SSE read timed out")
           ctl.abort(err)
-          void reader.cancel(err)
+          reader.cancel(err).catch(() => {})
           reject(err)
         }, ms)
 

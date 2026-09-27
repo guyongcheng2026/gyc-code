@@ -47,6 +47,18 @@ export function cliErrorMessage(input: unknown): string | undefined {
   const frontmatter = configData(input, "ConfigFrontmatterError")
   if (frontmatter) return field(frontmatter, "message") ?? ""
 
+  // ConfigRemoteAuthError: { url: string, remote: string }（对齐上游 opencode v1.18.32）
+  const remoteAuth = configData(input, "ConfigRemoteAuthError")
+  if (remoteAuth) {
+    const url = field(remoteAuth, "url")
+    const remote = field(remoteAuth, "remote")
+    return [
+      `Failed to load remote config${remote ? ` from ${remote}` : ""}: the server returned a login page instead of JSON.`,
+      `身份验证缺失或已过期（该端点很可能位于 SSO 或身份感知代理之后）。`,
+      ...(url ? [`请运行 \`gyccode auth login ${url}\` 重新认证。`] : []),
+    ].join("\n")
+  }
+
   const invalid = configData(input, "ConfigInvalidError")
   if (invalid) {
     const path = field(invalid, "path")

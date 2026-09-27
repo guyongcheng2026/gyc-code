@@ -44,8 +44,9 @@ const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 // "session became slow after a reconnect". Header timeout bounds how long we
 // wait for the first response bytes; chunk timeout bounds idle gaps between
 // SSE chunks (reset on each chunk, so long reasoning is unaffected).
-const DEFAULT_HEADER_TIMEOUT_MS = 60_000
-const DEFAULT_CHUNK_TIMEOUT_MS = 120_000
+// 默认值对齐上游 opencode v1.18.32（均为 300s）
+const DEFAULT_HEADER_TIMEOUT_MS = 300_000
+const DEFAULT_CHUNK_TIMEOUT_MS = 300_000
 
 function timeoutController(ms: number, label?: string) {
   const ctl = new AbortController()
@@ -345,6 +346,11 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         async getModel(sdk: BundledSDK, modelID: string, options?: Record<string, unknown>, model?: Model) {
           if (model?.api.npm === "@ai-sdk/amazon-bedrock/mantle") return selectBedrockMantleLanguageModel(sdk, modelID)
 
+          // ARN 形式（如 arn:aws:bedrock:...:foundation-model/xxx）已是完整模型标识，直接使用
+          if (modelID.startsWith("arn:")) {
+            return sdk.languageModel(modelID)
+          }
+
           // Skip region prefixing if model already has a cross-region inference profile prefix
           // Models from models.dev may already include prefixes like us., eu., global., etc.
           const crossRegionPrefixes = ["global.", "us.", "eu.", "jp.", "apac.", "au."]
@@ -369,7 +375,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
                 "nova-premier",
                 "nova-2",
                 "claude",
-                "deepseek",
+                "deepseek.r1",
               ].some((m) => modelID.includes(m))
               const isGovCloud = region.startsWith("us-gov")
               if (modelRequiresPrefix && !isGovCloud) {

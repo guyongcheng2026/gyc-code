@@ -665,6 +665,8 @@ function reasoningEffort(model: Provider.Model, effort: string) {
     case "ai-gateway-provider":
       return { reasoningEffort: effort }
     case "gitlab-ai-provider":
+      if (model.family?.startsWith("gpt")) return { reasoningEffort: effort }
+      if (model.family?.startsWith("claude")) return { thinking: { type: "adaptive", effort } }
       return
   }
 }

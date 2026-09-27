@@ -279,12 +279,12 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
               if (ALLOWED_MODELS.has(model.api.id)) return true
               if (DISALLOWED_MODELS.has(model.api.id)) return false
               if (model.api.id === "gpt-5.6") return false
-              const match = model.api.id.match(/^gpt-(\d+\.\d+)/)
+              const match = model.api.id.match(/^gpt-(\d+)(?:\.(\d+))?/)
               if (!match) return false
-              // 捕获组缺失时与原 parseFloat(undefined) 的 NaN 比较同结果：false
-              const version = match[1]
-              if (version === undefined) return false
-              return parseFloat(version) > 5.4
+              // 次版本号缺失时按 0 处理（对齐上游 v1.18.32 的 major/minor 比较）
+              const major = Number(match[1])
+              const minor = Number(match[2] ?? 0)
+              return major > 5 || (major === 5 && minor > 4)
             })
             .map(([modelID, model]) => [
               modelID,
