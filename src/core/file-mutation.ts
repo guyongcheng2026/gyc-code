@@ -1,11 +1,15 @@
 export * as FileMutation from "./file-mutation"
 
 import { makeLocationNode } from "./effect/app-node"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Schema, Option } from "effect"
 import { dirname } from "path"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { FSUtil } from "./fs-util"
 import { detectTextEncoding, encodeForWrite } from "./util/text-encoding"
+import { Format } from "../gyccode/format"
+import { EventV2 } from "./event"
+import { Snapshot } from "./snapshot"
+import { FileSystemWatcher } from "@gyccode/schema/filesystem-watcher"
 
 export interface Target {
   readonly canonical: string
@@ -77,6 +81,9 @@ const layer = Layer.effect(
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
     const locks = KeyedMutex.makeUnsafe<string>()
+    const formatter = Option.getOrUndefined(yield* Effect.serviceOption(Format.Service))
+    const events = Option.getOrUndefined(yield* Effect.serviceOption(EventV2.Service))
+    const snapshot = Option.getOrUndefined(yield* Effect.serviceOption(Snapshot.Service)) as Snapshot.Interface | undefined
     const withTargetLock =
       (target: Target) =>
       <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -96,12 +103,42 @@ const layer = Layer.effect(
       existed,
     })
 
+    /** Post-write integrations: formatter, watcher events, snapshot, LSP */
+    const runPostWriteHooks = (target: Target) =>
+      Effect.gen(function* () {
+        if (formatter) {
+          yield* formatter.file(target.canonical).pipe(
+            Effect.catchCause(() => Effect.void),
+          )
+        }
+        if (events) {
+          yield* events.publish(FileSystemWatcher.Event.Updated, {
+            file: target.canonical,
+            event: "change",
+          }).pipe(Effect.catchCause(() => Effect.void))
+        }
+        if (snapshot) {
+          yield* snapshot.capture().pipe(Effect.catchCause(() => Effect.void))
+        }
+      })
+
+    /** Pre-write snapshot for undo */
+    const runPreWriteHooks = (target: Target) =>
+      Effect.gen(function* () {
+        if (snapshot) {
+          yield* snapshot.capture().pipe(Effect.catchCause(() => Effect.void))
+        }
+      })
+
     const write = Effect.fn("FileMutation.write")((input: WriteInput) =>
       withTargetLock(input.target)(
         Effect.gen(function* () {
           const existed = yield* fs.exists(input.target.canonical)
+          yield* runPreWriteHooks(input.target)
           yield* fs.writeWithDirs(input.target.canonical, input.content)
-          return writeResult(input.target, existed)
+          const result = writeResult(input.target, existed)
+          yield* runPostWriteHooks(input.target)
+          return result
         }),
       ),
     )
@@ -114,11 +151,14 @@ const layer = Layer.effect(
             .readFile(input.target.canonical)
             .pipe(Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(undefined)))
           const encoding = current === undefined ? "utf-8" : detectTextEncoding(current)
+          yield* runPreWriteHooks(input.target)
           yield* fs.writeWithDirs(
             input.target.canonical,
             encodeForWrite(next.text, encoding, Boolean(current && hasUtf8Bom(current)) || next.bom),
           )
-          return writeResult(input.target, current !== undefined)
+          const result = writeResult(input.target, current !== undefined)
+          yield* runPostWriteHooks(input.target)
+          return result
         }),
       ),
     )
@@ -138,7 +178,10 @@ const layer = Layer.effect(
               Effect.fail(new TargetExistsError({ path: input.target.canonical })),
             ),
           )
-          return writeResult(input.target, false)
+          yield* runPreWriteHooks(input.target)
+          const result = writeResult(input.target, false)
+          yield* runPostWriteHooks(input.target)
+          return result
         }),
       ),
     )
@@ -150,10 +193,13 @@ const layer = Layer.effect(
           if (!sameBytes(current, input.expected)) {
             return yield* new StaleContentError({ path: input.target.canonical })
           }
+          yield* runPreWriteHooks(input.target)
           yield* typeof input.content === "string"
             ? fs.writeFileString(input.target.canonical, input.content)
             : fs.writeFile(input.target.canonical, input.content)
-          return writeResult(input.target, true)
+          const result = writeResult(input.target, true)
+          yield* runPostWriteHooks(input.target)
+          return result
         }),
       ),
     )
@@ -161,11 +207,14 @@ const layer = Layer.effect(
     const remove = Effect.fn("FileMutation.remove")((input: RemoveInput) =>
       withTargetLock(input.target)(
         Effect.gen(function* () {
+          yield* runPreWriteHooks(input.target)
           const existed = yield* fs.remove(input.target.canonical).pipe(
             Effect.as(true),
             Effect.catchReason("PlatformError", "NotFound", () => Effect.succeed(false)),
           )
-          return removeResult(input.target, existed)
+          const result = removeResult(input.target, existed)
+          yield* runPostWriteHooks(input.target)
+          return result
         }),
       ),
     )
@@ -194,12 +243,10 @@ export const locationLayer = layer
 export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node] })
 
 /**
- * Deferred until the corresponding V2 integrations exist.
+ * V2 integrations (formatter, watcher, snapshot) are now hooked in write/create/remove.
+ * Remaining:
+ * - LSP diagnostics collection (needs LSP runtime integration)
+ * - Multi-file transactions / rollback (needs apply_patch atomic design)
+ * - Crash recovery & idempotency for Tool.Called -> durable settlement
  */
-// TODO: Add formatter integration after V2 formatter runtime exists.
-// TODO: Publish watcher/file-edit events after V2 watcher integration exists.
-// TODO: Add snapshots / undo after V2 snapshot design exists.
-// TODO: Notify LSP and collect diagnostics after V2 LSP runtime exists.
-// TODO: Design multi-file transactions / rollback if apply_patch needs atomic edits.
-// Until then, edits are sequential and report partial application.
-// TODO: Define crash recovery and idempotency for side effects between Tool.Called and durable settlement.
+
