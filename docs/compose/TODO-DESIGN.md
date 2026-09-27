@@ -22,6 +22,14 @@
 | D6 | **debug 插件内置化** | `control-plane/dev/debug-workspace-plugin.ts` 是外部 dev 工具插件，硬编码 /tmp 已改为 os.tmpdir() | 是否内置（加入 plugin/index.ts internalPlugins + RuntimeFlags 开关）；是否加 CLI 快捷命令 | 2026-08-12 架构评估 |
 | D7 | **MCP config 加 Ide 类型** | `core/v1/config/mcp.ts` Info = Union([Local, Remote])，无 Ide；`MCPTransportKind` 已含 "ide" 占位（mcp/index.ts:131） | 若 D1 采用"gyccode 作为 MCP server"或"最小启动服务"形态，需加 Ide schema + create() 分支 + CLI --editor/--port 选项；与 D1 联动 | 2026-08-12 架构评估 |
 
+### 🔲 待决策（2026-09-27 内核 1.18.32 升级遗留）
+
+| # | 待设计内容 | 现状与背景 | 需决策点 | 来源 |
+|---|---|---|---|---|
+| D8 | **上游 AI SDK 补丁是否引入** | 上游 1.18.32 新增 `patches/@ai-sdk%2Fopenai@3.0.88.patch`（去除 serviceTier 能力校验与参数剔除）；gyc 无 `patches/` 机制与 `patchedDependencies` | 是否新建 `patches/` + 登记依赖补丁并移植该补丁；或永久保持不引入（gyc 自研 `src/llm` 直构请求、vendored copilot 语言模型自带 serviceTier 逻辑） | 2026-09-27 内核升级 |
+| D9 | **anthropicBlockBinding 是否移植** | 上游把 thinking 绑定控制（`blockBinding` + thinking-binding-controls）改为按 Claude 5.1+ 生效并支持 opt-out；gyc 用 `anthropicUsesModernAdaptiveThinking` 走等价路径，未实现 `blockBinding` | 是否引入（前置依赖 D8 的 SDK 补丁支持）或永久保持差异 | 2026-09-27 内核升级 |
+| D10 | **内核升级流程沉淀为 SKILL** | 本次升级流程可复用：gh-proxy 取上游参考仓库 → 建映射表 → 逐文件 hunk 移植 → EOL/BOM 归一化比对 → tsc + 全量测试 | 是否新建 `gyc-kernel-upgrade` SKILL 固化该流程（含「本地已拆分文件按符号定位」等坑位） | 2026-09-27 内核升级 |
+
 ### ✅ 已决策（历史，供追溯）
 
 | # | 内容 | 决策 |
