@@ -7,6 +7,7 @@ import { KeyedMutex } from "./effect/keyed-mutex"
 import { FSUtil } from "./fs-util"
 import { detectTextEncoding, encodeForWrite } from "./util/text-encoding"
 import { Format } from "../gyccode/format"
+import { LSP } from "../gyccode/lsp/lsp"
 import { EventV2 } from "./event"
 import { Snapshot } from "./snapshot"
 import { FileSystemWatcher } from "@gyccode/schema/filesystem-watcher"
@@ -84,6 +85,7 @@ const layer = Layer.effect(
     const formatter = Option.getOrUndefined(yield* Effect.serviceOption(Format.Service))
     const events = Option.getOrUndefined(yield* Effect.serviceOption(EventV2.Service))
     const snapshot = Option.getOrUndefined(yield* Effect.serviceOption(Snapshot.Service)) as Snapshot.Interface | undefined
+    const lsp = Option.getOrUndefined(yield* Effect.serviceOption(LSP.Service))
     const withTargetLock =
       (target: Target) =>
       <A, E, R>(effect: Effect.Effect<A, E, R>) =>
@@ -119,6 +121,11 @@ const layer = Layer.effect(
         }
         if (snapshot) {
           yield* snapshot.capture().pipe(Effect.catchCause(() => Effect.void))
+        }
+        if (lsp) {
+          yield* lsp.touchFile(target.canonical, "document").pipe(
+            Effect.catchCause(() => Effect.void),
+          )
         }
       })
 
@@ -243,9 +250,8 @@ export const locationLayer = layer
 export const node = makeLocationNode({ service: Service, layer, deps: [FSUtil.node] })
 
 /**
- * V2 integrations (formatter, watcher, snapshot) are now hooked in write/create/remove.
+ * V2 integrations (formatter, watcher, snapshot, LSP touchFile) are now hooked in write/create/remove.
  * Remaining:
- * - LSP diagnostics collection (needs LSP runtime integration)
  * - Multi-file transactions / rollback (needs apply_patch atomic design)
  * - Crash recovery & idempotency for Tool.Called -> durable settlement
  */
