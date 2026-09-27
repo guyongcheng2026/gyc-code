@@ -54,6 +54,8 @@ function mergeCost(base: ModelV2Info["cost"], override: ModelsDev.Model["cost"] 
   const next = cost(override)
   const [baseDefault, ...baseTiers] = base
   const [nextDefault, ...nextTiers] = next
+  // 与 override 缺失时同样处理：没有默认档位则保持 base 不变
+  if (!nextDefault) return base
   const tierKey = (item: ModelV2Info["cost"][number]) => `${item.tier?.type ?? "base"}:${item.tier?.size ?? 0}`
   const merge = (left: ModelV2Info["cost"][number], right: ModelV2Info["cost"][number]) => ({
     ...left,

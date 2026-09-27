@@ -49,10 +49,13 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     if (base) sessionId = base.id
   }
   if (!sessionId) {
+    // 模型串形如 "provider/model"：首段为 providerID；缺段时视同未指定模型，不在此杜撰默认值
+    const modelSegments = options.model ? options.model.split("/") : []
+    const providerID = modelSegments[0]
     const created = await sdk.session.create({
       title: undefined,
       agent: options.agent,
-      model: options.model ? { providerID: options.model.split("/")[0], id: options.model.split("/").slice(1).join("/"), variant: options.variant } : undefined,
+      model: options.model && providerID !== undefined ? { providerID, id: modelSegments.slice(1).join("/"), variant: options.variant } : undefined,
       permission: [
         { permission: "question", action: "deny", pattern: "*" },
         { permission: "plan_enter", action: "deny", pattern: "*" },
@@ -263,7 +266,7 @@ async function handleSubmit(
   // 斜杠命令
   if (value.startsWith("/")) {
     const parts = value.slice(1).split(" ", 2)
-    const cmd = parts[0]
+    const cmd = parts[0] ?? ""
     const args = parts[1] ?? ""
     await history.addSlashCommand(value)
     const result = await executeBuiltinCommand(ctx, cmd, args)
@@ -290,7 +293,7 @@ async function handleSlashEntry(
   slashMenu: SlashMenu
 ): Promise<void> {
   const parts = entry.fill.slice(1).split(" ", 2)
-  const cmd = parts[0]
+  const cmd = parts[0] ?? ""
   const args = parts[1] ?? ""
 
   if (entry.dynamic) {
@@ -346,6 +349,8 @@ async function handleHistorySearch(ctx: ExecutorContext, history: IHistoryManage
     process.stdout.write("\r\x1b[K" + CYAN + "(reverse-i-search)" + RESET + "`" + query + "`: ")
     if (results.length > 0) {
       const entry = results[selected]
+      // 结果集被刷新后可能变短，选中项越界时本轮不渲染（render 为同步函数，早退安全）
+      if (!entry) return
       const time = new Date(entry.entry.timestamp).toLocaleTimeString()
       process.stdout.write(`${DIM}[${time}]${RESET} ${entry.entry.text}`)
     }
@@ -364,7 +369,8 @@ async function handleHistorySearch(ctx: ExecutorContext, history: IHistoryManage
           return
         }
         if (code === 13 || code === 10) { // Enter
-          if (results[selected]) finish(results[selected].entry.text)
+          const entry = results[selected]
+          if (entry) finish(entry.entry.text)
           else finish()
           return
         }

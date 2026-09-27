@@ -159,7 +159,7 @@ export class SQLiteEffectInsertBuilder<
       const cols = getTableColumnsRuntime(this.table)
       for (const colKey of Object.keys(entry)) {
         const colValue = entry[colKey as keyof typeof entry]
-        result[colKey] = is(colValue, SQL) ? colValue : new Param(colValue, cols[colKey])
+        result[colKey] = is(colValue, SQL) ? colValue : new Param(colValue, cols?.[colKey])
       }
       return result
     })
@@ -185,7 +185,7 @@ export class SQLiteEffectInsertBuilder<
   ): SQLiteEffectInsertBase<TTable, TRunResult, undefined, false, never, TEffectHKT> {
     const select = typeof selectQuery === "function" ? selectQuery(new QueryBuilder()) : selectQuery
 
-    if (!is(select, SQL) && !haveSameKeys(getTableColumnsRuntime(this.table), select._.selectedFields)) {
+    if (!is(select, SQL) && !haveSameKeys(getTableColumnsRuntime(this.table) ?? {}, select._.selectedFields)) {
       throw new Error(
         "Insert select error: selected fields are not the same or are in a different order compared to the table definition",
       )
@@ -253,7 +253,7 @@ export class SQLiteEffectInsertBase<
     fields: TSelectedFields,
   ): SQLiteEffectInsertReturning<this, TDynamic, TSelectedFields>
   returning(
-    fields: SelectedFieldsFlat = getTableColumnsRuntime(this.config.table),
+    fields: SelectedFieldsFlat = getTableColumnsRuntime(this.config.table) ?? {},
   ): SQLiteEffectInsertWithout<AnySQLiteEffectInsert, TDynamic, "returning"> {
     this.config.returning = orderSelectedFields<SQLiteColumn>(fields)
     return this as any

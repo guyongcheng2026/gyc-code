@@ -60,9 +60,11 @@ export type Child = ChildProcess & { exited: Promise<number> }
 
 export function spawn(cmd: string[], opts: Options = {}): Child {
   if (cmd.length === 0) throw new Error("Command is required")
+  const command = cmd[0]
+  if (command === undefined) throw new Error("Command is required")
   opts.abort?.throwIfAborted()
 
-  const proc = launch(cmd[0], cmd.slice(1), {
+  const proc = launch(command, cmd.slice(1), {
     cwd: opts.cwd,
     shell: opts.shell,
     env: opts.env === null ? {} : opts.env ? { ...process.env, ...opts.env } : undefined,

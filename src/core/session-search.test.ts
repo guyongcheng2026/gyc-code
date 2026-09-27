@@ -55,9 +55,11 @@ describe("SessionSearch.search", () => {
     ])
     const results = SessionSearch.search(db, { query: "ETag" })
     expect(results.length).toBe(1)
-    expect(results[0].session_id).toBe("s1")
-    expect(results[0].session_title).toBe("性能优化会话")
-    expect(results[0].snippet).toContain("ETag")
+    const first = results[0]
+    if (first === undefined) throw new Error("fixture missing: results[0]")
+    expect(first.session_id).toBe("s1")
+    expect(first.session_title).toBe("性能优化会话")
+    expect(first.snippet).toContain("ETag")
   })
 
   test("英文查询大小写不敏感", () => {
@@ -78,11 +80,15 @@ describe("SessionSearch.search", () => {
     // "A_1" 应只命中字面包含下划线的第一条，而不是把 AX1 当通配匹配
     const results = SessionSearch.search(db, { query: "A_1" })
     expect(results.length).toBe(1)
-    expect(results[0].part_id).toBe("p1")
+    const hit = results[0]
+    if (hit === undefined) throw new Error("fixture missing: results[0]")
+    expect(hit.part_id).toBe("p1")
     // "%" 同理只命中字面百分号
     const pct = SessionSearch.search(db, { query: "50%" })
     expect(pct.length).toBe(1)
-    expect(pct[0].part_id).toBe("p1")
+    const pctHit = pct[0]
+    if (pctHit === undefined) throw new Error("fixture missing: pct[0]")
+    expect(pctHit.part_id).toBe("p1")
   })
 
   test("非 text 类型部件不参与检索", () => {
@@ -104,7 +110,9 @@ describe("SessionSearch.search", () => {
     expect(only.map((r) => r.part_id)).toEqual(["p2", "p1"]) // 时间倒序
     const limited = SessionSearch.search(db, { query: "关键词", limit: 1 })
     expect(limited.length).toBe(1)
-    expect(limited[0].time_created).toBe(99) // 跨会话也取最新
+    const newest = limited[0]
+    if (newest === undefined) throw new Error("fixture missing: limited[0]")
+    expect(newest.time_created).toBe(99) // 跨会话也取最新
   })
 
   test("空白查询返回空数组且不抛错", () => {

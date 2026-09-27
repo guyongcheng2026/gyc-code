@@ -68,6 +68,7 @@ function buildRemoteReference(input: { host: string; segments: string[]; remote?
   if (!safeHost(input.host) || !segments.length || segments.some((segment) => !safeSegment(segment))) return null
   const pathname = segments.join("/")
   const repo = segments[segments.length - 1]
+  if (!repo) return null
   const host = input.host.toLowerCase()
   return {
     host,
@@ -84,13 +85,14 @@ function buildRemoteReference(input: { host: string; segments: string[]; remote?
 function buildFileReference(input: { url: URL; remote: string }) {
   const filePath = path.normalize(fileURLToPath(input.url))
   const segments = filePath.split(/[\\/]+/).filter(Boolean)
-  if (!segments.length) return null
+  const repo = segments[segments.length - 1]
+  if (!repo) return null
   return {
     host: "file",
     path: filePath,
     segments: segments.map((segment) => segment.replace(/:$/, "")),
     owner: undefined,
-    repo: trimGitSuffix(segments[segments.length - 1]),
+    repo: trimGitSuffix(repo),
     remote: input.remote,
     label: filePath,
     protocol: "file:",
@@ -103,16 +105,23 @@ function parseRepositoryReference(input: string) {
 
   const githubPrefixed = cleaned.match(/^github:([^/\s]+)\/([^/\s]+)$/)
   if (githubPrefixed) {
-    return buildRemoteReference({ host: "github.com", segments: [githubPrefixed[1], githubPrefixed[2]] })
+    const [, owner, repo] = githubPrefixed
+    if (!owner || !repo) return null
+    return buildRemoteReference({ host: "github.com", segments: [owner, repo] })
   }
 
   if (!cleaned.includes("://")) {
     const scp = cleaned.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/)
-    if (scp) return buildRemoteReference({ host: scp[1], segments: parts(scp[2]), remote: cleaned })
+    if (scp) {
+      const [, host, rest] = scp
+      if (!host || !rest) return null
+      return buildRemoteReference({ host, segments: parts(rest), remote: cleaned })
+    }
 
     const direct = parts(cleaned)
-    if (direct.length >= 2 && hostLike(direct[0])) {
-      return buildRemoteReference({ host: direct[0], segments: direct.slice(1) })
+    const [first] = direct
+    if (direct.length >= 2 && first && hostLike(first)) {
+      return buildRemoteReference({ host: first, segments: direct.slice(1) })
     }
 
     if (direct.length === 2) {

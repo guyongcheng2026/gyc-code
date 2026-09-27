@@ -23,7 +23,7 @@ export function DialogStatus() {
         const parts = path.split("/")
         const filename = parts.pop() || path
         if (!filename.includes(".")) return { name: filename }
-        const basename = filename.split(".")[0]
+        const basename = filename.split(".")[0] ?? filename
         if (basename === "index") {
           const dirname = parts.pop()
           const name = dirname || basename

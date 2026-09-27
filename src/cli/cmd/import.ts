@@ -26,7 +26,7 @@ export type ShareData =
 /** Extract share ID from a share URL like https://example.com/share/abc123 */
 export function parseShareUrl(url: string): string | null {
   const match = url.match(/^https?:\/\/[^/]+\/share\/([a-zA-Z0-9_-]+)$/)
-  return match ? match[1] : null
+  return match?.[1] ?? null
 }
 
 export function shouldAttachShareAuthHeaders(shareUrl: string, accountBaseUrl: string): boolean {

@@ -117,7 +117,7 @@ export class SQLiteEffectSelectBuilder<
         ]),
       )
     } else if (is(source, SQLiteViewBase)) {
-      fields = getViewSelectedFieldsRuntime(source).selectedFields as SelectedFields
+      fields = getViewSelectedFieldsRuntime(source)?.selectedFields as SelectedFields
     } else if (is(source, SQL)) {
       fields = {}
     } else {

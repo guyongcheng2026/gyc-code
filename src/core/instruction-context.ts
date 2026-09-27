@@ -68,7 +68,12 @@ const layer = Layer.effectDiscard(
             ),
         { concurrency: "unbounded" },
       )
-      if (files.some((file, index) => file === undefined && discovered.has(paths[index])))
+      if (
+        files.some((file, index) => {
+          const path = paths[index]
+          return file === undefined && path !== undefined && discovered.has(path)
+        })
+      )
         return SystemContext.unavailable
       return files.filter((file): file is File => file !== undefined)
     })

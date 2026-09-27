@@ -16,7 +16,7 @@ export function jsonc(text: string, filepath: string): unknown {
       .map((e) => {
         const beforeOffset = text.substring(0, e.offset).split("\n")
         const line = beforeOffset.length
-        const column = beforeOffset[beforeOffset.length - 1].length + 1
+        const column = (beforeOffset[beforeOffset.length - 1] ?? "").length + 1
         const problemLine = lines[line - 1]
 
         const error = `${printParseErrorCode(e.error)} at line ${line}, column ${column}`

@@ -23,9 +23,10 @@ export const DynamicProviderPlugin = define({
           )) as Record<string, (options: any) => any>
         }).pipe(Effect.orDie)
         const match = Object.keys(mod).find((name) => name.startsWith("create"))
-        if (!match) throw new Error(`Package ${evt.package} has no provider factory export`)
+        const create = match ? mod[match] : undefined
+        if (!create) throw new Error(`Package ${evt.package} has no provider factory export`)
 
-        evt.sdk = mod[match](evt.options)
+        evt.sdk = create(evt.options)
       }),
     )
   }),

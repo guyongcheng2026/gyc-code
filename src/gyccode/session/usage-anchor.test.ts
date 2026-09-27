@@ -75,7 +75,9 @@ test("anchor uses the last assistant message with real usage", () => {
   expect(anchorTokens).toBe(220)
   // only the message after the anchor needs local estimation
   expect(toEstimate).toHaveLength(1)
-  expect(String(toEstimate[0].info.id)).toBe("u3")
+  const only = toEstimate[0]
+  if (only === undefined) throw new Error("fixture missing: toEstimate[0]")
+  expect(String(only.info.id)).toBe("u3")
 })
 
 test("anchor includes cache read/write and reasoning tokens", () => {
@@ -124,6 +126,10 @@ test("skips assistant messages without usage and anchors on an earlier one", () 
   expect(anchorTokens).toBe(550)
   // everything after a1 needs estimation: u2 + a2
   expect(toEstimate).toHaveLength(2)
-  expect(String(toEstimate[0].info.id)).toBe("u2")
-  expect(String(toEstimate[1].info.id)).toBe("a2")
+  const first = toEstimate[0]
+  if (first === undefined) throw new Error("fixture missing: toEstimate[0]")
+  expect(String(first.info.id)).toBe("u2")
+  const second = toEstimate[1]
+  if (second === undefined) throw new Error("fixture missing: toEstimate[1]")
+  expect(String(second.info.id)).toBe("a2")
 })

@@ -51,7 +51,7 @@ export function DialogExportOptions(props: DialogExportOptionsProps) {
           ]
           const currentIndex = order.indexOf(store.active)
           const nextIndex = (currentIndex + 1) % order.length
-          setStore("active", order[nextIndex])
+          setStore("active", order[nextIndex] ?? "filename")
         },
       },
     ],

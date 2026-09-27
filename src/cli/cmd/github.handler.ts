@@ -186,10 +186,12 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
           step2 =
             "在 AWS 中配置 OIDC - https://docs.github.com/en/actions/how-tos/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services"
         } else {
+          const providerData = providers[provider]
+          if (providerData === undefined) throw new Error(`未找到服务商 ${provider} 的环境变量配置`)
           step2 = [
             `    2. 在组织或仓库（${app.owner}/${app.repo}）设置中添加以下密钥`,
             "",
-            ...providers[provider].env.map((e) => `       - ${e}`),
+            ...providerData.env.map((e) => `       - ${e}`),
           ].join("\n")
         }
 
@@ -304,10 +306,12 @@ export const githubInstall = Effect.fn("Cli.github.install")(function* () {
       }
 
       async function addWorkflowFiles() {
+        const providerData = providers[provider]
+        if (providerData === undefined) throw new Error(`未找到服务商 ${provider} 的环境变量配置`)
         const envStr =
           provider === "amazon-bedrock"
             ? ""
-            : `\n        env:${providers[provider].env.map((e) => `\n          ${e}: \${{ secrets.${e} }}`).join("")}`
+            : `\n        env:${providerData.env.map((e) => `\n          ${e}: \${{ secrets.${e} }}`).join("")}`
 
         await Filesystem.write(
           path.join(app.root, WORKFLOW_FILE),
@@ -757,6 +761,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
         const tag = m[0]
         const url = m[1]
         const start = m.index
+        if (url === undefined) continue
         const filename = path.basename(url)
 
         // Download image
@@ -1262,9 +1267,10 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
           }),
         )
 
-        if (existing.data.length > 0) {
-          console.log(`PR #${existing.data[0].number} already exists for branch ${branch}`)
-          return existing.data[0].number
+        const existingPR = existing.data[0]
+        if (existingPR !== undefined) {
+          console.log(`PR #${existingPR.number} already exists for branch ${branch}`)
+          return existingPR.number
         }
       } catch (e) {
         // If the check fails, proceed to create - we'll get a clear error if a PR already exists

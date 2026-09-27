@@ -35,7 +35,8 @@ async function getReleaseNotes(): Promise<ReleaseNote[]> {
     return output
       .split("\n")
       .map((line) => {
-        const [hash, subject, date] = line.split("|")
+        // 缺字段的脏行回落空串，仍由下方 filter(note => note.version) 过滤
+        const [hash = "", subject = "", date] = line.split("|")
         return {
           version: hash.slice(0, 7),
           date: date?.split(" ")[0] ?? "",

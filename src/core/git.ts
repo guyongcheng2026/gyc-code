@@ -390,7 +390,7 @@ const layer = Layer.effect(
           ["index.version", "4"],
           ["index.threads", "true"],
           ["core.untrackedCache", "true"],
-        ],
+        ] satisfies ReadonlyArray<readonly [string, string]>,
         ([key, value]) => repositoryOperation("create", repository, ["config", key, value]),
         { discard: true },
       )
@@ -628,13 +628,16 @@ const layer = Layer.effect(
       ])).text.replace(/\0$/, "")
       if (!text) return
       const match = text.match(/^(\d+)\s+\w+\s+([0-9a-f]+)\t/)
-      if (!match)
+      const mode = match?.[1]
+      const object = match?.[2]
+      // 捕获组缺失说明 ls-tree 输出异常，与上方 !match 一样走失败分支
+      if (mode === undefined || object === undefined)
         return yield* new OperationError({
           operation: "restore",
           directory: repository.worktree,
           message: `Invalid tree entry for ${file}`,
         })
-      return { mode: match[1], object: match[2] }
+      return { mode, object }
     })
 
     const preview = Effect.fn("Git.tree.preview")(

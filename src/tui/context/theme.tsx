@@ -261,7 +261,10 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
         if (theme) return resolveTheme(theme, store.mode)
       }
 
-      return resolveTheme(store.themes.gyccode, store.mode)
+      // 内置 gyccode 主题由 DEFAULT_THEMES 注入，缺失说明主题表已损坏，显式失败
+      const fallback = store.themes.gyccode ?? DEFAULT_THEMES.gyccode
+      if (!fallback) throw new Error("built-in gyccode theme is missing")
+      return resolveTheme(fallback, store.mode)
     })
 
     createEffect(() => renderer.setBackgroundColor(values().background))

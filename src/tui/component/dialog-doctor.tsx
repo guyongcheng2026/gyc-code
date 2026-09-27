@@ -28,7 +28,8 @@ async function checkCommand(cmd: string): Promise<string | null> {
       timeout: 5000,
       maxBuffer: 1024 * 1024,
     })
-    return stdout.trim().split("\n")[0]
+    // split 至少返回一个元素，缺失时按空字符串处理，与原有运行时行为一致
+    return stdout.trim().split("\n")[0] ?? ""
   } catch {
     return null
   }

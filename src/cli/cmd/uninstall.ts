@@ -257,7 +257,8 @@ async function getShellConfigFile(): Promise<string | null> {
     sh: [path.join(home, ".profile")],
   }
 
-  const candidates = configFiles[shell] || configFiles.bash
+  // 索引访问收窄：两者都缺失时按「未找到配置文件」处理（随后返回 null），不做任何写操作
+  const candidates = configFiles[shell] || configFiles.bash || []
 
   for (const file of candidates) {
     const exists = await fs
@@ -307,7 +308,7 @@ async function cleanShellConfig(file: string) {
     filtered.push(line)
   }
 
-  while (filtered.length > 0 && filtered[filtered.length - 1].trim() === "") {
+  while (filtered.length > 0 && filtered[filtered.length - 1]?.trim() === "") {
     filtered.pop()
   }
 

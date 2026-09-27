@@ -93,8 +93,10 @@ describe("session projector usage broadcast", () => {
     expect(totals.cost).toBeCloseTo(1.25)
     expect(totals.tokensInput).toBe(100)
     expect(published).toHaveLength(1)
-    expect(published[0].type).toBe("session.updated")
-    const info = (published[0].data as { info: { cost: number; tokens: { input: number } } }).info
+    const first = published[0]
+    if (first === undefined) throw new Error("fixture missing: published[0]")
+    expect(first.type).toBe("session.updated")
+    const info = (first.data as { info: { cost: number; tokens: { input: number } } }).info
     expect(info.cost).toBeCloseTo(1.25)
     expect(info.tokens.input).toBe(100)
   })
@@ -120,6 +122,7 @@ describe("session projector usage broadcast", () => {
     )
     expect(published).toHaveLength(2)
     const last = published[published.length - 1]
+    if (last === undefined) throw new Error("fixture missing: last published event")
     const info = (last.data as { info: { cost: number; tokens: { input: number } } }).info
     expect(info.cost).toBeCloseTo(0)
     expect(info.tokens.input).toBe(0)

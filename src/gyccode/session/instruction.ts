@@ -257,6 +257,7 @@ const layer: Layer.Layer<
       const pathList = Array.from(paths)
       for (let i = 0; i < pathList.length; i++) {
         const item = pathList[i]
+        if (item === undefined) continue
         const content = files[i]
         if (content) {
           const resolved = yield* withIncludes(item, content)

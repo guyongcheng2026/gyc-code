@@ -44,6 +44,7 @@ export function selectMicrocompactParts(
   const selected: Array<SessionV1.ToolPart & { _msgIndex: number }> = []
   for (let i = CACHE_PREFIX_KEEP; i < msgs.length - TAIL_KEEP; i++) {
     const msg = msgs[i]
+    if (msg === undefined) continue
     for (const part of msg.parts) {
       if (part.type !== "tool") continue
       if (part.state.status !== "completed") continue
@@ -107,6 +108,7 @@ export function selectTimeBasedParts(
   const selected: Array<SessionV1.ToolPart & { _msgIndex: number }> = []
   for (let i = start; i < msgs.length - opts.keepRecent; i++) {
     const msg = msgs[i]
+    if (msg === undefined) continue
     for (const part of msg.parts) {
       if (part.type !== "tool") continue
       if (part.state.status !== "completed") continue

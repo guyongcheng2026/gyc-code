@@ -27,7 +27,9 @@ function isPrivateHost(hostname: string): boolean {
   // IPv4-mapped IPv6（::ffff:a.b.c.d）：提取内嵌 IPv4 后按 IPv4 规则校验，
   // 防止用映射地址形式绕过私网拦截（如 ::ffff:10.1.2.3 实际连接 10.1.2.3）
   const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
-  if (mapped) return isPrivateIPv4(mapped[1])
+  // 捕获组为必需组，取局部变量后判空即可（改为不依赖索引访问的非空推断）
+  const mappedIP = mapped?.[1]
+  if (mappedIP) return isPrivateIPv4(mappedIP)
 
   // IPv4 私网/回环/链路本地
   if (isIPv4(bare)) return isPrivateIPv4(bare)
@@ -53,6 +55,9 @@ function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split(".").map(Number)
   // 非法地址（非数字/越界）一律视为不安全，fail-closed
   if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true
+  // 长度已校验为 4 段；索引访问在 noUncheckedIndexedAccess 下仍为 number|undefined，
+  // 前三段缺失时同样按不安全处理（fail-closed，与上方非法地址分支一致）
+  if (parts[0] === undefined || parts[1] === undefined || parts[2] === undefined) return true
   if (parts[0] === 127) return true // 回环 127.0.0.0/8
   if (parts[0] === 10) return true // 私网 10.0.0.0/8
   if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true // 私网 172.16.0.0/12

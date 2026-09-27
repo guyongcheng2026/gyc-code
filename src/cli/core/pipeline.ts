@@ -80,9 +80,12 @@ export function parseModelInput(value: string | undefined): { providerID: string
   const cached = modelInputCache.get(value)
   if (cached) return cached
   const [providerID, ...rest] = value.split("/")
+  // value 已判空：此处仍缺失即非法输入，按既有语义返回 undefined，交由调用方兜底
+  if (providerID === undefined) return undefined
   const modelPart = rest.join("/")
   if (!modelPart) return { providerID, modelID: "" }
   const [modelID, variant] = modelPart.split(":")
+  if (modelID === undefined) return undefined
   const result = { providerID, modelID, variant }
   modelInputCache.set(value, result)
   // 容量上限：长会话里换过的模型串不应无限堆积，超限按插入序淘汰最旧一条

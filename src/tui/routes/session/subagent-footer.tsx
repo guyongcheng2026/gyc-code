@@ -21,7 +21,8 @@ export function SubagentFooter() {
     if (!s) return { label: "子代理", index: 0, total: 0, status: "idle" }
     const status = sync.session.status(route.sessionID)
     const agentMatch = s.title.match(/@(\w+) subagent/)
-    const label = agentMatch ? Locale.titlecase(agentMatch[1]) : "子代理"
+    const agentName = agentMatch?.[1]
+    const label = agentName === undefined ? "子代理" : Locale.titlecase(agentName)
 
     if (!s.parentID) return { label, index: 0, total: 0, status }
 

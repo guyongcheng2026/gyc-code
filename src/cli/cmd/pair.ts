@@ -29,9 +29,10 @@ function saveCredentials(credential: { accountId: string; token: string; baseUrl
   const seen = new Set<string>()
   const replaced = lines.map((line) => {
     const match = /^([A-Z0-9_]+)\s*=/.exec(line)
-    if (!match || !values.has(match[1] as typeof ENV_KEYS[number][0])) return line
-    seen.add(match[1])
-    return `${match[1]}=${values.get(match[1] as typeof ENV_KEYS[number][0])}`
+    const key = match?.[1]
+    if (key === undefined || !values.has(key as typeof ENV_KEYS[number][0])) return line
+    seen.add(key)
+    return `${key}=${values.get(key as typeof ENV_KEYS[number][0])}`
   })
   const missing: (typeof ENV_KEYS[number][0])[] = ENV_KEYS.filter(([key]) => !seen.has(key)).map(([key]) => key)
   if (missing.length > 0) {

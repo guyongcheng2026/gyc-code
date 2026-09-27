@@ -283,8 +283,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     sessionTotalTokens.length === 0
       ? 0
       : sessionTotalTokens.length % 2 === 0
-        ? (sessionTotalTokens[mid - 1] + sessionTotalTokens[mid]) / 2
-        : sessionTotalTokens[mid]
+        ? ((sessionTotalTokens[mid - 1] ?? 0) + (sessionTotalTokens[mid] ?? 0)) / 2
+        : (sessionTotalTokens[mid] ?? 0)
 
   return stats
 })

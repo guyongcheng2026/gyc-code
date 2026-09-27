@@ -24,7 +24,7 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
   for (const [name, key] of [
     ["x-gyccode-directory", "directory"],
     ["x-gyccode-workspace", "workspace"],
-  ]) {
+  ] as const) {
     const value = pick(
       request.headers.get(name),
       key === "directory" ? values.directory : values.workspace,
@@ -32,6 +32,8 @@ function rewrite(request: Request, values: { directory?: string; workspace?: str
     )
     if (!value) continue
     for (const query of url.pathname.startsWith("/api/") ? [key, `location[${key}]`] : [key]) {
+      // 数组字面量取值必存在，缺失时跳过以免写入非法 query
+      if (query === undefined) continue
       if (!url.searchParams.has(query)) {
         url.searchParams.set(query, value)
       }

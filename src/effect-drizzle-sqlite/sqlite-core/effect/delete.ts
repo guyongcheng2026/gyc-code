@@ -179,7 +179,8 @@ export class SQLiteEffectDeleteBase<
     if (typeof columns[0] === "function") {
       const orderBy = columns[0](
         new Proxy(
-          getTableColumnsRuntime(this.config.table),
+          // getTableColumnsRuntime 返回类型含 undefined（索引访问收窄），表必有列，兜底空对象
+          getTableColumnsRuntime(this.config.table) ?? {},
           new SelectionProxyHandler({ sqlAliasedBehavior: "alias", sqlBehavior: "sql" }),
         ) as any,
       )
@@ -202,7 +203,8 @@ export class SQLiteEffectDeleteBase<
     fields: TSelectedFields,
   ): SQLiteEffectDeleteReturning<this, TDynamic, TSelectedFields>
   returning(
-    fields: SelectedFieldsFlat = getTableColumnsRuntime(this.table),
+    // 同上：类型含 undefined，运行时表必有列，兜底空对象不改变既有列选择语义
+    fields: SelectedFieldsFlat = getTableColumnsRuntime(this.table) ?? {},
   ): SQLiteEffectDeleteReturning<this, TDynamic, any> | SQLiteEffectDeleteReturningAll<this, TDynamic> {
     this.config.returning = orderSelectedFields<SQLiteColumn>(fields)
     return this as any

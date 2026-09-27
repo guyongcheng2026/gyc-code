@@ -571,7 +571,9 @@ function Prompt<const T extends Record<string, string>>(props: {
         desc: "上一个权限选项",
         group: "权限",
         cmd: () => {
-          const idx = keys.indexOf(store.selected)
+          const selected = store.selected
+          if (!selected) return
+          const idx = keys.indexOf(selected)
           const next = keys[(idx - 1 + keys.length) % keys.length]
           setStore("selected", next)
         },
@@ -581,7 +583,9 @@ function Prompt<const T extends Record<string, string>>(props: {
         desc: "上一个权限选项",
         group: "权限",
         cmd: () => {
-          const idx = keys.indexOf(store.selected)
+          const selected = store.selected
+          if (!selected) return
+          const idx = keys.indexOf(selected)
           const next = keys[(idx - 1 + keys.length) % keys.length]
           setStore("selected", next)
         },
@@ -591,7 +595,9 @@ function Prompt<const T extends Record<string, string>>(props: {
         desc: "下一个权限选项",
         group: "权限",
         cmd: () => {
-          const idx = keys.indexOf(store.selected)
+          const selected = store.selected
+          if (!selected) return
+          const idx = keys.indexOf(selected)
           const next = keys[(idx + 1) % keys.length]
           setStore("selected", next)
         },
@@ -601,7 +607,9 @@ function Prompt<const T extends Record<string, string>>(props: {
         desc: "下一个权限选项",
         group: "权限",
         cmd: () => {
-          const idx = keys.indexOf(store.selected)
+          const selected = store.selected
+          if (!selected) return
+          const idx = keys.indexOf(selected)
           const next = keys[(idx + 1) % keys.length]
           setStore("selected", next)
         },
@@ -610,7 +618,11 @@ function Prompt<const T extends Record<string, string>>(props: {
         key: "return",
         desc: "选择权限选项",
         group: "权限",
-        cmd: () => props.onSelect(store.selected),
+        cmd: () => {
+          const selected = store.selected
+          if (!selected) return
+          props.onSelect(selected)
+        },
       },
       ...(props.escapeKey
         ? [

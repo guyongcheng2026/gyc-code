@@ -119,7 +119,10 @@ registerBuiltinCommand("sessions", async (ctx, args) => {
     try {
       const answer = await rl.question("选择会话编号 (回车取消): ")
       const idx = parseInt(answer.trim(), 10) - 1
-      if (idx >= 0 && idx < sessions.length) target = sessions[idx].id
+      if (idx >= 0 && idx < sessions.length) {
+        const picked = sessions[idx]
+        if (picked) target = picked.id
+      }
     } finally {
       rl.close()
     }

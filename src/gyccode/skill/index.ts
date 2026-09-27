@@ -134,10 +134,11 @@ const add = Effect.fnUntraced(function* (
 
   if (!isSkillFrontmatter(md.data)) return
 
-  if (state.skills[md.data.name]) {
+  const existing = state.skills[md.data.name]
+  if (existing) {
     yield* Effect.logWarning("duplicate skill name", {
       name: md.data.name,
-      existing: state.skills[md.data.name].location,
+      existing: existing.location,
       duplicate: match,
     })
   }

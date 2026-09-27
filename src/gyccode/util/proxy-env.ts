@@ -38,6 +38,8 @@ export function getProxyForUrl(input: string | URL) {
   if (!url) return
 
   const protocol = url.protocol.split(":", 1)[0]
+  // 协议段缺失时无从判断代理，直接按"无代理"返回（与上方 !url 早退一致）
+  if (!protocol) return
   const hostname = url.host.replace(/:\d*$/, "")
   const port = Number.parseInt(url.port) || DEFAULT_PORTS[protocol] || 0
   if (!shouldProxy(hostname, port)) return
@@ -56,8 +58,12 @@ function shouldProxy(hostname: string, port: number) {
     if (!proxy) return true
 
     const parsed = proxy.match(/^(.+):(\d+)$/)
-    const proxyHostname = parsed ? parsed[1] : proxy
-    const proxyPort = parsed ? Number.parseInt(parsed[2]) : 0
+    // 索引访问在 noUncheckedIndexedAccess 下为 string|undefined；正则两个捕获组均为必需组，
+    // 未匹配到分组时退回整段 proxy，避免后续拿到 undefined 做前缀/后缀比较
+    const parsedHostname = parsed?.[1]
+    const parsedPort = parsed?.[2]
+    const proxyHostname = parsedHostname ?? proxy
+    const proxyPort = parsedPort ? Number.parseInt(parsedPort) : 0
     if (proxyPort && proxyPort !== port) return true
 
     if (!/^[.*]/.test(proxyHostname)) return hostname !== proxyHostname

@@ -39,7 +39,9 @@ export const syncHandlers = HttpApiBuilder.group(InstanceHttpApi, "sync", (handl
         type: event.type,
         data: { ...event.data },
       }))
-      const source = payload[0].aggregateID
+      const first = payload[0]
+      if (!first) return yield* new HttpApiError.BadRequest({})
+      const source = first.aggregateID
       yield* Effect.logInfo("sync replay requested", {
         sessionID: source,
         events: payload.length,

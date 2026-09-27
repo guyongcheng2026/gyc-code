@@ -136,6 +136,7 @@ test("集成：maxUserTextChars 截断超大 user 文本（P1-3）", async () =>
   const big = "z".repeat(50_000)
   const out = await toModelMessages([userTextMsg("u1", big)] as any, model, { maxUserTextChars: 24_000 })
   const text = findUserTexts(out)[0]
+  if (text === undefined) throw new Error("fixture missing: truncated user text")
   expect(text.length).toBeLessThan(50_000)
   expect(text).toContain("[User text truncated")
   // 未设上限 → 不截断

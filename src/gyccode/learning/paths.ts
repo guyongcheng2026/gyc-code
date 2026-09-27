@@ -104,6 +104,6 @@ export function isValidSupportPath(relPath: unknown): relPath is string {
   }
 
   const [head, ...rest] = segments
-  if (!(SUPPORT_DIRS as readonly string[]).includes(head)) return false
+  if (!head || !(SUPPORT_DIRS as readonly string[]).includes(head)) return false
   return rest.every((segment) => SUPPORT_SEGMENT_PATTERN.test(segment))
 }

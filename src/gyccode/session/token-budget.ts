@@ -12,11 +12,12 @@ export function parseTokenBudget(input: string): number | null {
   const match = trimmed.match(TOKEN_PATTERN)
   if (!match) return null
 
-  const value = parseFloat(match[1])
+  const value = parseFloat(match[1] ?? "")
   const suffix = match[2]?.replace(/s$/, "") // normalize "tokens" -> "token"
+  const multiplier = suffix !== undefined ? TOKEN_SUFFIX_MAP[suffix] : undefined
 
-  if (suffix && suffix in TOKEN_SUFFIX_MAP) {
-    return Math.round(value * TOKEN_SUFFIX_MAP[suffix])
+  if (multiplier !== undefined) {
+    return Math.round(value * multiplier)
   }
 
   return Math.round(value)
@@ -26,19 +27,22 @@ export function parseTokenBudget(input: string): number | null {
 // and include all suffixes (k|m|g|t) to match TOKEN_SUFFIX_MAP
 const NL_PATTERNS: Array<{ regex: RegExp; extract: (m: RegExpMatchArray) => number }> = [
   { regex: /use\s+(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
-    const v = parseFloat(m[1])
+    const v = parseFloat(m[1] ?? "")
     const s = m[2]?.toLowerCase()
-    return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
+    const mult = s !== undefined ? TOKEN_SUFFIX_MAP[s] : undefined
+    return mult !== undefined ? v * mult : v
   }},
   { regex: /limit\s+(?:to\s+)?(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
-    const v = parseFloat(m[1])
+    const v = parseFloat(m[1] ?? "")
     const s = m[2]?.toLowerCase()
-    return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
+    const mult = s !== undefined ? TOKEN_SUFFIX_MAP[s] : undefined
+    return mult !== undefined ? v * mult : v
   }},
   { regex: /budget\s+(?:of\s+)?(\d+(?:\.\d+)?)\s*(k|m|g|t)?\s*tokens?/i, extract: (m) => {
-    const v = parseFloat(m[1])
+    const v = parseFloat(m[1] ?? "")
     const s = m[2]?.toLowerCase()
-    return s && s in TOKEN_SUFFIX_MAP ? v * TOKEN_SUFFIX_MAP[s] : v
+    const mult = s !== undefined ? TOKEN_SUFFIX_MAP[s] : undefined
+    return mult !== undefined ? v * mult : v
   }},
 ]
 

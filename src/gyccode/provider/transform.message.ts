@@ -157,6 +157,8 @@ export function normalizeMessages(
     const result: ModelMessage[] = []
     for (let i = 0; i < msgs.length; i++) {
       const msg = msgs[i]
+      // 循环边界保证 msg 存在，此处仅做类型收窄
+      if (msg === undefined) continue
       const nextMsg = msgs[i + 1]
       result.push(scrubToolCallIds(msg, scrub))
 
@@ -295,7 +297,7 @@ function unsupportedParts(msgs: ModelMessage[], model: Provider.Model): ModelMes
         }
       }
 
-      const mime = part.type === "image" ? String(part.image).split(";")[0].replace("data:", "") : part.mediaType
+      const mime = part.type === "image" ? (String(part.image).split(";")[0] ?? "").replace("data:", "") : part.mediaType
       const filename = part.type === "file" ? part.filename : undefined
       const modality = mimeToModality(mime)
       if (!modality) return part

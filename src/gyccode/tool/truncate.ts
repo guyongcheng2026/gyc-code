@@ -100,22 +100,28 @@ const layer = Layer.effect(
 
       if (direction === "head") {
         for (i = 0; i < lines.length && i < maxLines; i++) {
-          const size = Buffer.byteLength(lines[i], "utf-8") + (i > 0 ? 1 : 0)
+          const line = lines[i]
+          // 索引已受 lines.length 约束，取不到值即越界，按循环正常结束处理
+          if (line === undefined) break
+          const size = Buffer.byteLength(line, "utf-8") + (i > 0 ? 1 : 0)
           if (bytes + size > maxBytes) {
             hitBytes = true
             break
           }
-          out.push(lines[i])
+          out.push(line)
           bytes += size
         }
       } else {
         for (i = lines.length - 1; i >= 0 && out.length < maxLines; i--) {
-          const size = Buffer.byteLength(lines[i], "utf-8") + (out.length > 0 ? 1 : 0)
+          const line = lines[i]
+          // 索引已受 lines.length 约束，取不到值即越界，按循环正常结束处理
+          if (line === undefined) break
+          const size = Buffer.byteLength(line, "utf-8") + (out.length > 0 ? 1 : 0)
           if (bytes + size > maxBytes) {
             hitBytes = true
             break
           }
-          out.unshift(lines[i])
+          out.unshift(line)
           bytes += size
         }
       }

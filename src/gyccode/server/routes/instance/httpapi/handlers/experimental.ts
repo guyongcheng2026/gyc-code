@@ -148,10 +148,11 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
         archived: ctx.query.archived,
       })
       const list = all.length > limit ? all.slice(0, limit) : all
+      const last = list[list.length - 1]
       return HttpServerResponse.jsonUnsafe(list, {
         headers:
-          all.length > limit && list.length > 0
-            ? { "x-next-cursor": String(list[list.length - 1].time.updated) }
+          all.length > limit && last !== undefined
+            ? { "x-next-cursor": String(last.time.updated) }
             : undefined,
       })
     })

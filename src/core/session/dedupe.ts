@@ -93,7 +93,9 @@ export function dedupeByContent<T extends DedupSession>(
         }
         const candidates = sids.map((id) => group.find((s) => s.id === id)!)
         candidates.sort((a, b) => timeUpdated(b) - timeUpdated(a))
-        result.push(candidates[0])
+        const best = candidates[0]
+        if (!best) continue
+        result.push(best)
       }
     }
 

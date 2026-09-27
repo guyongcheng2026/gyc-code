@@ -195,8 +195,11 @@ export const ruff: Info = {
     for (const config of configs) {
       const found = await Filesystem.findUp(config, context.directory, context.worktree)
       if (found.length > 0) {
+        // 索引访问在 noUncheckedIndexedAccess 下可能为 undefined，缺失则跳过该候选配置
+        const configFile = found[0]
+        if (configFile === undefined) continue
         if (config === "pyproject.toml") {
-          const content = await Filesystem.readText(found[0])
+          const content = await Filesystem.readText(configFile)
           if (content.includes("[tool.ruff]")) return ["ruff", "format", "$FILE"]
         } else {
           return ["ruff", "format", "$FILE"]
@@ -207,7 +210,9 @@ export const ruff: Info = {
     for (const dep of deps) {
       const found = await Filesystem.findUp(dep, context.directory, context.worktree)
       if (found.length > 0) {
-        const content = await Filesystem.readText(found[0])
+        const depFile = found[0]
+        if (depFile === undefined) continue
+        const content = await Filesystem.readText(depFile)
         if (content.includes("ruff")) return ["ruff", "format", "$FILE"]
       }
     }
@@ -225,7 +230,8 @@ export const rlang: Info = {
     const output = await Process.text([air, "--help"], { nothrow: true })
 
     // Check for "Air: An R language server and formatter"
-    const firstLine = output.text.split("\n")[0]
+    // 无输出时退化为空串，语义等价于「不是 R formatter」
+    const firstLine = output.text.split("\n")[0] ?? ""
     const hasR = firstLine.includes("R language")
     const hasFormatter = firstLine.includes("formatter")
     if (output.code === 0 && hasR && hasFormatter) return [air, "format", "$FILE"]

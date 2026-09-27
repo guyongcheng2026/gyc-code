@@ -62,7 +62,7 @@ export function ErrorComponent(props: { error: Error; reset: () => void; mode?: 
     if (evt.name === "return") {
       evt.preventDefault()
       evt.stopPropagation()
-      return actions[selected()].onUse()
+      return actions[selected()]?.onUse()
     }
     if (evt.name === "left") {
       evt.preventDefault()

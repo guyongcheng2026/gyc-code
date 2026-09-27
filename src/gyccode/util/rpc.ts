@@ -46,7 +46,10 @@ export function listen(rpc: Definition) {
   port.onMessage(async (data) => {
     const parsed = JSON.parse(data)
     if (parsed.type === "rpc.request") {
-      const result = await rpc[parsed.method](parsed.input)
+      const handler = rpc[parsed.method]
+      // 未知方法显式失败（此前会抛 TypeError，调用方语义不变）
+      if (handler === undefined) throw new Error(`RPC method not found: ${parsed.method}`)
+      const result = await handler(parsed.input)
       port.post(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
     }
   })

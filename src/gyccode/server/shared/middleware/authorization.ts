@@ -34,7 +34,11 @@ function credentialFromRequest(request: HttpServerRequest.HttpServerRequest) {
   const token = isUpgrade ? url.searchParams.get(AUTH_TOKEN_QUERY) : null
   if (token) return decodeCredential(token)
   const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
-  if (match) return decodeCredential(match[1])
+  if (match) {
+    // 捕获组缺失时按无凭据处理，保持 fail-closed
+    const basic = match[1]
+    if (basic) return decodeCredential(basic)
+  }
   return Effect.succeed(emptyCredential())
 }
 

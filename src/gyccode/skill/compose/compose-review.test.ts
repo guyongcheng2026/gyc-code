@@ -5,16 +5,26 @@ import { COMPOSE_BUNDLE as bundle } from "./bundle.gen"
 // 契约：spec 锚点、两阶段结构化 spec 审查、intent 注入、actor 派发词汇表。
 // 防止未来与上游同步 compose 技能包时退化。
 
+// 取 bundle 内某个 fixture 文件的内容：缺失即显式失败。
+// 测试里缺 fixture 应当是失败，而不是静默兜底（否则断言会退化为空串比较）。
+function bundleFile(skill: string, rel: string): string {
+  const entry = bundle[skill]
+  if (entry === undefined) throw new Error(`fixture missing: skill "${skill}"`)
+  const content = entry[rel]
+  if (content === undefined) throw new Error(`fixture missing: ${skill}/${rel}`)
+  return content
+}
+
 describe("compose spec-anchored review contract", () => {
   describe("Task 1: spec section anchors (brainstorm)", () => {
     test("brainstorm SKILL instructs anchor assignment", () => {
-      const md = bundle["brainstorm"]["SKILL.md"]
+      const md = bundleFile("brainstorm", "SKILL.md")
       expect(md).toContain("Spec Section Anchors")
       expect(md).toMatch(/\[S1\]/)
     })
 
     test("spec-document reviewer checks anchors are present and unique", () => {
-      const md = bundle["brainstorm"]["spec-document-reviewer-prompt.md"]
+      const md = bundleFile("brainstorm", "spec-document-reviewer-prompt.md")
       expect(md).toContain("Anchors")
       expect(md).toMatch(/unique/i)
     })
@@ -22,17 +32,17 @@ describe("compose spec-anchored review contract", () => {
 
   describe("Task 2: plan covers field + coverage matrix", () => {
     test("plan SKILL task structure has a Covers field", () => {
-      const md = bundle["plan"]["SKILL.md"]
+      const md = bundleFile("plan", "SKILL.md")
       expect(md).toContain("**Covers:**")
     })
 
     test("plan SKILL self-review includes a spec-coverage check", () => {
-      const md = bundle["plan"]["SKILL.md"]
+      const md = bundleFile("plan", "SKILL.md")
       expect(md).toMatch(/Covers:.*resolve to a real spec section/is)
     })
 
     test("plan-document reviewer builds a spec-coverage matrix", () => {
-      const md = bundle["plan"]["plan-document-reviewer-prompt.md"]
+      const md = bundleFile("plan", "plan-document-reviewer-prompt.md")
       expect(md).toContain("Spec Coverage")
       expect(md).toMatch(/matrix/i)
     })
@@ -40,19 +50,19 @@ describe("compose spec-anchored review contract", () => {
 
   describe("Task 3: implementer intent injection", () => {
     test("implementer prompt has an Intent section", () => {
-      const md = bundle["subagent"]["implementer-prompt.md"]
+      const md = bundleFile("subagent", "implementer-prompt.md")
       expect(md).toContain("## Intent (from spec)")
     })
 
     test("implementer prompt states a scope boundary", () => {
-      const md = bundle["subagent"]["implementer-prompt.md"]
+      const md = bundleFile("subagent", "implementer-prompt.md")
       expect(md).toContain("Scope boundary")
       expect(md).toMatch(/do NOT build other claims/i)
     })
   })
 
   describe("Task 4: two-phase structured spec reviewer", () => {
-    const md = () => bundle["subagent"]["spec-reviewer-prompt.md"]
+    const md = () => bundleFile("subagent", "spec-reviewer-prompt.md")
 
     test("defines a two-phase protocol", () => {
       expect(md()).toContain("Phase 1")
@@ -84,7 +94,7 @@ describe("compose spec-anchored review contract", () => {
   })
 
   describe("Task 5: subagent orchestration (gate + two-phase + intent)", () => {
-    const md = () => bundle["subagent"]["SKILL.md"]
+    const md = () => bundleFile("subagent", "SKILL.md")
 
     test("orchestration injects covered spec text as intent", () => {
       expect(md()).toContain("Intent (from spec)")
@@ -107,7 +117,7 @@ describe("compose spec-anchored review contract", () => {
 
   describe("Task 6: final reviewer anchor-keying", () => {
     test("code reviewer references spec anchors in plan alignment", () => {
-      const md = bundle["review"]["code-reviewer.md"]
+      const md = bundleFile("review", "code-reviewer.md")
       expect(md).toMatch(/\[Sn\]|spec anchor/i)
     })
   })
@@ -128,7 +138,7 @@ describe("compose spec-anchored review contract", () => {
       // discriminator），调用语法权威地存在于 actor 工具自身的描述
       //（actor.txt）。内嵌伪调用块曾在真实运行中产生畸形调用。
       for (const rel of ["spec-reviewer-prompt.md", "code-quality-reviewer-prompt.md", "implementer-prompt.md"]) {
-        const md = bundle["subagent"][rel]
+        const md = bundleFile("subagent", rel)
         expect(md).toMatch(/\bactor\b/)
         expect(md).toMatch(/general/)
         // 无内嵌 operation-discriminator 调用语法

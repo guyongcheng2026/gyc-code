@@ -63,7 +63,7 @@ async function parseStatus(cwd?: string): Promise<GitStatus> {
   }
 
   const tracking = await runGit(["rev-list", "--left-right", "--count", "@{upstream}...HEAD"], cwd)
-  const [behind, ahead] = tracking.split(/\s+/).map((n) => parseInt(n, 10) || 0)
+  const [behind = 0, ahead = 0] = tracking.split(/\s+/).map((n) => parseInt(n, 10) || 0)
 
   return { staged, unstaged, untracked, branch, ahead, behind }
 }

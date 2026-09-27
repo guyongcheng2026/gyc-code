@@ -43,7 +43,9 @@ function loadDotEnv(): Record<string, string> {
   try {
     for (const line of readFileSync(join(homedir(), ".gyc", ".env"), "utf-8").split(/\r?\n/)) {
       const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line)
-      if (match) env[match[1]] = match[2].trim()
+      const key = match?.[1]
+      const value = match?.[2]
+      if (key !== undefined && value !== undefined) env[key] = value.trim()
     }
   } catch {
     // 文件缺失时仅依赖 process.env
@@ -76,10 +78,12 @@ export function resolveTuiModel(): ModelChoice | undefined {
 }
 
 function fallbackModel(): ModelChoice {
+  const endpoint = PROVIDER_ENDPOINTS.deepseek
+  if (!endpoint) throw new Error("缺少 deepseek 端点配置")
   return {
     providerID: "deepseek",
     modelID: "deepseek-chat",
-    baseURL: PROVIDER_ENDPOINTS.deepseek.baseURL,
+    baseURL: endpoint.baseURL,
     apiKey: pickKey("DEEPSEEK_API_KEY"),
   }
 }
@@ -265,10 +269,11 @@ export class Replier {
 
     // 指令路由：任务执行 / 状态查询
     const runMatch = /^\/run\s+([\s\S]+)$/i.exec(text) ?? /^任务[:：]\s*([\s\S]+)$/.exec(text)
-    if (runMatch) {
+    const command = runMatch?.[1]
+    if (command !== undefined) {
       try {
-        console.log(`[gyc gateway] 任务开始：${runMatch[1].slice(0, 60)}`)
-        return await runTask(runMatch[1].trim())
+        console.log(`[gyc gateway] 任务开始：${command.slice(0, 60)}`)
+        return await runTask(command.trim())
       } catch (cause) {
         logWarn("gateway.reply", `任务异常：${String(cause).slice(0, 200)}`)
         return `任务执行失败：${String(cause).slice(0, 200)}`

@@ -740,8 +740,9 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                   const [adds, dels, file] = line.split("\t")
                   if (!file) return []
                   const binary = adds === "-" && dels === "-"
-                  const additions = binary ? 0 : parseInt(adds)
-                  const deletions = binary ? 0 : parseInt(dels)
+                  // adds/dels 缺失时原本经 Number.isFinite 归为 0，此处保持同一语义
+                  const additions = binary || adds === undefined ? 0 : parseInt(adds)
+                  const deletions = binary || dels === undefined ? 0 : parseInt(dels)
                   return [
                     {
                       file,
@@ -771,10 +772,16 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
 
                 for (const row of run) {
                   const hit = text?.get(row.file) ?? { before: "", after: "" }
-                  const [before, after] = row.binary ? ["", ""] : text ? [hit.before, hit.after] : yield* show(row)
+                  const [before, after] = row.binary
+                    ? (["", ""] as const)
+                    : text
+                      ? ([hit.before, hit.after] as const)
+                      : yield* show(row)
                   result.push({
                     file: row.file,
-                    patch: row.binary ? "" : patch(row.file, before, after),
+                    // show() 与命中值均为字符串数组，解构在类型上含 undefined；
+                    // 缺失时与上方 hit 兜底一致取空串，快照 diff 语义不变
+                    patch: row.binary ? "" : patch(row.file, before ?? "", after ?? ""),
                     additions: row.additions,
                     deletions: row.deletions,
                     status: row.status,

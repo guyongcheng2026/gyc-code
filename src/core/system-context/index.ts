@@ -241,7 +241,7 @@ function reconcileObservation(
   }
   for (const key of Object.keys(previous).sort()) {
     if (keys.has(Key.make(key))) continue
-    if (previous[key].removed === undefined) return { _tag: "Replace" }
+    if (previous[key]?.removed === undefined) return { _tag: "Replace" }
   }
 
   const snapshot: Record<string, SourceSnapshot> = {}
@@ -271,7 +271,7 @@ function reconcileObservation(
   }
   for (const key of Object.keys(previous).sort()) {
     if (keys.has(Key.make(key))) continue
-    const removed = previous[key].removed
+    const removed = previous[key]?.removed
     if (removed === undefined) throw new Error(`Missing removal rendering for system context source ${key}`)
     updates.push(removed)
   }

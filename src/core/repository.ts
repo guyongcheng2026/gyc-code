@@ -59,14 +59,19 @@ export function parse(input: string): Reference | undefined {
   if (!cleaned) return
 
   const githubPrefixed = cleaned.match(/^github:([^/\s]+)\/([^/\s]+)$/)
-  if (githubPrefixed) return buildRemote({ host: "github.com", segments: [githubPrefixed[1], githubPrefixed[2]] })
+  if (githubPrefixed) {
+    const [, owner, repo] = githubPrefixed
+    if (!owner || !repo) return
+    return buildRemote({ host: "github.com", segments: [owner, repo] })
+  }
 
   if (!cleaned.includes("://")) {
     const scp = cleaned.match(/^(?:[^@/\s]+@)?([^:/\s]+):(.+)$/)
-    if (scp) return buildRemote({ host: scp[1], segments: parts(scp[2]), remote: cleaned })
+    if (scp) return buildRemote({ host: scp[1] ?? "", segments: parts(scp[2] ?? ""), remote: cleaned })
 
     const direct = parts(cleaned)
-    if (direct.length >= 2 && hostLike(direct[0])) return buildRemote({ host: direct[0], segments: direct.slice(1) })
+    const host = direct[0] ?? ""
+    if (direct.length >= 2 && hostLike(host)) return buildRemote({ host, segments: direct.slice(1) })
     if (direct.length === 2) return buildRemote({ host: "github.com", segments: direct })
   }
 
@@ -179,7 +184,8 @@ function githubRemote(pathname: string) {
 
 function buildRemote(input: { host: string; segments: string[]; remote?: string; protocol?: string }) {
   const segments = input.segments.map(trimGitSuffix).filter(Boolean)
-  if (!safeHost(input.host) || !segments.length || segments.some((segment) => !safeSegment(segment))) return
+  const repo = segments[segments.length - 1]
+  if (!safeHost(input.host) || !repo || segments.some((segment) => !safeSegment(segment))) return
   const repositoryPath = segments.join("/")
   const host = input.host.toLowerCase()
   return {
@@ -187,7 +193,7 @@ function buildRemote(input: { host: string; segments: string[]; remote?: string;
     path: repositoryPath,
     segments,
     owner: segments.length === 2 ? segments[0] : undefined,
-    repo: segments[segments.length - 1],
+    repo,
     remote:
       input.remote ?? (host === "github.com" ? githubRemote(repositoryPath) : `https://${host}/${repositoryPath}.git`),
     label: host === "github.com" && segments.length === 2 ? repositoryPath : `${host}/${repositoryPath}`,
@@ -198,13 +204,14 @@ function buildRemote(input: { host: string; segments: string[]; remote?: string;
 function buildFile(input: { url: URL; remote: string }) {
   const filePath = path.normalize(fileURLToPath(input.url))
   const segments = filePath.split(/[\\/]+/).filter(Boolean)
-  if (!segments.length) return
+  const repo = segments[segments.length - 1]
+  if (!repo) return
   return {
     host: "file",
     path: filePath,
     segments: segments.map((segment) => segment.replace(/:$/, "")),
     owner: undefined,
-    repo: trimGitSuffix(segments[segments.length - 1]),
+    repo: trimGitSuffix(repo),
     remote: input.remote,
     label: filePath,
     protocol: "file:",

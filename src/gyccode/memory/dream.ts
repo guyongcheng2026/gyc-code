@@ -195,7 +195,7 @@ function escapeRegExp(string: string): string {
 function extractSection(content: string, sectionName: string): string {
   const regex = new RegExp(`^##\\s+${escapeRegExp(sectionName)}\\b([\\s\\S]*?)(?=^##\\s+|$)`, "m")
   const match = content.match(regex)
-  return match ? match[1].trim() : ""
+  return match ? (match[1] ?? "").trim() : ""
 }
 
 /** Retry dream synthesis with validation until quality threshold met */

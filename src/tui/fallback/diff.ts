@@ -52,7 +52,9 @@ const C256: [number, number, number][] = [
 function nearest256(r: number, g: number, b: number): number {
   let min = Infinity, best = 0
   for (let i = 0; i < C256.length; i++) {
-    const [cr, cg, cb] = C256[i], d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
+    const entry = C256[i]
+    if (entry === undefined) continue
+    const [cr, cg, cb] = entry, d = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2
     if (d < min) { min = d; best = i }
   }
   return best < 16 ? best : 16 + Math.round(r / 51) * 36 + Math.round(g / 51) * 6 + Math.round(b / 51)

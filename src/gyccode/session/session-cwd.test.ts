@@ -40,8 +40,10 @@ describe("SessionCwd.publish", () => {
 
     expect(SessionCwd.get(ses("p1"))).toBe("/workspace/project")
     expect(published).toHaveLength(1)
-    expect(published[0].type).toBe("session.cwd")
-    const data = published[0].data as { sessionID: string; cwd: string }
+    const publishedEvent = published[0]
+    if (publishedEvent === undefined) throw new Error("fixture missing session.cwd event")
+    expect(publishedEvent.type).toBe("session.cwd")
+    const data = publishedEvent.data as { sessionID: string; cwd: string }
     expect(data.sessionID).toBe("ses_p1")
     expect(data.cwd).toBe("/workspace/project")
   })
@@ -58,7 +60,9 @@ describe("SessionCwd.publish", () => {
     const published: Array<{ type: string; data: unknown }> = []
     run(SessionCwd.publishIfChanged(ses("p3"), "/x/y", fakeEvents(published)))
 
-    const data = published[0].data as { sessionID: string; cwd: string }
+    const publishedEvent = published[0]
+    if (publishedEvent === undefined) throw new Error("fixture missing session.cwd event")
+    const data = publishedEvent.data as { sessionID: string; cwd: string }
     const event = Schema.decodeUnknownSync(SessionEvent.CwdChanged)({
       id: "evt_test_cwd",
       type: "session.cwd",
@@ -81,8 +85,10 @@ describe("InstructionsListed emitter", () => {
     run(publishInstructionsListed(events, ses("i1"), ["AGENTS.md", "CLAUDE.md", "docs/guidelines.md"]))
 
     expect(calls).toHaveLength(1)
-    expect(calls[0].type).toBe("session.instructions")
-    const data = calls[0].data as { sessionID: string; files: string[]; timestamp: unknown }
+    const call = calls[0]
+    if (call === undefined) throw new Error("fixture missing session.instructions event")
+    expect(call.type).toBe("session.instructions")
+    const data = call.data as { sessionID: string; files: string[]; timestamp: unknown }
     expect(data.sessionID).toBe("ses_i1")
     expect(data.files).toEqual(["AGENTS.md", "CLAUDE.md", "docs/guidelines.md"])
     expect(data.timestamp).toBeDefined()

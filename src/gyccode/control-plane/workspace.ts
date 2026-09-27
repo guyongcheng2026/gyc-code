@@ -933,7 +933,7 @@ function synced(db: Database.Interface["db"], state: Record<string, number>): Ef
       Effect.orDie,
       Effect.map((rows) => {
         const done = Object.fromEntries(rows.map((row) => [row.id, row.seq])) as Record<string, number>
-        return ids.every((id) => (done[id] ?? -1) >= state[id])
+        return Object.entries(state).every(([id, seq]) => (done[id] ?? -1) >= seq)
       }),
     )
 }

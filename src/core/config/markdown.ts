@@ -23,11 +23,13 @@ export function sanitize(content: string) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!match) return content
   const frontmatter = match[1]
+  // 正则已保证捕获组存在，此处仅做类型收窄
+  if (frontmatter === undefined) return content
   const result = frontmatter.split(/\r?\n/).flatMap((line) => {
     if (line.trim().startsWith("#") || line.trim() === "" || /^\s+/.test(line)) return [line]
     const entry = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$/)
     if (!entry) return [line]
-    const value = entry[2].trim()
+    const value = (entry[2] ?? "").trim()
     if (value === "" || value === ">" || value === "|" || value.startsWith('"') || value.startsWith("'")) return [line]
     if (!value.includes(":")) return [line]
     return [`${entry[1]}: |-`, `  ${value}`]

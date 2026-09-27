@@ -74,7 +74,7 @@ const normalizeDiffs = (diffs: readonly (VcsFileDiff | SnapshotFileDiff)[]): Dif
 function filetype(input?: string) {
   if (!input) return "none"
   const language = LANGUAGE_EXTENSIONS[path.extname(input)]
-  if (["typescriptreact", "javascriptreact", "javascript"].includes(language)) return "typescript"
+  if (language !== undefined && ["typescriptreact", "javascriptreact", "javascript"].includes(language)) return "typescript"
   return language
 }
 

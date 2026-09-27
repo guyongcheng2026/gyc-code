@@ -240,7 +240,10 @@ export namespace FSUtil {
     if (p === "*") return p
     const match = p.match(/^(.*)[\\/]\*$/)
     if (!match) return normalizePath(p)
-    const dir = /^[A-Za-z]:$/.test(match[1]) ? match[1] + "\\" : match[1]
+    // 捕获组缺失时与既有 !match 分支同走原样归一化，路径语义不变
+    const raw = match[1]
+    if (raw === undefined) return normalizePath(p)
+    const dir = /^[A-Za-z]:$/.test(raw) ? raw + "\\" : raw
     return join(normalizePath(dir), "*")
   }
 

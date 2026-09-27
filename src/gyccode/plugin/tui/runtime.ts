@@ -283,7 +283,7 @@ function createThemeInstaller(
         plugin.themes[name] = info
         // 主题元数据持久化失败会导致主题设置重启后丢失，需留痕
         await PluginMeta.setTheme(plugin.id, name, info).catch((e: unknown) => {
-          logError("tui.plugin", e)
+          logError("tui.plugin", e, { op: "setTheme meta", plugin: plugin.id, theme: name })
         })
       }
 
@@ -315,7 +315,7 @@ function createThemeInstaller(
       if (exists || !(await Filesystem.exists(dest))) {
         // 主题文件写入失败会导致主题无法加载，需留痕
         await Filesystem.write(dest, text).catch((e: unknown) => {
-          logError("tui.plugin", e)
+          logError("tui.plugin", e, { op: "write theme file", theme: name, dest })
         })
       }
 
@@ -323,7 +323,7 @@ function createThemeInstaller(
       await save()
     }).catch((e: unknown) => {
       // 主题安装整体失败，恢复到默认主题而非中断启动
-      logError("tui.plugin", e)
+      logError("tui.plugin", e, { op: "install theme", plugin: plugin.id, theme: name })
     })
   }
 }

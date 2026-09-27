@@ -109,7 +109,9 @@ describe("dedupeByContent", () => {
       }),
     )!
     expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(sid(2))
+    const first = result[0]
+    if (first === undefined) throw new Error("fixture missing: result[0]")
+    expect(first.id).toBe(sid(2))
   })
 
   it("不同项目内容相同不去重", () => {
@@ -167,7 +169,9 @@ describe("dedupeByContent", () => {
       }),
     )!
     expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(sid(2))
+    const first = result[0]
+    if (first === undefined) throw new Error("fixture missing: result[0]")
+    expect(first.id).toBe(sid(2))
   })
 
   it("去重后保持原列表顺序", () => {
@@ -197,6 +201,8 @@ describe("dedupeByContent", () => {
     expect(empty).toHaveLength(0)
     const single = runInDb(dedupe([{ id: sid(1), projectID: projectA, timeUpdated: 100 }]))!
     expect(single).toHaveLength(1)
-    expect(single[0].id).toBe(sid(1))
+    const only = single[0]
+    if (only === undefined) throw new Error("fixture missing: single[0]")
+    expect(only.id).toBe(sid(1))
   })
 })

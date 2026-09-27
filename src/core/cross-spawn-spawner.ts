@@ -533,6 +533,8 @@ export const make = Effect.gen(function* () {
           let handle = spawnCommand(head)
           for (let i = 0; i < tail.length; i++) {
             const next = tail[i]
+            // `i < tail.length` guarantees a value at runtime; this is a type-only narrowing.
+            if (next === undefined) continue
             const opts = flat.opts[i] ?? {}
             const sin = stdin(next.options)
             const stream = Stream.unwrap(Effect.map(handle, (x) => source(x, opts.from)))

@@ -277,7 +277,7 @@ export class SQLiteEffectUpdateBase<
             : is(table, Subquery)
               ? table._.selectedFields
               : is(table, SQLiteViewBase)
-                ? getViewSelectedFieldsRuntime(table).selectedFields
+                ? getViewSelectedFieldsRuntime(table)?.selectedFields
                 : undefined
           : undefined
         on = on(
@@ -319,9 +319,12 @@ export class SQLiteEffectUpdateBase<
       | (SQLiteColumn | SQL | SQL.Aliased)[]
   ): SQLiteEffectUpdateWithout<this, TDynamic, "orderBy"> {
     if (typeof columns[0] === "function") {
+      // 列集合缺失属内部状态异常：显式失败，避免用残缺列集合构造别名代理
+      const tableColumns = getTableColumnsRuntime(this.config.table)
+      if (tableColumns === undefined) throw new Error("Table columns are not available")
       const orderBy = columns[0](
         new Proxy(
-          getTableColumnsRuntime(this.config.table),
+          tableColumns,
           new SelectionProxyHandler({ sqlAliasedBehavior: "alias", sqlBehavior: "sql" }),
         ) as any,
       )
@@ -344,9 +347,12 @@ export class SQLiteEffectUpdateBase<
     fields: TSelectedFields,
   ): SQLiteEffectUpdateReturning<this, TDynamic, TSelectedFields>
   returning(
-    fields: SelectedFields = getTableColumnsRuntime(this.config.table),
+    fields?: SelectedFields,
   ): SQLiteEffectUpdateWithout<AnySQLiteEffectUpdate, TDynamic, "returning"> {
-    this.config.returning = orderSelectedFields<SQLiteColumn>(fields)
+    // 默认取全表列；列集合缺失属内部状态异常，显式失败而非静默返回空 returning
+    const selected = fields ?? getTableColumnsRuntime(this.config.table)
+    if (selected === undefined) throw new Error("Table columns are not available")
+    this.config.returning = orderSelectedFields<SQLiteColumn>(selected)
     return this as any
   }
 

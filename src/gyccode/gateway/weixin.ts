@@ -112,7 +112,11 @@ export function resolveWeixinConfig(): WeixinConfig {
   try {
     for (const line of readFileSync(join(homedir(), ".gyc", ".env"), "utf-8").split(/\r?\n/)) {
       const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line)
-      if (match) fileEnv[match[1]] = match[2].trim()
+      const key = match?.[1]
+      const value = match?.[2]
+      // 捕获组缺失视为非配置行，直接跳过（不编造键值）
+      if (key === undefined || value === undefined) continue
+      fileEnv[key] = value.trim()
     }
   } catch {
     // 文件缺失时回落纯环境变量

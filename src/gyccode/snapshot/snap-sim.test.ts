@@ -207,7 +207,10 @@ describe.skipIf(process.env.GYCCODE_SNAP_SIM !== "1")("snap-sim 快照压测（4
     expect(gcResult.code).toBe(0)
     console.log(`[snap-sim] 场景3: loose 增长=${points.join("→")}（每批 20 文件 +21） gc前=${before} gc后=${after}`)
     // 增长验证：loose 单调增长
-    expect(points[points.length - 1]).toBeGreaterThan(points[0])
+    const firstPoint = points[0]
+    const lastPoint = points[points.length - 1]
+    if (firstPoint === undefined || lastPoint === undefined) throw new Error("fixture missing: collected loose counts")
+    expect(lastPoint).toBeGreaterThan(firstPoint)
     // 触发验证：超过取整阈值 256 后 gc --auto 真正 repack 使 loose 回落
     expect(before).toBeGreaterThan(autoThreshold)
     expect(after).toBeLessThan(before)

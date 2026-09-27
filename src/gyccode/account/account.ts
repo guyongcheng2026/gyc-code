@@ -444,7 +444,8 @@ const layer: Layer.Layer<Service, never, AccountRepo.Service | HttpClient.HttpCl
       const [account, remoteOrgs] = yield* Effect.all([user, orgs], { concurrency: 2 })
 
       // TODO: When there are multiple orgs, let the user choose
-      const firstOrgID = remoteOrgs.length > 0 ? Option.some(remoteOrgs[0].id) : Option.none<OrgID>()
+      const firstOrg = remoteOrgs[0]
+      const firstOrgID = firstOrg ? Option.some(firstOrg.id) : Option.none<OrgID>()
 
       const now = yield* Clock.currentTimeMillis
       const expiry = now + Duration.toMillis(parsed.expires_in)

@@ -165,7 +165,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
     const result = fuzzysort
       .go(needle, options, {
         keys: ["title", "category"],
-        scoreFn: (r) => r[0].score * 2 + r[1].score,
+        scoreFn: (r) => (r[0]?.score ?? 0) * 2 + (r[1]?.score ?? 0),
       })
       .map((x) => x.obj)
 
@@ -244,6 +244,7 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
         const index = flat().findIndex((option) => isDeepEqual(option.value, previous.value))
         if (index >= 0) {
           const option = flat()[index]
+          if (!option) return
           const moved = index !== store.selected || option.category !== previous.category
           setStore("selected", index)
           selection = option
@@ -334,7 +335,8 @@ export function DialogSelect<T>(props: DialogSelectProps<T>) {
       }
       if (y < 0) {
         scroll.scrollBy(y)
-        if (isDeepEqual(flat()[0].value, selected()?.value)) {
+        const first = flat()[0]
+        if (first !== undefined && isDeepEqual(first.value, selected()?.value)) {
           scroll.scrollTo(0)
         }
       }

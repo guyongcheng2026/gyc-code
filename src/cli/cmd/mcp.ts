@@ -203,7 +203,8 @@ export const McpAuthCommand = effectCmd({
     if (!serverName) {
       // Build options with auth status
       const options = servers.map(([name, cfg]) => {
-        const authStatus = auth[name]
+        // auth 表可能没有该服务器的记录：未认证是显示语义上正确的兜底
+        const authStatus = auth[name] ?? "not_authenticated"
         const icon = getAuthStatusIcon(authStatus)
         const statusText = getAuthStatusText(authStatus)
         const url = cfg.url
@@ -321,7 +322,7 @@ export const McpAuthListCommand = effectCmd({
     }
 
     for (const [name, serverConfig] of servers) {
-      const authStatus = auth[name]
+      const authStatus = auth[name] ?? "not_authenticated"
       const icon = getAuthStatusIcon(authStatus)
       const statusText = getAuthStatusText(authStatus)
       const url = serverConfig.url
@@ -361,8 +362,8 @@ export const McpLogoutCommand = effectCmd({
           message: "选择要登出的 MCP 服务器",
           options: serverNames.map((name) => {
             const entry = credentials[name]
-            const hasTokens = !!entry.tokens
-            const hasClient = !!entry.clientInfo
+            const hasTokens = !!entry?.tokens
+            const hasClient = !!entry?.clientInfo
             let hint = ""
             if (hasTokens && hasClient) hint = "令牌 + 客户端"
             else if (hasTokens) hint = "tokens"
@@ -391,9 +392,10 @@ export const McpLogoutCommand = effectCmd({
   }),
 })
 
-async function resolveConfigPath(baseDir: string, global = false) {
+async function resolveConfigPath(baseDir: string, global = false): Promise<string> {
   // Check for existing config files (prefer .jsonc over .json, check .gyccode/ subdirectory too)
-  const candidates = [path.join(baseDir, "gyccode.json"), path.join(baseDir, "gyccode.jsonc")]
+  const primary = path.join(baseDir, "gyccode.json")
+  const candidates = [primary, path.join(baseDir, "gyccode.jsonc")]
 
   if (!global) {
     candidates.push(path.join(baseDir, ".gyccode", "gyccode.json"), path.join(baseDir, ".gyccode", "gyccode.jsonc"))
@@ -405,8 +407,9 @@ async function resolveConfigPath(baseDir: string, global = false) {
     }
   }
 
-  // Default to gyccode.json if none exist
-  return candidates[0]
+  // Default to gyccode.json if none exist（primary 就是原先的 candidates[0]，
+  // 显式返回它以消除 noUncheckedIndexedAccess 噪音，取值与运行期完全一致）
+  return primary
 }
 
 async function addMcpToConfig(name: string, mcpConfig: ConfigMCPV1.Info, configPath: string) {

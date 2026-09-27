@@ -22,7 +22,7 @@ describe("DeepSeek prompt_cache_hit_tokens 补读", () => {
     // toLLMEvents 是 Effect，需要 runSync
     const events = result.pipe(Effect.runSync)
     const finishStep = events[0]
-    expect(finishStep.type).toBe("step-finish")
+    expect(finishStep?.type).toBe("step-finish")
     // @ts-expect-error 测试内部结构
     expect(finishStep.usage.cacheReadInputTokens).toBe(9800)
   })

@@ -1309,7 +1309,7 @@ export function fromModelsDevProvider(provider: ModelsDev.Provider): Info {
       models[id] = {
         ...base,
         id: ModelV2.ID.make(id),
-        name: `${model.name} ${mode[0].toUpperCase()}${mode.slice(1)}`,
+        name: `${model.name} ${(mode[0] ?? "").toUpperCase()}${mode.slice(1)}`,
         cost: opts.cost ? mergeDeep(base.cost, cost(opts.cost)) : base.cost,
         options: modeOptions(base, opts.provider?.body),
         headers: opts.provider?.headers ?? base.headers,
@@ -1341,6 +1341,8 @@ function modelSuggestions(provider: Info | undefined, modelID: ModelV2.ID, enabl
   const available = provider
     ? Object.keys(provider.models).filter((id) => {
         const model = provider.models[id]
+        // 索引取值可能为 undefined：缺失即视为不可用候选（原语义是过滤出可用模型）。
+        if (model === undefined) return false
         if (model.status === "deprecated") return false
         if (model.status === "alpha" && !enableExperimentalModels) return false
         return true
@@ -1642,13 +1644,16 @@ const layer = Layer.effect(
         }
 
         const gitlab = ProviderV2.ID.make("gitlab")
-        if (discoveryLoaders[gitlab] && providers[gitlab] && isProviderAllowed(gitlab)) {
+        // 闭包内无法沿用外层对索引访问的收窄，先取局部变量。
+        const discoveryLoader = discoveryLoaders[gitlab]
+        const gitlabProvider = providers[gitlab]
+        if (discoveryLoader && gitlabProvider && isProviderAllowed(gitlab)) {
           yield* Effect.promise(async () => {
             try {
-              const discovered = await discoveryLoaders[gitlab]()
+              const discovered = await discoveryLoader()
               for (const [modelID, model] of Object.entries(discovered)) {
-                if (!providers[gitlab].models[modelID]) {
-                  providers[gitlab].models[modelID] = model
+                if (!gitlabProvider.models[modelID]) {
+                  gitlabProvider.models[modelID] = model
                 }
               }
             } catch (e) {
@@ -1733,7 +1738,7 @@ const layer = Layer.effect(
 
     async function resolveSDK(model: Model, s: State, envs: Record<string, string | undefined>) {
       try {
-        const provider = s.providers[model.providerID]
+      const provider = s.providers[model.providerID]
         if (!provider) {
           // provider 可能在本次会话中被清理掉（catalog 里仍有模型），
           // 直接解引用会抛 TypeError 并被包成误导性的 InitError。
@@ -1947,6 +1952,10 @@ const layer = Layer.effect(
       if (s.models.has(key)) return s.models.get(key)!
 
       const provider = s.providers[model.providerID]
+      if (!provider) {
+        // provider 可能在会话中被清理（catalog 里仍有该模型）：直接解引用会抛 TypeError。
+        return yield* new ModelNotFoundError({ providerID: model.providerID, modelID: model.id })
+      }
       // The `[1m]` opt-in suffix is a local compaction/header signal only; the
       // model id handed to the SDK must never carry it (Anthropic rejects
       // unknown model ids). Stripped once here so every AI SDK model resolves
@@ -1961,8 +1970,10 @@ const layer = Layer.effect(
           if (typeof (sdk as unknown as Record<string, unknown>)["languageModel"] !== "function") {
             throw new Error(`provider ${model.providerID} SDK does not implement languageModel()`)
           }
-          const language = s.modelLoaders[model.providerID]
-            ? await s.modelLoaders[model.providerID](
+          // 闭包内无法沿用外层对索引访问的收窄：先取局部变量再调用。
+          const modelLoader = s.modelLoaders[model.providerID]
+          const language = modelLoader
+            ? await modelLoader(
                 sdk,
                 wireID,
                 {
@@ -2147,7 +2158,9 @@ export function sort<T extends { id: string }>(models: T[]) {
 }
 
 export function parseModel(model: string) {
-  const [providerID, ...rest] = model.split("/")
+  // 索引解构在 noUncheckedIndexedAccess 下可能为 undefined：缺失时退回空串，
+  // 与原先 make(undefined) 相比只是不再抛运行时错误。
+  const [providerID = "", ...rest] = model.split("/")
   return {
     providerID: ProviderV2.ID.make(providerID),
     modelID: ModelV2.ID.make(rest.join("/")),

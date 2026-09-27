@@ -40,8 +40,10 @@ test("formatSessionTitleDate: 本地时间 + 偏移可还原绝对时刻（跨�
   const m = title.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})\.(\d{3})([+-]\d{2}:\d{2})$/)
   expect(m).not.toBeNull()
   const [, y, mo, day, h, mi, s, ms, off] = m!
+  if (off === undefined) throw new Error("fixture missing: 时区偏移")
   const sign = off[0] === "+" ? 1 : -1
   const [oh, om] = off.slice(1).split(":").map(Number)
+  if (oh === undefined || om === undefined) throw new Error("fixture missing: 偏移时分")
   const localUtc = Date.UTC(Number(y), Number(mo) - 1, Number(day), Number(h), Number(mi), Number(s), Number(ms))
   const offsetMs = sign * (oh * 60 + om) * 60000
   expect(localUtc - offsetMs).toBe(d.getTime())

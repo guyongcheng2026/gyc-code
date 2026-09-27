@@ -70,7 +70,8 @@ function stringToSource(text: string): string[] {
       result.push(lines[i] + "\n")
     } else {
       // 最后一行不加换行符
-      if (lines[i].length > 0) result.push(lines[i])
+      const line = lines[i]
+      if (line !== undefined && line.length > 0) result.push(line)
     }
   }
   return result
@@ -79,7 +80,8 @@ function stringToSource(text: string): string[] {
 /** 解析 cell_id：支持 "cell-N" 格式的数字索引 */
 function parseCellId(cellId: string): number | undefined {
   const match = /^cell-(\d+)$/.exec(cellId)
-  if (match) return parseInt(match[1], 10)
+  const digits = match?.[1]
+  if (digits !== undefined) return parseInt(digits, 10)
   return undefined
 }
 

@@ -31,7 +31,9 @@ const sleepCmd = (ms: number) =>
 
 const run = (spawner: Spawner, cmd: string[]) =>
   Effect.gen(function* () {
-    const handle = yield* spawner.spawn(ChildProcess.make(cmd[0], cmd.slice(1), { stdin: "ignore" }))
+    const exe = cmd[0]
+    if (exe === undefined) throw new Error("fixture missing: cmd[0]")
+    const handle = yield* spawner.spawn(ChildProcess.make(exe, cmd.slice(1), { stdin: "ignore" }))
     const code = yield* handle.exitCode
     expect(code).toBe(ExitCode(0))
   })
@@ -53,8 +55,11 @@ describe("spawn concurrency cap", () => {
         const task = (ms: number) =>
           Effect.gen(function* () {
             // 并发上限在 spawn 内部生效：spawn 返回后进程方在运行，自彼时起计数。
+            const sleepArgs = sleepCmd(ms)
+            const sleepExe = sleepArgs[0]
+            if (sleepExe === undefined) throw new Error("fixture missing: sleepCmd(ms)[0]")
             const handle = yield* spawner.spawn(
-              ChildProcess.make(sleepCmd(ms)[0], sleepCmd(ms).slice(1), { stdin: "ignore" }),
+              ChildProcess.make(sleepExe, sleepArgs.slice(1), { stdin: "ignore" }),
             )
             const current = yield* Ref.updateAndGet(running, (n) => n + 1)
             yield* Ref.update(peak, (p) => Math.max(p, current))
@@ -84,8 +89,11 @@ describe("spawn concurrency cap", () => {
         const peak = yield* Ref.make(0)
         const task = () =>
           Effect.gen(function* () {
+            const sleepArgs = sleepCmd(300)
+            const sleepExe = sleepArgs[0]
+            if (sleepExe === undefined) throw new Error("fixture missing: sleepCmd(300)[0]")
             const handle = yield* spawner.spawn(
-              ChildProcess.make(sleepCmd(300)[0], sleepCmd(300).slice(1), { stdin: "ignore" }),
+              ChildProcess.make(sleepExe, sleepArgs.slice(1), { stdin: "ignore" }),
             )
             const current = yield* Ref.updateAndGet(running, (n) => n + 1)
             yield* Ref.update(peak, (p) => Math.max(p, current))

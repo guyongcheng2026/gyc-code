@@ -81,7 +81,9 @@ function credentialFromURL(url: URL, request: HttpServerRequest.HttpServerReques
   const token = url.searchParams.get(AUTH_TOKEN_QUERY)
   if (token && isWebSocketUpgrade(request)) return decodeCredential(token)
   const match = /^Basic\s+(.+)$/i.exec(request.headers.authorization ?? "")
-  if (match) return decodeCredential(match[1])
+  const encoded = match?.[1]
+  // 凭证缺失一律不放行：无编码段时走既有 fail-closed 分支返回空凭证
+  if (encoded) return decodeCredential(encoded)
   return Effect.succeed(emptyCredential())
 }
 

@@ -65,7 +65,9 @@ export function accessTokenIsExpiring(
   const parts = token.split(".")
   if (parts.length < 2) return false
   try {
-    let payload = parts[1].replace(/-/g, "+").replace(/_/g, "/")
+    const encoded = parts[1]
+    if (encoded === undefined) return false
+    let payload = encoded.replace(/-/g, "+").replace(/_/g, "/")
     while (payload.length % 4 !== 0) payload += "="
     const claims = JSON.parse(Buffer.from(payload, "base64").toString("utf8"))
     if (typeof claims?.exp !== "number") return false

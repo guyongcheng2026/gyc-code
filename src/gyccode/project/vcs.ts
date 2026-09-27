@@ -50,7 +50,7 @@ const parseQuotedPath = (value: string) => {
 }
 
 const parsePathToken = (value: string) => {
-  if (!value.startsWith('"')) return value.split("\t")[0]
+  if (!value.startsWith('"')) return value.split("\t")[0] ?? value
   return parseQuotedPath(value)?.value ?? value
 }
 

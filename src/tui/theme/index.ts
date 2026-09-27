@@ -390,7 +390,8 @@ export function generateSystem(colors: TerminalColors, mode: "dark" | "light"): 
   const diffAlpha = isDark ? 0.22 : 0.14
   const diffAddedBg = tint(bg, ansiColors.green, diffAlpha)
   const diffRemovedBg = tint(bg, ansiColors.red, diffAlpha)
-  const diffContextBg = grays[2]
+  // generateGrayScale 固定产出 1..12 全部灰度，缺失时回退到终端背景色
+  const diffContextBg = grays[2] ?? bg
   const diffAddedLineNumberBg = tint(diffContextBg, ansiColors.green, diffAlpha)
   const diffRemovedLineNumberBg = tint(diffContextBg, ansiColors.red, diffAlpha)
   const diffLineNumber = textMuted
@@ -415,20 +416,20 @@ export function generateSystem(colors: TerminalColors, mode: "dark" | "light"): 
 
       // Background colors - use transparent to respect terminal transparency
       background: transparent,
-      backgroundPanel: grays[2],
-      backgroundElement: grays[3],
+      backgroundPanel: grays[2] ?? bg,
+      backgroundElement: grays[3] ?? bg,
       backgroundMenu: grays[3],
 
       // Border colors
-      borderSubtle: grays[6],
-      border: grays[7],
-      borderActive: grays[8],
+      borderSubtle: grays[6] ?? bg,
+      border: grays[7] ?? bg,
+      borderActive: grays[8] ?? bg,
 
       // Diff colors
       diffAdded: ansiColors.green,
       diffRemoved: ansiColors.red,
-      diffContext: grays[7],
-      diffHunkHeader: grays[7],
+      diffContext: grays[7] ?? bg,
+      diffHunkHeader: grays[7] ?? bg,
       diffHighlightAdded: ansiColors.greenBright,
       diffHighlightRemoved: ansiColors.redBright,
       diffAddedBg,
@@ -447,7 +448,7 @@ export function generateSystem(colors: TerminalColors, mode: "dark" | "light"): 
       markdownBlockQuote: ansiColors.yellow,
       markdownEmph: ansiColors.yellow,
       markdownStrong: fg,
-      markdownHorizontalRule: grays[7],
+      markdownHorizontalRule: grays[7] ?? bg,
       markdownListItem: ansiColors.blue,
       markdownListEnumeration: ansiColors.cyan,
       markdownImage: ansiColors.blue,

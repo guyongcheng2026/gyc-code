@@ -29,7 +29,9 @@ const QueryCommand = effectCmd({
       const result = yield* db.all<Record<string, unknown>>(sql.raw(query)).pipe(Effect.orDie)
       if (args.format === "json") console.log(JSON.stringify(result, null, 2))
       else if (result.length > 0) {
-        const keys = Object.keys(result[0])
+        const first = result[0]
+        if (first === undefined) return
+        const keys = Object.keys(first)
         console.log(keys.join("\t"))
         for (const row of result) console.log(keys.map((key) => row[key]).join("\t"))
       }

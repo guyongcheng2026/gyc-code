@@ -231,6 +231,8 @@ const layer = Layer.effect(
             if (typeof parsedBin === "string") return Option.some(unscoped)
             const keys = Object.keys(parsedBin)
             if (keys.length === 1) return Option.some(keys[0])
+            // 作用域名 split 必然返回两段，此处仅做类型收窄
+            if (unscoped === undefined) return Option.some(keys[0])
             return parsedBin[unscoped] ? Option.some(unscoped) : Option.some(keys[0])
           }
         }
@@ -241,7 +243,7 @@ const layer = Layer.effect(
       return Option.getOrUndefined(
         yield* Effect.gen(function* () {
           const bin = yield* pick()
-          if (Option.isSome(bin)) {
+          if (Option.isSome(bin) && bin.value !== undefined) {
             return Option.some(path.join(binDir, bin.value))
           }
 
@@ -250,7 +252,7 @@ const layer = Layer.effect(
           yield* add(pkg)
 
           const resolved = yield* pick()
-          if (Option.isNone(resolved)) return Option.none<string>()
+          if (Option.isNone(resolved) || resolved.value === undefined) return Option.none<string>()
           return Option.some(path.join(binDir, resolved.value))
         }).pipe(
           Effect.scoped,

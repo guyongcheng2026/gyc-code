@@ -380,6 +380,12 @@ const layer = Layer.effect(
       mcp: ConfigMCPV1.Info & { type: "local" },
     ) {
       const [cmd, ...args] = mcp.command
+      // 本地 MCP 必须有可执行命令：缺失时按既有失败分支返回，不静默兜底
+      if (!cmd)
+        return {
+          client: undefined as MCPClient | undefined,
+          status: { status: "failed", error: "Missing command" } as Status,
+        }
       const baseDir = yield* InstanceState.directory
       const cwd = mcp.cwd ? path.resolve(baseDir, mcp.cwd) : baseDir
       const transport = new StdioClientTransport({

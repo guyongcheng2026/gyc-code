@@ -32,7 +32,7 @@ export function dedupeHistory(entries: PromptInfo[]): PromptInfo[] {
   const merged: PromptInfo[] = []
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i]
-    if (seen.has(entry.input)) continue
+    if (entry === undefined || seen.has(entry.input)) continue
     seen.add(entry.input)
     merged.push(entry)
   }

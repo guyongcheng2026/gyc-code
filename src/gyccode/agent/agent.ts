@@ -319,6 +319,7 @@ const layer = Layer.effect(
         // Ensure Truncate.GLOB is allowed unless explicitly configured
         for (const name in agents) {
           const agent = agents[name]
+          if (agent === undefined) continue
           const explicit = agent.permission.some((r) => {
             if (r.permission !== "external_directory") return false
             if (r.action !== "deny") return false
@@ -326,14 +327,17 @@ const layer = Layer.effect(
           })
           if (explicit) continue
 
-          agents[name].permission = Permission.merge(
-            agents[name].permission,
+          agent.permission = Permission.merge(
+            agent.permission,
             Permission.fromConfig({ external_directory: { [Truncate.GLOB]: "allow" } }),
           )
         }
 
         const get = Effect.fnUntraced(function* (agent: string) {
-          return agents[agent]
+          // 对外契约声明为 Info，但查不到时按既有语义返回 undefined（运行期不做任何转换），
+          // 由调用方自行报错或回退：tool/task.ts 的 Unknown agent type 分支、
+          // cli/cmd/run.ts 的「未找到智能体，将回退到默认智能体」分支
+          return agents[agent] as Info
         })
 
         const list = Effect.fnUntraced(function* () {

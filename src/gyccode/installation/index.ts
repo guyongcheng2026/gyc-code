@@ -92,8 +92,11 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
     const text = Effect.fnUntraced(
       function* (cmd: string[], opts?: { cwd?: string; env?: Record<string, string> }) {
+        const bin = cmd[0]
+        // 空命令没有可执行文件名，按既有失败兜底返回空串（与下方 Effect.catch 一致）
+        if (bin === undefined) return ""
         const result = yield* appProcess.run(
-          ChildProcess.make(cmd[0], cmd.slice(1), {
+          ChildProcess.make(bin, cmd.slice(1), {
             cwd: opts?.cwd,
             env: opts?.env,
             extendEnv: true,
@@ -106,8 +109,11 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
 
     const run = Effect.fnUntraced(
       function* (cmd: string[], opts?: { cwd?: string; env?: Record<string, string> }) {
+        const bin = cmd[0]
+        // 空命令没有可执行文件名，按既有失败形态返回（code 1，与下方 Effect.catch 一致）
+        if (bin === undefined) return { code: 1, stdout: "", stderr: "empty command" }
         const result = yield* appProcess.run(
-          ChildProcess.make(cmd[0], cmd.slice(1), {
+          ChildProcess.make(bin, cmd.slice(1), {
             cwd: opts?.cwd,
             env: opts?.env,
             extendEnv: true,
@@ -213,7 +219,10 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
           if (formula.includes("/")) {
             const infoJson = yield* text(["brew", "info", "--json=v2", formula])
             const info = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(BrewInfoV2))(infoJson)
-            return info.formulae[0].versions.stable
+            const formulaInfo = info.formulae[0]
+            // 无公式条目说明上游响应异常，显式失败（外层已有 Effect.orDie）
+            if (formulaInfo === undefined) throw new Error("brew info returned no formula")
+            return formulaInfo.versions.stable
           }
           const response = yield* httpOk.execute(
             HttpClientRequest.get("https://formulae.brew.sh/api/formula/gyccode.json").pipe(
@@ -241,7 +250,10 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
             ).pipe(HttpClientRequest.setHeaders({ Accept: "application/json;odata=verbose" })),
           )
           const data = yield* HttpClientResponse.schemaBodyJson(ChocoPackage)(response)
-          return data.d.results[0].Version
+          const chocoResult = data.d.results[0]
+          // 查询无结果说明上游响应异常，显式失败（外层已有 Effect.orDie）
+          if (chocoResult === undefined) throw new Error("chocolatey query returned no results")
+          return chocoResult.Version
         }
 
         if (detectedMethod === "scoop") {

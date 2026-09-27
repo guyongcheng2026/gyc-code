@@ -33,8 +33,11 @@ export interface IdTokenClaims {
 export function parseJwtClaims(token: string): IdTokenClaims | undefined {
   const parts = token.split(".")
   if (parts.length !== 3) return undefined
+  // 索引访问下 parts[1] 类型含 undefined，缺失时与解析失败同一分支返回 undefined
+  const payload = parts[1]
+  if (payload === undefined) return undefined
   try {
-    return JSON.parse(Buffer.from(parts[1], "base64url").toString())
+    return JSON.parse(Buffer.from(payload, "base64url").toString())
   } catch {
     return undefined
   }
@@ -277,7 +280,11 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
               if (DISALLOWED_MODELS.has(model.api.id)) return false
               if (model.api.id === "gpt-5.6") return false
               const match = model.api.id.match(/^gpt-(\d+\.\d+)/)
-              return match ? parseFloat(match[1]) > 5.4 : false
+              if (!match) return false
+              // 捕获组缺失时与原 parseFloat(undefined) 的 NaN 比较同结果：false
+              const version = match[1]
+              if (version === undefined) return false
+              return parseFloat(version) > 5.4
             })
             .map(([modelID, model]) => [
               modelID,

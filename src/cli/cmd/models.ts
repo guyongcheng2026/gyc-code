@@ -35,6 +35,7 @@ export const ModelsCommand = effectCmd({
 
     const print = (providerID: ProviderV2.ID, verbose?: boolean) => {
       const p = providers[providerID]
+      if (!p) return
       const sorted = Object.entries(p.models).sort(([a], [b]) => a.localeCompare(b))
       for (const [modelID, model] of sorted) {
         process.stdout.write(`${providerID}/${modelID}`)

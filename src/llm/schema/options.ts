@@ -8,7 +8,9 @@ export const mergeJsonRecords = (
 ): Record<string, unknown> | undefined => {
   const defined = items.filter((item): item is Record<string, unknown> => item !== undefined)
   if (defined.length === 0) return undefined
-  if (defined.length === 1 && Object.values(defined[0]).every((value) => value !== undefined)) return defined[0]
+  const only = defined[0]
+  if (only === undefined) return undefined
+  if (defined.length === 1 && Object.values(only).every((value) => value !== undefined)) return only
   const result: Record<string, unknown> = {}
   for (const item of defined) {
     for (const [key, value] of Object.entries(item)) {

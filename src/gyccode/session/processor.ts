@@ -296,26 +296,31 @@ const layer = Layer.effect(
               time: { start: Date.now() },
               metadata: value.providerMetadata,
             }
-            yield* session.updatePartLive(ctx.reasoningMap[value.id])
+            const startedReasoning = ctx.reasoningMap[value.id]
+            if (startedReasoning === undefined) return
+            yield* session.updatePartLive(startedReasoning)
             return
 
           case "reasoning-delta":
             // Match dev: silently drop orphan deltas (no preceding reasoning-start).
             if (!(value.id in ctx.reasoningMap)) return
-            ctx.reasoningMap[value.id].text += value.text
-            if (value.providerMetadata) ctx.reasoningMap[value.id].metadata = value.providerMetadata
+            const deltaReasoning = ctx.reasoningMap[value.id]
+            if (deltaReasoning === undefined) return
+            deltaReasoning.text += value.text
+            if (value.providerMetadata) deltaReasoning.metadata = value.providerMetadata
             yield* session.updatePartDelta({
-              sessionID: ctx.reasoningMap[value.id].sessionID,
-              messageID: ctx.reasoningMap[value.id].messageID,
-              partID: ctx.reasoningMap[value.id].id,
+              sessionID: deltaReasoning.sessionID,
+              messageID: deltaReasoning.messageID,
+              partID: deltaReasoning.id,
               field: "text",
               delta: value.text,
             })
             return
 
           case "reasoning-end":
-            if (value.providerMetadata && value.id in ctx.reasoningMap) {
-              ctx.reasoningMap[value.id].metadata = value.providerMetadata
+            const endedReasoning = ctx.reasoningMap[value.id]
+            if (value.providerMetadata && endedReasoning !== undefined) {
+              endedReasoning.metadata = value.providerMetadata
             }
             yield* finishReasoning(value.id)
             return

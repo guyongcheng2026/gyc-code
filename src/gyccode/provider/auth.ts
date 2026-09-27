@@ -171,8 +171,9 @@ const layer: Layer.Layer<Service, never, Auth.Service | Plugin.Service> = Layer.
 
       if (method.prompts && input.inputs) {
         for (const prompt of method.prompts) {
-          if (prompt.type === "text" && prompt.validate && input.inputs[prompt.key] !== undefined) {
-            const error = prompt.validate(input.inputs[prompt.key])
+          const value = input.inputs[prompt.key]
+          if (prompt.type === "text" && prompt.validate && value !== undefined) {
+            const error = prompt.validate(value)
             if (error) return yield* new ValidationFailed({ field: prompt.key, message: error })
           }
         }

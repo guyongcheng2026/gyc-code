@@ -38,7 +38,8 @@ export function create(prefix: string, direction: "descending" | "ascending", ti
 
 /** Extract timestamp from an ascending ID. Does not work with descending IDs. */
 export function timestamp(id: string): number {
-  const prefix = id.split("_")[0]
+  // split 至少产出一段，?? "" 仅用于收窄类型，ID 解析语义不变
+  const prefix = id.split("_")[0] ?? ""
   const hex = id.slice(prefix.length + 1, prefix.length + 13)
   const encoded = BigInt("0x" + hex)
   return Number(encoded / BigInt(0x1000))

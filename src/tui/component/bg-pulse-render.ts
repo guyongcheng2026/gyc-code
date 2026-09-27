@@ -316,6 +316,8 @@ export class GoUpsellArtPainter {
 
     for (let index = 0; index < distances.length; index++) {
       const dist = distances[index]
+      // 索引访问在 noUncheckedIndexedAccess 下可能为 undefined，跳过该像素
+      if (dist === undefined) continue
       const delta0 = dist - head0
       const abs0 = delta0 < 0 ? -delta0 : delta0
       const crest0 = abs0 < WIDTH ? 0.5 + 0.5 * Math.cos((delta0 / WIDTH) * Math.PI) : 0
@@ -335,7 +337,9 @@ export class GoUpsellArtPainter {
         (crest0 * AMP + tail0 * TAIL_AMP) * eased0 +
         (crest1 * AMP + tail1 * TAIL_AMP) * eased1 +
         (crest2 * AMP + tail2 * TAIL_AMP) * eased2
-      const rawStrength = (level * RING_SCALE + breath) * edgeFalloff[index]
+      const falloff = edgeFalloff[index]
+      if (falloff === undefined) continue
+      const rawStrength = (level * RING_SCALE + breath) * falloff
       const strength = (rawStrength > 1 ? 1 : rawStrength) * 0.7
       const offset = index * 4
       const r = Math.round(baseR + deltaR * strength)

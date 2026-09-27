@@ -33,7 +33,8 @@ export type MutableInfo = Omit<Types.DeepMutable<Info>, "api"> & {
 export function parse(input: string): { providerID: ProviderV2.ID; modelID: ID } {
   const [providerID, ...modelID] = input.split("/")
   return {
-    providerID: ProviderV2.ID.make(providerID),
+    // split 恒返回非空数组：providerID 仅在类型层可能为 undefined，此时退回完整输入
+    providerID: ProviderV2.ID.make(providerID ?? input),
     modelID: ID.make(modelID.join("/")),
   }
 }

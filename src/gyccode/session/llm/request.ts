@@ -116,7 +116,7 @@ const assembleSystemPrompt = Effect.fn("LLMRequestPrep.assembleSystemPrompt")(fu
     { sessionID: input.sessionID, model: input.model },
     { system },
   )
-  if (system.length > 2 && system[0] === header) {
+  if (system.length > 2 && header !== undefined && system[0] === header) {
     const rest = system.slice(1)
     system.length = 0
     system.push(header, rest.join("\n"))

@@ -140,7 +140,9 @@ const select = (
   let splitPrefix = ""
   let splitSuffix = ""
   for (let index = conversation.length - 1; index >= 0; index--) {
-    const next = total + Token.estimate(conversation[index])
+    const current = conversation[index]
+    if (current === undefined) break
+    const next = total + Token.estimate(current)
     if (next > tokens) {
       // Split the overflowing message so that the tail (which flows into
       // `recent` and is kept verbatim) stays within `remainingTokens`, driven
@@ -150,15 +152,15 @@ const select = (
         // Find the smallest cut where the suffix fits within remainingTokens
         // (estimate grows monotonically as the suffix grows, so binary search applies).
         let lo = 0
-        let hi = conversation[index].length
+        let hi = current.length
         while (lo < hi) {
           const mid = (lo + hi) >> 1
-          if (Token.estimate(conversation[index].slice(mid)) <= remainingTokens) hi = mid
+          if (Token.estimate(current.slice(mid)) <= remainingTokens) hi = mid
           else lo = mid + 1
         }
         const cut = lo
-        splitPrefix = conversation[index].slice(0, cut)
-        splitSuffix = conversation[index].slice(cut)
+        splitPrefix = current.slice(0, cut)
+        splitSuffix = current.slice(cut)
         split = index + 1
       }
       break

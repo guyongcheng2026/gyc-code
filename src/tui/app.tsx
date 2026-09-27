@@ -231,7 +231,7 @@ function errorMessage(error: unknown) {
 
 function isVersionGreater(left: string, right: string) {
   const parse = (value: string) => {
-    const [core, prerelease] = value.replace(/^v/, "").split("-", 2)
+    const [core = "", prerelease] = value.replace(/^v/, "").split("-", 2)
     return { core: core.split(".").map((part) => Number.parseInt(part, 10) || 0), prerelease }
   }
   const a = parse(left)
@@ -361,7 +361,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           try {
             await input.pluginHost.dispose()
           } catch (error) {
-            logError("tui.app", error)
+            logError("tui.app", error, { op: "pluginHost.dispose" })
           }
         }),
       )
@@ -730,7 +730,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             if (!Flag.GYCCODE_DISABLE_MOUSE && resolved.mouse) renderer.useMouse = true
             keymapOff = registerGyccodeKeymap(keymap, renderer, resolved)
           } catch (error) {
-            logError("tui.app", error)
+            logError("tui.app", error, { op: "apply config" })
             exit.reason = error
             if (!renderer.isDestroyed) destroyRenderer(renderer)
           }
@@ -928,7 +928,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       dispose: () => attention.dispose(),
     })
     .catch((error) => {
-      logError("tui.app", error)
+      logError("tui.app", error, { op: "pluginHost.start" })
     })
     .finally(() => {
       setReady(true)

@@ -104,7 +104,8 @@ function normalizeForDedupe(value: string): string {
 /** Strip the "#memory_<key>" header line, returning only the content. */
 export function stripKeyHeader(block: string): string {
   const lines = block.split("\n")
-  if (lines.length > 1 && /^#memory_/i.test(lines[0].trim())) {
+  const header = lines[0]
+  if (header !== undefined && lines.length > 1 && /^#memory_/i.test(header.trim())) {
     return lines.slice(1).join("\n").trim()
   }
   return block.trim()

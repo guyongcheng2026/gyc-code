@@ -54,7 +54,7 @@ function parse(tip: string): TipPart[] {
       if (start > acc.index) {
         acc.parts.push({ text: tip.slice(acc.index, start), highlight: false })
       }
-      acc.parts.push({ text: match[1], highlight: true })
+      acc.parts.push({ text: match[1] ?? "", highlight: true })
       acc.index = start + match[0].length
       return acc
     },

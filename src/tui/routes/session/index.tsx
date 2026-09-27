@@ -497,7 +497,8 @@ export function Session() {
 
     if (next >= sessions.length) next = 0
     if (next < 0) next = sessions.length - 1
-    if (sessions[next]) enterChild(sessions[next].id)
+    const target = sessions[next]
+    if (target) enterChild(target.id)
   }
 
   function childSessionHandler(func: () => void) {
@@ -687,7 +688,7 @@ export function Session() {
           .then(() => {
             toBottom()
           })
-        const parts = sync.data.part[message.id]
+        const parts = sync.data.part[message.id] ?? []
         prompt?.set(
           parts.reduce(
             (agg, part) => {
@@ -1646,17 +1647,21 @@ export function Session() {
                 </For>
               </scrollbox>
               <box flexShrink={0}>
-                <Show when={permissions().length > 0}>
-                  <PermissionPrompt
-                    request={permissions()[0]}
-                    directory={sync.session.get(permissions()[0].sessionID)?.directory}
-                  />
+                <Show when={permissions()[0]}>
+                  {(request) => (
+                    <PermissionPrompt
+                      request={request()}
+                      directory={sync.session.get(request().sessionID)?.directory}
+                    />
+                  )}
                 </Show>
-                <Show when={permissions().length === 0 && questions().length > 0}>
-                  <QuestionPrompt
-                    request={questions()[0]}
-                    directory={sync.session.get(questions()[0].sessionID)?.directory}
-                  />
+                <Show when={permissions().length === 0 ? questions()[0] : undefined}>
+                  {(request) => (
+                    <QuestionPrompt
+                      request={request()}
+                      directory={sync.session.get(request().sessionID)?.directory}
+                    />
+                  )}
                 </Show>
                 <Show when={session()?.parentID}>
                   <SubagentFooter />

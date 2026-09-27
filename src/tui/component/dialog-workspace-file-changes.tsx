@@ -54,14 +54,14 @@ export function DialogWorkspaceFileChanges(props: {
       evt.preventDefault()
       evt.stopPropagation()
       const index = options.indexOf(store.active)
-      setStore("active", options[Math.max(index - 1, 0)])
+      setStore("active", options[Math.max(index - 1, 0)] ?? store.active)
       return
     }
     if (evt.name === "right") {
       evt.preventDefault()
       evt.stopPropagation()
       const index = options.indexOf(store.active)
-      setStore("active", options[Math.min(index + 1, options.length - 1)])
+      setStore("active", options[Math.min(index + 1, options.length - 1)] ?? store.active)
     }
   })
 

@@ -46,7 +46,9 @@ function search<T>(items: T[], target: string, key: (item: T) => string) {
   let right = items.length - 1
   while (left <= right) {
     const middle = Math.floor((left + right) / 2)
-    const value = key(items[middle])
+    const item = items[middle]
+    if (item === undefined) break
+    const value = key(item)
     if (value === target) return { found: true, index: middle }
     if (value < target) left = middle + 1
     else right = middle - 1
@@ -253,6 +255,7 @@ export const {
             delta.messageID,
             produce((draft) => {
               const part = draft[result.index]
+              if (part === undefined) return
               const field = delta.field as keyof typeof part
               const existing = part[field] as string | undefined
               ;(part[field] as string) = (existing ?? "") + delta.text
@@ -504,8 +507,9 @@ export const {
             }),
           )
           const updated = store.message[event.properties.info.sessionID]
-          if (updated.length > 100) {
+          if (updated && updated.length > 100) {
             const oldest = updated[0]
+            if (oldest === undefined) break
             batch(() => {
               setStore(
                 "message",
@@ -527,6 +531,7 @@ export const {
         case "message.removed": {
           touchMessage(event.properties.sessionID, event.properties.messageID)
           const messages = store.message[event.properties.sessionID]
+          if (!messages) break
           const index = messages.findIndex((message) => message.id === event.properties.messageID)
           if (index !== -1) {
             setStore(
@@ -580,6 +585,7 @@ export const {
         case "message.part.removed": {
           touchPart(event.properties.sessionID, event.properties.partID)
           const parts = store.part[event.properties.messageID]
+          if (!parts) break
           const result = search(parts, event.properties.partID, (p) => p.id)
           if (result.found) {
             setStore(

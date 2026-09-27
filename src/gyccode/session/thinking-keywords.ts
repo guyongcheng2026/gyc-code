@@ -47,7 +47,8 @@ export function resolveThinkingVariant(
 
   // Prefer an exact or stronger available tier, otherwise the strongest available.
   for (let i = targetIndex; i < EFFORT_ORDER.length; i++) {
-    if (available.includes(EFFORT_ORDER[i])) return EFFORT_ORDER[i]
+    const tier = EFFORT_ORDER[i]
+    if (tier !== undefined && available.includes(tier)) return tier
   }
   // Fall back to the last (strongest) available tier.
   return available[available.length - 1]

@@ -42,6 +42,7 @@ describe("GYCCODE logo 字标", () => {
     const top = logo.left[1]
     const mid = logo.left[2]
     const bot = logo.left[3]
+    if (top === undefined || mid === undefined || bot === undefined) throw new Error("fixture missing: logo.left[1..3]")
     expect(top.slice(6, 11)).toBe("\u2588   \u2588")
     expect(mid.slice(6, 11)).toBe("\u2580\u2580\u2588\u2580\u2580")
     expect(bot.slice(6, 11)).toBe("  \u2588  ")

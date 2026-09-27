@@ -179,9 +179,13 @@ const layer = Layer.effect(
       let command = input.command ?? shellFile
       let args = [...(input.args ?? [])]
       if (!input.args && input.command && /\s/.test(input.command) && !existsSync(input.command)) {
+        // 需要 shell 包裹整条命令行却没有可用 shell：显式失败，绝不把 undefined 交给 spawn
+        if (shellFile === undefined) return yield* Effect.die("pty: no available shell to wrap command")
         command = shellFile
         args = Shell.args(shellFile, input.command, cwd)
       }
+      // 既无显式命令也无可用 shell 时同样显式失败
+      if (command === undefined) return yield* Effect.die("pty: no command or shell available")
       if (Shell.login(command)) args = [...args, "-l"]
       const env = {
         ...process.env,

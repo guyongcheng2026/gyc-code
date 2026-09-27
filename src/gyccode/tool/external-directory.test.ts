@@ -89,7 +89,9 @@ describe("assertExternalDirectory", () => {
       expect(result).toBe(true)
       expect(asks).toHaveLength(1)
       // auto-approve is scoped to the exact target, not the whole directory
-      expect(asks[0].always).toEqual([FSUtil.normalizePathPattern(outside)])
+      const firstAsk = asks[0]
+      if (firstAsk === undefined) throw new Error("fixture missing: authorization ask")
+      expect(firstAsk.always).toEqual([FSUtil.normalizePathPattern(outside)])
     } finally {
       await rm(root, { recursive: true, force: true })
     }

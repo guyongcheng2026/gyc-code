@@ -77,7 +77,7 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
   }
 
   private get providerOptionsName(): string {
-    return this.config.provider.split(".")[0].trim()
+    return (this.config.provider.split(".")[0] ?? "").trim()
   }
 
   get supportedUrls() {
@@ -214,42 +214,42 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
     const choice = responseBody.choices[0]
     const content: Array<LanguageModelV3Content> = []
 
+    // OpenAI-compatible 响应中 choices 可能为空数组，此时按空内容降级处理
+    const message = choice?.message
+    // Capture reasoning_opaque for Copilot multi-turn reasoning
+    const reasoningOpaque = message?.reasoning_opaque
+
     // text content:
-    const text = choice.message.content
+    const text = message?.content
     if (text != null && text.length > 0) {
       content.push({
         type: "text",
         text,
-        providerMetadata: choice.message.reasoning_opaque
-          ? { copilot: { reasoningOpaque: choice.message.reasoning_opaque } }
-          : undefined,
+        providerMetadata: reasoningOpaque ? { copilot: { reasoningOpaque } } : undefined,
       })
     }
 
     // reasoning content (Copilot uses reasoning_text):
-    const reasoning = choice.message.reasoning_text
+    const reasoning = message?.reasoning_text
     if (reasoning != null && reasoning.length > 0) {
       content.push({
         type: "reasoning",
         text: reasoning,
         // Include reasoning_opaque for Copilot multi-turn reasoning
-        providerMetadata: choice.message.reasoning_opaque
-          ? { copilot: { reasoningOpaque: choice.message.reasoning_opaque } }
-          : undefined,
+        providerMetadata: reasoningOpaque ? { copilot: { reasoningOpaque } } : undefined,
       })
     }
 
     // tool calls:
-    if (choice.message.tool_calls != null) {
-      for (const toolCall of choice.message.tool_calls) {
+    const toolCalls = message?.tool_calls
+    if (toolCalls != null) {
+      for (const toolCall of toolCalls) {
         content.push({
           type: "tool-call",
           toolCallId: toolCall.id ?? generateId(),
           toolName: toolCall.function.name,
           input: toolCall.function.arguments!,
-          providerMetadata: choice.message.reasoning_opaque
-            ? { copilot: { reasoningOpaque: choice.message.reasoning_opaque } }
-            : undefined,
+          providerMetadata: reasoningOpaque ? { copilot: { reasoningOpaque } } : undefined,
         })
       }
     }
@@ -262,20 +262,19 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
       })),
     }
     const completionTokenDetails = responseBody.usage?.completion_tokens_details
+    const providerOptionsMetadata = (providerMetadata[this.providerOptionsName] ??= {})
     if (completionTokenDetails?.accepted_prediction_tokens != null) {
-      providerMetadata[this.providerOptionsName].acceptedPredictionTokens =
-        completionTokenDetails?.accepted_prediction_tokens
+      providerOptionsMetadata.acceptedPredictionTokens = completionTokenDetails?.accepted_prediction_tokens
     }
     if (completionTokenDetails?.rejected_prediction_tokens != null) {
-      providerMetadata[this.providerOptionsName].rejectedPredictionTokens =
-        completionTokenDetails?.rejected_prediction_tokens
+      providerOptionsMetadata.rejectedPredictionTokens = completionTokenDetails?.rejected_prediction_tokens
     }
 
     return {
       content,
       finishReason: {
-        unified: mapOpenAICompatibleFinishReason(choice.finish_reason),
-        raw: choice.finish_reason ?? undefined,
+        unified: mapOpenAICompatibleFinishReason(choice?.finish_reason),
+        raw: choice?.finish_reason ?? undefined,
       },
       usage: {
         inputTokens: {
@@ -679,12 +678,13 @@ export class OpenAICompatibleChatLanguageModel implements LanguageModelV3 {
               ...(reasoningOpaque ? { copilot: { reasoningOpaque } } : {}),
               ...metadataExtractor?.buildMetadata(),
             }
+            const providerOptionsMetadata = (providerMetadata[providerOptionsName] ??= {})
             if (usage.completionTokensDetails.acceptedPredictionTokens != null) {
-              providerMetadata[providerOptionsName].acceptedPredictionTokens =
+              providerOptionsMetadata.acceptedPredictionTokens =
                 usage.completionTokensDetails.acceptedPredictionTokens
             }
             if (usage.completionTokensDetails.rejectedPredictionTokens != null) {
-              providerMetadata[providerOptionsName].rejectedPredictionTokens =
+              providerOptionsMetadata.rejectedPredictionTokens =
                 usage.completionTokensDetails.rejectedPredictionTokens
             }
 

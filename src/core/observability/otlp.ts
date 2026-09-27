@@ -10,6 +10,8 @@ const headers = Flag.OTEL_EXPORTER_OTLP_HEADERS
   ? Flag.OTEL_EXPORTER_OTLP_HEADERS.split(",").reduce(
       (acc, entry) => {
         const [key, ...value] = entry.split("=")
+        // 缺少头名的条目直接跳过，不写入空名头
+        if (key === undefined) return acc
         acc[key] = value.join("=")
         return acc
       },

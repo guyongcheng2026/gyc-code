@@ -369,6 +369,15 @@ async function patchOne(dir: string, target: Target, spec: string, force: boolea
     cfg = file
     break
   }
+  // 候选清单为空时无法确定写入目标，显式失败而不是绕过校验继续安装
+  if (cfg === undefined) {
+    return {
+      ok: false,
+      code: "patch_failed",
+      kind: target.kind,
+      error: new Error(`未找到配置文件：${path.join(dir, name)}`),
+    }
+  }
 
   const src = await dep.readText(cfg).catch((err: NodeJS.ErrnoException) => {
     if (err.code === "ENOENT") return "{}"
@@ -386,16 +395,25 @@ async function patchOne(dir: string, target: Target, spec: string, force: boolea
 
   const errs: JsoncParseError[] = []
   const data = parseJsonc(text, errs, { allowTrailingComma: true })
-  if (errs.length) {
-    const err = errs[0]
+  const err = errs[0]
+  if (err) {
     const lines = text.substring(0, err.offset).split("\n")
+    const last = lines[lines.length - 1]
+    if (last === undefined) {
+      return {
+        ok: false,
+        code: "patch_failed",
+        kind: target.kind,
+        error: new Error(`JSON 解析位置无效：${err.offset}`),
+      }
+    }
     return {
       ok: false,
       code: "invalid_json",
       kind: target.kind,
       file: cfg,
       line: lines.length,
-      col: lines[lines.length - 1].length + 1,
+      col: last.length + 1,
       parse: printParseErrorCode(err.error),
     }
   }

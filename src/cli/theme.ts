@@ -34,7 +34,9 @@ function findClosestIndex(value: number, table: number[]): number {
   let minDist = Number.POSITIVE_INFINITY
   let minIdx = 0
   for (let i = 0; i < table.length; i++) {
-    const dist = Math.abs(value - table[i])
+    const current = table[i]
+    if (current === undefined) continue
+    const dist = Math.abs(value - current)
     if (dist < minDist) {
       minDist = dist
       minIdx = i
@@ -57,10 +59,13 @@ function rgbTo256(r: number, g: number, b: number): number {
   const cubeR = CUBE_VALUES[rIdx]
   const cubeG = CUBE_VALUES[gIdx]
   const cubeB = CUBE_VALUES[bIdx]
+  // 索引由 findClosestIndex 返回，必然落在常量表内，此处仅做类型收窄
+  if (cubeR === undefined || cubeG === undefined || cubeB === undefined) return 0
   const cubeDist = colorDistance(r, g, b, cubeR, cubeG, cubeB)
   const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
   const grayIdx = findClosestIndex(gray, GRAY_VALUES)
   const grayValue = GRAY_VALUES[grayIdx]
+  if (grayValue === undefined) return 0
   const grayDist = colorDistance(r, g, b, grayValue, grayValue, grayValue)
   const spread = Math.max(r, g, b) - Math.min(r, g, b)
   // 近中性色且灰阶更近才用灰阶，保留彩色色调优先走色立方

@@ -242,7 +242,9 @@ function normalizeComponentNames(spec: OpenApiSpec) {
       }
       continue
     }
-    schemas[next] = schemas[name]
+    const existing = schemas[name]
+    if (existing === undefined) continue
+    schemas[next] = existing
     rewriteRefs(spec, name, next)
     delete schemas[name]
   }
@@ -263,9 +265,13 @@ function applyLegacySchemaOverrides(spec: OpenApiSpec) {
   if (schemas.AgentConfig) schemas.AgentConfig.additionalProperties = {}
   if (schemas.Command?.properties?.template) schemas.Command.properties.template = { type: "string" }
   if (schemas.Workspace?.properties) {
-    schemas.Workspace.properties.branch = nullable(schemas.Workspace.properties.branch)
-    schemas.Workspace.properties.directory = nullable(schemas.Workspace.properties.directory)
-    schemas.Workspace.properties.extra = nullable(schemas.Workspace.properties.extra)
+    const properties = schemas.Workspace.properties
+    const branch = properties.branch
+    const directory = properties.directory
+    const extra = properties.extra
+    if (branch) properties.branch = nullable(branch)
+    if (directory) properties.directory = nullable(directory)
+    if (extra) properties.extra = nullable(extra)
   }
   if (schemas.GlobalSession?.properties?.project)
     schemas.GlobalSession.properties.project = nullable(schemas.GlobalSession.properties.project)
@@ -468,7 +474,8 @@ function stripOptionalNull(schema: OpenApiSchema): OpenApiSchema {
   const options = flattenOptions(schema.anyOf ?? schema.oneOf)
   if (options) {
     const withoutNull = options.filter((item) => item.type !== "null")
-    if (withoutNull.length === 1) return stripOptionalNull(withoutNull[0])
+    const only = withoutNull[0]
+    if (withoutNull.length === 1 && only !== undefined) return stripOptionalNull(only)
     if (schema.anyOf) schema.anyOf = withoutNull.map(stripOptionalNull)
     if (schema.oneOf) schema.oneOf = withoutNull.map(stripOptionalNull)
   }

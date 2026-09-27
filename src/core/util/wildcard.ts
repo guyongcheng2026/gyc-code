@@ -20,6 +20,8 @@ function toRegex(pattern: string): RegExp {
   let i = 0
   while (i < p.length) {
     const ch = p[i]
+    // i 由 while 条件保证在界内，此处仅做类型收窄，不影响匹配语义
+    if (ch === undefined) break
     if (ch === "\x01") {
       tokens.push("[^/]")
       i++

@@ -19,9 +19,12 @@ describe("ToastStore", () => {
 		store.add("world", { variant: "error" })
 		const all = store.all()
 		expect(all.length).toBe(2)
-		expect(all[0].text).toBe("hello")
-		expect(all[1].text).toBe("world")
-		expect(all[1].variant).toBe("error")
+		const first = all[0]
+		const second = all[1]
+		if (first === undefined || second === undefined) throw new Error("fixture missing: toast")
+		expect(first.text).toBe("hello")
+		expect(second.text).toBe("world")
+		expect(second.variant).toBe("error")
 	})
 
 	test("dismiss 移除指定 id", () => {
@@ -59,6 +62,7 @@ describe("ToastStore", () => {
 	test("title 可选", () => {
 		store.add("text", { title: "标题", variant: "success" })
 		const [t] = store.all()
+		if (t === undefined) throw new Error("fixture missing: toast")
 		expect(t.title).toBe("标题")
 		expect(t.variant).toBe("success")
 	})

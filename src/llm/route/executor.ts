@@ -128,9 +128,12 @@ const rateLimitDetails = (headers: Record<string, string>, retryAfter: number | 
 
     const anthropic = /^anthropic-ratelimit-(.+)-(limit|remaining|reset)$/.exec(name)
     if (!anthropic) return
-    if (anthropic[2] === "limit") return addRateLimitValue(limit, anthropic[1], value)
-    if (anthropic[2] === "remaining") return addRateLimitValue(remaining, anthropic[1], value)
-    return addRateLimitValue(reset, anthropic[1], value)
+    const scope = anthropic[1]
+    // 捕获组缺失时无法识别限流维度，直接跳过该响应头
+    if (scope === undefined) return
+    if (anthropic[2] === "limit") return addRateLimitValue(limit, scope, value)
+    if (anthropic[2] === "remaining") return addRateLimitValue(remaining, scope, value)
+    return addRateLimitValue(reset, scope, value)
   })
 
   if (

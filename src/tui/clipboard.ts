@@ -108,8 +108,12 @@ function getCopyMethod() {
       }
     }
     if (native) {
+      const bin = native[0]
+      const args = native.slice(1)
       return async (text: string) => {
-        await command(native[0], native.slice(1), text).catch(() => undefined)
+        // 命令名缺失时静默跳过，与其它分支的 catch(() => undefined) 容错保持一致
+        if (!bin) return
+        await command(bin, args, text).catch(() => undefined)
       }
     }
     return async (text: string) => {

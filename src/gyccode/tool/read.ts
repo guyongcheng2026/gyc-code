@@ -237,8 +237,10 @@ export const ReadTool = Tool.define<
 
       let nonPrintableCount = 0
       for (let i = 0; i < bytes.length; i++) {
-        if (bytes[i] === 0) return true
-        if (bytes[i] < 9 || (bytes[i] > 13 && bytes[i] < 32)) {
+        const byte = bytes[i]
+        if (byte === undefined) continue
+        if (byte === 0) return true
+        if (byte < 9 || (byte > 13 && byte < 32)) {
           nonPrintableCount++
         }
       }

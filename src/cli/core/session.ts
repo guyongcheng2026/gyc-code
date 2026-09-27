@@ -96,7 +96,10 @@ export class SessionManager {
   async continueRecent(): Promise<{ id: string; title?: string } | undefined> {
     const sessions = await this.list({ limit: 1, parentOnly: true })
     if (sessions.length === 0) return undefined
-    return { id: sessions[0].id, title: sessions[0].title }
+    // 上方已判空，此处仅做类型收窄
+    const latest = sessions[0]
+    if (latest === undefined) return undefined
+    return { id: latest.id, title: latest.title }
   }
 
   // 分叉会话
@@ -224,7 +227,8 @@ export async function selectSession(
     const answer = await rl.question("输入编号 (回车取消): ")
     const idx = parseInt(answer.trim(), 10) - 1
     if (idx >= 0 && idx < sessions.length) {
-      return sessions[idx].id
+      const target = sessions[idx]
+      if (target !== undefined) return target.id
     }
     return undefined
   } finally {

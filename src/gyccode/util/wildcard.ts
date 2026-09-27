@@ -35,7 +35,10 @@ export function allStructured(input: { head: string; tail: string[] }, patterns:
   let result = undefined
   for (const [pattern, value] of sorted) {
     const parts = pattern.split(/\s+/)
-    if (!match(input.head, parts[0])) continue
+    const head = parts[0]
+    // split 结果的首项恒存在，此判定仅为索引收窄，不改变匹配语义
+    if (head === undefined) continue
+    if (!match(input.head, head)) continue
     if (parts.length === 1 || matchSequence(input.tail, parts.slice(1))) {
       result = value
       continue
@@ -47,9 +50,14 @@ export function allStructured(input: { head: string; tail: string[] }, patterns:
 function matchSequence(items: string[], patterns: string[]): boolean {
   if (patterns.length === 0) return true
   const [pattern, ...rest] = patterns
+  // 上方已排除空 patterns，首项恒存在；此判定仅为索引收窄，不改变匹配语义
+  if (pattern === undefined) return false
   if (pattern === "*") return matchSequence(items, rest)
   for (let i = 0; i < items.length; i++) {
-    if (match(items[i], pattern) && matchSequence(items.slice(i + 1), rest)) {
+    const item = items[i]
+    // 同上：索引收窄，不改变通配匹配语义
+    if (item === undefined) continue
+    if (match(item, pattern) && matchSequence(items.slice(i + 1), rest)) {
       return true
     }
   }

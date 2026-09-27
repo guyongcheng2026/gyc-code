@@ -350,6 +350,7 @@ export class RawInputHandler extends EventEmitter {
     if (suggestions.length === 1) {
       // 单一补全，直接应用
       const completion = suggestions[0]
+      if (completion === undefined) return
       const prefix = this.state.buffer.slice(0, this.state.cursor)
       // 简单的前缀匹配补全
       if (completion.startsWith(prefix)) {
@@ -371,7 +372,7 @@ export class RawInputHandler extends EventEmitter {
     } else if (this.state.historyIndex > 0) {
       this.state.historyIndex--
     }
-    this.state.buffer = this.state.history[this.state.historyIndex]
+    this.state.buffer = this.state.history[this.state.historyIndex] ?? ""
     this.state.cursor = this.state.buffer.length
     this.render()
   }
@@ -380,7 +381,7 @@ export class RawInputHandler extends EventEmitter {
     if (this.state.historyIndex === -1) return
     if (this.state.historyIndex < this.state.history.length - 1) {
       this.state.historyIndex++
-      this.state.buffer = this.state.history[this.state.historyIndex]
+      this.state.buffer = this.state.history[this.state.historyIndex] ?? ""
     } else {
       this.state.historyIndex = -1
       this.state.buffer = ""

@@ -44,7 +44,12 @@ export function orderSelectedFields<TColumn extends Column>(
     if (is(field, Column) || is(field, SQL) || is(field, SQL.Aliased) || is(field, Subquery)) {
       return [{ path, field }] as SelectedFieldsOrdered
     }
-    if (is(field, Table)) return orderSelectedFields(getTableColumnsRuntime(field as SQLiteTable), path)
+    if (is(field, Table)) {
+      const columns = getTableColumnsRuntime(field as SQLiteTable)
+      // 运行期取不到列定义（理论上不会发生）时返回空字段集，不编造字段
+      if (columns === undefined) return []
+      return orderSelectedFields(columns, path)
+    }
     return orderSelectedFields(field as Record<string, unknown>, path)
   }) as SelectedFieldsOrdered
 }
@@ -54,10 +59,13 @@ export function mapUpdateSet<TTable extends SQLiteTable>(table: TTable, values: 
   if (entries.length === 0) throw new Error("No values to set")
 
   return Object.fromEntries(
-    entries.map(([key, value]) => [
-      key,
-      is(value, SQL) || is(value, Column) ? value : new Param(value, getTableColumnsRuntime(table)[key]),
-    ]),
+    entries.map(([key, value]) => {
+      if (is(value, SQL) || is(value, Column)) return [key, value]
+      // 取不到列定义说明 key 不是合法列名，显式失败而不是拼出错误 SQL
+      const column = getTableColumnsRuntime(table)?.[key]
+      if (column === undefined) throw new Error(`Unknown column: ${key}`)
+      return [key, new Param(value, column)]
+    }),
   ) as UpdateSet
 }
 
@@ -115,7 +123,7 @@ export function mapResultRow(
 
 export function getTableLikeName(table: SQLiteTable | Subquery | SQLiteViewBase | SQL) {
   if (is(table, Subquery)) return table._.alias
-  if (is(table, SQLiteViewBase)) return getViewSelectedFieldsRuntime(table).name
+  if (is(table, SQLiteViewBase)) return getViewSelectedFieldsRuntime(table)?.name
   if (is(table, SQL)) return undefined
   return (table as unknown as Record<symbol, string | boolean>)[
     (table as unknown as Record<symbol, string | boolean>)[TableSymbol.IsAlias]

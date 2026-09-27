@@ -56,6 +56,7 @@ test("selectMicrocompactParts never touches the cache prefix or the tail", () =>
   // First CACHE_PREFIX_KEEP messages must be intact.
   for (let i = 0; i < CACHE_PREFIX_KEEP && i < msgs.length; i++) {
     const msg = msgs[i]
+    if (msg === undefined) throw new Error(`fixture missing: msgs[${i}]`)
     for (const part of msg.parts) {
       if (part.type === "tool") expect(selectedIDs.has(part.callID)).toBe(false)
     }
@@ -63,6 +64,7 @@ test("selectMicrocompactParts never touches the cache prefix or the tail", () =>
   // Last 5 messages must be intact.
   for (let i = Math.max(0, msgs.length - 5); i < msgs.length; i++) {
     const msg = msgs[i]
+    if (msg === undefined) throw new Error(`fixture missing: msgs[${i}]`)
     for (const part of msg.parts) {
       if (part.type === "tool") expect(selectedIDs.has(part.callID)).toBe(false)
     }

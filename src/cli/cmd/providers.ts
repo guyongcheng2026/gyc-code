@@ -63,6 +63,11 @@ const handlePluginAuth = Effect.fn("Cli.providers.pluginAuth")(function* (
     return match
   })
   const method = plugin.auth.methods[index]
+  if (!method) {
+    return yield* fail(
+      `服务商 ${provider} 存在未知登录方式 "${methodName}"。可选：${plugin.auth.methods.map((x) => x.label).join(", ")}`,
+    )
+  }
 
   yield* Effect.sleep("10 millis")
   const inputs: Record<string, string> = {}
@@ -188,7 +193,9 @@ const handlePluginAuth = Effect.fn("Cli.providers.pluginAuth")(function* (
       return true
     }
 
-    const result = yield* cliTry("授权失败： ", () => authorizeApi(inputs))
+    // 上面的兜底分支已排除 undefined，这里再取一次局部引用，避免闭包内丢失收窄
+    const runAuthorize = authorizeApi
+    const result = yield* cliTry("授权失败： ", () => runAuthorize(inputs))
     if (result.type === "failed") {
       yield* Prompt.log.error("授权失败")
     }

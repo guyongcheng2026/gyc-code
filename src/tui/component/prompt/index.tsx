@@ -165,7 +165,7 @@ export function Prompt(props: PromptProps) {
   const tuiConfig = useTuiConfig()
   const dialog = useDialog()
   const toast = useToast()
-  const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? { type: "idle" })
+  const status = createMemo(() => sync.data.session_status?.[props.sessionID ?? ""] ?? ({ type: "idle" } as const))
   const history = usePromptHistory()
   const stash = usePromptStash()
   const keymap = useGyccodeKeymap()
@@ -1117,13 +1117,13 @@ title: "打开编辑器",
       setStore("mode", "normal")
     } else if (
       inputText.startsWith("/") &&
-      sync.data.command.some((x) => x.name === inputText.split("\n")[0].split(" ")[0].slice(1))
+      sync.data.command.some((x) => x.name === ((inputText.split("\n")[0] ?? "").split(" ")[0] ?? "").slice(1))
     ) {
       move.startSubmit()
       // Parse command from first line, preserve multi-line content in arguments
       const firstLineEnd = inputText.indexOf("\n")
       const firstLine = firstLineEnd === -1 ? inputText : inputText.slice(0, firstLineEnd)
-      const [command, ...firstLineArgs] = firstLine.split(" ")
+      const [command = "", ...firstLineArgs] = firstLine.split(" ")
       const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
       const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
 
@@ -1337,7 +1337,7 @@ title: "打开编辑器",
     if (store.mode === "shell") return theme.primary
     const agent = local.agent.current()
     if (!agent) return theme.border
-    return local.agent.color(agent.name)
+    return local.agent.color(agent.name) ?? theme.border
   })
 
   const showVariant = createMemo(() => {

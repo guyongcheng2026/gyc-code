@@ -54,7 +54,7 @@ export class Completer {
   // 斜杠命令补全
   private completeSlashCommand(line: string): CompletionItem[] {
     const match = line.match(/\/(\S*)$/)
-    const prefix = match ? match[1] : ""
+    const prefix = match?.[1] ?? ""
     const items: CompletionItem[] = []
 
     for (const spec of commandManifest.commands) {

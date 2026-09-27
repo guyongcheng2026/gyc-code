@@ -723,16 +723,14 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV3 {
       }
     }
 
+    // 索引访问在 noUncheckedIndexedAccess 下可能为 undefined，改为一次性构造 copilot 元数据，
+    // 可选字段按原语义仅在存在时写入
     const providerMetadata: SharedV3ProviderMetadata = {
-      copilot: { responseId: response.id },
-    }
-
-    if (logprobs.length > 0) {
-      providerMetadata.copilot.logprobs = logprobs
-    }
-
-    if (typeof response.service_tier === "string") {
-      providerMetadata.copilot.serviceTier = response.service_tier
+      copilot: {
+        responseId: response.id,
+        ...(logprobs.length > 0 ? { logprobs } : {}),
+        ...(typeof response.service_tier === "string" ? { serviceTier: response.service_tier } : {}),
+      },
     }
 
     return {
@@ -1308,15 +1306,9 @@ export class OpenAIResponsesLanguageModel implements LanguageModelV3 {
             const providerMetadata: SharedV3ProviderMetadata = {
               copilot: {
                 responseId,
+                ...(logprobs.length > 0 ? { logprobs } : {}),
+                ...(serviceTier !== undefined ? { serviceTier } : {}),
               },
-            }
-
-            if (logprobs.length > 0) {
-              providerMetadata.copilot.logprobs = logprobs
-            }
-
-            if (serviceTier !== undefined) {
-              providerMetadata.copilot.serviceTier = serviceTier
             }
 
             controller.enqueue({

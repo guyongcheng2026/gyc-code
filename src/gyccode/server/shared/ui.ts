@@ -22,7 +22,8 @@ export function themePreloadHash(body: string) {
 
 export function cspForHtml(body: string) {
   const match = themePreloadHash(body)
-  return csp(match ? createHash("sha256").update(match[2]).digest("base64") : "")
+  const source = match?.[2]
+  return csp(source === undefined ? "" : createHash("sha256").update(source).digest("base64"))
 }
 
 function requestBody(request: HttpServerRequest.HttpServerRequest) {
