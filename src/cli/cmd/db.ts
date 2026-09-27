@@ -4,6 +4,7 @@ import { Database } from "@gyccode/core/database/database"
 import { Effect } from "effect"
 import { sql } from "drizzle-orm"
 import { effectCmd } from "../effect-cmd"
+import { logWarn } from "@core/observability/log-error"
 
 const QueryCommand = effectCmd({
   command: "query [query]",
@@ -327,6 +328,16 @@ const CacheCommand = effectCmd({
       const prev = i > 0 ? asc[i - 1] : undefined
       const cause = classifyMiss(prev, m)
       if (cause === "window-expiry") windowExpired++
+      if (cause === "partial-drift") {
+        const gap = Math.max(0, Math.min(prev!.total, m.total) - m.cached)
+        logWarn("cli.db.cache", "检测到前缀部分漂移", {
+          gapTokens: gap,
+          prevTotal: prev!.total,
+          curTotal: m.total,
+          curCached: m.cached,
+          time: m.time,
+        })
+      }
       const r = m.total > 0 ? ((m.cached / m.total) * 100).toFixed(1) : "0.0"
       const flag =
         cause === "window-expiry"
