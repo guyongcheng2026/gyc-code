@@ -16,12 +16,14 @@ export const CACHE_PREFIX_KEEP = 20
 const TAIL_KEEP = 5
 const PROTECTED_TOOLS = new Set(["skill"])
 
+// 最小结构接口：仅声明 microcompact 实际读取的字段，便于测试注入 mock。
+// summary 在 User 消息为对象、Assistant 为 boolean，故用 unknown 承接（仅做 === true 比较）。
 export interface WithParts {
   info: {
     role: string
     id: string
     time?: { created?: number; completed?: number }
-    summary?: boolean
+    summary?: unknown
   }
   parts: readonly SessionV1.Part[]
 }

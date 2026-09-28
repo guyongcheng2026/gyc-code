@@ -1,8 +1,7 @@
 /**
  * fallback 文本选择抽象。
  *
- * 与 Claude Code TUI 的 Selection 模块对齐：用户用鼠标拖选文本 → Ctrl+C
- * 复制到剪贴板 → Toast 通知。
+ * 用户用鼠标拖选文本 → Ctrl+C 复制到剪贴板 → Toast 通知。
  *
  * fallback 当前不支持原生 mouse drag（鼠标追踪虽启用但未做选择 UI），
  * 因此本模块提供两路：

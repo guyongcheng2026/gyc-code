@@ -12,7 +12,7 @@ import {
 } from "@gyccode/schema/workflow"
 import { DefinitionError, parseDefinition, transitionAfterStep } from "./state"
 import { Database } from "../database/database"
-import { SessionV2 } from "../session"
+import { SessionV2, type SessionSchema } from "../session"
 import { EventV2 } from "../event"
 import { FSUtil } from "../fs-util"
 import { Global } from "../global"
@@ -133,15 +133,17 @@ const layer = Layer.effect(
     const updateRun = (
       runID: string,
       patch: Partial<Pick<WorkflowRun, "status" | "currentStepIndex" | "steps" | "error" | "timeUpdated">>,
-    ) =>
+    ) => {
+      const { steps, ...rest } = patch
       // P1 修复：使用事务确保原子性，防止并发 update 间的部分写入
-      db.transaction((tx) =>
+      return db.transaction((tx) =>
         tx
           .update(WorkflowRunTable)
-          .set({ ...patch, time_updated: Date.now(), steps: patch.steps as any })
+          .set({ ...rest, time_updated: Date.now(), ...(steps !== undefined && { steps: [...steps] }) })
           .where(eq(WorkflowRunTable.id, runID))
           .run(),
       )
+    }
 
     const readRun = (runID: string) =>
       db.select().from(WorkflowRunTable).where(eq(WorkflowRunTable.id, runID)).limit(1).pipe(
@@ -155,7 +157,7 @@ const layer = Layer.effect(
         .pipe(Stream.runCollect, Effect.map((items) => items.some((item) => item.type === "session.next.step.failed")))
 
     const lastAssistantSummary = (sessionID: string) =>
-      sessions.context(sessionID as any).pipe(
+      sessions.context(sessionID as SessionSchema.ID).pipe(
         Effect.map((messages) => {
           for (let i = messages.length - 1; i >= 0; i--) {
             const message = messages[i]!
@@ -192,7 +194,7 @@ const layer = Layer.effect(
           step.prompt,
           step.verify ? `\n\n验证要求：${step.verify}\n完成后请说明验证结论与结果摘要。` : "",
         ].join("")
-        yield* sessions.prompt({ sessionID: run.sessionID as any, prompt: { text: promptText } })
+        yield* sessions.prompt({ sessionID: run.sessionID as SessionSchema.ID, prompt: { text: promptText } })
 
         const deadline = Date.now() + Duration.toMillis(STEP_TIMEOUT)
         // P0 修复：session 存活健康检查，防止永久等待
@@ -248,7 +250,7 @@ const layer = Layer.effect(
         }
       })
 
-    const patchSteps = (runID: string, run: WorkflowRun, steps: WorkflowRunStep[]) => updateRun(runID, { steps: steps as any })
+    const patchSteps = (runID: string, run: WorkflowRun, steps: WorkflowRunStep[]) => updateRun(runID, { steps })
 
     /** 驱动一次运行直至结束（进程内 fiber） */
     const drive = (runID: string) =>
@@ -328,7 +330,7 @@ const layer = Layer.effect(
             directory: run.directory,
             status: run.status,
             current_step_index: run.currentStepIndex,
-            steps: run.steps as any,
+steps: [...run.steps],
           }])
           if (!activeDrivers.has(runID)) {
             activeDrivers.add(runID)
@@ -349,7 +351,7 @@ const layer = Layer.effect(
           abortedRuns.add(runID)
           yield* updateRun(runID, { status: "aborted" })
           // 同步中断会话，让正在执行的步骤立即停下（否则要等步骤超时）
-          yield* sessions.interrupt(run.sessionID as any).pipe(Effect.catch(() => Effect.void))
+          yield* sessions.interrupt(run.sessionID as SessionSchema.ID).pipe(Effect.catch(() => Effect.void))
         }),
     })
   }),

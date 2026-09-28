@@ -86,7 +86,7 @@ export const SnowflakeCortexPlugin = define({
           ...evt.options,
           ...(token ? { apiKey: token } : {}),
           fetch: cortexFetch(upstream) as typeof fetch,
-        } as any)
+        } as unknown as Parameters<typeof mod.createOpenAICompatible>[0])
       }),
     )
   }),

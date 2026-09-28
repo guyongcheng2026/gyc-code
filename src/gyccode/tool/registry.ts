@@ -193,7 +193,9 @@ const layer = Layer.effect(
                   directory: ctx.directory,
                   worktree: ctx.worktree,
                 }
-                const result = yield* Effect.promise(() => def.execute(args as any, pluginCtx))
+                const result = yield* Effect.promise(() =>
+                  def.execute(args as unknown as Parameters<typeof def.execute>[0], pluginCtx),
+                )
                 // P1 修复：验证 result 类型，避免访问 undefined 属性
                 const isResultObject = (r: unknown): r is { output?: unknown; metadata?: unknown; attachments?: unknown; title?: string } =>
                   r !== null && typeof r === "object"

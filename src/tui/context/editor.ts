@@ -390,11 +390,12 @@ export function editorSelectionKey(selection: EditorSelection | undefined) {
 function openEditorSocket(connection: EditorConnection, WebSocketImpl: typeof WebSocket) {
   if (!connection.authToken) return new WebSocketImpl(connection.url)
 
+  // headers 仅 Node `ws` 实现支持；浏览器 WebSocket 构造器无此参数（互操作边界断言）
   return new WebSocketImpl(connection.url, {
     headers: {
       "x-claude-code-ide-authorization": connection.authToken,
     },
-  } as any)
+  } as unknown as ConstructorParameters<typeof WebSocket>[1])
 }
 
 function parseMessage(value: unknown) {

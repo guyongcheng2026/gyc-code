@@ -463,7 +463,7 @@ const layer = Layer.effect(
       const tbm = cfg.compaction?.time_based_microcompact
       let clearedAny = false
       if (tbm?.enabled !== false) {
-        const tSelected = selectTimeBasedParts(msgs as any, {
+        const tSelected = selectTimeBasedParts(msgs, {
           gapMinutes: tbm?.gap_minutes ?? 60,
           keepRecent: tbm?.keep_recent ?? 5,
         })
@@ -479,7 +479,7 @@ const layer = Layer.effect(
 
       const used = yield* estimate({ messages: msgs, model: input.model, anchored: true })
       const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
-      const selected = limit > 0 ? selectMicrocompactParts(msgs as any, used, limit) : []
+      const selected = limit > 0 ? selectMicrocompactParts(msgs, used, limit) : []
       if (selected.length > 0) {
         yield* Effect.logInfo("microcompacting", {
           "session.id": input.sessionID,

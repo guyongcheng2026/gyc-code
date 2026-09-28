@@ -54,12 +54,16 @@ export class FileLock {
         await writeFile(this.lockPath, lockId, { encoding: "utf-8", flag: "wx" })
         this.acquired = true
         return
-      } catch (error: any) {
+      } catch (error: unknown) {
         attempts++
-        if (error?.code === "EEXIST") {
+        const code =
+          error !== null && typeof error === "object" && "code" in error && typeof error.code === "string"
+            ? error.code
+            : undefined
+        if (code === "EEXIST") {
           // 被占用：先清理可能存在的陈旧锁（持有者崩溃/被杀遗留），再指数退避重试
           await this.clearIfStale()
-        } else if (error?.code === "ENOENT") {
+        } else if (code === "ENOENT") {
           // 锁文件父目录尚不存在（调用方普遍在锁内才 mkdir 目标目录）：
           // 先补建父目录再重试，否则会在这里空转到超时
           await mkdir(path.dirname(this.lockPath), { recursive: true }).catch(() => {})

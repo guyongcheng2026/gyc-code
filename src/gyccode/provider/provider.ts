@@ -1612,7 +1612,10 @@ const layer = Layer.effect(
 
           const options = yield* Effect.promise(() =>
             plugin.auth!.loader!(
-              () => bridge.promise(auth.get(providerID).pipe(Effect.orDie)) as any,
+              // 内部 auth.Info 与协议 v2 Auth 为不同结构：经 unknown 桥接（边界断言，优于裸 any）
+              (() => bridge.promise(auth.get(providerID).pipe(Effect.orDie))) as unknown as Parameters<
+                NonNullable<NonNullable<typeof plugin.auth>["loader"]>
+              >[0],
               toPublicInfo(base),
             ),
           )

@@ -5,7 +5,9 @@ import type {
   Plugin as PluginInstance,
   PluginModule,
   WorkspaceAdapter as PluginWorkspaceAdapter,
+  Config as PluginConfig,
 } from "@gyccode/protocol/plugin"
+import type { Event as ProtocolEvent } from "@gyccode/protocol/v1"
 import { Config } from "@/config/config"
 import { createGyccodeClient } from "@gyccode/protocol/v1"
 import { ServerAuth } from "@/server/auth"
@@ -239,7 +241,7 @@ const layer = Layer.effect(
         // Notify plugins of current config
         for (const hook of hooks) {
           yield* Effect.tryPromise({
-            try: () => Promise.resolve((hook as any).config?.(cfg)),
+            try: () => Promise.resolve(hook.config?.(cfg as unknown as PluginConfig)),
             catch: errorMessage,
           }).pipe(
             Effect.tapError((error) => Effect.logError("plugin config hook failed", { error })),
@@ -252,7 +254,8 @@ const layer = Layer.effect(
           return Effect.sync(() => {
             for (const hook of hooks) {
               // 单个插件 hook 抛错不应影响其他插件与事件分发，但需留痕
-              void hook["event"]?.({ event: { id: event.id, type: event.type, properties: event.data } as any })
+              // TODO: Implement proper event adapter from internal Event -> protocol Event
+              void hook.event?.({ event: { id: event.id, type: event.type, properties: event.data } as unknown as ProtocolEvent })
                 .catch((e: unknown) => {
                   logError("plugin.runtime", e)
                 })
@@ -288,7 +291,7 @@ const layer = Layer.effect(
       if (!name) return output
       const s = yield* InstanceState.get(state)
       for (const hook of s.hooks) {
-        const fn = hook[name] as any
+        const fn = hook[name] as ((input: Input, output: Output) => Promise<void>) | undefined
         if (!fn) continue
         // Isolate each hook: a throwing plugin must not break the rest of the chain or the caller.
         yield* Effect.tryPromise({

@@ -1,7 +1,7 @@
 /**
  * fallback Toast 通知系统。
  *
- * 与 Claude Code Toast 对齐：操作反馈 + 错误提示 + 成功确认。
+ * 操作反馈 + 错误提示 + 成功确认。
  * 非阻塞：Toast 入列后异步渲染，用户可继续操作。
  * 生命周期：入列 → 显示 duration ms → 淡出 → 出列。
  *
@@ -92,7 +92,7 @@ const TOAST_PREFIXES: Record<ToastVariant, string> = {
  * 将 ToastStore 的当前状态渲染为纯文本行，追加到 stderr。
  * 典型用法：每帧渲染结束时调用一次（plain TTY 或 fallback 调试）。
  *
- * 格式（对齐 Claude Code Toast 风格）：
+ * 格式：
  *  [i] Title (可选)
  *  [i] message text
  */

@@ -2,7 +2,7 @@
  * 终端能力检测。
  *
  * 三个核心信号：plain TTY、color depth、alternate screen 支持。
- * 决策策略与 Claude Code TUI 对齐：plain TTY 自适应降频 + 简化渲染，
+ * 决策策略：plain TTY 自适应降频 + 简化渲染，
  * 防止 CPU 100% 与低端终端卡顿。
  *
  * 触发 plain 模式的判定（任一满足）：
@@ -76,7 +76,7 @@ export function probeTerminal(input?: { env?: NodeJS.ProcessEnv; platform?: Node
 
 /**
  * 根据 probe 结果推荐渲染参数。
- * 与 Claude Code rendererConfig 对齐：plain → maxFps 10-15, 非 plain → 60。
+ * plain → maxFps 10-15, 非 plain → 60。
  */
 export interface RenderBudget {
 	/** 单 tick 内允许的帧数（0 = 不限） */

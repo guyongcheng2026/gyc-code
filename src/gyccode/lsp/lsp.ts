@@ -122,15 +122,15 @@ export interface Interface {
   readonly hasClients: (file: string) => Effect.Effect<boolean>
   readonly touchFile: (input: string, diagnostics?: "document" | "full") => Effect.Effect<void>
   readonly diagnostics: () => Effect.Effect<Record<string, LSPClient.Diagnostic[]>>
-  readonly hover: (input: LocInput) => Effect.Effect<any>
-  readonly definition: (input: LocInput) => Effect.Effect<any[]>
-  readonly references: (input: LocInput) => Effect.Effect<any[]>
-  readonly implementation: (input: LocInput) => Effect.Effect<any[]>
+  readonly hover: (input: LocInput) => Effect.Effect<any> // LSP hover 返回 Hover | null（非数组）；调用方 tool/lsp.ts 按 unknown[] 处理，改 unknown 会破坏赋值
+  readonly definition: (input: LocInput) => Effect.Effect<unknown[]>
+  readonly references: (input: LocInput) => Effect.Effect<unknown[]>
+  readonly implementation: (input: LocInput) => Effect.Effect<unknown[]>
   readonly documentSymbol: (uri: string) => Effect.Effect<(DocumentSymbol | Symbol)[]>
   readonly workspaceSymbol: (query: string) => Effect.Effect<Symbol[]>
-  readonly prepareCallHierarchy: (input: LocInput) => Effect.Effect<any[]>
-  readonly incomingCalls: (input: LocInput) => Effect.Effect<any[]>
-  readonly outgoingCalls: (input: LocInput) => Effect.Effect<any[]>
+  readonly prepareCallHierarchy: (input: LocInput) => Effect.Effect<unknown[]>
+  readonly incomingCalls: (input: LocInput) => Effect.Effect<unknown[]>
+  readonly outgoingCalls: (input: LocInput) => Effect.Effect<unknown[]>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/LSP") {}

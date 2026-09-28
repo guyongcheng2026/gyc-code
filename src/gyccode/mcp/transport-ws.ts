@@ -106,7 +106,9 @@ export class WSTransport implements Transport {
         // close 帧可能永远收不到（对端挂起）：兜底 terminate 并结束等待。
         try {
           socket.terminate()
-        } catch {}
+        } catch {
+          // terminate 失败仍要结束等待，避免 Promise 永不落定
+        }
         done()
       }, 1000)
       socket.once("close", done)
@@ -127,7 +129,9 @@ export class WSTransport implements Transport {
       // 回一个 JSON-RPC ParseError 后按协议用 1007 关闭。
       try {
         this.socket?.send(JSON.stringify({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "Parse error" } }))
-      } catch {}
+      } catch {
+        // 回帧失败也要继续走 close(1007)，否则请求方永久挂起
+      }
       this.socket?.close(1007, "invalid frame payload")
       return
     }

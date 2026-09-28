@@ -158,6 +158,7 @@ const layer = Layer.effect(
       if (list.includes("origin")) return "origin"
       if (list.length === 1) return list[0]
       if (list.includes("upstream")) return "upstream"
+      // 兜底取第一个 remote；空数组时返回 undefined，调用方以 if (remote) 处理
       return list[0]
     })
 

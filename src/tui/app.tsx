@@ -401,10 +401,14 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           const restoreTerminalAndExit = (code: number) => {
             try {
               win32FlushInputBuffer()
-            } catch {}
+            } catch {
+              // 清理尽力而为：失败不阻断退出
+            }
             try {
               destroyRenderer(renderer)
-            } catch {}
+            } catch {
+              // 清理尽力而为：失败不阻断退出
+            }
             process.exit(code)
           }
           // 运行中原生崩溃的降级通道：清场后进入纯 JS 安全模式展示崩溃摘要，
@@ -428,14 +432,20 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               .catch(() => {})
             try {
               win32FlushInputBuffer()
-            } catch {}
+            } catch {
+              // 清理尽力而为：失败不阻断退出
+            }
             try {
               destroyRenderer(renderer)
-            } catch {}
+            } catch {
+              // 清理尽力而为：失败不阻断退出
+            }
             try {
               const { runFallbackSafeMode } = await import("./fallback/safe-mode")
               await runFallbackSafeMode({ error })
-            } catch {}
+            } catch {
+              // 降级本身失败仍要退出：已在下方 process.exit 收尾
+            }
             process.exit(code)
           }
           const onUncaughtException = (error: Error) => {
@@ -518,7 +528,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           const runGc = () => {
             try {
               ;(globalThis as { gc?: () => void }).gc?.()
-            } catch {}
+            } catch {
+              // gc 未暴露或运行时拒绝：静默跳过
+            }
           }
           // critical 级堆快照：受 GYCCODE_AUTO_HEAP_SNAPSHOT 开关控制，
           // 仅保留最新 2 份，防止长跑反复触发写满磁盘
@@ -542,7 +554,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   }),
                 )
                 .catch(() => {})
-            } catch {}
+            } catch {
+              // 堆快照为诊断旁路：写失败不影响主流程
+            }
           }
           const meter = setInterval(() => {
             try {
@@ -574,7 +588,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   try {
                     const s = renderer.getStats()
                     statsLine = ` rendererStats fps=${s.fps.toFixed(1)} avgFrameMs=${s.averageFrameTime.toFixed(3)} frames=${s.frameCount}`
-                  } catch {}
+                  } catch {
+                    // 渲染器统计为可选诊断：失败仅省略该字段
+                  }
                 }
                 void appendFile(
                   join(global.log, "gyccode.log"),
@@ -626,7 +642,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 )
                 try {
                   destroyRenderer(renderer)
-                } catch {}
+                } catch {
+                  // 退出前清理尽力而为：失败不阻断退出
+                }
               } else if (systemFatal) {
                 // 系统可用内存紧张：连续多轮确认才退出，防启动瞬态误杀
                 fatalStreak += 1
@@ -659,7 +677,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     )
                     try {
                       destroyRenderer(renderer)
-                    } catch {}
+                    } catch {
+                      // 退出前清理尽力而为：失败不阻断退出
+                    }
                   } else {
                     fatalStreak = 0
                     void appendFile(
@@ -698,7 +718,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 ).catch(() => {})
                 runGc()
               }
-            } catch {}
+            } catch (meterErr) {
+              // 监控回调自身出错：静默跳过本轮采样，避免监控逻辑反噬进程；
+              // 连续失败会在下轮正常进入降级/退出分支
+              if (process.env.GYCCODE_DEBUG_METER === "1") {
+                process.stderr.write(`[meter] sample failed: ${String(meterErr)}\n`)
+              }
+            }
           }, lowMemMachine ? 10_000 : 30_000)
           meter.unref()
           return () => clearInterval(meter)

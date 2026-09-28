@@ -187,17 +187,20 @@ const layer = Layer.effect(
         const pkg = yield* afs.readJson(path.join(dir, "package.json")).pipe(Effect.orElseSucceed(() => ({})))
         const lock = yield* afs.readJson(path.join(dir, "package-lock.json")).pipe(Effect.orElseSucceed(() => ({})))
 
-        const pkgAny = pkg as any
-        const lockAny = lock as any
+        type DepSet = Record<string, unknown> | undefined
+        type PkgJson = { dependencies?: DepSet; devDependencies?: DepSet; peerDependencies?: DepSet; optionalDependencies?: DepSet }
+        type LockJson = { packages?: Record<string, { dependencies?: DepSet; devDependencies?: DepSet; peerDependencies?: DepSet; optionalDependencies?: DepSet }> }
+        const pkgTyped = pkg as PkgJson
+        const lockTyped = lock as LockJson
         const declared = new Set([
-          ...Object.keys(pkgAny?.dependencies || {}),
-          ...Object.keys(pkgAny?.devDependencies || {}),
-          ...Object.keys(pkgAny?.peerDependencies || {}),
-          ...Object.keys(pkgAny?.optionalDependencies || {}),
+          ...Object.keys(pkgTyped.dependencies || {}),
+          ...Object.keys(pkgTyped.devDependencies || {}),
+          ...Object.keys(pkgTyped.peerDependencies || {}),
+          ...Object.keys(pkgTyped.optionalDependencies || {}),
           ...(input?.add || []).map((pkg) => pkg.name),
         ])
 
-        const root = lockAny?.packages?.[""] || {}
+        const root = lockTyped.packages?.[""] || {}
         const locked = new Set([
           ...Object.keys(root?.dependencies || {}),
           ...Object.keys(root?.devDependencies || {}),

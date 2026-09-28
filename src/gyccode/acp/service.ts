@@ -956,10 +956,11 @@ function sendUsageUpdate(
   })
 }
 
-function selectVariant(snapshot: Directory.Snapshot, model: Directory.DefaultModel) {
+function selectVariant(snapshot: Directory.Snapshot, model: Directory.DefaultModel): string | undefined {
   const variants = Directory.variants(snapshot, model)
   if (!variants) return
   if (variants.default) return "default"
+  // 空对象时 Object.keys(...)[0] 为 undefined：无变体是合法状态，调用方以条件展开处理
   return Object.keys(variants)[0]
 }
 
@@ -1041,7 +1042,7 @@ function sendAvailableCommands(
 ) {
   if (!connection) return Effect.void
   return Effect.sync(() => {
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       void connection.sessionUpdate({
         sessionId,
         update: {
@@ -1053,6 +1054,8 @@ function sendAvailableCommands(
         },
       }).catch((error) => logError("acp.available_commands", error))
     }, 0)
+    // 0ms 通知定时器不阻止进程退出
+    timer.unref?.()
   })
 }
 

@@ -49,6 +49,7 @@ export const { use: useKV, provider: KVProvider } = createSimpleContext({
           },
         ] as const
       },
+      // any 为 JSON 泛型存储所必需：调用方以 defaultValue 推断返回类型（unknown 会迫使全部调用方窄化）
       get(key: string, defaultValue?: any) {
         return store[key] ?? defaultValue
       },

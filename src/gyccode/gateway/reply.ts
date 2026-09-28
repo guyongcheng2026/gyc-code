@@ -105,7 +105,44 @@ function truncate(text: string, limit = REPLY_MAX_CHARS): string {
 }
 
 /** 互斥任务执行：同一时刻仅允许一个 gyc run 子进程。 */
-let taskRunning = false
+class TaskMutex {
+  private queue: Array<() => void> = []
+  private locked = false
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const execute = async () => {
+        this.locked = true
+        try {
+          const result = await fn()
+          resolve(result)
+        } catch (e) {
+          reject(e)
+        } finally {
+          this.locked = false
+          this.next()
+        }
+      }
+
+      if (this.locked) {
+        this.queue.push(execute)
+      } else {
+        execute()
+      }
+    })
+  }
+
+  private next() {
+    const next = this.queue.shift()
+    if (next) next()
+  }
+
+  isLocked(): boolean {
+    return this.locked
+  }
+}
+
+const taskMutex = new TaskMutex()
 
 interface TaskOutcome {
   stdout: string
@@ -216,17 +253,13 @@ async function spawnTask(description: string): Promise<TaskOutcome> {
 }
 
 async function runTask(description: string): Promise<string> {
-  if (taskRunning) return "当前已有任务在执行中，请稍后再试。完成后将自动回报结果。"
-  taskRunning = true
-  const started = Date.now()
-  try {
+  return taskMutex.run(async () => {
+    const started = Date.now()
     const { stdout, stderr, exitCode } = await spawnTask(description)
     const elapsed = Math.round((Date.now() - started) / 1000)
     const body = stdout.trim() || stderr.trim() || "(无输出)"
     return truncate(`任务${exitCode === 0 ? "完成" : `退出码 ${exitCode}`}，耗时 ${elapsed}s：\n${body}`)
-  } finally {
-    taskRunning = false
-  }
+  })
 }
 
 function gatewayStatus(model: ModelChoice): string {
@@ -234,7 +267,7 @@ function gatewayStatus(model: ModelChoice): string {
   return [
     `网关状态：运行中（PID ${process.pid}，已运行 ${uptimeMin} 分钟）`,
     `对话模型：${model.providerID}/${model.modelID}（与 gyc tui 同源）`,
-    `任务通道：/run <描述> 触发真实执行；当前${taskRunning ? "有任务执行中" : "空闲"}`,
+    `任务通道：/run <描述> 触发真实执行；当前${taskMutex.isLocked() ? "有任务执行中" : "空闲"}`,
   ].join("\n")
 }
 
