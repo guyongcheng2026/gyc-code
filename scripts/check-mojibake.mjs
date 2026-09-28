@@ -3,11 +3,19 @@
 //   bun scripts/check-mojibake.mjs <file...>   检查指定文件
 //   bun scripts/check-mojibake.mjs --staged    检查 git 暂存区文件（pre-commit 用）
 //   bun scripts/check-mojibake.mjs             检查整个 src
-// 检出任意乱码行时以退出码 1 失败，错误信息列出 文件:行号。
+// 检出任意乱码行或非 UTF-8 文件时以退出码 1 失败，错误信息列出 文件:行号。
+//
+// 两类检查:
+// 1) 严格 UTF-8 字节校验：fatal 解码失败 = 文件根本不是 UTF-8（如 GBK 原样
+//    存盘）。这类文件读进来全是 U+FFFD，分隔符/关键字静默损坏（memory-bridge
+//    的 "§" 分隔符曾因此失效，跨会话记忆从不切分）。
+// 2) GBK 双重编码乱码：字节本身是合法 UTF-8，但内容被编码了两遍（见下）。
 import iconv from "iconv-lite"
 import { readFileSync, readdirSync, statSync } from "fs"
 import { join, extname } from "path"
 import { execSync } from "child_process"
+
+const strictUtf8 = new TextDecoder("utf-8", { fatal: true })
 
 // GBK 双重编码乱码特征:
 // 1) Unicode 私有区（GBK→Unicode 映射的 PUA 残留）——正常简体中文注释绝不含
@@ -41,13 +49,20 @@ function isMojibakeLine(line) {
 
 function checkFile(path) {
   const hits = []
-  let text
+  let buffer
   try {
-    text = readFileSync(path, "utf-8")
+    buffer = readFileSync(path)
   } catch {
     return hits // 读不了的文件（二进制等）跳过
   }
-  const lines = text.split("\n")
+  // 严格 UTF-8 字节校验：fatal 解码失败 = 文件不是 UTF-8（GBK/其他编码存盘）
+  try {
+    strictUtf8.decode(buffer)
+  } catch {
+    hits.push(`${path}:1 (non-UTF8 编码，疑似 GBK，需转码为 UTF-8)`)
+    return hits
+  }
+  const lines = buffer.toString("utf-8").split("\n")
   for (let i = 0; i < lines.length; i++) {
     if (isMojibakeLine(lines[i])) hits.push(`${path}:${i + 1}`)
   }

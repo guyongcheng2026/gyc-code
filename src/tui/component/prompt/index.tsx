@@ -84,7 +84,7 @@ function pastedFilepath(value: string, platform: string) {
   if (raw.startsWith("file://")) {
     try {
       return fileURLToPath(raw)
-    } catch {}
+    } catch { /* 非法 file:// URL：落到下方按原样字符串处理 */ }
   }
   if (platform === "win32") return raw
   return raw.replace(/\\(.)/g, "$1")

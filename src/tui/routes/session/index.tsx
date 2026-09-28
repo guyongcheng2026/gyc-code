@@ -330,7 +330,7 @@ export function Session() {
         // (which will be non-interactive)
         try {
           await sync.bootstrap({ fatal: false })
-        } catch {}
+        } catch { /* 非致命：workspace 可能已删除，会话降级为不可交互 */ }
       }
       editor.reconnect(result.data.directory)
       await sync.session.sync(sessionID)

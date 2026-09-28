@@ -16,11 +16,19 @@ export function hostnameOfHostHeader(host: string | undefined): string | undefin
   return colon === -1 ? host : host.slice(0, colon)
 }
 
-function isLoopbackHostname(hostname: string) {
+// 严格 127.0.0.0/8 校验：不能用 startsWith("127.")，否则 "127.evil.com" /
+// "127.0.0.1.evil.com" 这类攻击者 DNS 名（可解析到任意地址）也会被判为回环。
+const isIpv4Loopback = (value: string): boolean => {
+  const match = /^127\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(value)
+  if (!match) return false
+  return match.slice(1).every((part) => Number(part) <= 255)
+}
+
+export function isLoopbackHostname(hostname: string) {
   const value = hostname.toLowerCase()
   return (
     value === "localhost" ||
-    value.startsWith("127.") ||
+    isIpv4Loopback(value) ||
     value === "::1" ||
     value === "[::1]" ||
     value === "[::ffff:127.0.0.1]" ||

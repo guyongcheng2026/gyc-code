@@ -22,6 +22,12 @@ jobs:
       - name: Type check
         run: bun x tsc --noEmit -p tsconfig.json
 
+      - name: Encoding check (strict UTF-8 + mojibake)
+        run: bun scripts/check-mojibake.mjs
+
+      - name: Bug pattern check (empty catch / self-recursion)
+        run: bun scripts/check-bug-patterns.mjs
+
       - name: Build
         run: bun run build
 

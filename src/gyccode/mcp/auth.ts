@@ -126,8 +126,28 @@ type AuthData = Record<string, Entry>
 const filepath = path.join(Global.Path.data, "mcp-auth.json")
 const lockKey = `mcp-auth:${filepath}`
 
+/**
+ * 逐条解密已解码的凭据数据。单条解密失败（跨机器/跨账户拷贝的 DPAPI 密文、
+ * crypt32 不可用等）时保留原条目并记录名称，绝不让局部失败升级为整个读取的
+ * defect；原条目保留在文件中，重认证/刷新令牌时自愈。
+ */
+export function unprotectAll(decoded: AuthData): { data: AuthData; undecryptable: string[] } {
+  const data: AuthData = {}
+  const undecryptable: string[] = []
+  for (const [name, entry] of Object.entries(decoded)) {
+    try {
+      data[name] = unprotectEntry(entry)
+    } catch {
+      data[name] = entry
+      undecryptable.push(name)
+    }
+  }
+  return { data, undecryptable }
+}
+
 // OAuth 令牌/PKCE verifier/clientSecret 不应明文落盘（受同用户其他进程、备份与云同步读取）。
-// 复用凭据模块的加密通道：Windows 走 DPAPI，非 Windows 为恒等函数（见 core/util/dpapi）。
+// 复用凭据模块的加密通道：Windows 走 DPAPI，非 Windows 用本机密钥 AES-GCM（见 core/util/dpapi）；
+// 无前缀的历史明文原样读取，下次写入时自动加密（平滑迁移）。
 const protectEntry = (entry: Entry): Entry => ({
   ...entry,
   ...(entry.tokens
@@ -206,9 +226,12 @@ const layer = Layer.effect(
       if (Option.isNone(raw)) return { data: {} as AuthData, trusted: true }
       const decoded = decodeAuthData(raw.value)
       if (Option.isNone(decoded)) return { data: {} as AuthData, trusted: false }
-      const data: AuthData = Object.fromEntries(
-        Object.entries(decoded.value).map(([name, entry]) => [name, unprotectEntry(entry)]),
-      )
+      const { data, undecryptable } = unprotectAll(decoded.value)
+      if (undecryptable.length > 0) {
+        yield* Effect.logWarning("McpAuth: 部分凭据无法解密，已保留原条目待重新认证", {
+          servers: undecryptable.join(","),
+        })
+      }
       return { data, trusted: true }
     })
 

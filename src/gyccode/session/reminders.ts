@@ -13,6 +13,38 @@ import PLAN_MODE from "./prompt/plan-mode.txt"
 import PROMPT_COMPOSE from "./prompt/compose.txt"
 import { ComposeSkill } from "../skill/compose"
 
+/**
+ * 向 compose 会话的首条用户消息注入系统提示（纯函数，无服务依赖，便于测试）。
+ * 注入只发生一次：按前缀去重，避免同一消息在长会话中反复累积。
+ */
+export function injectComposeReminder(messages: SessionV1.WithParts[]): SessionV1.WithParts[] {
+  const userMessage = messages.findLast((msg) => msg.info.role === "user")
+  if (!userMessage) return messages
+  const composeMessage = messages.find(
+    (msg) => msg.info.role === "user" && msg.info.agent === "compose",
+  )
+  if (!composeMessage) return messages
+  const injected = composeMessage.parts.some(
+    (part) =>
+      part.type === "text" &&
+      part.synthetic === true &&
+      typeof part.text === "string" &&
+      part.text.startsWith(PROMPT_COMPOSE.trimStart().slice(0, 32)),
+  )
+  if (!injected) {
+    const skills = ComposeSkill.composeSkillsBlock()
+    composeMessage.parts.unshift({
+      id: PartID.ascending(),
+      messageID: composeMessage.info.id,
+      sessionID: composeMessage.info.sessionID,
+      type: "text",
+      text: skills ? `${PROMPT_COMPOSE}\n\n${skills}` : PROMPT_COMPOSE,
+      synthetic: true,
+    })
+  }
+  return messages
+}
+
 export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   messages: SessionV1.WithParts[]
   agent: Agent.Info
@@ -25,32 +57,7 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   if (!userMessage) return input.messages
 
   if (input.agent.name === "compose") {
-    // 注入到 compose 会话首条用户消息，且只注入一次：
-    // 前缀保持稳定，避免同一消息在长会话中反复累积（借鉴参考实现做法并去重）。
-    const composeMessage = input.messages.find(
-      (msg) => msg.info.role === "user" && msg.info.agent === "compose",
-    )
-    if (composeMessage) {
-      const injected = composeMessage.parts.some(
-        (part) =>
-          part.type === "text" &&
-          part.synthetic === true &&
-          typeof part.text === "string" &&
-          part.text.startsWith(PROMPT_COMPOSE.trimStart().slice(0, 32)),
-      )
-      if (!injected) {
-        const skills = ComposeSkill.composeSkillsBlock()
-        composeMessage.parts.unshift({
-          id: PartID.ascending(),
-          messageID: composeMessage.info.id,
-          sessionID: composeMessage.info.sessionID,
-          type: "text",
-          text: skills ? `${PROMPT_COMPOSE}\n\n${skills}` : PROMPT_COMPOSE,
-          synthetic: true,
-        })
-      }
-    }
-    return input.messages
+    return injectComposeReminder(input.messages)
   }
 
   if (!flags.experimentalPlanMode) {
