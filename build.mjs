@@ -95,6 +95,25 @@ const SHARED = {
     "venice-ai-sdk-provider",
     "ai-gateway-provider",
     "@aws-sdk/credential-providers",
+    "google-auth-library",
+    // ── external 的判据（2026-09-29 实测得出，勿凭直觉套用）──
+    // external 把依赖从「打包期一次性解析」换成「运行时从 node_modules 解析」：
+    //   · 启动路径上**不加载**的依赖 → 净收益（省体积、零运行时成本）
+    //   · 启动路径上**会加载**的依赖 → 净损失（I/O 次数增加超过省下的解析时间）
+    // 因此以下三项虽同为「动态 import」，却**刻意不** external：
+    //   @npmcli/arborist、@npmcli/config —— npm-config.ts 顶部是静态 import，
+    //     且 arborist 单独 require 约 4.9s；
+    //   gitlab-ai-provider —— provider.ts:98 的工厂表在 Provider.list 时被遍历，
+    //     实测单项 external 就让冷启动 +650ms（1230ms → 1880ms）。
+    //
+    // 反之，以下 OpenTelemetry 链路可以 external：otlp.ts:58
+    // `if (!endpoint) return Layer.empty` —— 未配置端点时根本不 import，
+    // 连带 otlp-transformer(870KB) 与 semantic-conventions(317KB) 不再进包。
+    "@opentelemetry/exporter-trace-otlp-http",
+    "@opentelemetry/sdk-trace-base",
+    "@opentelemetry/sdk-trace-node",
+    "@opentelemetry/context-async-hooks",
+    "@effect/opentelemetry",
   ],
   define: {
     GYCCODE_VERSION: JSON.stringify(JSON.parse(readFileSync("package.json", "utf-8")).version),
