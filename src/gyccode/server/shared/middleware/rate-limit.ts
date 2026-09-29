@@ -29,7 +29,21 @@ interface Bucket {
 
 const buckets = new Map<string, Bucket>()
 
-function take(key: string, authenticated: boolean): boolean {
+/** 桶参数导出供测试断言（生产代码不读这些常量）。 */
+export const RATE_LIMIT_PARAMS = {
+  CAPACITY,
+  NEW_KEY_TOKENS,
+  REFILL_PER_SECOND,
+  MAX_BUCKETS,
+} as const
+
+/** 仅测试用：清空所有桶，避免用例间互相污染。 */
+export const __resetBucketsForTest = () => buckets.clear()
+
+/** 仅测试用：读取当前桶数量。 */
+export const __bucketCountForTest = () => buckets.size
+
+export function take(key: string, authenticated: boolean): boolean {
   const now = Date.now()
   if (buckets.size >= MAX_BUCKETS) {
     // Map 迭代按插入序，首个即最久未触碰的桶（每次 take 都会 set 刷新位置）。
@@ -55,7 +69,7 @@ function take(key: string, authenticated: boolean): boolean {
   return allowed
 }
 
-function credentialsFromRequest(request: HttpServerRequest.HttpServerRequest): { username: string; password: string } {
+export function credentialsFromRequest(request: HttpServerRequest.HttpServerRequest): { username: string; password: string } {
   const match = /^Basic\s+([A-Za-z0-9+/=]+)$/i.exec(request.headers.authorization ?? "")
   if (!match) return { username: "anonymous", password: "" }
   try {

@@ -39,7 +39,11 @@ function safeEqual(a: string, b: string): boolean {
 
 export function authorized(credentials: DecodedCredentials, config: Info) {
   return (
+    // 空口令必须拒绝：否则 password=Some("") 时，任何提交空口令的请求都会被放行。
+    // required() 会把空口令视为"未启用"，但 authorized 是最后一道闸门，
+    // 自身也必须 fail-closed，不能依赖调用方先判断 required。
     Option.isSome(config.password) &&
+    config.password.value !== "" &&
     safeEqual(credentials.username, config.username) &&
     safeEqual(Redacted.value(credentials.password), config.password.value)
   )
