@@ -142,7 +142,22 @@ function formatEditorContext(selection: EditorSelection) {
   return `<system-reminder>${ranges.join("\n")} This may or may not be relevant to the current task.</system-reminder>\n`
 }
 
-let stashed: { prompt: PromptInfo; cursor: number } | undefined
+// 草稿暂存：Prompt 卸载时保存、重挂载时恢复，避免切走再切回丢失未提交输入。
+// 按 sessionID 键控：模块级单一槽位会让 A 会话的草稿被 B 会话的实例取走
+// （切换会话期间两个实例的 onCleanup/onMount 存在交叠窗口）。
+// 设容量上限：长时间使用会不断累积会话键，无界增长即为内存泄漏。
+const STASH_LIMIT = 16
+const stashed = new Map<string, { prompt: PromptInfo; cursor: number }>()
+
+function stashDraft(key: string, value: { prompt: PromptInfo; cursor: number }) {
+  stashed.delete(key)
+  stashed.set(key, value)
+  // Map 保持插入序，最早插入的即最久未触碰
+  if (stashed.size > STASH_LIMIT) {
+    const oldest = stashed.keys().next()
+    if (!oldest.done) stashed.delete(oldest.value)
+  }
+}
 
 export function Prompt(props: PromptProps) {
   let input: TextareaRenderable
@@ -659,8 +674,10 @@ title: "打开编辑器",
   }
 
   onMount(() => {
-    const saved = stashed
-    stashed = undefined
+    // 无 sessionID（如新会话）时不参与暂存，避免不同会话共用同一槽位
+    const key = props.sessionID
+    const saved = key === undefined ? undefined : stashed.get(key)
+    if (key !== undefined) stashed.delete(key)
     if (store.prompt.input) return
     if (saved && saved.prompt.input) {
       input.setText(saved.prompt.input)
@@ -672,8 +689,8 @@ title: "打开编辑器",
 
   onCleanup(() => {
     if (interruptResetTimer) clearTimeout(interruptResetTimer)
-    if (store.prompt.input) {
-      stashed = { prompt: unwrap(store.prompt), cursor: input.cursorOffset }
+    if (store.prompt.input && props.sessionID !== undefined) {
+      stashDraft(props.sessionID, { prompt: unwrap(store.prompt), cursor: input.cursorOffset })
     }
     setInputTarget(undefined)
     props.ref?.(undefined)

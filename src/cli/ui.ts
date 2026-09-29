@@ -17,7 +17,7 @@ export class CancelledError extends Schema.TaggedErrorClass<CancelledError>()("U
 
 // 样式常量全部取自"东京夜"主题（对齐 gyc tui：src/tui/theme/assets/tokyonight.json）
 // TEXT_NORMAL 语义为"恢复正文样式"：重置修饰并回到主题正文色
-// pi agent 兼容 token 语义：工具标题加粗、工具输出弱化、diff 增删着色
+// 兼容主流终端 token 语义：工具标题加粗、工具输出弱化、diff 增删着色
 export const Style = {
   TEXT_HIGHLIGHT: TokyoNight.primary,
   TEXT_HIGHLIGHT_BOLD: TokyoNight.primary + Typography.bold,

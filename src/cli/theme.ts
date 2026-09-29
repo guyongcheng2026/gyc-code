@@ -1,6 +1,6 @@
-// CLI 终端主题 —— pi agent 兼容 token 体系，默认"东京夜"（Tokyo Night）
+// CLI 终端主题 —— 兼容主流终端 token 体系，默认"东京夜"（Tokyo Night）
 //
-// 对齐口径（参考 pi agent @earendil-works/pi-coding-agent theme.ts）：
+// 对齐口径（参考 @earendil-works/pi-coding-agent theme.ts 的 token 语义）：
 //   - token 命名与语义对齐 pi（accent/muted/dim/text/toolTitle/toolOutput/md*/toolDiff* 等）
 //   - fg() 只重置前景色（ESC[39m），bg() 只重置背景色（ESC[49m），不吞掉排印修饰
 //   - 真彩（COLORTERM）与 256 色终端自适应；NO_COLOR 或非 TTY 输出自动退化为纯文本

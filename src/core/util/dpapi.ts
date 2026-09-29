@@ -9,9 +9,9 @@
  */
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto"
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 import { platform } from "node:process"
+import { gycHome } from "../global/gyc-home"
 
 export const DPAPI_PREFIX = "dpapi.v1:"
 
@@ -23,8 +23,9 @@ export const FALLBACK_PREFIX = "fallback.v1:"
 let fallbackKeyCache: Buffer | null | undefined
 
 function fallbackKeyPath() {
-  const base = process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || join(homedir(), ".gyc")
-  return join(base, "secret.key")
+  // 独立于 memory/：记忆目录常被备份/云同步工具整体纳入，密钥与之同目录
+  // 会随备份一起泄漏，拿到密文与密钥即可离线解密所有凭据。
+  return join(gycHome(), "credentials", "secret.key")
 }
 
 function loadFallbackKey(): Buffer | undefined {

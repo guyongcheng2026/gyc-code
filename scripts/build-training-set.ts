@@ -12,13 +12,10 @@ import {
   computeQualityScore,
 } from "../src/gyccode/memory/training-pipeline"
 import path from "path"
-import { homedir } from "os"
 import { mkdir, writeFile } from "fs/promises"
+import { gycMemoryHome } from "../src/gyccode/memory/home"
 
-const MEMORY_ROOT = path.join(
-  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
-  "memory"
-)
+const MEMORY_ROOT = path.join(gycMemoryHome(), "memory")
 
 function printUsage(): void {
   console.log(`

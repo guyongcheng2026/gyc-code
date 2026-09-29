@@ -7,11 +7,11 @@ import { setTimeout as sleep } from "node:timers/promises"
 import { createServer } from "http"
 import { OpenAIWebSocketPool } from "./ws-pool"
 import { OauthCallbackPage } from "@gyccode/core/oauth/page"
+import { openAiCallbackPort } from "@gyccode/core/oauth/port"
 
 const CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const ISSUER = "https://auth.openai.com"
 const CODEX_API_ENDPOINT = "https://chatgpt.com/backend-api/codex/responses"
-const OAUTH_PORT = 1455
 const OAUTH_POLLING_SAFETY_MARGIN_MS = 3000
 const ALLOWED_MODELS = new Set(["gpt-5.5", "gpt-5.3-codex-spark", "gpt-5.4", "gpt-5.4-mini"])
 const DISALLOWED_MODELS = new Set(["gpt-5.5-pro"])
@@ -138,10 +138,17 @@ interface PendingOAuth {
 }
 
 let oauthServer: ReturnType<typeof createServer> | undefined
-let pendingOAuth: PendingOAuth | undefined
+// 按 state 键控而非单一全局槽位：并发两次授权时后者会覆盖前者，
+// 导致首个等待者的 Promise 永久悬挂（超时回调与回调处理器读的都是这个全局量）。
+const pendingOAuths = new Map<string, PendingOAuth>()
+// 复用同一回调端口的引用计数：后来者 stopOAuthServer 时不得关掉先来者仍在用的服务器。
+let oauthServerRefs = 0
 
 async function startOAuthServer(): Promise<{ port: number; redirectUri: string }> {
+  const OAUTH_PORT = openAiCallbackPort()
   if (oauthServer) {
+    // 复用既有服务器：同样计入引用，双方各自 stop 时才真正关闭
+    oauthServerRefs++
     return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
   }
 
@@ -154,10 +161,14 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
       const error = url.searchParams.get("error")
       const errorDescription = url.searchParams.get("error_description")
 
+      // 按 state 定位本次授权对应的等待者：并发授权时各凭各的 state 结算，
+      // 不再互相覆盖或误杀。
+      const current = state === null ? undefined : pendingOAuths.get(state)
+
       if (error) {
         const errorMsg = errorDescription || error
-        pendingOAuth?.reject(new Error(errorMsg))
-        pendingOAuth = undefined
+        current?.reject(new Error(errorMsg))
+        if (current !== undefined) pendingOAuths.delete(state as string)
         res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" })
         res.end(renderOAuthError(errorMsg))
         return
@@ -165,24 +176,21 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
 
       if (!code) {
         const errorMsg = "Missing authorization code"
-        pendingOAuth?.reject(new Error(errorMsg))
-        pendingOAuth = undefined
+        current?.reject(new Error(errorMsg))
+        if (current !== undefined) pendingOAuths.delete(state as string)
         res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" })
         res.end(renderOAuthError(errorMsg))
         return
       }
 
-      if (!pendingOAuth || state !== pendingOAuth.state) {
+      if (current === undefined) {
         const errorMsg = "Invalid state - potential CSRF attack"
-        pendingOAuth?.reject(new Error(errorMsg))
-        pendingOAuth = undefined
         res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" })
         res.end(renderOAuthError(errorMsg))
         return
       }
 
-      const current = pendingOAuth
-      pendingOAuth = undefined
+      pendingOAuths.delete(state as string)
 
       exchangeCodeForTokens(code, `http://localhost:${OAUTH_PORT}/auth/callback`, current.pkce)
         .then((tokens) => current.resolve(tokens))
@@ -194,8 +202,11 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
     }
 
     if (url.pathname === "/cancel") {
-      pendingOAuth?.reject(new Error("Login cancelled"))
-      pendingOAuth = undefined
+      // 取消是全局动作：终止当前所有等待中的授权
+      for (const pending of [...pendingOAuths.values()]) {
+        pending.reject(new Error("Login cancelled"))
+      }
+      pendingOAuths.clear()
       res.writeHead(200)
       res.end("Login cancelled")
       return
@@ -206,19 +217,26 @@ async function startOAuthServer(): Promise<{ port: number; redirectUri: string }
   })
 
   await new Promise<void>((resolve, reject) => {
-    oauthServer!.listen(OAUTH_PORT, () => {
+    const server = oauthServer
+    server!.listen(OAUTH_PORT, () => {
       resolve()
     })
-    oauthServer!.on("error", (err) => {
-      oauthServer = undefined
+    // once 而非 on：服务器存续期内的任一 socket error 都应把全局句柄清掉，
+    // 否则后续 startOAuthServer 会命中"已存在"分支返回一个其实已死的端口。
+    server!.once("error", (err) => {
+      if (oauthServer === server) oauthServer = undefined
       reject(err)
     })
   })
 
+  oauthServerRefs++
   return { port: OAUTH_PORT, redirectUri: `http://localhost:${OAUTH_PORT}/auth/callback` }
 }
 
 function stopOAuthServer() {
+  // 引用计数：并发授权共享同一回调端口，后来者释放时不得关掉先来者仍在用的服务器。
+  if (oauthServerRefs > 0) oauthServerRefs--
+  if (oauthServerRefs > 0) return
   if (oauthServer) {
     oauthServer.close(() => {})
     oauthServer = undefined
@@ -227,28 +245,26 @@ function stopOAuthServer() {
 
 function waitForOAuthCallback(pkce: PkceCodes, state: string): Promise<TokenResponse> {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => {
-        if (pendingOAuth) {
-          pendingOAuth = undefined
-          reject(new Error("OAuth callback timeout - authorization took too long"))
-        }
-      },
-      5 * 60 * 1000,
-    ) // 5 minute timeout
+    // 超时回调只处置自己这一条记录，绝不读全局：否则并发下会被后来者
+    // 覆盖导致既不 resolve 也不 reject，调用方永久挂起。
+    const timeout = setTimeout(() => {
+      if (pendingOAuths.delete(state)) {
+        reject(new Error("OAuth callback timeout - authorization took too long"))
+      }
+    }, 5 * 60 * 1000) // 5 minute timeout
 
-    pendingOAuth = {
+    const settle = (fn: () => void) => {
+      clearTimeout(timeout)
+      pendingOAuths.delete(state)
+      fn()
+    }
+
+    pendingOAuths.set(state, {
       pkce,
       state,
-      resolve: (tokens) => {
-        clearTimeout(timeout)
-        resolve(tokens)
-      },
-      reject: (error) => {
-        clearTimeout(timeout)
-        reject(error)
-      },
-    }
+      resolve: (tokens) => settle(() => resolve(tokens)),
+      reject: (error) => settle(() => reject(error)),
+    })
   })
 }
 

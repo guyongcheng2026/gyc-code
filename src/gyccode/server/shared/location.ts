@@ -5,6 +5,7 @@ import { WorkspaceV2 } from "@gyccode/core/workspace"
 import { Effect, Layer } from "effect"
 import { HttpServerRequest } from "effect/unstable/http"
 import { HttpApiMiddleware } from "effect/unstable/httpapi"
+import { guardDirectory } from "./location-guard"
 
 export type LocationServices = Layer.Success<ReturnType<(typeof LocationServiceMap.Service)["get"]>>
 
@@ -26,14 +27,18 @@ export function response<A, E, R>(data: Effect.Effect<A, E, R>) {
   })
 }
 
+/**
+ * 目录白名单校验：请求方指定的 directory 必须落在 GYCCODE_SERVER_ROOTS 之内，
+ * 否则可被用来把项目根指向任意绝对路径。详见 location-guard.ts。
+ */
 function ref(request: HttpServerRequest.HttpServerRequest): Location.Ref {
   const query = new URL(request.url, "http://localhost").searchParams
   const workspaceID = query.get("location[workspace]") || request.headers["x-gyccode-workspace"]
   const directory =
     query.get("location[directory]") ||
-    (request.headers["x-gyccode-directory"] ? decode(request.headers["x-gyccode-directory"]) : process.cwd())
+    (request.headers["x-gyccode-directory"] ? decode(request.headers["x-gyccode-directory"] as string) : process.cwd())
   return Location.Ref.make({
-    directory: AbsolutePath.make(directory),
+    directory: AbsolutePath.make(guardDirectory(directory)),
     workspaceID: workspaceID ? WorkspaceV2.ID.make(workspaceID) : undefined,
   })
 }

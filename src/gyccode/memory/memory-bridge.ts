@@ -3,17 +3,16 @@
 
 import { mkdir, readFile, rename, rm, stat, writeFile } from "fs/promises"
 import path from "path"
-import { homedir } from "os"
 import { logWarn } from "@core/observability/log-error"
 import { createFileLock } from "./file-lock"
+import { gycMemoryHome } from "./home"
 
 // 缓存一致性：读操作可并发；写入（invalidateMemoryCache）递增代际计数，
 // 使在飞行中的读不再回写快照，避免"写后读到写前内容"（见 readMemoriesCached）。
 // P1 修复：跨会话记忆按项目隔离
 // 基于 process.cwd() 生成项目隔离路径，避免不同项目记忆相互污染
 export function getMemoryDir(): string {
-  const base = process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
-  const memDir = path.join(base, "memory")
+  const memDir = path.join(gycMemoryHome(), "memory")
   const projectKey = getProjectKey()
   return path.join(memDir, projectKey)
 }
@@ -28,10 +27,7 @@ export function getProjectKey(): string {
 // Lazy getters to avoid module-level dependency on process.cwd()
 // which can change during tests or multi-project scenarios.
 const getMemDir = () => getMemoryDir()
-const getLegacyDir = () => path.join(
-  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
-  "memory",
-)
+const getLegacyDir = () => path.join(gycMemoryHome(), "memory")
 
 const getMemoryPath = () => path.join(getMemDir(), "gyccode_memory.md")
 

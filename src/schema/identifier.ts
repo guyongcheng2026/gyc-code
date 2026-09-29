@@ -14,8 +14,13 @@ export function descending() {
 export function create(descending: boolean, timestamp = Date.now()) {
   // 同毫秒内最多 4096 个 ID（12bit 计数器空间）。超限时进位到下一毫秒，
   // 保证 timestamp() 反解出的毫秒值始终单调（不随 counter 溢出污染时间字段）。
-  if (timestamp > lastTimestamp) {
-    lastTimestamp = timestamp
+  //
+  // 时钟回拨（NTP 校时、用户改表）会让 timestamp < lastTimestamp：此时不能
+  // 原样沿用旧 counter——那会让本次生成的 ID 排在"上一次"之前，破坏按 ID
+  // 排序与时间范围过滤。取较大值即可维持单调，时间字段最多略偏"未来"。
+  const now = Math.max(timestamp, lastTimestamp)
+  if (now > lastTimestamp) {
+    lastTimestamp = now
     counter = 0
   }
   counter++

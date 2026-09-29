@@ -192,7 +192,7 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     },
   })
 
-  // 先渲染欢迎界面，再渲染输入行——保证光标停在 "> " 提示符后（对齐 pi agent）
+  // 先渲染欢迎界面，再渲染输入行——保证光标停在 "> " 提示符后
   await renderWelcome(sdk, sessionId, executorCtx.input)
 
   await inputHandler.start()

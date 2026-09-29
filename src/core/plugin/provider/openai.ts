@@ -1,4 +1,5 @@
 import { createServer } from "node:http"
+import { openAiCallbackPort } from "../../oauth/port"
 import type { IntegrationOAuthMethodRegistration } from "@gyccode/protocol/plugin/v2/effect/integration"
 import { define } from "@gyccode/protocol/plugin/v2/effect/plugin"
 import { base64UrlEncode, generatePKCE } from "../../util/pkce"
@@ -14,7 +15,7 @@ import type { PluginInternal } from "../internal"
 
 const clientID = "app_EMoamEEZ73f0CkXaXp7hrann"
 const issuer = "https://auth.openai.com"
-const callbackPort = 1455
+const callbackPort = openAiCallbackPort()
 const pollingSafetyMargin = 3000
 const browserMethodID = Integration.MethodID.make("chatgpt-browser")
 const headlessMethodID = Integration.MethodID.make("chatgpt-headless")

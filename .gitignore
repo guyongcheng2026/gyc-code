@@ -56,3 +56,19 @@ tmp-*.txt
 scripts/emergency-build.mjs
 tsconfig.p1-scoped.json
 
+# 审计/扫描一次性报告产物（不入库）
+knip.out
+knip*.txt
+unused*.txt
+test_out.txt
+test_output.txt
+third_phase_progress.txt
+tsconfig.p01-scoped.json
+tsconfig.poc-fallback.json
+*.bak
+*.bak2
+
+# 第三方项目残留（自有产品目录不应包含）
+.mimocode/
+.model-mirror/
+

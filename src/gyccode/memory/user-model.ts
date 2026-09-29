@@ -11,8 +11,8 @@
 
 import { mkdir, readFile, rename, rm, writeFile } from "fs/promises"
 import path from "path"
-import { homedir } from "os"
 import { createFileLock } from "./file-lock"
+import { gycMemoryHome } from "./home"
 
 /** 条目分隔符，与 memory-bridge.ts 保持一致。 */
 const SEP = "\n§\n"
@@ -59,9 +59,7 @@ export function classifyMemoryTarget(text: string): "user" | "memory" {
 }
 
 function memoryDir(): string {
-  const base =
-    process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc")
-  return path.join(base, "memory")
+  return path.join(gycMemoryHome(), "memory")
 }
 
 export function userModelPath(): string {

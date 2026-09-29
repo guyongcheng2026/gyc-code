@@ -4,9 +4,21 @@
 # 兼容两种安装位置（.githooks/ 或 .git/hooks/）：一律以 git 仓库根解析脚本路径。
 ROOT="$(git rev-parse --show-toplevel)"
 node "$ROOT/scripts/check-mojibake.mjs" --staged || exit 1
+# 品牌合规守卫（铁律 1）：自有文案区禁止出现他牌 AI 产品品牌词
+node "$ROOT/scripts/brand-guard.mjs" "$ROOT" || exit 1
 # 高频缺陷模式防线（空 catch 吞错 / 空壳自递归），只查暂存的 TS 文件
 STAGED="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.tsx?$' || true)"
 if [ -n "$STAGED" ]; then
-  exec node "$ROOT/scripts/check-bug-patterns.mjs" $STAGED
+  node "$ROOT/scripts/check-bug-patterns.mjs" $STAGED || exit 1
+fi
+# 类型门禁：改动 src/ 下的 TS/TSX 时才跑全量 typecheck（tsconfig.json 覆盖 src/**），
+# 避免纯文档/配置提交付出 22 万行类型检查的时间代价。
+STAGED_SRC="$(git diff --cached --name-only --diff-filter=ACM | grep -E '^src/.*\.tsx?$' || true)"
+if [ -n "$STAGED_SRC" ]; then
+  echo "[pre-commit] 运行类型检查（改动含 src/ TS）..."
+  (cd "$ROOT" && bun x tsc --noEmit -p tsconfig.json) || {
+    echo "[pre-commit] 类型检查失败，提交被阻断。局部自查可用：tsc --noEmit -p tsconfig.json <file>" >&2
+    exit 1
+  }
 fi
 exit 0

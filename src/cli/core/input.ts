@@ -1,5 +1,5 @@
 // 原始输入处理 - raw mode、UTF-8 解码、光标控制
-// 参考 pi agent 的输入处理模式
+// 参考主流 CLI 的输入处理模式
 
 import { EventEmitter } from "events"
 

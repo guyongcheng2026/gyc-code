@@ -5,7 +5,7 @@
 
 import { readFile, writeFile, mkdir, readdir } from "fs/promises"
 import path from "path"
-import { homedir } from "os"
+import { gycMemoryHome } from "./home"
 
 // ────────────────────── 类型定义 ──────────────────────
 
@@ -78,10 +78,7 @@ export interface PipelineConfig {
 
 // ────────────────────── 常量 ──────────────────────
 
-const MEMORY_ROOT = path.join(
-  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
-  "memory"
-)
+const MEMORY_ROOT = path.join(gycMemoryHome(), "memory")
 
 // 日志尾部上限：仅保留最近 N 条，避免全量载入内存
 const LOG_TAIL_LIMIT = 50000

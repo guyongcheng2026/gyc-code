@@ -7,8 +7,9 @@ import type {
 } from "@modelcontextprotocol/sdk/shared/auth.js"
 import { Effect } from "effect"
 import { McpAuth } from "./auth"
+import { mcpOAuthCallbackPort } from "@gyccode/core/oauth/port"
 
-const OAUTH_CALLBACK_PORT = 19876
+const OAUTH_CALLBACK_PORT = mcpOAuthCallbackPort()
 const OAUTH_CALLBACK_PATH = "/mcp/oauth/callback"
 
 export interface McpOAuthConfig {

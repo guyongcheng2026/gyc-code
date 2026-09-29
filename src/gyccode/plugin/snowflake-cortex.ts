@@ -156,11 +156,11 @@ async function startOAuthServer() {
     const error = url.searchParams.get("error")
     const errorDescription = url.searchParams.get("error_description")
 
-    // CSRF guard: validate state before processing any callback
+    // CSRF guard: validate state before processing any callback.
+    // state 不匹配时绝不能动 pendingOAuth —— 那等于让任何构造出错误 state 的
+    // 请求把用户正在进行的合法授权直接打死（CSRF 可用性攻击）。
     if (!pendingOAuth || state !== pendingOAuth.state) {
       const message = "Invalid state - potential CSRF attack"
-      pendingOAuth?.reject(new Error(message))
-      pendingOAuth = undefined
       res.writeHead(400, { "Content-Type": "text/html" })
       res.end(OauthCallbackPage.error(message, { provider: "Snowflake" }))
       return
@@ -221,25 +221,28 @@ function waitForOAuthCallback(account: string, pkce: PkceCodes, state: string): 
   }
 
   return new Promise((resolve, reject) => {
+    // 超时必须 reject 自己的 Promise，不能因全局槽位已被新版占用就 return：
+    // 那会让本条记录既不 resolve 也不 reject，调用方永久挂起。
     const timeout = setTimeout(() => {
-      if (!pendingOAuth) return
-      pendingOAuth = undefined
-      stopOAuthServer()
+      if (pendingOAuth?.state === state) {
+        pendingOAuth = undefined
+        stopOAuthServer()
+      }
       reject(new Error("Snowflake OAuth callback timeout - authorization took too long"))
     }, OAUTH_TIMEOUT_MS)
+
+    const settle = (fn: () => void) => {
+      clearTimeout(timeout)
+      if (pendingOAuth?.state === state) pendingOAuth = undefined
+      fn()
+    }
 
     pendingOAuth = {
       account,
       state,
       pkce,
-      resolve: (tokens) => {
-        clearTimeout(timeout)
-        resolve(tokens)
-      },
-      reject: (error) => {
-        clearTimeout(timeout)
-        reject(error)
-      },
+      resolve: (tokens) => settle(() => resolve(tokens)),
+      reject: (error) => settle(() => reject(error)),
     }
   })
 }

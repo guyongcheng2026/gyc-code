@@ -13,6 +13,8 @@ type Definition = {
   [method: string]: (input: any) => any
 }
 
+export type { Definition }
+
 // 消息通道统一适配：Web Worker（Bun/浏览器 onmessage/postMessage 全局）优先，
 // Node worker_threads（parentPort）兜底。TUI 整体由 Node 运行，worker 线程经
 // node:worker_threads 创建；client 侧同样双通道兼容（node Worker 无 onmessage 属性）。
@@ -44,10 +46,16 @@ function channel() {
 export function listen(rpc: Definition) {
   const port = channel()
   port.onMessage(async (data) => {
-    const parsed = JSON.parse(data)
+    let parsed: { type?: string; method?: string; input?: unknown; id?: number }
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      // 畸形消息：忽略并继续，不让整个消息通道因一次坏包而失效
+      return
+    }
     if (parsed.type === "rpc.request") {
       try {
-        const handler = rpc[parsed.method]
+        const handler = parsed.method === undefined ? undefined : rpc[parsed.method]
         // 未知方法显式失败（此前会抛 TypeError，调用方语义不变）
         if (handler === undefined) throw new Error(`RPC method not found: ${parsed.method}`)
         const result = await handler(parsed.input)
@@ -70,24 +78,46 @@ export function emit(event: string, data: unknown) {
   channel().post(JSON.stringify({ type: "rpc.event", event, data }))
 }
 
+// 默认单次 RPC 调用上限。worker 侧 handler 多为 LLM 流式请求，正常可达数分钟；
+// 取 10 分钟仅为拦截"永不返回"的悬挂，避免 pending 无界增长。
+const DEFAULT_RPC_TIMEOUT_MS = (() => {
+  const raw = process.env.GYCCODE_RPC_TIMEOUT_MS
+  if (raw === undefined || raw.length === 0) return 10 * 60 * 1000
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 10 * 60 * 1000
+})()
+
 export function client<T extends Definition>(target: {
   postMessage: (data: string) => void | null
   onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null
   on?: (event: "message", listener: (data: string) => void) => void
-}, hooks?: { onActivity?: () => void }) {
+}, hooks?: { onActivity?: () => void; /** 单次调用超时（ms）。传 0 关闭超时。默认取 GYCCODE_RPC_TIMEOUT_MS 或 10 分钟。 */ timeoutMs?: number }) {
+  const timeoutMs = hooks?.timeoutMs ?? DEFAULT_RPC_TIMEOUT_MS
   const pending = new Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>()
-  // any 为方差擦除所必需：on<Data> 注册的具体 handler 无法赋给 (data: unknown) => void
-  const listeners = new Map<string, Set<(data: any) => void>>()
+  // 与 pending 一一对应的超时定时器：settle 时清理，避免长驻定时器拖住进程。
+  const timers = new Map<number, ReturnType<typeof setTimeout>>()
+  // 用 never 而非 any 做类型擦除：(data: never) => void 对任意具体 handler 均可赋值
+  // （函数参数逆变：never 是所有类型的子类型），从而在保留泛型精确类型的同时避免 any。
+  const listeners = new Map<string, Set<(data: never) => void>>()
   let id = 0
   const onMessage = (data: string) => {
-    const parsed = JSON.parse(data)
+    let parsed: { type?: string; id?: number; error?: unknown; result?: unknown; event?: string; data?: unknown }
+    try {
+      parsed = JSON.parse(data)
+    } catch {
+      // 畸形消息（截断/编码损坏）不应让整个消息通道抛出：否则后续合法消息
+      // 也会因监听器异常而丢失。忽略并继续。
+      return
+    }
     // 任一方向的流量（结果回传/事件推送）都算活动：LLM 流式输出期间
     // 主进程不发请求，靠 rpc.event 维持 worker 空闲判定的活跃信号。
     if (parsed.type === "rpc.result" || parsed.type === "rpc.event") hooks?.onActivity?.()
     if (parsed.type === "rpc.result") {
-      const entry = pending.get(parsed.id)
+      const requestId = parsed.id
+      if (requestId === undefined) return
+      const entry = pending.get(requestId)
       if (entry) {
-        pending.delete(parsed.id)
+        pending.delete(requestId)
         // 服务端回传 error 字段表示 handler 失败：reject 而非 resolve，
         // 否则调用方会把失败当成功结果继续跑。
         if (parsed.error !== undefined) {
@@ -98,10 +128,10 @@ export function client<T extends Definition>(target: {
       }
     }
     if (parsed.type === "rpc.event") {
-      const handlers = listeners.get(parsed.event)
+      const handlers = listeners.get(parsed.event as string)
       if (handlers) {
         for (const handler of handlers) {
-          handler(parsed.data)
+          ;(handler as (data: unknown) => void)(parsed.data)
         }
       }
     }
@@ -118,7 +148,32 @@ export function client<T extends Definition>(target: {
       const requestId = id++
       hooks?.onActivity?.()
       return new Promise((resolve, reject) => {
-        pending.set(requestId, { resolve: resolve as (result: unknown) => void, reject: reject as (error: Error) => void })
+        const settle = (fn: () => void) => {
+          const timer = timers.get(requestId)
+          if (timer !== undefined) {
+            clearTimeout(timer)
+            timers.delete(requestId)
+          }
+          fn()
+        }
+        // 超时兜底：dispose 只在 worker 退出/空闲卸载时触发，若 worker 存活但
+        // handler 永不返回（死锁、上游挂起），pending 条目会无界常驻并连带
+        // 持有调用方的闭包。超时后主动 reject 并清理。
+        // 不用 unref：Node 与 Bun 的返回类型不同（Bun 下无该方法），
+        // 且定时器已在 settle/dispose 路径清除，不会拖住进程退出。
+        if (timeoutMs > 0) {
+          const timer = setTimeout(() => {
+            if (!pending.has(requestId)) return
+            pending.delete(requestId)
+            timers.delete(requestId)
+            reject(new Error(`RPC call timed out after ${timeoutMs}ms: ${String(method)}`))
+          }, timeoutMs)
+          timers.set(requestId, timer)
+        }
+        pending.set(requestId, {
+          resolve: (result) => settle(() => resolve(result as ReturnType<T[Method]>)),
+          reject: (error) => settle(() => reject(error)),
+        })
         target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
       })
     },
@@ -132,9 +187,9 @@ export function client<T extends Definition>(target: {
         handlers = new Set()
         listeners.set(event, handlers)
       }
-      handlers.add(handler)
+      handlers.add(handler as (data: never) => void)
       return () => {
-        handlers!.delete(handler)
+        handlers!.delete(handler as (data: never) => void)
       }
     },
     // worker 崩溃/被替换时调用：reject 所有挂起请求，避免上层 fetch 永久挂起。
@@ -146,6 +201,8 @@ export function client<T extends Definition>(target: {
         entry.reject(reason)
       }
       pending.clear()
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
       listeners.clear()
     },
   }

@@ -1,5 +1,5 @@
 // gyc gateway: weixin gateway long-lived guard (B plan exclusive connection)
-// Responsibility: long poll receive -> LLM reply -> reply back; pre-check hermes gateway and residual gyc guards
+// Responsibility: long poll receive -> LLM reply -> reply back; pre-check foreign gateway and residual gyc guards
 // Prevent dual consumer competition; Ctrl+C graceful exit. Switch guide see docs/compose/plans/2026-08-25-gateway-weixin.md
 import { readFileSync, writeFileSync, openSync, closeSync, unlinkSync, constants, statSync } from "node:fs"
 import { homedir } from "node:os"
@@ -15,13 +15,18 @@ interface GatewayArgs {
   force?: boolean
 }
 
-interface HermesGatewayState {
+/** 第三方网关的落盘状态。字段名与目录名属互操作协议，必须按其原样匹配。 */
+interface ForeignGatewayState {
   pid?: number
   gateway_state?: string
 }
 
-/** Check if hermes gateway holds the same bot connection (read state file and probe) */
-export function detectHermesGateway(): string | null {
+/**
+ * 检查第三方网关是否占用同一 bot 连接（读其状态文件并探活）。
+ * 目录名 "hermes" 与字段名 gateway_state 是该第三方协议的固定标识，不可改写，
+ * 否则探测失效。这里仅做互操作，不作为自有品牌对外展示。
+ */
+export function detectForeignGateway(): string | null {
   const stateFile = join(homedir(), "AppData", "Local", "hermes", "gateway_state.json")
   let raw: string
   try {
@@ -30,9 +35,9 @@ export function detectHermesGateway(): string | null {
     return null
   }
   try {
-    const state = JSON.parse(raw) as HermesGatewayState
+    const state = JSON.parse(raw) as ForeignGatewayState
     if (state.gateway_state === "running" && typeof state.pid === "number" && isPidAlive(state.pid)) {
-      return `hermes gateway is running (PID ${state.pid})`
+      return `third-party gateway is running (PID ${state.pid})`
     }
   } catch {
     return null
@@ -158,7 +163,7 @@ export const GatewayCommand = effectCmd({
   instance: false,
   builder: (yargs) =>
     yargs.option("force", {
-      describe: "Start even if hermes gateway or other gyc guard detected (risk: messages split)",
+      describe: "Start even if a third-party gateway or other gyc guard detected (risk: messages split)",
       type: "boolean",
     }),
   handler: (args: GatewayArgs) => Effect.scoped(gatewayHandler(args)),
@@ -167,7 +172,7 @@ export const GatewayCommand = effectCmd({
 const gatewayHandler = Effect.fn("Cli.gateway")(function* (args: GatewayArgs) {
     resolveWeixinConfig()
     if (!args.force) {
-      const conflict = detectHermesGateway() ?? (yield* Effect.sync(() => detectGycHeartbeat()))
+      const conflict = detectForeignGateway() ?? (yield* Effect.sync(() => detectGycHeartbeat()))
       if (conflict) {
         return yield* fail(
           `${conflict} -- both polling simultaneously will split messages. Stop the other first (see plan doc), or use --force`,

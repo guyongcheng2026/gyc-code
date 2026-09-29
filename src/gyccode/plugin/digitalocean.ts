@@ -2,6 +2,7 @@ import type { Hooks, PluginInput } from "@gyccode/protocol/plugin"
 import type { Model } from "@gyccode/protocol/v2"
 import { logError } from "@core/observability/log-error"
 import { InstallationVersion } from "@gyccode/core/installation/version"
+import { digitalOceanCallbackPort } from "@gyccode/core/oauth/port"
 import { OauthCallbackPage } from "@gyccode/core/oauth/page"
 import { createServer } from "http"
 import open from "open"
@@ -11,7 +12,7 @@ const DO_AUTHORIZE_URL = "https://cloud.digitalocean.com/v1/oauth/authorize"
 const DO_API_BASE = "https://api.digitalocean.com"
 const DO_GENAI_API = `${DO_API_BASE}/v2/gen-ai`
 const DO_INFERENCE_BASE = "https://inference.do-ai.run/v1"
-const OAUTH_PORT = 1456
+const OAUTH_PORT = digitalOceanCallbackPort()
 const OAUTH_REDIRECT_PATH = "/auth/callback"
 const OAUTH_TOKEN_PATH = "/auth/token"
 const ROUTER_REFRESH_INTERVAL_MS = 5 * 60 * 1000
@@ -36,7 +37,9 @@ interface RouterEntry {
 }
 
 let oauthServer: ReturnType<typeof createServer> | undefined
-let pendingOAuth: PendingOAuth | undefined
+// 按 state 键控而非单一全局槽位：并发授权时后者会覆盖前者，
+// 导致首个等待者的 Promise 永久悬挂。
+const pendingOAuths = new Map<string, PendingOAuth>()
 
 function generateState(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32))
@@ -82,40 +85,31 @@ async function startOAuthServer(): Promise<void> {
         } catch {
           body = {}
         }
-        if (!pendingOAuth) {
+        const current = body.state ? pendingOAuths.get(body.state) : undefined
+        if (current === undefined) {
           res.writeHead(409, { "Content-Type": "application/json" })
           res.end(JSON.stringify({ error: "no_pending_oauth" }))
           return
         }
         if (body.error) {
           const message = body.error_description || body.error || "OAuth error"
-          pendingOAuth.reject(new Error(String(message)))
-          pendingOAuth = undefined
+          current.reject(new Error(String(message)))
           res.writeHead(200, { "Content-Type": "application/json" })
           res.end(JSON.stringify({ ok: true }))
           return
         }
         if (!body.access_token) {
-          pendingOAuth.reject(new Error("Missing access_token in callback"))
-          pendingOAuth = undefined
+          current.reject(new Error("Missing access_token in callback"))
           res.writeHead(400, { "Content-Type": "application/json" })
           res.end(JSON.stringify({ error: "missing_access_token" }))
           return
         }
-        if (body.state !== pendingOAuth.state) {
-          pendingOAuth.reject(new Error("Invalid state - potential CSRF attack"))
-          pendingOAuth = undefined
-          res.writeHead(400, { "Content-Type": "application/json" })
-          res.end(JSON.stringify({ error: "invalid_state" }))
-          return
-        }
         const expires = parseInt(body.expires_in || "0", 10)
-        pendingOAuth.resolve({
+        current.resolve({
           access_token: body.access_token,
           expires_in: Number.isFinite(expires) && expires > 0 ? expires : 60 * 60 * 24 * 30,
-          state: body.state,
+          state: body.state as string,
         })
-        pendingOAuth = undefined
         res.writeHead(200, { "Content-Type": "application/json" })
         res.end(JSON.stringify({ ok: true }))
       })
@@ -142,26 +136,25 @@ function stopOAuthServer() {
 
 function waitForOAuthCallback(state: string): Promise<ImplicitTokenPayload> {
   return new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => {
-        if (pendingOAuth) {
-          pendingOAuth = undefined
-          reject(new Error("OAuth callback timeout - authorization took too long"))
-        }
-      },
-      5 * 60 * 1000,
-    )
-    pendingOAuth = {
-      state,
-      resolve: (tokens) => {
-        clearTimeout(timeout)
-        resolve(tokens)
-      },
-      reject: (error) => {
-        clearTimeout(timeout)
-        reject(error)
-      },
+    // 超时只处置自己这一条记录：读全局会在并发授权时被后来者覆盖，
+    // 既不 resolve 也不 reject，调用方永久挂起。
+    const timeout = setTimeout(() => {
+      if (pendingOAuths.delete(state)) {
+        reject(new Error("OAuth callback timeout - authorization took too long"))
+      }
+    }, 5 * 60 * 1000)
+
+    const settle = (fn: () => void) => {
+      clearTimeout(timeout)
+      pendingOAuths.delete(state)
+      fn()
     }
+
+    pendingOAuths.set(state, {
+      state,
+      resolve: (tokens) => settle(() => resolve(tokens)),
+      reject: (error) => settle(() => reject(error)),
+    })
   })
 }
 

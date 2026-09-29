@@ -1,7 +1,6 @@
 import { Effect } from "effect"
 import { mkdir, readFile, rename, rm, writeFile } from "fs/promises"
 import path from "path"
-import { homedir } from "os"
 import {
   shouldDream,
   formatDreamPrompt,
@@ -14,13 +13,10 @@ import {
   type ValidatedDreamOptions,
 } from "./dream"
 import { enforceStandardCompliance } from "../mcp/standard-elements"
+import { gycMemoryHome } from "./home"
 
 /** Persist dream state next to the memory file. */
-const DREAM_STATE_PATH = path.join(
-  process.env.GYCCODE_MEMORY_HOME || process.env.HERMES_HOME || path.join(homedir(), ".gyc"),
-  "memory",
-  "dream-state.json",
-)
+const DREAM_STATE_PATH = path.join(gycMemoryHome(), "memory", "dream-state.json")
 
 /** 原子写：先写临时文件再 rename，避免进程中断时产生半写损坏的 JSON。 */
 async function atomicWriteFile(filePath: string, content: string): Promise<void> {
