@@ -12,6 +12,39 @@ const ROTATE_CHECK_INTERVAL_MS = 5000
 // Serialize appends so log lines stay ordered (fire-and-forget would interleave).
 let writeQueue: Promise<void> = Promise.resolve()
 
+// 轮转检查按文件节流。旁路直写（app.tsx/worker 等直接 appendFile）不经过
+// fileLogger 的写入队列，若只在队列内检查，fileLogger 沉默期间日志会无限
+// 增长；这里是唯一入口，fileLogger 与周期守护共用。
+const lastRotateCheck = new Map<string, number>()
+
+export function rotateIfNeeded(file: string): void {
+  const now = Date.now()
+  if (now - (lastRotateCheck.get(file) ?? 0) < ROTATE_CHECK_INTERVAL_MS) return
+  lastRotateCheck.set(file, now)
+  writeQueue = writeQueue.then(async () => {
+    try {
+      const info = await stat(file)
+      if (info.size > MAX_LOG_BYTES) {
+        // 日志轮转时旧文件可能已被占用或不存在，失败不阻断写入
+        await rename(file, `${file}.1`).catch((error) => {
+          // 轮转失败不能静默：否则 gyccode.log 会一直增长并突破 MAX_LOG_BYTES
+          process.stderr.write(`gyccode: 日志轮转失败 ${file}: ${String(error)}\n`)
+        })
+      }
+    } catch {
+      // File may not exist yet; nothing to rotate.
+    }
+  })
+}
+
+// 周期守护：即使 fileLogger 完全无写入，也保证超限日志在秒级内被轮转。
+let rotationGuard: NodeJS.Timeout | undefined
+function startRotationGuard(file: string): void {
+  if (rotationGuard) return
+  rotationGuard = setInterval(() => rotateIfNeeded(file), ROTATE_CHECK_INTERVAL_MS)
+  rotationGuard.unref?.()
+}
+
 // Throttle repeated log lines so a failing provider (e.g. a 60s header
 // timeout retried 3x per step) or a busy loop cannot flood the log file with
 // identical entries. Same run + level + message within the window collapses
@@ -92,7 +125,7 @@ const FLUSH_MAX_LINES = 500
 
 export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id: string = runID) {
   const fmt = formatter(id)
-  let lastCheck = 0
+  startRotationGuard(file)
   let pending: string[] = []
   let flushTimer: NodeJS.Timeout | undefined
 
@@ -104,23 +137,10 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
     if (pending.length === 0) return
     const chunk = pending.join("")
     pending = []
+    // 同步入队轮转检查（内部按文件节流并串行进 writeQueue），
+    // 保证 rotation 排在本次 append 之前执行。
+    rotateIfNeeded(file)
     writeQueue = writeQueue.then(async () => {
-      const now = Date.now()
-      if (now - lastCheck > ROTATE_CHECK_INTERVAL_MS) {
-        lastCheck = now
-        try {
-          const info = await stat(file)
-          if (info.size > MAX_LOG_BYTES) {
-            // 日志轮转时旧文件可能已被占用或不存在，失败不阻断写入
-            await rename(file, `${file}.1`).catch((error) => {
-              // 轮转失败不能静默：否则 gyccode.log 会一直增长并突破 MAX_LOG_BYTES
-              process.stderr.write(`gyccode: 日志轮转失败 ${file}: ${String(error)}\n`)
-            })
-          }
-        } catch {
-          // File may not exist yet; nothing to rotate.
-        }
-      }
       await appendFile(file, chunk).catch(() => {
         // Never let a logging failure crash the session.
       })

@@ -1559,7 +1559,9 @@ const layer = Layer.effect(
               // content and enforce the entry cap so the file does not grow
               // unboundedly. Failures are swallowed (best-effort maintenance).
               yield* Effect.promise(() => syncMemories()).pipe(
-                Effect.catchCause(() => Effect.logWarning("memory sync failed; skipping compaction")),
+                Effect.catchCause((cause) =>
+                  Effect.logWarning("memory sync failed; skipping compaction", { cause: String(cause) }),
+                ),
               )
               // Dream synthesis: when the accumulated memory volume crosses the
               // threshold, ask the cheap model to synthesize a structured

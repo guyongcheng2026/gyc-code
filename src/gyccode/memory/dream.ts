@@ -63,6 +63,7 @@ export interface DreamResult {
   actionItemCount: number
   qualityScore: number
   validationErrors: string[]
+  warnings: string[]
   sectionsFound: string[]
   sectionsMissing: string[]
 }
@@ -83,11 +84,13 @@ export function analyzeDreamResult(content: string): DreamResult {
   const validation = validateDreamResult(content, DEFAULT_DREAM_CONFIG)
 
   return {
-    summary: content.slice(0, 200) + "...",
+    // 完整内容：这是写入记忆的最终沉淀物，截断会丢掉绝大部分知识
+    summary: content,
     topicCount: topicMatches?.length ?? 0,
     actionItemCount: actionMatches?.length ?? 0,
     qualityScore: validation.score,
     validationErrors: validation.errors,
+    warnings: validation.warnings,
     sectionsFound: validation.sectionsFound,
     sectionsMissing: validation.sectionsMissing,
   }
@@ -193,7 +196,9 @@ function escapeRegExp(string: string): string {
 }
 
 function extractSection(content: string, sectionName: string): string {
-  const regex = new RegExp(`^##\\s+${escapeRegExp(sectionName)}\\b([\\s\\S]*?)(?=^##\\s+|$)`, "m")
+  // 注意：m 模式下 `$` 匹配每一行行尾，直接用 `|$` 会在首个行尾截断，
+  // 导致章节只取到第一行、评分被系统性低估。必须锚定字符串真正结尾。
+  const regex = new RegExp(`^##\\s+${escapeRegExp(sectionName)}\\b([\\s\\S]*?)(?=^##\\s+|$(?![\\s\\S]))`, "m")
   const match = content.match(regex)
   return match ? (match[1] ?? "").trim() : ""
 }
@@ -208,7 +213,9 @@ export async function synthesizeDreamWithValidation(
   let attempt = 0
 
   while (attempt <= config.maxRetries) {
-    const prompt = formatDreamPrompt(memories, config)
+    // 每轮把上一次的验证反馈拼进 prompt，否则相同 prompt + 低温度模型
+    // 只会重复产出同一结果，重试零收益。
+    const prompt = promptWithFeedback(memories, lastResult ? buildValidationFeedback(lastResult, config) : "", config)
     const raw = await synthesizer(prompt)
     const result = analyzeDreamResult(raw)
     lastResult = result
@@ -217,13 +224,7 @@ export async function synthesizeDreamWithValidation(
       return result
     }
 
-    // Add validation feedback to next prompt
-    const feedback = buildValidationFeedback(result, config)
     attempt++
-
-    if (attempt <= config.maxRetries) {
-      // 继续重试，带上反馈
-    }
   }
 
   // 返回最后一次结果（即使不合格）
@@ -241,6 +242,11 @@ function buildValidationFeedback(result: DreamResult, config: DreamConfig): stri
     parts.push(`ERRORS: ${result.validationErrors.join("; ")}`)
   }
 
+  // 扣分项只进 warnings，不带进反馈会让重试完全不知道差在哪
+  if (result.warnings.length > 0) {
+    parts.push(`QUALITY WARNINGS (these lowered the score below ${config.minQualityScore}):\n${result.warnings.map((w) => `- ${w}`).join("\n")}`)
+  }
+
   if (result.actionItemCount < 2) {
     parts.push("NEED MORE ACTION ITEMS (at least 2)")
   }
@@ -250,6 +256,16 @@ function buildValidationFeedback(result: DreamResult, config: DreamConfig): stri
   }
 
   return parts.join("\n")
+}
+
+/** 上一次验证失败的反馈拼进下一轮 prompt；首次无反馈时返回基础 prompt。 */
+function promptWithFeedback(memories: string, feedback: string, config: DreamConfig): string {
+  const base = formatDreamPrompt(memories, config)
+  if (!feedback) return base
+  return `${base}
+
+Your PREVIOUS attempt failed validation (score below ${config.minQualityScore}). Fix ALL of these issues in this attempt:
+${feedback}`
 }
 
 /** Enhanced dream runner that includes validation and retry */
@@ -277,7 +293,11 @@ export function validatedMaybeDream(options: ValidatedDreamOptions): Effect.Effe
     let lastResult: DreamResult | null = null
 
     while (attempt <= config.maxRetries) {
-      const prompt = formatDreamPrompt(options.memories, config)
+      const prompt = promptWithFeedback(
+        options.memories,
+        lastResult ? buildValidationFeedback(lastResult, config) : "",
+        config,
+      )
       const raw = yield* options.synthesizer({ prompt })
       const result = analyzeDreamResult(raw)
       lastResult = result
@@ -303,12 +323,13 @@ export function validatedMaybeDream(options: ValidatedDreamOptions): Effect.Effe
       candidate.retryCount = attempt
 
       if (attempt <= config.maxRetries) {
-        // 记录验证失败，准备重试
+        // 记录验证失败（含扣分 warnings，否则无法定位为何低分），准备重试
         yield* Effect.logWarning("dream validation failed, retrying", {
           attempt,
           qualityScore: result.qualityScore,
           missingSections: result.sectionsMissing,
           errors: result.validationErrors,
+          warnings: result.warnings,
         })
       }
     }
@@ -318,6 +339,7 @@ export function validatedMaybeDream(options: ValidatedDreamOptions): Effect.Effe
       attempts: config.maxRetries + 1,
       finalQuality: lastResult?.qualityScore,
       missingSections: lastResult?.sectionsMissing,
+      warnings: lastResult?.warnings,
     })
 
     return candidate
