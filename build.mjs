@@ -31,16 +31,26 @@ if (process.env.GYCCODE_BUILD_CHILD !== "1") {
   }
 }
 
-// splitting 默认关闭（2026-09-06 事故）：Bun 打包器 splitting 分块会改变模块
-// 初始化顺序，LayerNode 依赖数组在循环 import 下出现 undefined 元素，导致
-// Effect Layer 解析崩溃（Cannot read properties of undefined (reading 'name')，
-// CLI/TUI 全链路瘫痪；dev 源码模式正常，仅 dist 复现）。如需开启设
-// GYCCODE_BUILD_SPLITTING=1。附带收益：关闭 splitting 绕开 breakOutputIntoPieces
-// 在低内存机器（可用 <1.2GB）的 OOM panic（exit 3/9），dist 体积略增、动态导入
-// 仍保持惰性求值。
+// splitting 保持关闭（2026-09-29 重新评估，结论：不划算）
+//
+// 原始背景：2026-09-06 曾因 splitting 崩溃而关闭——LayerNode 依赖数组在
+// 循环 import 下出现 undefined 元素，导致 Effect Layer 解析崩溃
+// （Cannot read properties of undefined (reading 'name')）。
+// 该崩溃**已不复现**（--version/--help/providers list/debug/run/tui 全部 exit 0，
+// 崩溃特征串零命中），推测被后续修复顺带解决。
+//
+// 但开启 splitting 实测**仍是负收益**，故维持关闭：
+//   体积：24.55MB → 16.61MB（−27%）
+//   冷启动 --help：约 2060ms → 约 2660ms（**+28%，同机交错 A/B 六轮**）
+// 原因：入口从 11.5MB 单文件变成 0.11MB 纯 loader，启动时须同步解析
+// 279 个 chunk，loader 的模块解析开销远超省下的单文件解析时间。
+// 另外 build 时打印的 "低内存模式" 提示说明 split 阶段本身吃内存，
+// 与历史上 breakOutputIntoPieces 的 OOM panic（exit 3/9）同源。
+//
+// 如需开启：GYCCODE_BUILD_SPLITTING=1
 const splitting = process.env.GYCCODE_BUILD_SPLITTING === "1"
 if (!splitting) {
-  console.log("[build] splitting=off（默认，防 LayerNode 循环初始化崩溃；GYCCODE_BUILD_SPLITTING=1 可开启）")
+  console.log("[build] splitting=off（默认，实测开启后冷启动 +28%，见上方注释）")
 }
 
 const SHARED = {
@@ -114,6 +124,12 @@ const SHARED = {
     "@opentelemetry/sdk-trace-node",
     "@opentelemetry/context-async-hooks",
     "@effect/opentelemetry",
+    // 注意：@silvia-odwyer/photon-node **不可** external。
+    // 实测 external 后 CLI 直接崩溃：ERR_MODULE_NOT_FOUND
+    // Cannot find package '__wbindgen_placeholder__'。
+    // 原因：photon.ts:2 用 `with { type: "file" }` 把 wasm 导入为路径字符串，
+    // 而 wasm-bindgen 胶水代码与该路径存在隐式耦合——external 后路径语义
+    // 被打包器改写，wasm 初始化找不到模块。体积（1.79MB）只能接受。
   ],
   define: {
     GYCCODE_VERSION: JSON.stringify(JSON.parse(readFileSync("package.json", "utf-8")).version),
