@@ -169,10 +169,13 @@ const layer = Layer.effect(
     // 超 200K context 分级定价、免费模型策略等高价值信息均来自此数据源。
     // 强制刷新走 `gyc models --refresh`。
     const ttl = Duration.minutes(5)
-    const lockKey = `models-dev:${filepath}`
+    // 读/写/新鲜度/文件锁必须指向同一个路径：此前读走 GYCCODE_MODELS_PATH、
+    // 写却固定落 filepath，导致用户自定义清单永远读不到刷新结果（永远不更新）。
+    const readPath = Flag.GYCCODE_MODELS_PATH ?? filepath
+    const lockKey = `models-dev:${readPath}`
 
     const fresh = Effect.fnUntraced(function* () {
-      const stat = yield* fs.stat(filepath).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      const stat = yield* fs.stat(readPath).pipe(Effect.catch(() => Effect.succeed(undefined)))
       if (!stat) return false
       const mtime = Option.getOrElse(stat.mtime, () => new Date(0)).getTime()
       return Date.now() - mtime < Duration.toMillis(ttl)
@@ -187,14 +190,14 @@ const layer = Layer.effect(
       )
     })
 
-    const loadFromDisk = fs.readJson(Flag.GYCCODE_MODELS_PATH ?? filepath).pipe(
+    const loadFromDisk = fs.readJson(readPath).pipe(
       Effect.catch((error) => {
         if (
           Flag.GYCCODE_MODELS_PATH === undefined &&
           error._tag === "FileSystemError" &&
           error.method === "readJson"
         ) {
-          return fs.remove(filepath, { force: true }).pipe(Effect.ignore, Effect.as(undefined))
+          return fs.remove(readPath, { force: true }).pipe(Effect.ignore, Effect.as(undefined))
         }
         return Effect.succeed(undefined)
       }),
@@ -226,9 +229,9 @@ const layer = Layer.effect(
       }
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed) || Object.keys(parsed).length === 0)
         return yield* Effect.fail(new Error("models.dev 返回空模型清单，跳过写入缓存"))
-      const tempfile = `${filepath}.${process.pid}.${Date.now()}.tmp`
+      const tempfile = `${readPath}.${process.pid}.${Date.now()}.tmp`
       yield* fs.writeWithDirs(tempfile, text).pipe(
-        Effect.andThen(fs.rename(tempfile, filepath)),
+        Effect.andThen(fs.rename(tempfile, readPath)),
         Effect.catch((error) =>
           Effect.gen(function* () {
             yield* fs.remove(tempfile, { force: true }).pipe(Effect.ignore)
@@ -251,6 +254,15 @@ const layer = Layer.effect(
           yield* Flock.effect(lockKey)
           return yield* fetchAndWrite()
         }),
+      ).pipe(
+        // 回源失败同样要落失败标记：populate 是「磁盘无缓存且快照缺失」时的唯一路径，
+        // 此前只有 refresh 写标记，导致这条路径每次调用都空转 10s 超时 + 2 次重试。
+        Effect.tapCause((cause) =>
+          Effect.gen(function* () {
+            yield* Effect.logError("Failed to populate models.dev cache", { cause: cause })
+            yield* fs.writeFileString(failureMarker, String(Date.now())).pipe(Effect.ignore)
+          }),
+        ),
       )
       return JSON.parse(text) as Record<string, Provider>
     }).pipe(Effect.withSpan("ModelsDev.populate"), Effect.orDie)
@@ -297,8 +309,15 @@ const layer = Layer.effect(
 
     if (!Flag.GYCCODE_DISABLE_MODELS_FETCH && !process.argv.includes("--get-yargs-completions")) {
       // Schedule.spaced runs the effect once, then waits between completions.
-      // 对齐 5min TTL，每 10min 后台刷新一次（含 TTL 余量，避免启动时立即触发）
-      yield* Effect.forkScoped(refresh().pipe(Effect.repeat(Schedule.spaced("10 minutes")), Effect.ignore))
+      // 不先延迟的话，缓存超 5min 的冷启动会在进程刚起来就发起 8.2MB 拉取
+      // （10s 超时 + 2 次重试），与用户的首个 LLM 请求抢同一个 FetchHttpClient，
+      // 直接推高「请求 → 首条回复」延时。先静默 1min 再进入 10min 周期。
+      yield* Effect.forkScoped(
+        Effect.andThen(Effect.sleep("1 minute"), refresh()).pipe(
+          Effect.repeat(Schedule.spaced("10 minutes")),
+          Effect.ignore,
+        ),
+      )
     }
 
     return Service.of({ get, refresh })

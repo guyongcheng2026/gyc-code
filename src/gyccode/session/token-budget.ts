@@ -95,6 +95,8 @@ export function checkTokenBudget(state: BudgetState): { action: BudgetAction } {
   ) {
     return { action: "complete" }
   }
+  // budget 为 0 时 pct 会变成 NaN/Inf，比较结果让判定反转；视为无预算，直接完成
+  if (state.budget <= 0) return { action: "complete" }
   const pct = state.used / state.budget
   if (pct < BUDGET_COMPLETION_THRESHOLD) return { action: "continue" }
   return { action: "complete" }

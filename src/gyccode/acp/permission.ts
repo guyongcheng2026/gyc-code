@@ -117,11 +117,17 @@ export class Handler {
       return
     }
 
-    void this.input.connection.writeTextFile({
-      sessionId,
-      path: filepath,
-      content: next,
-    })
+    // 失败需留痕（见上方 writeProposedEdit 调用处注释）：不 catch 会变成
+    // unhandled rejection，用户看不到建议编辑已落盘与否。
+    void this.input.connection
+      .writeTextFile({
+        sessionId,
+        path: filepath,
+        content: next,
+      })
+      .catch((e) => {
+        logError("acp.permission", e, { sessionID: sessionId })
+      })
   }
 }
 

@@ -662,16 +662,21 @@ function makeUsageService(sdk: GyccodeClient) {
       const current = limits.get(key)
       if (current) return yield* Effect.promise(() => current)
 
-      const next = sdk.config
-        .providers({ directory: params.directory }, { throwOnError: true })
-        .then((response) => {
-          const providers = Object.fromEntries(
-            (response.data?.providers ?? []).map((provider) => [provider.id, provider]),
-          ) as Record<ProviderV2.ID, Provider.Info>
-          return UsageService.findContextLimit(providers, params.providerID, params.modelID)
-        })
-        .catch(() => undefined)
-      limits.set(key, next)
+      // 失败不入缓存：.catch 若在链内，任何一次查询抖动都会把 undefined 永久钉进
+      // limits，后续调用直接命中失败缓存、永不重试。改为成功才写缓存。
+      const fetched = sdk.config.providers({ directory: params.directory }, { throwOnError: true }).then((response) => {
+        const providers = Object.fromEntries(
+          (response.data?.providers ?? []).map((provider) => [provider.id, provider]),
+        ) as Record<ProviderV2.ID, Provider.Info>
+        return UsageService.findContextLimit(providers, params.providerID, params.modelID)
+      })
+      const next: Promise<number | undefined> = fetched.then(
+        (value) => {
+          limits.set(key, fetched)
+          return value
+        },
+        () => undefined,
+      )
       return yield* Effect.promise(() => next)
     },
   )

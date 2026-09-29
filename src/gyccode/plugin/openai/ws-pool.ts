@@ -175,10 +175,12 @@ export function createWebSocketFetch(options?: CreateWebSocketFetchOptions) {
     const now = Date.now()
     for (const [key, entry] of pool) {
       if (entry.busy) continue
-      if (entry.fallback) continue
-      if (now - entry.lastUsedAt < idleTimeout) continue
-      invalidate(entry)
-      pool.delete(key)
+      // fallback 条目已被 recordStreamFailure 判定不可用，其 socket 不再服务任何请求。
+      // 原实现直接 continue 跳过它们，等于永久保留 —— 池会随网络抖动累积而无界增长。
+      if (entry.fallback || now - entry.lastUsedAt >= idleTimeout) {
+        invalidate(entry)
+        pool.delete(key)
+      }
     }
   }
 

@@ -6,13 +6,13 @@ function makeEnv(overrides: Record<string, string | undefined>): Record<string, 
 }
 
 describe("终端能力探测", () => {
-	test("MIMOCODE_TUI_PLAIN=0 强制非 plain", () => {
-		const probe = probeTerminal({ env: makeEnv({ MIMOCODE_TUI_PLAIN: "0", TERM: "dumb" }) })
+	test("GYCCODE_TUI_PLAIN=0 强制非 plain", () => {
+		const probe = probeTerminal({ env: makeEnv({ GYCCODE_TUI_PLAIN: "0", TERM: "dumb" }) })
 		expect(probe.plain).toBe(false)
 	})
 
-	test("MIMOCODE_TUI_PLAIN=1 强制 plain", () => {
-		const probe = probeTerminal({ env: makeEnv({ MIMOCODE_TUI_PLAIN: "1" }) })
+	test("GYCCODE_TUI_PLAIN=1 强制 plain", () => {
+		const probe = probeTerminal({ env: makeEnv({ GYCCODE_TUI_PLAIN: "1" }) })
 		expect(probe.plain).toBe(true)
 	})
 
@@ -32,7 +32,7 @@ describe("终端能力探测", () => {
 	})
 
 	test("TERM=xterm-256color + 非 CI = 非 plain", () => {
-		const probe = probeTerminal({ env: makeEnv({ CI: undefined, MIMOCODE_TUI_PLAIN: undefined, TERM_PROGRAM: undefined }) })
+		const probe = probeTerminal({ env: makeEnv({ CI: undefined, GYCCODE_TUI_PLAIN: undefined, TERM_PROGRAM: undefined }) })
 		expect(probe.plain).toBe(false)
 		expect(probe.colorDepth).toBe(8)
 	})

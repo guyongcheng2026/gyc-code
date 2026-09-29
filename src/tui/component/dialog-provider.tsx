@@ -36,7 +36,7 @@ const CUSTOM_PROVIDER_OPTION_VALUE = "__gyccode_custom_provider__"
 const CUSTOM_PROVIDER_WIZARD_VALUE = "__gyccode_custom_provider_wizard__"
 
 /**
- * 自定义供应商 6 步向导（对标 mimo-code TUI 流程）
+ * 自定义供应商 6 步向导（对标上游 TUI 流程）
  * 支持任意 OpenAI 兼容供应商，无需在 models.dev 目录中注册
  */
 async function runCustomProviderWizard(opts: {

@@ -46,11 +46,22 @@ export function listen(rpc: Definition) {
   port.onMessage(async (data) => {
     const parsed = JSON.parse(data)
     if (parsed.type === "rpc.request") {
-      const handler = rpc[parsed.method]
-      // 未知方法显式失败（此前会抛 TypeError，调用方语义不变）
-      if (handler === undefined) throw new Error(`RPC method not found: ${parsed.method}`)
-      const result = await handler(parsed.input)
-      port.post(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      try {
+        const handler = rpc[parsed.method]
+        // 未知方法显式失败（此前会抛 TypeError，调用方语义不变）
+        if (handler === undefined) throw new Error(`RPC method not found: ${parsed.method}`)
+        const result = await handler(parsed.input)
+        port.post(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
+      } catch (error) {
+        // handler 抛错必须回传：否则 client 侧 pending 悬挂至 dispose，上层 fetch 永不结束。
+        port.post(
+          JSON.stringify({
+            type: "rpc.result",
+            id: parsed.id,
+            error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+          }),
+        )
+      }
     }
   })
 }
@@ -77,7 +88,13 @@ export function client<T extends Definition>(target: {
       const entry = pending.get(parsed.id)
       if (entry) {
         pending.delete(parsed.id)
-        entry.resolve(parsed.result)
+        // 服务端回传 error 字段表示 handler 失败：reject 而非 resolve，
+        // 否则调用方会把失败当成功结果继续跑。
+        if (parsed.error !== undefined) {
+          entry.reject(new Error(String(parsed.error)))
+        } else {
+          entry.resolve(parsed.result)
+        }
       }
     }
     if (parsed.type === "rpc.event") {
@@ -121,12 +138,15 @@ export function client<T extends Definition>(target: {
       }
     },
     // worker 崩溃/被替换时调用：reject 所有挂起请求，避免上层 fetch 永久挂起。
-    // 事件监听器保留——它们绑定在新 client 上后继续生效（热重启场景）。
+    // listeners 同步释放：热重启由 worker-pool 重新 spawn 并创建全新 client
+    // （worker-pool.ts spawnWorker 内 Rpc.client(...)，事件 on() 随之重新注册），
+    // 旧 client 已无端口可收消息，保留 listeners 只会让旧 handler 残留造成回调叠加。
     dispose(reason: Error) {
       for (const entry of pending.values()) {
         entry.reject(reason)
       }
       pending.clear()
+      listeners.clear()
     },
   }
 }

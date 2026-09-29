@@ -135,10 +135,28 @@ export const WebSearchTool = Tool.define(
             },
           })
 
-          const result = yield* callProvider(http, provider, params, ctx)
+          // 最小降级：provider 侧失败（超时/网络/非 2xx）以 Effect.fail 返回，
+          // 这里兜住并转成给 agent 的明确文案，避免单次搜索失败击穿整轮生成。
+          const searched = yield* callProvider(http, provider, params, ctx).pipe(
+            Effect.map((value) => ({ ok: true, value }) as const),
+            Effect.catch((error) =>
+              Effect.succeed({
+                ok: false,
+                value: error instanceof Error ? error.message : String(error),
+              } as const),
+            ),
+          )
+
+          if (!searched.ok) {
+            return {
+              output: `联网搜索失败：${searched.value}。请如实向用户报告本次搜索未成功，不要编造搜索结果或链接。`,
+              title: `${title}: ${params.query}`,
+              metadata: { provider },
+            }
+          }
 
           const output =
-            result ??
+            searched.value ??
             "No search results found. Please try a different query."
           // Anti-hallucination grounding: remind the model to cite the sources
           // it was given instead of asserting unverified facts.

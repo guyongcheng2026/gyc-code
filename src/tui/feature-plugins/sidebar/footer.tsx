@@ -55,7 +55,7 @@ function View(props: { api: TuiPluginApi; sessionID: string }) {
             </box>
             <text fg={theme().textMuted}>GycCode 内置免费模型，可立即开始使用。</text>
             <text fg={theme().textMuted}>
-              Connect from 75+ providers to use other models, including Claude, GPT, Gemini etc
+              已接入 75+ 服务商，可自由切换使用其他模型
             </text>
             <box flexDirection="row" gap={1} justifyContent="space-between">
               <text fg={theme().text}>连接服务商</text>

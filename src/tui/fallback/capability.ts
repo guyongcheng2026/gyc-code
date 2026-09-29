@@ -9,7 +9,7 @@
  *  1. TERM=dumb（最明确）
  *  2. Apple_Terminal（macOS 原生终端，opaque bg + 无 true color）
  *  3. CI 环境（CI=true / GITHUB_ACTIONS / GITLAB_CI / JENKINS_URL）
- *  4. 显式开关 MIMOCODE_TUI_PLAIN=1/0（用户/测试覆盖）
+ *  4. 显式开关 GYCCODE_TUI_PLAIN=1/0（用户/测试覆盖）
  */
 
 export interface TerminalProbe {
@@ -35,7 +35,7 @@ function isCi(env: NodeJS.ProcessEnv): boolean {
 }
 
 function detectPlain(env = process.env): boolean {
-	const override = env.MIMOCODE_TUI_PLAIN
+	const override = env.GYCCODE_TUI_PLAIN
 	if (override === "0" || override === "false") return false
 	if (override === "1" || override === "true") return true
 	if (isCi(env)) return true

@@ -58,14 +58,34 @@ export function duration(input: number) {
   return `${days}d ${hours}h`
 }
 
+// 增补平面字符（emoji、部分生僻字）在 UTF-16 中占两个码元。只有含代理对时，
+// str.length 才会与「字符数」不等。truncate 属 TUI 每行渲染热路径，
+// 绝大多数文本是纯 BMP 字符，用一次正则快筛避免为每个字符串分配码点数组。
+const HAS_SURROGATE_PAIR = /[\uD800-\uDBFF]/
+
 export function truncate(str: string, len: number): string {
-  if (str.length <= len) return str
-  return str.slice(0, len - 1) + "…"
+  if (len <= 0) return ""
+  if (!HAS_SURROGATE_PAIR.test(str)) {
+    if (str.length <= len) return str
+    return str.slice(0, len - 1) + "…"
+  }
+  // 按码点切片：UTF-16 长度会把中文/emoji 切出半个代理对
+  const chars = Array.from(str)
+  if (chars.length <= len) return str
+  if (len === 1) return "…"
+  return chars.slice(0, len - 1).join("") + "…"
 }
 
 export function truncateLeft(str: string, len: number): string {
-  if (str.length <= len) return str
-  return "…" + str.slice(-(len - 1))
+  if (len <= 0) return ""
+  if (!HAS_SURROGATE_PAIR.test(str)) {
+    if (str.length <= len) return str
+    return "…" + str.slice(-(len - 1))
+  }
+  const chars = Array.from(str)
+  if (chars.length <= len) return str
+  if (len === 1) return "…"
+  return "…" + chars.slice(chars.length - (len - 1)).join("")
 }
 
 export function truncateMiddle(str: string, maxLength: number = 35): string {

@@ -1285,9 +1285,16 @@ export const JDTLS: Info = {
       })(),
     )
     const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), "gyccode-jdtls-data"))
-    const serverProcess = spawn(
-      java,
-      [
+    // Remove the JDTLS data directory when the server process exits (or
+    // crashes) so each launch doesn't leak hundreds of MB in the temp dir.
+    const cleanupDataDir = () => {
+      fs.rm(dataDir, { recursive: true, force: true }).catch(() => {})
+    }
+    let serverProcess: ChildProcessWithoutNullStreams
+    try {
+      serverProcess = spawn(
+        java,
+        [
           "-jar",
           launcherJar,
           "-configuration",
@@ -1306,11 +1313,14 @@ export const JDTLS: Info = {
           cwd: root,
         },
       )
-    // Remove the JDTLS data directory when the server process exits (or
-    // crashes) so each launch doesn't leak hundreds of MB in the temp dir.
-    serverProcess.once("exit", () => {
-      fs.rm(dataDir, { recursive: true, force: true }).catch(() => {})
-    })
+    } catch (error) {
+      // spawn 同步失败（java 缺失/路径错误）时 exit 永远不触发，必须主动删除临时目录
+      cleanupDataDir()
+      throw error
+    }
+    serverProcess.once("exit", cleanupDataDir)
+    // 异步启动失败（如 ENOENT）只触发 error 而不触发 exit，同样需要清理
+    serverProcess.once("error", cleanupDataDir)
     return { process: serverProcess }
   },
 }

@@ -9,7 +9,7 @@
  *
  * 客户端使用镜像：GYCCODE_MODELS_URL=http://localhost:8790/models gyc ...
  */
-import { mkdirSync, writeFileSync } from "node:fs"
+import { mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs"
 import { join, resolve } from "node:path"
 
 const ROOT = resolve(import.meta.dirname, "..")
@@ -52,7 +52,18 @@ const providers = Object.keys(parsed)
 const models = Object.values(parsed).reduce((sum, p) => sum + Object.keys(p.models ?? {}).length, 0)
 
 mkdirSync(OUT_DIR, { recursive: true })
-writeFileSync(OUT_FILE, JSON.stringify(parsed, null, 2), "utf8")
+// 原子写：8.2MB 直接 writeFileSync 时，Ctrl+C / 磁盘满会留下半截 api.json，
+// 而客户端只挡空对象 —— 截在合法 JSON 边界时会被当成有效清单静默缺 provider。
+// 先写同目录临时文件再 rename（与 models-dev.ts 的 fetchAndWrite 保持一致）。
+const TMP_FILE = `${OUT_FILE}.${process.pid}.tmp`
+try {
+  writeFileSync(TMP_FILE, JSON.stringify(parsed, null, 2), "utf8")
+  renameSync(TMP_FILE, OUT_FILE)
+} catch (err) {
+  rmSync(TMP_FILE, { force: true })
+  console.error(`[失败] 写入模型镜像：${err}`)
+  process.exit(1)
+}
 console.log(`[完成] 模型镜像已生成：${OUT_FILE}`)
 console.log(`       供应商 ${providers.length} 个 / 模型 ${models} 个`)
 console.log(`       部署：与插件市场同站托管，客户端设 GYCCODE_MODELS_URL=http://<host>/models 指向本目录`)

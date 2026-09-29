@@ -2,16 +2,16 @@ import * as Tool from "./tool"
 import DESCRIPTION from "./actor.txt"
 import { BackgroundJob } from "@/background/job"
 import { TaskTool, type TaskPromptOps } from "./task"
-import { Effect, Schema } from "effect"
+import { Cause, Effect, Option, Schema } from "effect"
 import { SessionID } from "@/session/schema"
 
 const id = "actor"
 
-// actor 是 MiMo Code actor 工具的 gyc-code 适配层：对外保持 compose 技能包
+// actor 是上游 actor 工具的 gyc-code 适配层：对外保持 compose 技能包
 // （subagent/review/parallel 等）引用的 `operation` 调用契约，对内委托给已
 // 验证的 TaskTool 执行（子会话创建、深度防护、权限派生、前台/后台路径全部
 // 复用）。status/wait/cancel 基于 BackgroundJob 注册表实现。
-// 与 MiMo 原版的差异：send（actor 间消息）不支持；context 继承仅 none；
+// 与上游原版的差异：send（actor 间消息）不支持；context 继承仅 none；
 // model 覆盖被忽略（使用 agent 配置模型）。
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
@@ -410,13 +410,28 @@ export const ActorTool = Tool.define(
                   ? yield* taskDef.execute(taskParams, delegated)
                   : yield* taskDef.execute(taskParams, delegated).pipe(
                       Effect.timeout(op.timeout_ms ?? DEFAULT_TIMEOUT_MS),
-                      Effect.catch(() =>
-                        Effect.fail(
-                          new Error(
-                            `actor: run timed out after ${op.timeout_ms ?? DEFAULT_TIMEOUT_MS}ms (subagent session preserved; cancel or re-dispatch as needed)`,
+                      // 超时与真实失败必须区分：旧实现用 Effect.catch 把任意失败都改写成
+                      // "超时"，cause 被吞掉、真实错误无从排查。这里先落原始 cause，
+                      // 仅 TimeoutException 分支改写超时文案，其余原样上抛。
+                      Effect.catchCause((cause) => {
+                        const failure = Cause.findErrorOption(cause)
+                        const timedOut = Option.isSome(failure) && Cause.isTimeoutError(failure.value)
+                        return Effect.logError(`actor: run ${timedOut ? "timed out" : "failed"}`, {
+                          tool: id,
+                          sessionID: ctx.sessionID,
+                          cause: Cause.pretty(cause),
+                        }).pipe(
+                          Effect.andThen(
+                            timedOut
+                              ? Effect.fail(
+                                  new Error(
+                                    `actor: run timed out after ${op.timeout_ms ?? DEFAULT_TIMEOUT_MS}ms (subagent session preserved; cancel or re-dispatch as needed)`,
+                                  ),
+                                )
+                              : Effect.failCause(cause),
                           ),
-                        ),
-                      ),
+                        )
+                      }),
                     )
 
               const meta = result.metadata as { jobId?: string; sessionId?: string }

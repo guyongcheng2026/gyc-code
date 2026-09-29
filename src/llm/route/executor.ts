@@ -389,9 +389,12 @@ const retryStatusFailures = <A, R>(
 ): Effect.Effect<A, LLMError, R> =>
   Effect.catchTag(effect, "LLM.Error", (error): Effect.Effect<A, LLMError, R> => {
     if (!error.retryable || retries <= 0) return Effect.fail(error)
+    // 服务端已用 Retry-After 明确告知等待时长：此时再叠加 MAX_RETRIES 次指数退避
+    // 会把单次请求拖到 30s+（retryDelay 上限 MAX_DELAY_MS=10s）。只重试 1 次。
+    const budget = error.retryAfterMs === undefined ? retries : Math.min(retries, 1)
     return retryDelay(error, attempt).pipe(
       Effect.flatMap((delay) => Effect.sleep(delay)),
-      Effect.flatMap(() => retryStatusFailures(effect, retries - 1, attempt + 1)),
+      Effect.flatMap(() => retryStatusFailures(effect, budget - 1, attempt + 1)),
     )
   })
 

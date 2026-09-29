@@ -39,6 +39,8 @@ export function selectMicrocompactParts(
   contextUsed: number,
   contextLimit: number,
 ): Array<SessionV1.ToolPart & { _msgIndex: number }> {
+  // contextLimit 为 0 时 ratio 会变成 Infinity/NaN，比较结果会让微压缩被误触发。
+  if (contextLimit <= 0) return []
   const ratio = contextUsed / contextLimit
   if (ratio < MICROCOMPACT_THRESHOLD) return []
   if (msgs.length <= CACHE_PREFIX_KEEP + TAIL_KEEP) return []

@@ -140,11 +140,13 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
     // 同步入队轮转检查（内部按文件节流并串行进 writeQueue），
     // 保证 rotation 排在本次 append 之前执行。
     rotateIfNeeded(file)
-    writeQueue = writeQueue.then(async () => {
-      await appendFile(file, chunk).catch(() => {
+    const append = () =>
+      appendFile(file, chunk).catch(() => {
         // Never let a logging failure crash the session.
       })
-    })
+    // 双参 then：链上任一环 reject 时本次 append 仍会执行。
+    // 单参 then 会在前置 reject 后静默吞掉此后所有日志写入。
+    writeQueue = writeQueue.then(append, append)
   }
 
   return Logger.make((options) => {

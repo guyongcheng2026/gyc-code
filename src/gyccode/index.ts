@@ -7,6 +7,7 @@ import { homedir, EOL } from "os"
 import { join } from "path"
 
 import { COMMANDS, COMMAND_KEYS, HIDDEN_COMMANDS_SET, registerTui, registerCommand } from "./command-registry"
+import { InstallationVersion } from "@gyccode/core/installation/version"
 
 // Lazy-load helpers: only import heavy modules when actually needed.
 let _dotenvLoaded = false
@@ -101,7 +102,7 @@ async function main() {
     .wrap(100)
     .help("help", "show help")
     .alias("help", "h")
-    .version("version", "show version number", (await import("@gyccode/core/installation/version")).InstallationVersion)
+    .version("version", "show version number", InstallationVersion)
     .alias("version", "v")
     .option("print-logs", {
       describe: "print logs to stderr",
@@ -137,6 +138,13 @@ async function main() {
   // is not pulled into the help path.
   const first = args.find((a) => !a.startsWith("-"))
   const isHelp = !first && (args.includes("-h") || args.includes("--help"))
+  // `--version`/`-v` 不带子命令时直接输出并退出：否则会落入下方 TUI 分支，
+  // 为打印一个版本号拉起 OpenTUI + koffi + wasm + server 全模块图，
+  // 冷启动实测 5871/5246/3748ms（目标 <3.5s）。
+  if (!first && (args.includes("--version") || args.includes("-v"))) {
+    console.log(InstallationVersion)
+    return
+  }
 
   if (isHelp) {
     for (const key of COMMAND_KEYS) {

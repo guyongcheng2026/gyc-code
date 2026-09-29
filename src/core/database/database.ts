@@ -181,12 +181,15 @@ const maintenanceDue = Effect.fn("Database.maintenanceDue")(function* (db: Datab
 
 const markMaintenance = () =>
   Effect.sync(() => {
-    try {
-      writeFileSync(maintenanceMarker(), String(Date.now()), "utf8")
-    } catch {
-      // 忽略写失败：维护标记仅是限频优化，失败不影响数据库语义
-    }
-  })
+    writeFileSync(maintenanceMarker(), String(Date.now()), "utf8")
+  }).pipe(
+    // 标记写失败（EACCES / ENOTDIR / 只读数据目录）时不能静默：限频失效意味着
+    // 每次启动都会重跑 pruneStaleEvents + reclaimFreePages + wal_checkpoint(TRUNCATE)，
+    // 大库上表现为启动期长阻塞与磁盘 I/O 抖动。必须留痕。
+    Effect.catchCause((cause) =>
+      Effect.logWarning("维护限频标记写入失败：本次维护将在下次启动时重复执行", { cause: cause }),
+    ),
+  )
 
 const layer = Layer.effect(
   Service,

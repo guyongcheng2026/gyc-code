@@ -4,7 +4,7 @@ import { ProviderTransform } from "@/provider/transform"
 import { errorMessage } from "@/util/error"
 import { isRecord } from "@/util/record"
 import { asSchema, type ModelMessage, type Tool } from "ai"
-import { Cause, Effect, FiberSet, JsonSchema, Queue } from "effect"
+import { Cause, Duration, Effect, FiberSet, JsonSchema, Queue } from "effect"
 import * as Stream from "effect/Stream"
 import { FetchHttpClient } from "effect/unstable/http"
 import {
@@ -100,7 +100,7 @@ export function stream(input: StreamInput): StreamResult {
     providerOptions: ProviderTransform.providerOptions(input.model, input.providerOptions ?? {}),
     headers: { ...providerHeaders(input.provider.options.headers), ...input.headers },
   })
-  const stream = Stream.scoped(
+  const base = Stream.scoped(
     Stream.unwrap(
       Effect.gen(function* () {
         const settlements = yield* FiberSet.make<void>()
@@ -139,10 +139,96 @@ export function stream(input: StreamInput): StreamResult {
     ),
   )
 
+  // 详见 retryBeforeFirstEvent 的方案说明：只重试「首包到达前」的失败。
+  const stream = retryBeforeFirstEvent(
+    () => base,
+    (error) => !input.abort.aborted && isRetryableStreamError(error),
+    STREAM_RETRY_BACKOFF_MS,
+  )
+
   return {
     ...current,
     stream: fetch ? stream.pipe(Stream.provideService(FetchHttpClient.Fetch, fetch)) : stream,
   }
+}
+
+// 首包前重试的退避序列：第 1 次失败等 1s，第 2 次等 3s，最多重试 2 次。
+const STREAM_RETRY_BACKOFF_MS: ReadonlyArray<number> = [1_000, 3_000]
+
+// 累计退避上限：与 executor.ts 的 HTTP 层退避叠加后，若不设总闸，最坏等待
+// = 内层(0.5s+1s)*jitter + 外层(1s+3s) ≈ 8.5s，远超「首条回复 ≤1s」的可接受范围。
+// 超过本预算就不再重试，直接把错误上抛让用户看到真实原因。
+const STREAM_RETRY_BUDGET_MS = 3_000
+
+// 明确不可重试：用户取消/中断，以及 4xx 类（认证、授权、参数、上下文长度、内容过滤）。
+// 错误码一律带边界（\b...\b）：裸数字会命中请求 ID、耗时、端口等无关片段
+// （例如 "request 4021 took 503ms" 会被误判成 402/503 错误）。
+const NON_RETRYABLE_ERROR_PATTERN =
+  /\b(?:abort|cancell?ed|unauthorized|forbidden|bad request|not found|invalid|400|401|403|404|405|413|422)\b|context length|content filter|moderation|too large/i
+
+// 可重试：限流、provider 过载/5xx、超时、网络中断。数字同样加边界。
+const RETRYABLE_ERROR_PATTERN =
+  /rate.?limit|\b429\b|overloaded|too many requests|gone|timeout|timed.?out|econnreset|etimedout|econnrefused|epipe|socket hang up|fetch failed|network|connection (?:reset|closed|refused|error)|bad gateway|service unavailable|gateway time-?out|\b50[234]\b|internal server error/i
+
+function isRetryableStreamError(error: unknown): boolean {
+  const text = errorMessage(error)
+  if (NON_RETRYABLE_ERROR_PATTERN.test(text)) return false
+  return RETRYABLE_ERROR_PATTERN.test(text)
+}
+
+/**
+ * 有限指数退避重试：只在「首包到达前」失败时重跑整条生成流，退避 backoffMs。
+ *
+ * 为什么是「首包前重试」而不是「全流重试」：
+ * 1) `input.llmClient.stream(request)` 返回惰性 Stream，真正的 HTTP 建连与首包
+ *    发生在消费期而非建流期，所以重试必须包在最终合并流外层才拦得住网络类错误；
+ *    而一旦已有事件 yield 出，重放整条流会把已产出的 token 二次推给 agent
+ *    （重复文本 + 重复工具调用），无法回退。因此用 `emitted` 守卫把重试窗口
+ *    压到首包为止，事件一旦产出即原样透传、失败直接上抛。
+ * 2) 工具派发失败（Queue.failCause）必然发生在 tool-call 事件已发出之后，
+ *    天然落在守卫之外，不会重放工具副作用。
+ */
+function retryBeforeFirstEvent<A, E, R>(
+  make: () => Stream.Stream<A, E, R>,
+  shouldRetry: (error: E) => boolean,
+  backoffMs: ReadonlyArray<number>,
+): Stream.Stream<A, E, R> {
+  // spent：本次 stream 已累计的退避时长。跨 attempt 传递（不放在 attempt 内部），
+  // 否则每轮重试都会重置预算，预算闸形同虚设。
+  let spent = 0
+  const attempt = (index: number): Stream.Stream<A, E, R> => {
+    let emitted = false
+    return Stream.suspend(() =>
+      make().pipe(
+        Stream.map((event) => {
+          emitted = true
+          return event
+        }),
+        Stream.catch((error): Stream.Stream<A, E, R> => {
+          const delay = backoffMs[index]
+          if (emitted || delay === undefined || !shouldRetry(error)) return Stream.fail(error)
+          if (spent + delay > STREAM_RETRY_BUDGET_MS) {
+            return Stream.fromEffect(
+              Effect.logError(
+                `[native-runtime] LLM stream retry budget exhausted (${spent}ms/${STREAM_RETRY_BUDGET_MS}ms), giving up`,
+              ),
+            ).pipe(Stream.flatMap(() => Stream.fail(error)))
+          }
+          spent += delay
+          return Stream.fromEffect(
+            Effect.gen(function* () {
+              yield* Effect.logError(
+                `[native-runtime] LLM stream failed before first event (${errorMessage(error)}), retrying in ${delay}ms`,
+              )
+              yield* Effect.sleep(Duration.millis(delay))
+            }),
+          ).pipe(Stream.flatMap(() => attempt(index + 1)))
+        }),
+      ),
+    )
+  }
+
+  return attempt(0)
 }
 
 function providerFetch(input: Pick<StreamInput, "provider" | "auth">): typeof globalThis.fetch | undefined {

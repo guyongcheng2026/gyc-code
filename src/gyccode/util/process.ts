@@ -115,17 +115,34 @@ export function spawn(cmd: string[], opts: Options = {}): Child {
   return child
 }
 
+// NodeJS.ReadableStream 上没有 destroy 声明，窄化后调用以关闭读端
+function destroyStream(stream: NodeJS.ReadableStream): void {
+  const target = stream as { destroy?: (error?: Error) => unknown }
+  if (typeof target.destroy === "function") target.destroy()
+}
+
+// SIGTERM 后多久升级为 SIGKILL
+const FORCE_KILL_DELAY_MS = 3_000
+
 // Helper to consume stream with max buffer limit
-async function limitedBuffer(stream: NodeJS.ReadableStream, maxBytes: number): Promise<Buffer> {
+// 超过 maxBytes 后截断返回，并关闭读端 + 终止子进程：
+// 只 return 不销毁流，stdout 管道写满后子进程永久阻塞，proc.exited 永不 resolve，run() 挂起成僵尸进程。
+async function limitedBuffer(
+  stream: NodeJS.ReadableStream,
+  maxBytes: number,
+  onTruncate: () => void,
+): Promise<Buffer> {
   const chunks: Buffer[] = []
   let total = 0
   for await (const chunk of stream) {
     const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
     total += buf.length
     if (total > maxBytes) {
-      // Truncate and add indicator
-      const truncated = Buffer.concat(chunks, maxBytes)
-      const indicator = Buffer.from(`\n...[truncated ${total - maxBytes} bytes]...`)
+      // 按实际长度切片：按 maxBytes 补齐会插入 NUL 垃圾，且触发截断的当前块未计入
+      const truncated = Buffer.concat(chunks).subarray(0, maxBytes)
+      const indicator = Buffer.from(`\n...[truncated ${total - truncated.length} bytes]...`)
+      destroyStream(stream)
+      onTruncate()
       return Buffer.concat([truncated, indicator])
     }
     chunks.push(buf)
@@ -150,17 +167,38 @@ export async function run(cmd: string[], opts: RunOptions = {}): Promise<Result>
 
   const maxBuffer = opts.maxBuffer ?? 10 * 1024 * 1024 // 10MB default
 
+  // 截断后子进程可能已阻塞在写管道上，必须主动终止，Promise 侧才能等到 exit 而不永久挂起。
+  // SIGTERM 只在 POSIX 有意义：子进程可以捕获/忽略它，Windows 上 Bun 的 SIGTERM 也可能
+  // 映射失败。故 SIGTERM 后启动升级定时器，到期仍未退出就 SIGKILL 强杀，
+  // 否则 proc.exited 永不 resolve，run() 挂成僵尸。
+  let forceKillTimer: ReturnType<typeof setTimeout> | undefined
+  const onTruncate = () => {
+    if (proc.exitCode !== null || proc.signalCode !== null) return
+    proc.kill("SIGTERM")
+    if (forceKillTimer !== undefined) return
+    forceKillTimer = setTimeout(() => {
+      if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGKILL")
+    }, FORCE_KILL_DELAY_MS)
+    if (typeof forceKillTimer === "object" && "unref" in forceKillTimer) {
+      ;(forceKillTimer as { unref: () => void }).unref()
+    }
+  }
+
   const out = await Promise.all([
     proc.exited,
-    limitedBuffer(proc.stdout, maxBuffer),
-    limitedBuffer(proc.stderr, maxBuffer),
+    limitedBuffer(proc.stdout, maxBuffer, onTruncate),
+    limitedBuffer(proc.stderr, maxBuffer, onTruncate),
   ])
-    .then(([code, stdout, stderr]) => ({
-      code,
-      stdout,
-      stderr,
-    }))
+    .then(([code, stdout, stderr]) => {
+      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer)
+      return {
+        code,
+        stdout,
+        stderr,
+      }
+    })
     .catch((err: unknown) => {
+      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer)
       if (!opts.nothrow) throw err
       return {
         code: 1,

@@ -204,7 +204,7 @@ export const WebFetchTool = Tool.define(
                 }
                 return Effect.succeed(res)
               }),
-              Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.die(new Error("Request timed out")) }),
+              Effect.timeoutOrElse({ duration: timeout, orElse: () => Effect.fail(new Error("Request timed out")) }),
             )
             .pipe(Effect.provideService(FetchHttpClient.RequestInit, { redirect: "manual" }))
 

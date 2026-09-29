@@ -256,16 +256,19 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
   const issuer = options.issuer ?? ISSUER
   const codexApiEndpoint = options.codexApiEndpoint ?? CODEX_API_ENDPOINT
   let websocketFetchInstalled = false
-  const websocketFetches: Array<ReturnType<typeof OpenAIWebSocketPool.createWebSocketFetch>> = []
+  // 单例复用：createWebSocketFetch 内部会起一个 prune 定时器。Provider.list 每次重建
+  // providers 都会回调 auth.loader，若每次都新建池，则每个池的定时器+Map 只有
+  // dispose() 才会释放，长会话下无界累积（unref 只阻止进程退出，不阻止内存增长）。
+  let websocketPool: ReturnType<typeof OpenAIWebSocketPool.createWebSocketFetch> | undefined
 
   return {
     async dispose() {
-      for (const websocketFetch of websocketFetches) websocketFetch.close()
-      websocketFetches.length = 0
+      websocketPool?.close()
+      websocketPool = undefined
     },
     async event(input) {
       if (input.event.type !== "session.deleted") return
-      for (const websocketFetch of websocketFetches) websocketFetch.remove(input.event.properties.info.id)
+      websocketPool?.remove(input.event.properties.info.id)
     },
     provider: {
       id: "openai",
@@ -318,12 +321,9 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
       async loader(getAuth) {
         const auth = await getAuth()
         const websocketFetch = options.experimentalWebSockets
-          ? OpenAIWebSocketPool.createWebSocketFetch({ httpFetch: fetch })
+          ? (websocketPool ??= OpenAIWebSocketPool.createWebSocketFetch({ httpFetch: fetch }))
           : undefined
-        if (websocketFetch) {
-          websocketFetches.push(websocketFetch)
-          websocketFetchInstalled = true
-        }
+        if (websocketFetch) websocketFetchInstalled = true
         if (auth.type !== "oauth") return websocketFetch ? { fetch: websocketFetch } : {}
 
         let refreshPromise:

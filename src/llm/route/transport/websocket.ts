@@ -1,4 +1,4 @@
-import { Cause, Context, Effect, Layer, Queue, Stream } from "effect"
+import { Cause, Context, Effect, Fiber, Layer, Queue, Stream } from "effect"
 import { Headers } from "effect/unstable/http"
 import { LLMError, TransportReason } from "../../schema"
 import * as HttpTransport from "./http"
@@ -22,6 +22,9 @@ export interface Interface {
 export class Service extends Context.Service<Service, Interface>()("@gyccode/LLM/WebSocketExecutor") {}
 
 const isNodeRuntime = typeof globalThis.WebSocket === "undefined"
+
+// 心跳周期：两个周期（约 60s）收不到 pong 即判定链路已死
+const HEARTBEAT_INTERVAL_MS = 30_000
 
 const createWebSocket = (
   url: string,
@@ -72,6 +75,7 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
     )
   }
   return Effect.gen(function* () {
+    let disposeRef: (() => void) | undefined
     yield* Effect.race(
       Effect.callback<void, LLMError>((resume, signal) => {
         const cleanup = () => {
@@ -81,6 +85,15 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
           signal.removeEventListener("abort", onAbort)
         }
         let aborted = false
+        let opened = false
+        // 中断与超时共用：移除监听器并关闭 socket，避免监听器与 WS 句柄残留
+        const dispose = () => {
+          if (opened) return
+          cleanup()
+          if (ws.readyState !== globalThis.WebSocket.CLOSED && ws.readyState !== globalThis.WebSocket.CLOSING)
+            ws.close(1000)
+        }
+        disposeRef = dispose
         const onAbort = () => {
           aborted = true
           try {
@@ -92,11 +105,10 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
           } catch {
             // resume already called (e.g. onOpen fired before abort)
           }
-          cleanup()
-          if (ws.readyState !== globalThis.WebSocket.CLOSED && ws.readyState !== globalThis.WebSocket.CLOSING)
-            ws.close(1000)
+          dispose()
         }
         const onOpen = () => {
+          opened = true
           cleanup()
           if (!aborted) {
             try {
@@ -152,9 +164,15 @@ const waitOpen = (ws: globalThis.WebSocket, input: WebSocketRequest) => {
         ws.addEventListener("close", onClose, { once: true })
         signal.addEventListener("abort", onAbort, { once: true })
       }),
-      Effect.sleep("10 seconds").pipe(Effect.flatMap(() => Effect.fail(
-        transportError("open", "WebSocket connection timeout", { url: input.url, kind: "timeout" }),
-      ))),
+      Effect.sleep("10 seconds").pipe(
+        Effect.flatMap(() => {
+          // 超时失败分支不会走上面的 resume 路径，必须自行清理监听器并关闭 socket
+          disposeRef?.()
+          return Effect.fail(
+            transportError("open", "WebSocket connection timeout", { url: input.url, kind: "timeout" }),
+          )
+        }),
+      ),
     )
   })
 }
@@ -201,15 +219,29 @@ export const fromWebSocket = (
     const messages = yield* Queue.bounded<string | Uint8Array, LLMError | Cause.Done<void>>(128)
 
     const onMessage = (event: MessageEvent) => {
-      const offer = typeof event.data === "string"
-        ? Queue.offer(messages, event.data)
+      const data: string | Uint8Array | undefined = typeof event.data === "string"
+        ? event.data
         : binaryMessage(event.data)
-          ? Queue.offer(messages, binaryMessage(event.data)!)
-          : Queue.failCause(messages, Cause.fail(
-              transportError("message", "Unsupported WebSocket message payload", { url: input.url, kind: "message" })
-            ))
-      // 若队列满则记录告警并丢弃（避免静默丢失导致下游无感知）
-      Effect.runFork(Effect.tapError(offer, () => Effect.logWarning("WebSocket message queue full, dropping message")))
+      if (data === undefined) {
+        Queue.failCauseUnsafe(
+          messages,
+          Cause.fail(
+            transportError("message", "Unsupported WebSocket message payload", { url: input.url, kind: "message" }),
+          ),
+        )
+        return
+      }
+      // offerUnsafe 同步入队：队列满说明消费侧跟不上（单帧过大或 delta 突发），
+      // 此时若只打一条 warning 后继续，丢掉的正是流式增量 —— 表现为「静默丢 token」。
+      // 必须显式失败，让上层按既定策略重试或报错。
+      if (!Queue.offerUnsafe(messages, data)) {
+        Queue.failCauseUnsafe(
+          messages,
+          Cause.fail(
+            transportError("message", "WebSocket message queue overflow", { url: input.url, kind: "message" }),
+          ),
+        )
+      }
     }
     const onError = (event: Event) => {
       Queue.failCauseUnsafe(
@@ -229,15 +261,48 @@ export const fromWebSocket = (
         ),
       )
     }
+
+    // 心跳：长会话中途被网关/代理静默断开时，既无 error 也无 close 事件，
+    // 只能靠 ping/pong 探测。连续两个周期收不到 pong 即判定链路已死并失败，
+    // 否则只能等首包超时甚至永久挂起。
+    let lastPongAt = Date.now()
+    const onPong = () => {
+      lastPongAt = Date.now()
+    }
+    const ping = (ws as { ping?: () => void }).ping
+    const heartbeat = yield* Effect.forkDetach(
+      Effect.forever(
+        Effect.andThen(Effect.sleep(HEARTBEAT_INTERVAL_MS), () =>
+          Effect.sync(() => {
+            if (Date.now() - lastPongAt > HEARTBEAT_INTERVAL_MS * 2) {
+              Queue.failCauseUnsafe(
+                messages,
+                Cause.fail(
+                  transportError("message", "WebSocket heartbeat timeout", { url: input.url, kind: "timeout" }),
+                ),
+              )
+              return
+            }
+            ping?.call(ws)
+          }),
+        ),
+      ),
+    )
+
     const cleanup = Effect.sync(() => {
       ws.removeEventListener("message", onMessage)
       ws.removeEventListener("error", onError)
       ws.removeEventListener("close", onClose)
-    }).pipe(Effect.andThen(Queue.shutdown(messages)))
+      ws.removeEventListener("pong", onPong)
+    }).pipe(
+      Effect.andThen(Fiber.interrupt(heartbeat)),
+      Effect.andThen(Queue.shutdown(messages)),
+    )
 
     ws.addEventListener("message", onMessage)
     ws.addEventListener("error", onError)
     ws.addEventListener("close", onClose)
+    ws.addEventListener("pong", onPong)
 
     return {
       sendText: (message) =>
