@@ -26,6 +26,12 @@ import { useBindings, useCommandSlashes, useGyccodeModeStack } from "../../keyma
 import { displayCharAt, mentionTriggerIndex } from "../../prompt/display"
 import type { FileSystemEntry } from "@gyccode/protocol/v2"
 
+// 补全列表置顶权重：使用频率最高的命令排在前面，其余按名称字母序
+const SLASH_DISPLAY_WEIGHT = new Map([
+  ["/models", 0],
+  ["/undo", 1],
+])
+
 function removeLineRange(input: string) {
   const hashIndex = input.lastIndexOf("#")
   return hashIndex !== -1 ? input.substring(0, hashIndex) : input
@@ -469,7 +475,12 @@ export function Autocomplete(props: {
       })
     }
 
-    results.sort((a, b) => a.display.localeCompare(b.display))
+    results.sort((a, b) => {
+      const weightA = SLASH_DISPLAY_WEIGHT.get(a.display) ?? Number.MAX_SAFE_INTEGER
+      const weightB = SLASH_DISPLAY_WEIGHT.get(b.display) ?? Number.MAX_SAFE_INTEGER
+      if (weightA !== weightB) return weightA - weightB
+      return a.display.localeCompare(b.display)
+    })
 
     const max = firstBy(results, [(x) => x.display.length, "desc"])?.display.length
     if (!max) return results

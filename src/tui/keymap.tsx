@@ -271,18 +271,19 @@ export function useCommandSlashes(): Accessor<readonly CommandSlashEntry[]> {
     entries().flatMap((entry) => {
       const slashName = entry.command.slashName
       if (typeof slashName !== "string" || !slashName) return []
-      const slashAliases = entry.command.slashAliases
+      const aliasList = Array.isArray(entry.command.slashAliases)
+        ? entry.command.slashAliases.filter((alias): alias is string => typeof alias === "string")
+        : []
       return {
-        display: `/${slashName}`,
+        // 展示英文命令名，中文名降级为别名，/模型 与 /models 均可键入
+        display: `/${aliasList[0] ?? slashName}`,
         description:
           typeof entry.command.desc === "string"
             ? entry.command.desc
             : typeof entry.command.title === "string"
               ? entry.command.title
               : undefined,
-        aliases: Array.isArray(slashAliases)
-          ? slashAliases.filter((alias): alias is string => typeof alias === "string").map((alias) => `/${alias}`)
-          : undefined,
+        aliases: [`/${slashName}`, ...aliasList.map((alias) => `/${alias}`)],
         onSelect: () => keymap.dispatchCommand(entry.command.name),
       }
     }),
