@@ -14,10 +14,18 @@ const W = {
   repo: "\u4ed3\u5e93\uff1a\u672c\u5730 `C:\\gyc-code` / \u7528\u6237 `guyongcheng2026/gyc-code`\uff08gh-proxy\uff09",
   title: "# gyc-code \u5de5\u4f5c\u6d41\u6c34\uff08\u81ea\u52a8\u540c\u6b65\uff09",
   h2: "## \u63d0\u4ea4\u8bf0",
+  // 迁至 D: 前的旧目录名：E: 上的存量 vault 仍沿用此名
+  altName: "谷勇成的知识库",
 }
-// vault 已迁至 D:\我的知识库（原 E:\谷勇成的知识库，E 盘不存在致长期 ENOENT）。
-const VAULT = "D:\\" + W.name
-const worklog = path.join(VAULT, W.dir, W.file)
+
+// vault 位置历史上在 E: 与 D: 之间迁移过：迁到 D: 的理由是「E 盘不存在」，
+// 但 2026-09-28 起 D: 也不存在，脚本因 fail-soft 不阻塞提交而静默失效，
+// 连续 9 次提交未写入知识库（E: 实为可挂载盘，事后又出现）。
+// 改为按候选顺序探测首个真实存在且含 .git 的 vault，并允许 GYCCODE_VAULT 覆盖，
+// 使盘符变动不再需要改代码。以 .git 为判据是因为后续要在 VAULT 内执行 git。
+const VAULT_CANDIDATES = [process.env.GYCCODE_VAULT, "D:\\" + W.name, "E:\\" + W.altName].filter(Boolean)
+const VAULT = VAULT_CANDIDATES.find((p) => fs.existsSync(path.join(p, ".git")))
+const worklog = VAULT && path.join(VAULT, W.dir, W.file)
 const REPO = process.cwd()
 const LOGFILE = path.join(REPO, ".git", "worklog-sync.log")
 // 防并发 TOCTOU：post-commit 钩子与手动补跑同时执行时，双方都读到“无该 hash”
@@ -78,6 +86,11 @@ function main() {
 function syncOnce() {
   const head = git(REPO, ["rev-parse", "--short", "HEAD"])
   glog("HEAD=" + head)
+  if (!VAULT) {
+    // 盘符全部不可用时明确记录候选路径，避免再次「静默」停更而无从追查
+    glog("FATAL: vault not found (no candidate contains .git): " + VAULT_CANDIDATES.join(" | "))
+    return
+  }
   fs.mkdirSync(path.dirname(worklog), { recursive: true })
   if (fs.existsSync(worklog) && decodeTextFile(worklog).includes("[" + head + "]")) {
     glog("already recorded, skip")
