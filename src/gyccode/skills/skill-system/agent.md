@@ -1,7 +1,7 @@
 # 技能系统 (skill-system)
 
 ## 系统概述
-这个技能展示了如何增强pi agent的功能，通过实现基本的技能系统来提供：
+这个技能展示了如何增强 gyc-code 的功能，通过实现基本的技能系统来提供：
 1. 技能发现和注册机制
 2. 动态技能加载和生命周期管理
 3. 技能市场集成用于社区贡献的功能
@@ -10,7 +10,7 @@
 6. 与现有架构（协调者-工作者模式）的集成
 
 ## 当前限制
-pi agent目前具有：
+gyc-code 目前具有：
 - 硬编码的功能通过内置工具
 - 现有的技能市场用于特定领域的技能（Google Cloud/Agent Platform）
 - 没有通用的技能系统用于发现和加载社区贡献的功能
@@ -170,9 +170,9 @@ mkdir -p src/gyccode/skills/code-formatter
 /skill-system register src/gyccode/skills/code-formatter
 ```
 
-## 与pi agent的集成
+## 与 gyc-code 的集成
 
-要将这些增强功能集成到pi agent中：
+要将这些增强功能集成到 gyc-code 中：
 1. 创建技能管理器核心组件
 2. 实现技能发现和注册机制
 3. 添加动态技能加载和生命周期管理

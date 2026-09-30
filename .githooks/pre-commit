@@ -6,6 +6,8 @@ ROOT="$(git rev-parse --show-toplevel)"
 node "$ROOT/scripts/check-mojibake.mjs" --staged || exit 1
 # 品牌合规守卫（铁律 1）：自有文案区禁止出现他牌 AI 产品品牌词
 node "$ROOT/scripts/brand-guard.mjs" "$ROOT" || exit 1
+# 工作区残留兜底（铁律 7）：.gitignore 忽略了 *.bak/*.orig 等，git 察觉不到
+node "$ROOT/scripts/check-workspace-junk.mjs" "$ROOT" || exit 1
 # 高频缺陷模式防线（空 catch 吞错 / 空壳自递归），只查暂存的 TS 文件
 STAGED="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.tsx?$' || true)"
 if [ -n "$STAGED" ]; then

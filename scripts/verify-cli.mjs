@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, openSyn
 import { join, dirname, extname, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import os from "node:os"
+import { COMPLIANCE_FORBIDDEN } from "./brand-words.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
@@ -512,7 +513,9 @@ async function checkSecurity() {
 // src/core 为 LLM 服务商协议适配层（消息格式转换/provider 映射/AI SDK 封装），
 // 第三方服务名属必要互操作引用，按 AGENTS.md 开源合规条款做目录级豁免并计数；
 // src/cli 为用户界面面，逐条判定（已知互操作文件入豁免表）。
-const FORBIDDEN = ["anthropic", "claude", "codex", "openai", "chatgpt", "copilot", "windsurf", "gemini", "mimo", "hermes"]
+// 词表统一取自 scripts/brand-words.mjs，避免各脚本各维护一份而漏词
+// （历史上 verify-web 缺 hermes、全部缺 pi agent，导致 62 处残留无人拦截）。
+const FORBIDDEN = COMPLIANCE_FORBIDDEN
 const COMPLIANCE_EXEMPTS = [
   { file: "src\\cli\\cmd\\providers.ts", reason: "供应商连接选择器：第三方服务 ID 排序与认证提示（功能互操作）" },
   { file: "src\\cli\\cmd\\github.handler.ts", reason: "GitHub Copilot 认证流程与供应商优先级表（功能互操作）" },

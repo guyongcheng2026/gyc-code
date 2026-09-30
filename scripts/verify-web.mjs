@@ -14,6 +14,7 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, openSyn
 import { join, dirname, extname, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import os from "node:os"
+import { COMPLIANCE_FORBIDDEN } from "./brand-words.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
@@ -480,7 +481,8 @@ async function checkSecurity() {
 async function checkCompliance() {
   // 注："cursor" 为高频编程词汇（光标变量/CSS 属性/xterm cursorBlink），自动扫描误报率
   // 过高，不纳入违禁表，由人工审查覆盖。
-  const forbidden = ["anthropic", "claude", "codex", "openai", "chatgpt", "copilot", "windsurf", "gemini", "mimo"]
+  // 词表统一取自 scripts/brand-words.mjs：本脚本原先缺 hermes 等词，漏扫即失效。
+  const forbidden = COMPLIANCE_FORBIDDEN
   const targets = [
     ...walkFiles(join(ROOT, "src", "webapp", "src"), [".ts", ".tsx", ".css"]),
     join(ROOT, "src", "webapp", "index.html"),

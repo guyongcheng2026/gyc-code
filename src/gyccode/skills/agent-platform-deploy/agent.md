@@ -1,7 +1,7 @@
 # Agent Platform 部署 (agent-platform-deploy)
 
 ## 功能概述
-这个技能展示了如何增强pi agent的功能，通过提供Agent Platform部署能力来提供：
+这个技能展示了如何增强 gyc-code 的功能，通过提供Agent Platform部署能力来提供：
 1. 从Model Garden部署开放模型或自定义权重到Agent Platform端点
 2. 检查部署状态和验证服务端点
 3. 通过取消部署模型和删除端点来清理资源
@@ -9,7 +9,7 @@
 5. 故障排除部署错误（如配额限制）
 
 ## 当前限制
-pi agent目前的部署能力有限：
+gyc-code 目前的部署能力有限：
 - 没有内置的模型部署到Agent Platform的功能
 - 无法检查Model Garden中的可部署模型
 - 没有验证服务端点的能力
@@ -66,9 +66,9 @@ pi agent目前的部署能力有限：
 2. 作为教学工具，帮助用户理解Agent Platform部署能力的好处
 3. 作为原型，这些增强功能可以在此基础上进行构建
 
-## 与pi agent的集成
+## 与 gyc-code 的集成
 
-要将这些增强功能集成到pi agent中：
+要将这些增强功能集成到 gyc-code 中：
 1. 创建部署管理器核心组件
 2. 实施Model Garden集成
 3. 添加端点管理功能
@@ -177,9 +177,9 @@ Agent Platform部署响应：
 已避免每小时约$2.50的持续费用。
 ```
 
-## 与pi agent的集成
+## 与 gyc-code 的集成
 
-要将这些增强功能集成到pi agent中：
+要将这些增强功能集成到 gyc-code 中：
 1. 创建部署管理器核心组件
 2. 实施Model Garden集成
 3. 添加端点管理功能

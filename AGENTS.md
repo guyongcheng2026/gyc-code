@@ -23,7 +23,7 @@
 ## 生成物（勿手改）
 
 - `src/gyccode/skill/compose/bundle.gen.ts` ← `node scripts/gen-compose-bundle.mjs`（build 自动跑）；源在 `.bundle/`
-- `src/gyccode/server/generated/opencode-web-ui.gen.ts` ← `scripts/build-webapp.mjs`
+- `src/gyccode/server/generated/gyc-web-ui.gen.ts` ← `scripts/build-webapp.mjs`
 - `src/gyccode/command-registry.ts` ← `bun run scripts/generate-command-registry.ts`；**增删 `src/cli/cmd/*.ts` 后必须重生**
 - `cli-integration.test.ts` spawn 真实 CLI（`GYCCODE_PURE=1`），yargs 输出兼容中英文 locale，勿硬编码单语
 

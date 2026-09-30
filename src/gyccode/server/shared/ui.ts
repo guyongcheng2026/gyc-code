@@ -49,7 +49,7 @@ export function upstreamURL(path: string) {
 export function embeddedUI(disableEmbeddedWebUi: boolean) {
   if (disableEmbeddedWebUi) return Promise.resolve(null)
   return (embeddedUIPromise ??=
-    import("opencode-web-ui.gen.ts")
+    import("gyc-web-ui.gen.ts")
       .then((module) => {
         // 定位包根（向上查找 package.json）：源码模式本模块位于
         // <repo>/src/gyccode/server/shared/，dist 模式 bundle 位于 <repo>/dist/，

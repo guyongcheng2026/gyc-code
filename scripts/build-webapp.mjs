@@ -1,4 +1,4 @@
-// 构建 src/webapp → dist，并生成内嵌 Web UI 清单 opencode-web-ui.gen.ts
+// 构建 src/webapp → dist，并生成内嵌 Web UI 清单 gyc-web-ui.gen.ts
 // 清单键为相对路径（不带前导 /，如 "index.html"、"assets/foo.js"），
 // 值为相对仓库根的 POSIX 路径（如 "src/webapp/dist/index.html"）；
 // 运行时由 shared/ui.ts 向上查找 package.json 定位包根后解析为绝对路径，
@@ -10,7 +10,7 @@ import { join, resolve, relative } from "node:path"
 const rootDir = resolve(import.meta.dirname, "..")
 const webappDir = join(rootDir, "src/webapp")
 const distDir = join(webappDir, "dist")
-const outFile = join(rootDir, "src/gyccode/server/generated/opencode-web-ui.gen.ts")
+const outFile = join(rootDir, "src/gyccode/server/generated/gyc-web-ui.gen.ts")
 
 // 用 Vite JS API 程序化构建（避免 .bin shim 与 exports 字段限制）。
 await viteBuild({ root: webappDir, configFile: join(webappDir, "vite.config.ts") })

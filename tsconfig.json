@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "paths": {
-      "opencode-web-ui.gen.ts": ["./src/gyccode/server/generated/opencode-web-ui.gen.ts"],
+      "gyc-web-ui.gen.ts": ["./src/gyccode/server/generated/gyc-web-ui.gen.ts"],
       "#fallback-solid": ["./src/tui/fallback/solid/index.ts"],
       "#fallback-solid/*": ["./src/tui/fallback/solid/*"],
       "@/*": [

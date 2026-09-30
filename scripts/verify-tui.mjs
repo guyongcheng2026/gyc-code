@@ -15,6 +15,7 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, statSync, openSyn
 import { join, dirname, extname, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 import os from "node:os"
+import { COMPLIANCE_FORBIDDEN } from "./brand-words.mjs"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(__dirname, "..")
@@ -530,7 +531,9 @@ async function checkSecurity() {
 // 判定口径：**品牌展示类违禁**（gyc 自有产品名/文案冒用他牌）= FAIL；
 // **互操作引用**（连接第三方服务的 provider ID、协议常量、文件格式、第三方依赖包名）
 // 按 AGENTS.md 开源合规条款豁免，逐条列明理由，透明可审计。
-const FORBIDDEN = ["anthropic", "claude", "codex", "openai", "chatgpt", "copilot", "windsurf", "gemini", "mimo", "hermes"]
+// 词表统一取自 scripts/brand-words.mjs，避免各脚本各维护一份而漏词
+// （历史上 verify-web 缺 hermes、全部缺 pi agent，导致 62 处残留无人拦截）。
+const FORBIDDEN = COMPLIANCE_FORBIDDEN
 
 // 互操作豁免表：file 相对路径 + 豁免理由（该文件内全部命中按此理由豁免）
 const COMPLIANCE_EXEMPTS = [
