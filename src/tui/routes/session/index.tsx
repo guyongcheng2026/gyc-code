@@ -523,7 +523,8 @@ export function Session() {
       category: "会话",
       enabled: sync.data.config.share !== "disabled",
       slash: {
-        name: "share",
+        name: "分享",
+        aliases: ["share"],
       },
       run: async () => {
         const copy = (url: string) =>
@@ -561,7 +562,8 @@ export function Session() {
       value: "session.rename",
       category: "会话",
       slash: {
-        name: "rename",
+        name: "重命名",
+        aliases: ["rename"],
       },
       run: () => {
         dialog.replace(() => <DialogSessionRename session={route.sessionID} />)
@@ -572,7 +574,8 @@ export function Session() {
       value: "session.timeline",
       category: "会话",
       slash: {
-        name: "timeline",
+        name: "跳转",
+        aliases: ["timeline"],
       },
       run: () => {
         dialog.replace(() => (
@@ -598,7 +601,8 @@ export function Session() {
       value: "session.fork",
       category: "会话",
       slash: {
-        name: "fork",
+        name: "分叉",
+        aliases: ["fork"],
       },
       run: () => {
         dialog.replace(() => (
@@ -624,8 +628,8 @@ export function Session() {
       value: "session.compact",
       category: "会话",
       slash: {
-        name: "compact",
-        aliases: ["summarize"],
+        name: "压缩",
+        aliases: ["summarize", "compact"],
       },
       run: () => {
         const selectedModel = local.model.current()
@@ -651,7 +655,8 @@ export function Session() {
       category: "会话",
       enabled: !!session()?.share?.url,
       slash: {
-        name: "unshare",
+        name: "取消分享",
+        aliases: ["unshare"],
       },
       run: async () => {
         await sdk.client.session
@@ -673,7 +678,8 @@ export function Session() {
       value: "session.undo",
       category: "会话",
       slash: {
-        name: "undo",
+        name: "撤销",
+        aliases: ["undo"],
       },
       run: async () => {
         const status = sync.data.session_status?.[route.sessionID]
@@ -710,7 +716,8 @@ export function Session() {
         category: "会话",
         enabled: !!session()?.revert?.messageID,
         slash: {
-          name: "redo",
+          name: "重做",
+          aliases: ["redo"],
         },
         run: () => {
           dialog.clear()
@@ -731,22 +738,24 @@ export function Session() {
         },
       },
       {
-        title: "View Cost",
-        value: "session.cost",
+      title: "查看费用",
+      value: "session.cost",
         category: "会话",
         slash: {
-          name: "cost",
+          name: "费用",
+          aliases: ["cost"],
         },
         run: () => {
           dialog.replace(() => <DialogCost />)
         },
       },
       {
-        title: "Context Details",
+        title: "上下文详情",
         value: "session.context",
         category: "会话",
         slash: {
-          name: "context",
+          name: "上下文",
+          aliases: ["context"],
         },
         run: () => {
           dialog.replace(() => <DialogContextInfo />)
@@ -757,7 +766,8 @@ export function Session() {
         value: "session.rewind",
         category: "会话",
         slash: {
-          name: "rewind",
+          name: "回退",
+          aliases: ["rewind"],
         },
         run: () => {
           dialog.replace(() => <DialogRewind />)
@@ -768,7 +778,8 @@ export function Session() {
         value: "session.plan",
         category: "会话",
         slash: {
-          name: "plan",
+          name: "计划",
+          aliases: ["plan"],
         },
         run: () => {
           dialog.replace(() => <DialogPlan />)
@@ -779,7 +790,8 @@ export function Session() {
         value: "session.summary",
         category: "会话",
         slash: {
-          name: "summary",
+          name: "摘要",
+          aliases: ["summary"],
         },
         run: () => {
           dialog.replace(() => <DialogSummary />)
@@ -812,8 +824,8 @@ export function Session() {
       value: "session.toggle.timestamps",
       category: "会话",
       slash: {
-        name: "timestamps",
-        aliases: ["toggle-timestamps"],
+        name: "时间戳",
+        aliases: ["toggle-timestamps", "timestamps"],
       },
       run: () => {
         setTimestamps((prev) => (prev === "show" ? "hide" : "show"))
@@ -829,8 +841,8 @@ export function Session() {
       value: "session.toggle.thinking",
       category: "会话",
       slash: {
-        name: "thinking",
-        aliases: ["toggle-thinking"],
+        name: "思考",
+        aliases: ["toggle-thinking", "thinking"],
       },
       run: () => {
         thinking.set(nextThinkingMode(thinkingMode()))
@@ -1029,7 +1041,8 @@ export function Session() {
       value: "session.copy",
       category: "会话",
       slash: {
-        name: "copy",
+        name: "复制",
+        aliases: ["copy"],
       },
       run: async () => {
         try {
@@ -1059,7 +1072,8 @@ export function Session() {
       value: "session.export",
       category: "会话",
       slash: {
-        name: "export",
+        name: "导出",
+        aliases: ["export"],
       },
       run: async () => {
         try {
@@ -1193,11 +1207,12 @@ export function Session() {
       }),
     },
     {
-      title: "Add Working Directory",
+      title: "添加工作目录",
       value: "session.add_dir",
       category: "工作区",
       slash: {
-        name: "add-dir",
+        name: "添加目录",
+        aliases: ["add-dir"],
       },
       run: async () => {
         const value = await DialogPrompt.show(dialog, "Add Working Directory", {
@@ -1213,7 +1228,8 @@ export function Session() {
       value: "session.env",
       category: "工作区",
       slash: {
-        name: "env",
+        name: "环境",
+        aliases: ["env"],
       },
       run: () => {
         dialog.replace(() => (
@@ -1242,7 +1258,8 @@ export function Session() {
       value: "session.output_style",
       category: "配置",
       slash: {
-        name: "output-style",
+        name: "输出风格",
+        aliases: ["output-style"],
       },
       run: () => {
         const styles = [
@@ -1280,7 +1297,8 @@ export function Session() {
       value: "session.keybindings",
       category: "配置",
       slash: {
-        name: "keybindings",
+        name: "键绑定",
+        aliases: ["keybindings"],
       },
       run: () => {
         const rows = Object.entries(TuiKeybind.Definitions)
@@ -1317,7 +1335,8 @@ export function Session() {
       value: "session.security_review",
       category: "工作流",
       slash: {
-        name: "security-review",
+        name: "安全审查",
+        aliases: ["security-review"],
       },
       run: () =>
         sendPrompt(
@@ -1329,7 +1348,8 @@ export function Session() {
       value: "session.ultraplan",
       category: "工作流",
       slash: {
-        name: "ultraplan",
+        name: "超级计划",
+        aliases: ["ultraplan"],
       },
       run: () =>
         sendPrompt(
@@ -1341,7 +1361,8 @@ export function Session() {
       value: "session.bughunter",
       category: "工作流",
       slash: {
-        name: "bughunter",
+        name: "漏洞猎手",
+        aliases: ["bughunter"],
       },
       run: () =>
         sendPrompt(
@@ -1353,7 +1374,8 @@ export function Session() {
       value: "session.insights",
       category: "工作流",
       slash: {
-        name: "insights",
+        name: "洞察",
+        aliases: ["insights"],
       },
       run: () =>
         sendPrompt(
@@ -1365,7 +1387,8 @@ export function Session() {
       value: "session.advisor",
       category: "工作流",
       slash: {
-        name: "advisor",
+        name: "顾问",
+        aliases: ["advisor"],
       },
       run: () =>
         sendPrompt("请作为技术顾问评估当前任务与代码现状：指出我可能忽略的风险、更优的技术选型、以及下一步最值得做的三件事，并说明理由与取舍。"),

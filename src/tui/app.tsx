@@ -1116,8 +1116,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "切换会话",
         category: "会话",
         suggested: sync.data.session.length > 0,
-        slashName: "sessions",
-        slashAliases: ["resume", "continue"],
+        slashName: "会话",
+        slashAliases: ["sessions", "resume", "continue"],
         run: () => {
           dialog.replace(() => <DialogSessionList />)
         },
@@ -1127,8 +1127,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "新建会话",
         suggested: route.data.type === "session",
         category: "会话",
-        slashName: "new",
-        slashAliases: ["clear"],
+        slashName: "新建",
+        slashAliases: ["new", "clear"],
         run: () => {
           route.navigate({
             type: "home",
@@ -1156,7 +1156,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "管理工作区",
         category: "工作区",
         hidden: !Flag.GYCCODE_EXPERIMENTAL_WORKSPACES,
-        slashName: "workspaces",
+        slashName: "工作区管理",
+        slashAliases: ["workspaces"],
         run: () => {
           dialog.replace(() => <DialogWorkspaceList />)
         },
@@ -1175,9 +1176,9 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "切换模型",
         suggested: true,
         category: "代理",
-        slashName: "models",
+        slashName: "模型",
         // Bias /mo toward /models over /move without changing global fuzzy scoring.
-        slashAliases: ["mo"],
+        slashAliases: ["models", "mo"],
         run: () => {
           dialog.replace(() => <DialogModel />)
         },
@@ -1222,7 +1223,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "agent.list",
         title: "切换代理",
         category: "代理",
-        slashName: "agents",
+        slashName: "代理",
+        slashAliases: ["agents"],
         run: () => {
           dialog.replace(() => <DialogAgent />)
         },
@@ -1231,7 +1233,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "mcp.list",
         title: "启用/停用 MCP",
         category: "代理",
-        slashName: "mcps",
+        slashName: "MCP",
+        slashAliases: ["mcps"],
         run: () => {
           dialog.replace(() => <DialogMcp />)
         },
@@ -1258,7 +1261,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         title: "切换模型变体",
         category: "代理",
         hidden: local.model.variant.list().length === 0,
-        slashName: "variants",
+        slashName: "变体",
+        slashAliases: ["variants"],
         run: () => {
           if (local.model.variant.list().length === 0) {
             return toast.show({
@@ -1283,7 +1287,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "provider.connect",
         title: "连接服务商",
         suggested: !connected(),
-        slashName: "connect",
+        slashName: "连接",
+        slashAliases: ["connect"],
         run: () => {
           dialog.replace(() => <DialogProviderList />)
         },
@@ -1295,8 +1300,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
               name: "console.org.switch",
               title: "切换组织",
               suggested: Boolean(sync.data.console_state.activeOrgName),
-              slashName: "org",
-              slashAliases: ["orgs", "switch-org"],
+              slashName: "组织",
+              slashAliases: ["org", "orgs", "switch-org"],
               run: () => {
                 dialog.replace(() => <DialogConsoleOrg />)
               },
@@ -1307,7 +1312,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "gyccode.status",
         title: "查看状态",
-        slashName: "status",
+        slashName: "状态",
+        slashAliases: ["status"],
         run: () => {
           dialog.replace(() => <DialogStatus />)
         },
@@ -1316,7 +1322,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "gyccode.debug",
         title: "查看调试信息",
-        slashName: "debug",
+        slashName: "调试",
+        slashAliases: ["debug"],
         run: () => {
           dialog.replace(() => <DialogDebug />)
         },
@@ -1325,7 +1332,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "theme.switch",
         title: "切换主题",
-        slashName: "themes",
+        slashName: "主题",
+        slashAliases: ["themes"],
         run: () => {
           dialog.replace(() => <DialogThemeList />)
         },
@@ -1353,7 +1361,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "help.show",
         title: "帮助",
-        slashName: "help",
+        slashName: "帮助",
+        slashAliases: ["help"],
         run: () => {
           dialog.replace(() => <DialogHelp />)
         },
@@ -1362,8 +1371,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "app.exit",
         title: "退出应用",
-        slashName: "exit",
-        slashAliases: ["quit", "q"],
+        slashName: "退出",
+        slashAliases: ["exit", "quit", "q"],
         run: () => exit(),
         category: "系统",
       },
@@ -1492,7 +1501,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.doctor",
         title: "环境诊断",
         category: "系统",
-        slashName: "doctor",
+        slashName: "诊断",
+        slashAliases: ["doctor"],
         run: () => {
           dialog.replace(() => <DialogDoctor />)
         },
@@ -1501,7 +1511,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.config",
         title: "查看配置",
         category: "系统",
-        slashName: "config",
+        slashName: "配置",
+        slashAliases: ["config"],
         run: () => {
           dialog.replace(() => <DialogConfig />)
         },
@@ -1510,7 +1521,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "renderer.select",
         title: "选择渲染器（opentui / fallback）",
         category: "系统",
-        slashName: "renderer",
+        slashName: "渲染器",
+        slashAliases: ["renderer"],
         run: () => {
           dialog.replace(() => <DialogRendererSelect />)
         },
@@ -1519,7 +1531,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.usage",
         title: "查看额度使用",
         category: "系统",
-        slashName: "usage",
+        slashName: "额度",
+        slashAliases: ["usage"],
         run: () => {
           dialog.replace(() => <DialogUsage />)
         },
@@ -1528,8 +1541,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.permissions",
         title: "权限管理",
         category: "系统",
-        slashName: "permissions",
-        slashAliases: ["perms"],
+        slashName: "权限",
+        slashAliases: ["permissions", "perms"],
         run: () => {
           dialog.replace(() => <DialogPermissions />)
         },
@@ -1538,7 +1551,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.vim",
         title: "切换 Vim 模式",
         category: "系统",
-        slashName: "vim",
+        slashName: "Vim",
+        slashAliases: ["vim"],
         run: () => {
           dialog.replace(() => <DialogVim />)
         },
@@ -1547,7 +1561,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.login",
         title: "账号登录",
         category: "账号",
-        slashName: "login",
+        slashName: "登录",
+        slashAliases: ["login"],
         run: () => {
           dialog.replace(() => <DialogLogin />)
         },
@@ -1556,7 +1571,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.logout",
         title: "账号登出",
         category: "账号",
-        slashName: "logout",
+        slashName: "登出",
+        slashAliases: ["logout"],
         run: () => {
           dialog.replace(() => <DialogLogout />)
         },
@@ -1565,7 +1581,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.hooks",
         title: "查看 Hooks",
         category: "系统",
-        slashName: "hooks",
+        slashName: "钩子",
+        slashAliases: ["hooks"],
         run: () => {
           dialog.replace(() => <DialogHooks />)
         },
@@ -1574,7 +1591,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.commit",
         title: "Git 提交状态",
         category: "Git",
-        slashName: "commit",
+        slashName: "提交",
+        slashAliases: ["commit"],
         run: () => {
           dialog.replace(() => <DialogCommit />)
         },
@@ -1583,8 +1601,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.memory",
         title: "查看跨会话记忆",
         category: "系统",
-        slashName: "memory",
-        slashAliases: ["mem"],
+        slashName: "记忆",
+        slashAliases: ["memory", "mem"],
         run: () => {
           dialog.replace(() => <DialogMemory />)
         },
@@ -1593,7 +1611,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.upgrade",
         title: "版本升级",
         category: "系统",
-        slashName: "upgrade",
+        slashName: "升级",
+        slashAliases: ["upgrade"],
         run: () => {
           dialog.replace(() => <DialogUpgrade />)
         },
@@ -1602,8 +1621,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.release_notes",
         title: "更新日志",
         category: "系统",
-        slashName: "release-notes",
-        slashAliases: ["changelog"],
+        slashName: "更新日志",
+        slashAliases: ["release-notes", "changelog"],
         run: () => {
           dialog.replace(() => <DialogReleaseNotes />)
         },
@@ -1612,7 +1631,8 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
         name: "gyccode.feedback",
         title: "提交反馈",
         category: "系统",
-        slashName: "feedback",
+        slashName: "反馈",
+        slashAliases: ["feedback"],
         run: () => {
           dialog.replace(() => <DialogFeedback />)
         },

@@ -464,7 +464,8 @@ export function Prompt(props: PromptProps) {
 title: "打开编辑器",
         category: "会话",
         name: "prompt.editor",
-        slashName: "editor",
+        slashName: "编辑器",
+        slashAliases: ["editor"],
         run: async () => {
           dialog.clear()
 
@@ -556,7 +557,8 @@ title: "打开编辑器",
         title: "技能",
         name: "prompt.skills",
         category: "提示词",
-        slashName: "skills",
+        slashName: "技能",
+        slashAliases: ["skills"],
         run: () => {
           dialog.replace(() => (
             <DialogSkill
@@ -598,7 +600,8 @@ title: "打开编辑器",
         name: "workspace.set",
         category: "会话",
         enabled: Flag.GYCCODE_EXPERIMENTAL_WORKSPACES,
-        slashName: "warp",
+        slashName: "工作区",
+        slashAliases: ["warp"],
         run: () => {
           workspace.open()
         },
@@ -608,7 +611,8 @@ title: "打开编辑器",
         desc: "移到另一个项目目录",
         name: "session.move",
         category: "会话",
-        slashName: "move",
+        slashName: "移动",
+        slashAliases: ["move"],
         run: () => {
           move.open()
         },
@@ -1514,7 +1518,7 @@ title: "打开编辑器",
                         {store.mode === "shell" ? "命令行" : Locale.titlecase(agent().name)}
                       </text>
                       <Show when={store.mode === "normal" && local.permission.mode === "auto"}>
-                        <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>自动</text>
+                        <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>Auto</text>
                       </Show>
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>
