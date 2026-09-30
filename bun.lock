@@ -151,9 +151,12 @@
       "name": "@gyccode/cli",
       "dependencies": {
         "@gyccode/core": "workspace:*",
+        "@gyccode/effect-drizzle-sqlite": "workspace:*",
+        "@gyccode/llm": "workspace:*",
         "@gyccode/protocol": "workspace:*",
         "@gyccode/schema": "workspace:*",
         "@gyccode/tui": "workspace:*",
+        "@gyccode/ui": "workspace:*",
       },
     },
     "src/codemode": {
@@ -161,21 +164,38 @@
     },
     "src/core": {
       "name": "@gyccode/core",
+      "dependencies": {
+        "@gyccode/effect-drizzle-sqlite": "workspace:*",
+        "@gyccode/llm": "workspace:*",
+        "@gyccode/protocol": "workspace:*",
+        "@gyccode/schema": "workspace:*",
+      },
     },
     "src/effect-drizzle-sqlite": {
       "name": "@gyccode/effect-drizzle-sqlite",
     },
     "src/llm": {
       "name": "@gyccode/llm",
+      "dependencies": {
+        "@gyccode/schema": "workspace:*",
+      },
     },
     "src/protocol": {
       "name": "@gyccode/protocol",
+      "dependencies": {
+        "@gyccode/schema": "workspace:*",
+      },
     },
     "src/schema": {
       "name": "@gyccode/schema",
     },
     "src/tui": {
       "name": "@gyccode/tui",
+      "dependencies": {
+        "@gyccode/core": "workspace:*",
+        "@gyccode/protocol": "workspace:*",
+        "@gyccode/ui": "workspace:*",
+      },
     },
     "src/ui": {
       "name": "@gyccode/ui",

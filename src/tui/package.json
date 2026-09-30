@@ -1,5 +1,10 @@
 {
   "name": "@gyccode/tui",
+  "dependencies": {
+    "@gyccode/core": "workspace:*",
+    "@gyccode/protocol": "workspace:*",
+    "@gyccode/ui": "workspace:*"
+  },
   "exports": {
     ".": "./index.tsx",
     "./builtins": "./feature-plugins/builtins.ts",
@@ -39,17 +44,27 @@
     "./component/spinner": "./component/spinner.tsx",
     "./component/register-spinner": "./component/register-spinner.ts"
   },
-  "imports": {
-    "#zed-sqlite": {
-      "bun": "./zed-sqlite.bun.ts",
-      "node": "./zed-sqlite.node.ts",
-      "default": "./zed-sqlite.bun.ts"
+"imports": {
+      "#zed-sqlite": {
+        "bun": "./zed-sqlite.bun.ts",
+        "node": "./zed-sqlite.node.ts",
+        "default": "./zed-sqlite.bun.ts"
+      },
+      "#pty": {
+        "bun": "./pty/pty.bun.ts",
+        "node": "./pty/pty.node.ts",
+        "default": "./pty/pty.bun.ts"
+      },
+      "#fff": {
+        "bun": "./filesystem/fff.bun.ts",
+        "node": "./filesystem/fff.node.ts",
+        "default": "./filesystem/fff.bun.ts"
+      },
+      "#win32-kernel": {
+        "bun": "./win32-kernel.bun.ts",
+        "node": "./win32-kernel.node.ts",
+        "default": "./win32-kernel.bun.ts"
+      }
     },
-    "#win32-kernel": {
-      "bun": "./win32-kernel.bun.ts",
-      "node": "./win32-kernel.node.ts",
-      "default": "./win32-kernel.bun.ts"
-    }
-  },
   "type": "module"
 }

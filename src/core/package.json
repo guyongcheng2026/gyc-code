@@ -1,11 +1,19 @@
 {
   "name": "@gyccode/core",
+  "dependencies": {
+    "@gyccode/effect-drizzle-sqlite": "workspace:*",
+    "@gyccode/llm": "workspace:*",
+    "@gyccode/protocol": "workspace:*",
+    "@gyccode/schema": "workspace:*"
+  },
   "exports": {
     "./effect/layer-node": "./effect/layer-node.ts",
     "./effect/app-node": "./effect/app-node.ts",
     "./session/runner": "./session/runner/index.ts",
     "./system-context": "./system-context/index.ts",
     "./workflow": "./workflow/index.ts",
+    "./installation/version": "./installation/version.ts",
+    "./global": "./global.ts",
     "./*": "./*.ts"
   },
   "imports": {

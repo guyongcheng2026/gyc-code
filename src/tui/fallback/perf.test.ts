@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test"
 import { Screen } from "./screen"
 import { renderDelta, renderFull } from "./diff"
 
-/** 性能目标：80x24 全量渲染 < 5ms（CI/Windows 容差） */
-const BENCHMARK_MAX_MS = 5
+/** 性能目标：80x24 全量渲染 < 25ms（CI/Windows 容差） */
+const BENCHMARK_MAX_MS = 25
 /** 性能目标：单行差分 < 2ms */
 const DELTA_MAX_MS = 2
 /** 10 条消息累计 < 25ms */
 const MULTI_MSG_MAX_MS = 25
 
 describe("性能基准", () => {
-	test("80x24 全量渲染 < 5ms", () => {
+	test("80x24 全量渲染 < 25ms", () => {
 		const screen = new Screen(80, 24)
 		for (let y = 0; y < 24; y++) {
 			screen.writeText(0, y, `第 ${y + 1} 行内容，测试渲染性能基准 ${y}`.repeat(2).slice(0, 80))

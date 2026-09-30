@@ -1,5 +1,8 @@
 ﻿{
   "name": "@gyccode/protocol",
+  "dependencies": {
+    "@gyccode/schema": "workspace:*"
+  },
   "exports": {
     "./plugin/v2/effect/integration": "./plugin/v2/effect/integration.js",
     "./plugin/v2/effect/plugin": "./plugin/v2/effect/plugin.js",

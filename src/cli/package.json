@@ -1,14 +1,48 @@
 {
   "name": "@gyccode/cli",
-  "exports": {
-    "./cmd/debug": "./cmd/debug/index.ts",
-    "./*": "./*.ts"
-  },
-  "type": "module",
   "dependencies": {
     "@gyccode/core": "workspace:*",
+    "@gyccode/effect-drizzle-sqlite": "workspace:*",
+    "@gyccode/llm": "workspace:*",
     "@gyccode/protocol": "workspace:*",
     "@gyccode/schema": "workspace:*",
-    "@gyccode/tui": "workspace:*"
-  }
+    "@gyccode/tui": "workspace:*",
+    "@gyccode/ui": "workspace:*"
+  },
+  "exports": {
+    "./cmd/debug": "./cmd/debug/index.ts",
+    "./cmd/run": "./cmd/run.ts",
+    "./cmd/account": "./cmd/account.ts",
+    "./cmd/agent": "./cmd/agent.ts",
+    "./cmd/acp": "./cmd/acp.ts",
+    "./cmd/attach": "./cmd/attach.ts",
+    "./cmd/cli": "./cmd/cli.ts",
+    "./cmd/db": "./cmd/db.ts",
+    "./cmd/export": "./cmd/export.ts",
+    "./cmd/gateway": "./cmd/gateway.ts",
+    "./cmd/generate": "./cmd/generate.ts",
+    "./cmd/github": "./cmd/github.ts",
+    "./cmd/import": "./cmd/import.ts",
+    "./cmd/learning": "./cmd/learning.ts",
+    "./cmd/mcp": "./cmd/mcp.ts",
+    "./cmd/memory": "./cmd/memory.ts",
+    "./cmd/models": "./cmd/models.ts",
+    "./cmd/pair": "./cmd/pair.ts",
+    "./cmd/plug": "./cmd/plug.ts",
+    "./cmd/pr": "./cmd/pr.ts",
+    "./cmd/providers": "./cmd/providers.ts",
+    "./cmd/serve": "./cmd/serve.ts",
+    "./cmd/session": "./cmd/session.ts",
+    "./cmd/stats": "./cmd/stats.ts",
+    "./cmd/tui": "./cmd/tui.ts",
+    "./cmd/uninstall": "./cmd/uninstall.ts",
+    "./cmd/upgrade": "./cmd/upgrade.ts",
+    "./cmd/web": "./cmd/web.ts",
+    "./cmd/workflow": "./cmd/workflow.ts",
+    "./ui": "./ui.ts",
+    "./error": "./error.ts",
+    "./heap": "./heap.ts",
+    "./cmd/send": "./cmd/send.ts"
+  },
+  "type": "module"
 }

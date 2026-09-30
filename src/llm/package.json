@@ -1,5 +1,8 @@
 {
   "name": "@gyccode/llm",
+  "dependencies": {
+    "@gyccode/schema": "workspace:*"
+  },
   "exports": {
     ".": "./index.ts",
     "./route": "./route/index.ts",
