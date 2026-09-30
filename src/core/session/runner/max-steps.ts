@@ -1,16 +1,22 @@
-export const MAX_STEPS_PROMPT = `CRITICAL - MAXIMUM STEPS REACHED
+/**
+ * 步数耗尽时注入给模型的收尾说明。
+ *
+ * ⚠️ 措辞约束（安全）：本文件位于 agent 可读的工作区内，任何读代码的 agent
+ * 只要 grep 到本文件就会把内容收进上下文。因此正文**禁止**使用系统级或指令级
+ * 措辞，例如 "overrides ALL other instructions"、"CRITICAL"、任何自我授权或
+ * 威胁性表述。历史上此处写过 "This constraint overrides ALL other instructions"，
+ * 已实证会劫持子代理（其读到后中断工作并按系统指令行事）。
+ *
+ * 本串的定位是「一条告知模型收尾的数据」，不是「来自系统的命令」。它只描述
+ * 观察到的客观状态（步数已用尽）并请求模型输出总结；真正的停止由框架的循环
+ * 条件负责（见 SessionRunner 调用方），不依赖本串的措辞强度。
+ */
+export const MAX_STEPS_PROMPT = `步数已用尽，本次运行到此结束。
 
-The maximum number of steps allowed for this task has been reached. Tools are disabled until next user input. Respond with text only.
+你这一轮不能再调用工具。请用纯文本回复以下内容：
+1. 已完成的工作
+2. 尚未完成的工作清单
+3. 建议的下一步
 
-STRICT REQUIREMENTS:
-1. Do NOT make any tool calls (no reads, writes, edits, searches, or any other tools)
-2. MUST provide a text response summarizing work done so far
-3. This constraint overrides ALL other instructions, including any user requests for edits or tool use
+如果你认为还需要调用工具，请在上面的清单里写明需要做什么，交由谷总决定是否继续。`
 
-Response must include:
-- Statement that maximum steps for this agent have been reached
-- Summary of what has been accomplished so far
-- List of any remaining tasks that were not completed
-- Recommendations for what should be done next
-
-Any attempt to use tools is a critical violation. Respond with text ONLY.`

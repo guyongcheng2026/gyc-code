@@ -108,6 +108,8 @@ const decodeMessageInfo = Schema.decodeUnknownExit(SessionV1.Info)
 const decodeMessagePart = Schema.decodeUnknownExit(SessionV1.Part)
 /** 子代理未显式配置 steps 时的默认步数上限，防止无限空转。 */
 const SUBAGENT_MAX_STEPS = 20
+/** 主 agent 默认步数上限（默认），0 表示不限制。子代理另有 20 步的更紧上限。 */
+const MAX_STEPS = 200
 /** 连续空转步数上限（默认），工具失败/被拒或与历史完全重复时快速失败；0 表示关闭。 */
 const MAX_CONSECUTIVE_TOOL_ONLY_STEPS = 10
 /** 重复工具判定保留的历史轮数。 */
@@ -1675,7 +1677,12 @@ const layer = Layer.effect(
             yield* events.publish(Session.Event.Error, { sessionID, error: error.toObject() })
             throw error
           }
-          const maxSteps = agent.steps ?? (agent.mode === "subagent" ? SUBAGENT_MAX_STEPS : Infinity)
+          // 主 agent 此前默认 Infinity：漂移的循环既不会停，也无上限地烧 token。
+          // 现给出有限默认值（MAX_STEPS，0 可显式恢复为不限制），子代理沿用更紧的 20 步。
+          const configuredMaxSteps = (yield* config.get()).llm?.max_steps ?? MAX_STEPS
+          const maxSteps =
+            agent.steps ??
+            (agent.mode === "subagent" ? SUBAGENT_MAX_STEPS : configuredMaxSteps === 0 ? Infinity : configuredMaxSteps)
           const isLastStep = step >= maxSteps
           msgs = yield* SessionReminders.apply({ messages: msgs, agent, session }).pipe(
             Effect.provideService(RuntimeFlags.Service, flags),
@@ -1793,6 +1800,9 @@ const layer = Layer.effect(
               freshDate,
               !staleFrozen,
             )
+            // 结构化工具输出（read/grep/glob）的单条上限可按工具名覆盖。
+            // 缓存命中率与幻觉率共用这一个旋钮，交由谷总按实测数据定夺。
+            MessageV2.setToolTypeCaps((yield* config.get()).tool_output?.structured_caps)
             const modelMsgs = yield* MessageV2.toModelMessagesEffect(msgs, model, {
               toolOutputMaxChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxPerChar,
               toolOutputMaxTotalChars: MessageV2.cacheFriendlyBudget(model.limit.context)?.maxTotalChars,

@@ -11,6 +11,7 @@ import { Agent } from "@/agent/agent"
 import { Plugin } from "@/plugin"
 import { Config } from "@/config/config"
 import { NotFoundError } from "@/storage/storage"
+import { Truncate } from "@/tool/truncate"
 
 import { Effect, Layer, Context } from "effect"
 import { InstanceState } from "@/effect/instance-state"
@@ -35,7 +36,6 @@ export const Event = SessionCompactionEvent
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
-const TOOL_OUTPUT_MAX_CHARS = 2_000
 const PRUNE_PROTECTED_TOOLS = ["skill"]
 const DEFAULT_TAIL_TURNS = 2
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
@@ -43,10 +43,29 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 
 // 2026-08-27 摘要式压缩：compact 后的工具输出替换为头部摘要再持久化。
 // 超长输出截头保留前 TOOL_OUTPUT_MAX_CHARS 字符——工具输出首部通常是结论/
-// 关键数据，尾部多为明细/样板。两点收益：①序列化端给 LLM 的是真实摘要而非
-// 固定占位符，显著降低压缩后的幻觉率；②释放 SQLite 中的大文本（库膨胀主因）。
-const summarizeToolOutput = (output: string): string =>
-  output.length > TOOL_OUTPUT_MAX_CHARS ? `${output.slice(0, TOOL_OUTPUT_MAX_CHARS)}…` : output
+// 关键数据，尾部多为明细/样板。两点收益：①释放 SQLite 中的大文本（库膨胀
+// 主因）；②序列化端不必再传全文。
+//
+// 2026-09-30 修正（幻觉率 P0）：原实现只追加一个「…」，既不说明省略了多少字符，
+// 也不保留原文。read 工具自己生成的完整性标记（`(Showing lines X-Y of N. Use
+// offset=N to continue.)`）位于输出**末尾**，正好被从头部下刀的切片吃掉，模型
+// 因此完全看不出「这个文件后面还有内容」，极易基于前半段断言整个文件并编造
+// 后半段的签名。现改为：原文落盘到截断目录，DB 里存头部摘要 + 省略字数 + 完整
+// 路径，明确告知模型可回查。
+export const TOOL_OUTPUT_MAX_CHARS = 2_000
+
+const summarizeToolOutput = (output: string, fullPath: string): string => {
+  if (output.length <= TOOL_OUTPUT_MAX_CHARS) return output
+  const omitted = output.length - TOOL_OUTPUT_MAX_CHARS
+  return [
+    output.slice(0, TOOL_OUTPUT_MAX_CHARS),
+    "",
+    `[输出已截断：此处省略了 ${omitted} 个字符（共 ${output.length}）。`,
+    `完整原文已保存到 ${fullPath}`,
+    `如需后半段内容，请用 Read 配合 offset 读取该文件，或用 Grep 在其中检索。`,
+    `不要仅凭以上片段断言整个文件的内容。`,
+  ].join("\n")
+}
 
 // --- Microcompact ---
 export const MICROCOMPACT_THRESHOLD = 0.9 // Start microcompact at 90% context usage
@@ -390,8 +409,9 @@ function makeCountTokensAdapter(
 const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
-    const config = yield* Config.Service
-    const session = yield* Session.Service
+      const config = yield* Config.Service
+      const session = yield* Session.Service
+      const truncate = yield* Truncate.Service
     const agents = yield* Agent.Service
     const plugin = yield* Plugin.Service
     const processors = yield* SessionProcessor.Service
@@ -420,14 +440,21 @@ const layer = Layer.effect(
         if (part.state.status === "completed") {
           part.state.time.compacted = Date.now()
           // 2026-08-27 摘要式压缩：把超长工具输出替换为头部摘要再持久化。
-          // 两点收益：①序列化端给 LLM 的是真实摘要而非固定占位符，显著降低
-          // 压缩后的幻觉率；②释放 SQLite 中的大文本（库膨胀主因，174MB→可
-          // 观下降）。安全依据：aggregateToolCaps（message-v2.ts:217）与
-          // serialization（message-v2.ts:527）均已跳过 compacted part 的 output
-          // 全文，压缩后 output 不再参与推理路径；历史数据（旧 compacted
-          // part 未压缩）由序列化端摘要兜底。
+          // 收益：释放 SQLite 中的大文本（库膨胀主因，174MB→可观下降）。安全
+          // 依据：aggregateToolCaps（message-v2.ts:217）与 serialization
+          // （message-v2.ts:527）均已跳过 compacted part 的 output 全文。
+          //
+          // 2026-09-30（幻觉率 P0）：原文先落盘再截断。旧实现直接用
+          // slice(0,2000)+「…」覆盖 DB，①不告知省略了多少字符，②永久销毁原文。
           if (typeof part.state.output === "string" && part.state.output.length > TOOL_OUTPUT_MAX_CHARS) {
-            part.state.output = summarizeToolOutput(part.state.output)
+            const full = part.state.output
+            const saved = yield* truncate
+              .write(full)
+              .pipe(Effect.catchCause((cause) => Effect.logError("compaction spill failed", { cause })))
+            part.state.output =
+              saved === null || saved === undefined
+                ? `${full.slice(0, TOOL_OUTPUT_MAX_CHARS)}\n\n[输出已截断：此处省略了 ${full.length - TOOL_OUTPUT_MAX_CHARS} 个字符（共 ${full.length}），且原文落盘失败、已不可回查。不要仅凭以上片段断言整个输出的内容。]`
+                : summarizeToolOutput(full, saved)
           }
           yield* session.updatePart(part)
           changed = true
@@ -962,6 +989,7 @@ export const node = LayerNode.make({
   deps: [
     Config.node,
     Session.node,
+    Truncate.node,
     Agent.node,
     Plugin.node,
     SessionProcessor.node,

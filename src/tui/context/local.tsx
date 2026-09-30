@@ -232,6 +232,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         if (!models.length) return undefined
         // 计费安全护栏：回退到提供商首个模型时优先免费模型（cost 全 0），
         // 避免默认模型失效后静默滑向付费模型产生意外扣费。
+        // 注：cost 为 0 既可能是真免费，也可能是没查到价（自建端点常态）。
+        // 两者都优先于「已知要钱」的模型，从扣费风险看这是更安全的一侧。
+        // 真正的区分（priced）由后端 Provider.Model 承担并经 CLI 成本统计告警暴露。
         const freeModel = models.find(
           (model) => model.status !== "deprecated" && model.cost?.input === 0 && model.cost?.output === 0,
         )

@@ -49,7 +49,13 @@ function truncateToolOutput(text: string, maxChars?: number, tool?: string) {
   if (!maxChars || text.length <= maxChars) return text
   const omitted = text.length - maxChars
   if (tool) recordTruncation(tool, omitted)
-  return `${text.slice(0, maxChars)}\n[Tool output truncated for compaction: omitted ${omitted} chars]`
+  // 光告知省略字数不够：模型知道被截了，却不知道去哪拿剩下的，于是转而猜测。
+  const recovery = tool ? TOOL_RECOVERY_HINT[tool] : undefined
+  return [
+    text.slice(0, maxChars),
+    `[Tool output truncated: omitted ${omitted} chars of ${text.length} total. Do NOT conclude the rest of this content from the fragment above.]`,
+    ...(recovery ? [recovery] : []),
+  ].join("\n")
 }
 
 /** 单条 user 文本截断（缓存友好：限制病态大粘贴的每轮增量；正常消息不受影响）。 */
@@ -92,14 +98,34 @@ export function cacheFriendlyBudget(contextLimit: number | undefined) {
   }
   return undefined
 }
-// 工具类型感知的单条上限（大窗口模型）：结构化输出（read/grep/glob）截断安全，
-// 文件内容可分段读取，上限收紧到 2K 字符（实测 4K 时首次未命中 1525 token，
-// 2K 可进一步降至 ~800，且模型会自动降级 grep 搜索不破坏能力）；bash/其他
-// 命令输出可能含关键错误信息，保留 8K。小窗口模型统一用 CACHE_FRIENDLY_TOOL_CHARS（1.5K）。
+// 工具类型感知的单条上限（大窗口模型）：结构化输出（read/grep/glob）的截断
+// 安全，文件内容可分段读取；bash/其他命令输出可能含关键错误信息，保留 8K。
+// 小窗口模型统一用 CACHE_FRIENDLY_TOOL_CHARS（1.5K）。
+//
+// 2026-09-30 修正（幻觉率 P0）：2K 约为 800 token / 40 行。3000 行的文件模型
+// 只能看到开头 40 行，而截断标记不带任何回查路径，模型无从得知「后面还有
+// 3000 行」，于是基于碎片断言整文件内容并编造后半段的签名。现默认提到 4K
+// （仓库原注释即以 2K↔4K 作为调参区间），并可通过 `tool_output.structured_caps`
+// 按工具名覆盖 —— 缓存命中率与幻觉率是同一个旋钮的两端，应由数据决定而不是
+// 一次实测拍死。
 export const TOOL_TYPE_CAPS: Record<string, number> = {
-  read: 2_000,
-  grep: 2_000,
-  glob: 2_000,
+  read: 4_000,
+  grep: 4_000,
+  glob: 4_000,
+}
+
+/** 截断回查提示：只说「省略了多少」等于没说，模型无从补救。 */
+const TOOL_RECOVERY_HINT: Record<string, string> = {
+  read: "Use the read tool again with offset=<line after the excerpt above> to see the next chunk.",
+  grep: "Narrow the pattern or pass a more specific `path`/`include` so the matches you need fit within the cap.",
+  glob: "Narrow the pattern or point `path` at a more specific directory.",
+}
+
+export function setToolTypeCaps(caps: Record<string, number> | undefined): void {
+  if (!caps) return
+  for (const [tool, value] of Object.entries(caps)) {
+    if (Number.isFinite(value) && value > 0) TOOL_TYPE_CAPS[tool] = value
+  }
 }
 
 function toolTypeCap(tool: string, baseCap: number | undefined): number | undefined {

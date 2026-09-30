@@ -6,6 +6,9 @@ import { Database } from "@gyccode/core/database/database"
 import { SessionTable } from "@gyccode/core/session/sql"
 import { Project } from "@/project/project"
 import { InstanceRef } from "@/effect/instance-ref"
+import { Provider } from "@/provider/provider"
+import { ProviderV2 } from "@gyccode/core/provider"
+import { ModelV2 } from "@gyccode/core/model"
 
 interface SessionStats {
   totalSessions: number
@@ -21,6 +24,8 @@ interface SessionStats {
     }
   }
   toolUsage: Record<string, number>
+  /** 2026-09-30（每任务成本 P0）：cost 为 0 是因为没查到价，而非真免费的模型。 */
+  unpricedModels: Array<{ model: string; sessions: number }>
   modelUsage: Record<
     string,
     {
@@ -44,6 +49,38 @@ interface SessionStats {
   costPerDay: number
   tokensPerSession: number
   medianTokensPerSession: number
+}
+
+/**
+ * 找出「被会话用到、但 Provider 侧查不到真实单价」的模型。
+ *
+ * 存在的理由：自建/自研端点走 provider.ts 的动态发现分支，OpenAI 兼容的 /models
+ * 一般不返回价格字段，cost 三级 ?? 0 兜底后恒为 0。不点名的话，谷总看到
+ * session.cost=0 会读成「不花钱」——而这恰恰是最该知道有没有在烧钱的场景。
+ *
+ * 刻意只认 priced === false：模型在目录里查不到（getModel 失败）时返回 undefined，
+ * 那属于「模型已下线/被重命名」，不是「静默按 0 计费」，不混进同一类告警。
+ */
+export function detectUnpricedModels<R>(
+  modelKeys: readonly string[],
+  lookup: (providerID: string, modelID: string) => Effect.Effect<{ priced?: boolean } | undefined, never, R>,
+): Effect.Effect<Array<{ model: string; sessions: number }>, never, R> {
+  return Effect.gen(function* () {
+    const perModel = new Map<string, number>()
+    for (const key of modelKeys) {
+      perModel.set(key, (perModel.get(key) ?? 0) + 1)
+    }
+    const out: Array<{ model: string; sessions: number }> = []
+    for (const [key, count] of perModel) {
+      const slash = key.indexOf("/")
+      const model = yield* lookup(key.slice(0, slash), key.slice(slash + 1))
+      if (model?.priced === false) {
+        out.push({ model: key, sessions: count })
+      }
+    }
+    out.sort((a, b) => b.sessions - a.sessions)
+    return out
+  })
 }
 
 export const StatsCommand = effectCmd({
@@ -121,6 +158,14 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     }
   }
 
+  // 2026-09-30（每任务成本 P0）：子代理用量已由 projector.rollupUsage 逐级上卷到
+  // 祖先，父会话的 cost 含整棵子树。若下面对全部会话求和，父子各算一遍会翻倍。
+  // 只统计根会话（无父，或父不在结果集中 —— 后者含被时间窗滤掉的父与已删父）。
+  {
+    const ids = new Set(filteredSessions.map((s) => s.id))
+    filteredSessions = filteredSessions.filter((s) => s.parentID === undefined || !ids.has(s.parentID))
+  }
+
   const stats: SessionStats = {
     totalSessions: filteredSessions.length,
     totalMessages: 0,
@@ -135,6 +180,7 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
       },
     },
     toolUsage: {},
+    unpricedModels: [],
     modelUsage: {},
     dateRange: {
       earliest: Date.now(),
@@ -221,6 +267,7 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             sessionTokens.cache.write,
           sessionToolUsage,
           sessionModelUsage,
+          modelKey: `${session.model?.providerID ?? "unknown"}/${session.model?.id ?? "unknown"}`,
           earliestTime: cutoffTime > 0 ? session.time.updated : session.time.created,
           latestTime: session.time.updated,
         }
@@ -264,6 +311,19 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
 
   const rangeDays = Math.max(1, Math.ceil((latestTime - earliestTime) / MS_IN_DAY))
   const effectiveDays = windowDays ?? rangeDays
+
+  // 2026-09-30（每任务成本 P0）：标出「cost 为 0 是因为没查到价」的模型。
+  // 判定依据是 Provider.Model.priced（provider.ts:1289,1565）：models.dev 目录有该
+  // 条目、或配置里显式给了 cost，才算有真实单价；自建端点走动态发现时 priced=false。
+  stats.unpricedModels = yield* detectUnpricedModels(
+    results.map((r) => r.modelKey),
+    (providerID, modelID) =>
+      Provider.Service.pipe(
+        Effect.flatMap((p) => p.getModel(ProviderV2.ID.make(providerID), ModelV2.ID.make(modelID))),
+        Effect.catch(() => Effect.succeed(undefined)),
+      ),
+  )
+
   stats.dateRange = {
     earliest: earliestTime,
     latest: latestTime,
@@ -326,6 +386,23 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
   console.log(renderRow("Cache Read", formatNumber(stats.totalTokens.cache.read)))
   console.log(renderRow("Cache Write", formatNumber(stats.totalTokens.cache.write)))
   console.log("└────────────────────────────────────────────────────────┘")
+  // 2026-09-30（每任务成本 P0）：自建/自研端点走 provider.ts 的动态发现分支，
+  // 而 OpenAI 兼容的 /models 一般不返回价格字段，三级 ?? 0 兜底后 session.cost
+  // 恒为 0。若不提示，谷总会把「没查到价」读成「不花钱」——而这恰恰是最需要
+  // 知道自己有没有在烧钱的场景。
+  if (stats.unpricedModels.length > 0) {
+    console.log()
+    console.log(
+      `⚠ ${stats.unpricedModels.length} 个模型无单价数据，以下成本按 0 计，不代表免费：`,
+    )
+    for (const entry of stats.unpricedModels.slice(0, 10)) {
+      console.log(`    ${entry.model}  (${formatNumber(entry.sessions)} 个会话)`)
+    }
+    if (stats.unpricedModels.length > 10) {
+      console.log(`    …另有 ${stats.unpricedModels.length - 10} 个`)
+    }
+    console.log("    在配置的 provider.<id>.models.<model>.cost 中填入单价即可参与统计。")
+  }
   console.log()
 
   // Model Usage section

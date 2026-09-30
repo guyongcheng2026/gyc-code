@@ -9,6 +9,21 @@ import * as fuzzysort from "fuzzysort"
 import { useConnected } from "./use-connected"
 import { useSync } from "../context/sync"
 
+/**
+ * 模型行脚注。
+ *
+ * 注：`priced`（是否有真实单价）在后端 Provider.Model 上定义，但模型经由
+ * `src/protocol/v2/gen/types.gen.ts` 抵达 TUI，而该文件由仓外工具链生成
+ * （仓内无生成器，AGENTS.md 亦列为「勿手改」），故此处暂不依赖 priced。
+ * 谷总可由 `gyc stats` 的「无单价模型」告警获知同一信息（见 cli/cmd/stats.ts）。
+ */
+function modelFooter(model: { cost?: { input?: number }; priced?: boolean }, providerID: string) {
+  if (providerID !== "gyccode") return undefined
+  if (model.priced === false) return "价格未知"
+  if (model.cost?.input === 0) return "免费"
+  return undefined
+}
+
 export function DialogModel(props: { providerID?: string }) {
   const local = useLocal()
   const sync = useSync()
@@ -41,7 +56,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: provider.name,
             category,
             disabled: provider.id === "gyccode" && model.id.includes("-nano"),
-            footer: model.cost?.input === 0 && provider.id === "gyccode" ? "免费" : undefined,
+            footer: modelFooter(model, provider.id),
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -79,7 +94,7 @@ export function DialogModel(props: { providerID?: string }) {
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "gyccode" && model.includes("-nano"),
-            footer: info.cost?.input === 0 && provider.id === "gyccode" ? "免费" : undefined,
+            footer: modelFooter(info, provider.id),
             onSelect() {
               onSelect(provider.id, model)
             },

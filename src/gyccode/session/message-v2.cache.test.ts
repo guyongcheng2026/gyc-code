@@ -4,9 +4,15 @@ import {
   resetTruncationDecisions,
   cacheFriendlyBudget,
   toolCapForOutput,
+  setToolTypeCaps,
+  TOOL_TYPE_CAPS,
   TRUNCATION_DECISIONS_MAX,
   truncationDecisionsSize,
 } from "./message-v2"
+
+// 结构化工具的类型上限是可配置旋钮（见 message-v2.ts 的 TOOL_TYPE_CAPS 注释），
+// 测试一律引用常量而非硬编码，调参时不会误报。
+const READ_CAP = TOOL_TYPE_CAPS.read!
 
 function toolPart(callID: string, output: string, tool: string = "bash") {
   return {
@@ -100,14 +106,31 @@ test("aggregateToolCaps freezes maxPerChar decisions across repeated calls", () 
 
 test("aggregateToolCaps applies tool-type-aware caps for structured tools", () => {
   resetTruncationDecisions()
-  // read 工具（结构化输出）：大窗口下收窄到 2K
+  // read 工具（结构化输出）：大窗口下收窄到 TOOL_TYPE_CAPS.read
   const parts = [toolPart("c-read", "x".repeat(10_000), "read")]
   const caps = aggregateToolCaps(parts as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })
-  expect(caps!.get("c-read")).toBe(2_000)
+  expect(caps!.get("c-read")).toBe(READ_CAP)
   // bash 工具（命令输出）：保留 8K
   const parts2 = [toolPart("c-bash", "y".repeat(10_000), "bash")]
   const caps2 = aggregateToolCaps(parts2 as any, { maxPerChar: 8_000, maxTotalChars: 100_000 })
   expect(caps2!.get("c-bash")).toBe(8_000)
+})
+
+test("setToolTypeCaps 按工具名覆盖类型上限，且忽略非法值", () => {
+  const original = { ...TOOL_TYPE_CAPS }
+  try {
+    setToolTypeCaps({ read: 6_000, grep: 1_000 })
+    expect(TOOL_TYPE_CAPS.read).toBe(6_000)
+    expect(TOOL_TYPE_CAPS.grep).toBe(1_000)
+    // 非法值不得把上限改成 0/负数/NaN —— 那会让截断退化为空串或直接崩溃
+    setToolTypeCaps({ glob: 0, read: -1 })
+    expect(TOOL_TYPE_CAPS.glob).toBe(original.glob)
+    expect(TOOL_TYPE_CAPS.read).toBe(6_000)
+    setToolTypeCaps(undefined)
+    expect(TOOL_TYPE_CAPS.read).toBe(6_000)
+  } finally {
+    for (const [k, v] of Object.entries(original)) TOOL_TYPE_CAPS[k] = v
+  }
 })
 
 test("cacheFriendlyBudget applies tiered budgets by context window", () => {
@@ -128,10 +151,10 @@ test("toolCapForOutput 二次序列化仍回退类型上限（Bug 1 回归）", 
   // 跨轮字节稳定（此前第二次返回含全长度条目的 Map 压制 fallback）。
   const caps1 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
   expect(caps1).toBeUndefined()
-  expect(toolCapForOutput(caps1, "c1", output, "read", 2_000)).toBe(2_000)
+  expect(toolCapForOutput(caps1, "c1", output, "read", READ_CAP)).toBe(READ_CAP)
   const caps2 = aggregateToolCaps([toolPart("c1", output, "read")] as any)
   expect(caps2).toBeUndefined()
-  expect(toolCapForOutput(caps2, "c1", output, "read", 2_000)).toBe(2_000)
+  expect(toolCapForOutput(caps2, "c1", output, "read", READ_CAP)).toBe(READ_CAP)
 })
 
 test("toolCapForOutput 聚合真实截断优先于类型上限", () => {
@@ -148,9 +171,9 @@ test("toolCapForOutput 聚合真实截断优先于类型上限", () => {
   // 真实截断 → 用聚合 cap
   expect(toolCapForOutput(caps, "c2", output2, "bash", 2_000)).toBe(keep)
   // c1 未被聚合截断（cap=全长）→ 回退类型上限（Bug 4）
-  expect(toolCapForOutput(caps, "c1", "y".repeat(30_000), "read", 2_000)).toBe(2_000)
-  // 无聚合决策 → 回退类型上限（read 类型上限 2000 优先于 base 8000）
-  expect(toolCapForOutput(undefined, "cX", output2, "read", 8_000)).toBe(2_000)
+  expect(toolCapForOutput(caps, "c1", "y".repeat(30_000), "read", READ_CAP)).toBe(READ_CAP)
+  // 无聚合决策 → 回退类型上限（read 类型上限优先于 base 8000）
+  expect(toolCapForOutput(undefined, "cX", output2, "read", 8_000)).toBe(READ_CAP)
   // 无类型上限 → undefined（不截断）
   expect(toolCapForOutput(undefined, "cX", output2, "read", undefined)).toBeUndefined()
 })

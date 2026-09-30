@@ -29,16 +29,20 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
   })
   const workspaceSummary = createMemo(() => {
     const sessions = sync.data.session
+    // 2026-09-30（每任务成本 P0）：子代理用量已由 projector.rollupUsage 逐级上卷到
+    // 祖先，父会话的 cost 含整棵子树。对全表求和会把父子各算一遍而翻倍，因此只
+    // 统计根会话（无父，或父会话不在当前列表中 —— 后者含父被删除的孤儿）。
+    const ids = new Set(sessions.map((s) => s.id))
+    const roots = sessions.filter((s) => s.parentID === undefined || !ids.has(s.parentID))
     let tokens = 0
     let cost = 0
-    for (const s of sessions) {
+    for (const s of roots) {
       if (s.tokens) {
         tokens += s.tokens.input + s.tokens.output + s.tokens.reasoning + s.tokens.cache.read + s.tokens.cache.write
       }
       cost += s.cost ?? 0
     }
-    const active = sessions.filter((s) => s.parentID === undefined).length
-    return { tokens, cost, active }
+    return { tokens, cost, active: roots.length }
   })
 
   return (

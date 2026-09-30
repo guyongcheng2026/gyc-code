@@ -1021,6 +1021,22 @@ const ProviderLimit = Schema.Struct({
   output: Schema.Finite,
 })
 
+/**
+ * 该模型是否**真的**有单价数据。
+ *
+ * 2026-09-30（每任务成本 P0）：`cost` 的 input/output/cache 全是必填数值，没价时
+ * 只能落成 0，于是「真免费」与「没查到价」在数据层完全同形。自建 OpenAI 兼容端点
+ * 走 `provider.ts` 的动态发现分支，而这类端点的 /models 接口通常不返回价格字段，
+ * 于是三级 `?? 0` 兜底后 session.cost **恒为 0** —— 成本不是不准，是不存在。
+ * 更糟的是 UI 用 `cost.input === 0` 判「免费模型」，把两者混为一谈。
+ *
+ * `priced` 把这两种状态分开：只有确实取到或配置了单价才为 true。
+ */
+export const ModelPriced = Schema.Boolean.annotate({
+  identifier: "ModelPriced",
+  description: "True when a real unit price is known (sourced from models.dev or configured); false means cost fields are 0 because pricing is unknown, not because the model is free.",
+})
+
 export const Model = Schema.Struct({
   id: ModelV2.ID,
   providerID: ProviderV2.ID,
@@ -1029,6 +1045,7 @@ export const Model = Schema.Struct({
   family: optional(Schema.String),
   capabilities: ProviderCapabilities,
   cost: ProviderCost,
+  priced: optional(ModelPriced),
   limit: ProviderLimit,
   status: ModelStatus,
   options: Schema.Record(Schema.String, Schema.Any),
@@ -1267,6 +1284,9 @@ function fromModelsDevModel(provider: ModelsDev.Provider, model: ModelsDev.Model
     headers: {},
     options: {},
     cost: cost(model.cost),
+  // models.dev 目录里有该条目才算真取到价；缺字段时 cost 全 0 但 priced=false，
+  // 避免与「确实是免费模型」同形。
+  priced: model.cost != null,
     limit: {
       context: model.limit.context,
       input: model.limit.input,
@@ -1539,6 +1559,13 @@ const layer = Layer.effect(
                   write: model?.cost?.cache_write ?? existingModel?.cost?.cache.write ?? 0,
                 },
               },
+              // 自建/自研端点走这里：OpenAI 兼容的 /models 一般不返回价格字段，
+              // 兜底后 cost 全 0。必须把「没价」标出来，否则 UI 会把未知价显示成
+              // 「免费」，而 session.cost 也会被误读成 0 元。
+              priced:
+                (model?.cost?.input ?? existingModel?.cost?.input) !== undefined ||
+                model?.cost != null ||
+                existingModel?.priced === true,
               options: mergeDeep(existingModel?.options ?? {}, model.options ?? {}),
               limit: {
                 context: model.limit?.context ?? existingModel?.limit?.context ?? 0,

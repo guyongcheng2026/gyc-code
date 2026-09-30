@@ -68,8 +68,14 @@ const layer = Layer.effect(
           : undefined
       }),
       costStats: Effect.fn("SessionStore.costStats")(function* () {
+        // 2026-09-30（每任务成本 P0）：applyUsage 现已把子代理用量逐级上卷到祖先
+        // （projector.ts rollupUsage），因此父会话的 cost 已包含整棵子树。若这里
+        // 仍对全表求和，父子两侧会被各算一遍，统计值翻倍。
+        // 只统计「根会话」——自身无父，或父会话已不存在（孤儿）。每棵会话树有且
+        // 只有一个根，根的 cost 即该树的真实总量。
         const rows = yield* db
           .select({
+            id: SessionTable.id,
             cost: SessionTable.cost,
             tokens_input: SessionTable.tokens_input,
             tokens_output: SessionTable.tokens_output,
@@ -77,10 +83,16 @@ const layer = Layer.effect(
             tokens_cache_read: SessionTable.tokens_cache_read,
             tokens_cache_write: SessionTable.tokens_cache_write,
             model: SessionTable.model,
+            parent_id: SessionTable.parent_id,
           })
           .from(SessionTable)
           .all()
           .pipe(Effect.orDie)
+
+        const ids = new Set(rows.map((row) => row.id as string))
+        const isRoot = (row: (typeof rows)[number]) =>
+          row.parent_id === null || row.parent_id === undefined || !ids.has(row.parent_id)
+        const roots = rows.filter(isRoot)
 
         let totalCost = 0
         let totalInput = 0
@@ -90,7 +102,7 @@ const layer = Layer.effect(
         let totalCacheWrite = 0
         const byModel: Record<string, { cost: number; tokens: number }> = {}
 
-        for (const row of rows) {
+        for (const row of roots) {
           totalCost += row.cost ?? 0
           totalInput += row.tokens_input ?? 0
           totalOutput += row.tokens_output ?? 0
@@ -113,7 +125,7 @@ const layer = Layer.effect(
             reasoning: totalReasoning,
             cache: { read: totalCacheRead, write: totalCacheWrite },
           },
-          sessionCount: rows.length,
+          sessionCount: roots.length,
           byModel,
         }
       }),

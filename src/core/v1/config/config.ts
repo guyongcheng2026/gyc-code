@@ -162,6 +162,10 @@ export const Info = Schema.Struct({
       max_bytes: Schema.optional(PositiveInt).annotate({
         description: "Maximum bytes of tool output before it is truncated and saved to disk (default: 51200)",
       }),
+      structured_caps: Schema.optional(Schema.Record(Schema.String, PositiveInt)).annotate({
+        description:
+          "Per-tool-character cap applied when serializing tool output into the model context, keyed by tool name. Caps evidence-bearing tools (read/grep/glob) harder than the generic budget: at the historical 2000 these tools saw only ~40 lines of a 3000-line file, and the model then asserted whole-file facts from the fragment. Raise to trade tokens for fewer fabrications; the full text always remains on disk via tool_output.max_lines/max_bytes. 0/unset entries fall back to the generic budget.",
+      }),
     }),
   ).annotate({
     description:
@@ -305,6 +309,10 @@ export const Info = Schema.Struct({
       max_consecutive_tool_only_steps: Schema.optional(NonNegativeInt).annotate({
         description:
           "Consecutive stalled tool-only turns (no visible text + tool failure/repeat) before the loop fails fast. 0 disables the guard (default: 10)",
+      }),
+      max_steps: Schema.optional(NonNegativeInt).annotate({
+        description:
+          "Hard cap on loop steps for the primary agent, 0 = unlimited (default: 200). The primary agent previously had no cap at all (Infinity), so a drifting loop could run unbounded and burn tokens with no termination. Subagents are capped separately at 20 via agent.steps.",
       }),
     }),
   ),

@@ -89,12 +89,88 @@ function partData(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"
   return rest as DeepMutable<typeof rest>
 }
 
-export function applyUsage(
+/**
+ * 祖先链上卷深度上限。parent_id 是普通可写字段，理论上可被构造成环；上卷必须
+ * 自带深度闸门，否则一次事件投影就能把数据库拖进死循环。
+ */
+const ROLLUP_MAX_DEPTH = 32
+
+type SessionIDLike = (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"]
+
+/** 该 session 的所有祖先 id（不含自身，从近到远）。 */
+function ancestorChain(db: DatabaseService, sessionID: SessionIDLike): Effect.Effect<SessionIDLike[]> {
+  return Effect.gen(function* () {
+    // 从 sessionID 的父节点起步，自身绝不进入结果 —— 否则上卷会把自身再计一次。
+    const row = yield* db
+      .select({ parent_id: SessionTable.parent_id })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, sessionID))
+      .get()
+      .pipe(Effect.orDie)
+    return yield* walkUp(db, row?.parent_id ?? null, [String(sessionID)], 0)
+  })
+}
+
+function walkUp(
+  db: DatabaseService,
+  start: SessionIDLike | null,
+  seen: readonly string[],
+  depth: number,
+): Effect.Effect<SessionIDLike[], never, never> {
+  if (!start || depth >= ROLLUP_MAX_DEPTH || seen.includes(start)) return Effect.succeed([])
+  return Effect.gen(function* () {
+    const row = yield* db
+      .select({ parent_id: SessionTable.parent_id })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, start))
+      .get()
+      .pipe(Effect.orDie)
+    // 会话已不存在：链到此为止（其自身的用量由它自己的投影负责）
+    if (!row) return [start] as SessionIDLike[]
+    const rest = yield* walkUp(db, row.parent_id ?? null, [...seen, start], depth + 1)
+    return [start, ...rest]
+  })
+}
+
+/**
+ * 逐级向父会话累加用量。
+ *
+ * 2026-09-30（每任务成本 P0）：此前 applyUsage 只写 sessionID 自身那一行，而
+ * 子代理跑在**独立 session**（tool/task.ts:165-181），其花费落子会话的 cost 列。
+ * 全仓没有任何向上遍历 parent_id 的代码，于是父任务 spawn 5 个子代理时，父
+ * session.cost 漏掉 5 份全额 —— 谷总看到的「这个任务花了多少」实际是下限，
+ * 子代理越多低估越严重。
+ *
+ * 现把同一增量逐级上卷到所有祖先。注意 sign 必须一起传递：消息被改写/删除时
+ * 走的是 -1 回退（见下方 PartUpdated / PartRemoved 投影），若只回退自身不回退
+ * 祖先，父子两侧会永久性对不上账。
+ *
+ * 配套要求：所有「全表求和」的聚合（store.ts costStats、sidebar）必须改为只
+ * 统计根会话，否则父子各算一遍会重复计数。
+ */
+function rollupUsage(
   db: DatabaseService,
   events: EventV2.Interface,
-  sessionID: (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"],
+  sessionID: SessionIDLike,
   value: Usage,
-  sign = 1,
+  sign: number,
+) {
+  return ancestorChain(db, sessionID).pipe(
+    Effect.flatMap((chain) =>
+      Effect.forEach(chain, (ancestorID) => addUsageRow(db, events, ancestorID, value, sign), {
+        concurrency: 1,
+        discard: true,
+      }),
+    ),
+  )
+}
+
+function addUsageRow(
+  db: DatabaseService,
+  events: EventV2.Interface,
+  sessionID: SessionIDLike,
+  value: Usage,
+  sign: number,
 ) {
   return db
     .update(SessionTable)
@@ -110,6 +186,18 @@ export function applyUsage(
     .where(eq(SessionTable.id, sessionID))
     .run()
     .pipe(Effect.orDie, Effect.andThen(() => broadcastUsage(events, db, sessionID)))
+}
+
+export function applyUsage(
+  db: DatabaseService,
+  events: EventV2.Interface,
+  sessionID: (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"],
+  value: Usage,
+  sign = 1,
+) {
+  return addUsageRow(db, events, sessionID, value, sign).pipe(
+    Effect.andThen(() => rollupUsage(db, events, sessionID, value, sign)),
+  )
 }
 
 export function broadcastUsage(
