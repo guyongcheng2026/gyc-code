@@ -624,6 +624,31 @@ resumeFromRunId  从先前 Run ID 续跑；已完成的 agent() 调用若 (promp
 **P0 合计 10 条**（S 3 + H 4 + C 3）。建议修复顺序：**S-02 → C-02 → C-03 → H-04 → S-01 → H-01 → H-02 → H-03 → S-03 → C-01**。
 理由：S-02 正在污染其余一切测量，先修；C-02/C-03 是「每任务成本」恒为下限的根因，不修则 ③ 永远算不出数；H-04 是一行文案改动、收益最直接；S-01 与成本无上限互为因果。
 
+### 修复完成状态（2026-10-01）
+
+10 条 P0 已全部修复并验证，按上列顺序推进：
+
+| ID | commit | 验收证据 |
+|---|---|---|
+| S-02 | `f18a0592f4` | `max-steps.ts` 去掉 "overrides ALL other instructions"，改写为「告知模型收尾的数据」；`anti-hallucination-prompt.test.ts` 锁定措辞基线 |
+| C-02 | `f18a0592f4` | `projector.applyUsage` 沿 `parent_id` 祖先链逐级上卷；`projector.test.ts` 8 项通过；`stats` 同步改为只对根会话求和防父子双算 |
+| C-03 | `f18a0592f4` | `Provider.Model` 新增 `priced` 字段；`stats` 输出无价模型清单（`stats.test.ts` 6 项，含「查不到模型 ≠ 无价」） |
+| H-04 | `f18a0592f4` | `grep.ts` 改用上游 `truncated` 标志判定，不再以 `rows.length === 100` 猜；"No files found" 改为 "No matches found for pattern" |
+| S-01 | `f18a0592f4` | 主 agent 默认 `MAX_STEPS = 200`（可经 `llm.max_steps` 覆盖，0 恢复不限制），子代理 20 步 |
+| H-01 | `f18a0592f4` | `gpt-astra.txt` 补 Accuracy 段，解除「禁止声明不确定」 |
+| H-02 | `f18a0592f4` | `compaction.ts` 改为先落盘原文再截断，截断目录含 DB 摘要 + 省略字符数 + 完整路径 |
+| H-03 | `f18a0592f4` | `message-v2.ts` 截断改为携带截断目录、字符数与完整路径，`TOOL_OUTPUT_MAX_CHARS = 2000` 与 prompt 消费侧一致 |
+| C-01 | `b2b61bec26` | `task` 表 + `session.task_id` + `TaskV2` 服务 + `gyc task` 子命令；`index.test.ts` 6 项含「父子不双算」（正确答案 3，错法得 4）；实机 `gyc task list` 汇总 3 会话 $0.09、每已完成任务 $0.09 |
+| S-03 | `be4f9c4536` | `verify-reminder.ts` 框架级提醒：改过文件且轮内未验证时注入；`verify-reminder.test.ts` 30 项，覆盖误报/漏报两侧与措辞禁用基线 |
+
+累计验证：`tsc --noEmit` 0 错；`bun test` 1193 pass / 0 fail（1202 tests / 155 files）；`bun run build` 通过。
+
+**但「P0 修完」不等于「指标已超过 Claude Code」。** 本报告零、指出三个指标原本**一个都测不了**；
+修完 P0 只让它们**具备可测前提**，尚未产出可与 Claude Code 对比的数字。仍缺：
+① 任务成功率的**可评分任务集**（现有 `benchmark.test.ts` 20 项里 17 项是「文件存在」断言、3 项 skip）；
+② 幻觉率的**失败样本留存**（唯一「训练集」是空壳，第一步即丢弃全部失败样本）；
+③ C-05 成本 append-only（`sign=-1` 回退仍致成本不稳定）与 C-06 三套计价口径同源。
+
 ---
 
 ## 附录 B · Claude Code v2.1.285 采集原始记录
