@@ -5,12 +5,13 @@ import { Agent } from "@/agent/agent"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { InstanceState } from "@/effect/instance-state"
 import { RuntimeFlags } from "@/effect/runtime-flags"
-import { PartID } from "./schema"
+import { MessageID, PartID, SessionID } from "./schema"
 import { Session } from "./session"
 import PROMPT_PLAN from "./prompt/plan.txt"
 import BUILD_SWITCH from "./prompt/build-switch.txt"
 import PLAN_MODE from "./prompt/plan-mode.txt"
 import PROMPT_COMPOSE from "./prompt/compose.txt"
+import { findInjectionTarget, VERIFY_REMINDER } from "./verify-reminder"
 import { ComposeSkill } from "../skill/compose"
 
 /**
@@ -86,6 +87,28 @@ export const apply = Effect.fn("SessionReminders.apply")(function* (input: {
   }
 
   const assistantMessage = input.messages.findLast((msg) => msg.info.role === "assistant")
+
+  // 2026-09-30（三指标 S-03）：未验证改动的框架级提醒。
+  //
+  // 放在 plan/build 分支之前，因为「改完没验证」与当前 agent 模式无关：
+  // plan 改完也要能编过。plan 模式本身跳过 —— plan 阶段的改动不该立刻编译。
+  if (input.agent.name !== "plan") {
+    const target = findInjectionTarget(input.messages)
+    if (target) {
+      const part = yield* sessions
+        .updatePart({
+          id: PartID.ascending(),
+          messageID: target.info.id as MessageID,
+          sessionID: target.info.sessionID as SessionID,
+          type: "text",
+          text: VERIFY_REMINDER,
+          synthetic: true,
+        })
+        .pipe(Effect.catchCause((cause) => Effect.logWarning("验证提醒注入失败", { cause }).pipe(Effect.asVoid)))
+      if (part) (target.parts as SessionV1.Part[]).push(part)
+    }
+  }
+
   if (input.agent.name !== "plan" && assistantMessage?.info.agent === "plan") {
     const ctx = yield* InstanceState.context
     const plan = Session.plan(input.session, ctx)
