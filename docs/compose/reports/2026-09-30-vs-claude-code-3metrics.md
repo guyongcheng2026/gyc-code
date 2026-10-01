@@ -423,11 +423,102 @@ src/gyccode/session/session.ts:394-400
 
 ---
 
-## 四、Claude Code v2.1.285 能力快照（重采）
+## 四、工具能力（执行链路）：指标 6~11
+
+> 采集时间 2026-10-01，基准 Claude Code v2.1.285。全部结论基于源码实证，附 `文件:行号`。
+> **完整版（含逐项差距分析与全部改进计划）见 [2026-10-01-vs-claude-code-tools.md](./2026-10-01-vs-claude-code-tools.md)**，
+> 本节为结论摘要与计划索引。
+
+### 4.1 逐指标判定
+
+| 指标 | CC 表现 | gyc 判定 | 一句话差距 |
+|------|---------|----------|-----------|
+| **6. 文件操作** | 强：精确 patch，少破坏 | 🟡 中上 | 九级 replacer 链优于 CC，但**无文件级备份**、read **无自动 compaction** |
+| **7. Shell 执行** | 强：沙箱内执行 | 🟠 偏弱 | **无沙箱**、**无后台任务**、危险命令**只提示不拦截** |
+| **8. Git 集成** | 强：自动 commit、diff 比较 | 🔴 **弱** | **没有 git 工具**、**无自动 commit**、diff 只服务 snapshot 不给模型 |
+| **9. 搜索能力** | 强：集成 ripgrep | 🟡 中上 | ripgrep 已接，但**无语义检索**、**无相关度排序** |
+| **10. MCP 扩展** | 强：市场成熟 | 🟢 **强** | 5 种传输 + OAuth + resources 齐备，**仅缺市场与断连重连** |
+| **11. 多模态** | 中：支持但非强项 | 🟠 偏弱 | 通道通但**只能被动收图**、**无 OCR/截图/浏览器** |
+
+### 4.2 关键实证
+
+**指标 6 — 文件操作**（机制优于 CC）
+- `edit` 为九级 replacer 链：`Simple → LineTrimmed → BlockAnchor → WhitespaceNormalized → IndentationFlexible → EscapeNormalized → TrimmedBoundary → ContextAware → MultiOccurrence`（`edit.ts:833-843`）
+- 多重匹配**不猜**，全不唯一即报错（`edit.ts:867`）；越界替换拦截 `isDisproportionateMatch`（`edit.ts:870-876`）
+- `registry.ts:390-393`：GPT 系走 `apply_patch`、其余走 `edit/write`，二者互斥
+- 缺口：无文件级写前备份（`edit.ts:171-187` 仅生成 diff 供审批）；read 仅提示 `Use offset=…` 不自动折叠（`read.ts:398-401`）
+
+**指标 7 — Shell**
+- 无沙箱（无容器/命名空间/权限降级）；危险命令 `dangerous` 级（eval、curl|bash、sudo、dd）**只标注不拦截**（`shell/security.ts:65-68`、`shell.ts:824-827`）
+- 大日志风险：内存只留最后 `2×maxBytes`（`shell.ts:611,674-679`），更早输出仅存落盘文件，模型不读即永久丢失
+
+**指标 8 — Git 集成（最大短板）**
+- `tool/registry.ts:1-41` 与 `core/tool/builtins.ts:5-16` **均无 git 工具**，模型只能靠 bash 敲命令
+- 底层 `Git.Service` 完备（`git/index.ts:75-91`）但**不暴露给模型**（消费者仅 worktree/snapshot/project/serve）
+- **无自动 commit**：TUI 明确让用户自己去终端提交（`dialog-commit.tsx:185`）
+- diff 有实现但不暴露（`snapshot/index.ts:552-570, 572-760`）；pre-commit 五道门禁（`.githooks/pre-commit:6-25`）**AI 无法触发**
+
+**指标 9 — 搜索**
+- ripgrep 已接（`core/ripgrep.ts:219-232`）；另有 `fffLayer` trigram 模糊匹配（`core/filesystem/search.ts:130-180`，1.5s 预算）——**CC 没有的差异化能力**
+- 缺口：全仓无自有 embedding/向量库；grep/glob 沿用文件顺序**无相关度排序**；`session_search_fts` 搜的是**会话不是代码**且按时间序（`session-search.ts:52-73`）
+
+**指标 10 — MCP（已达标，局部超越 CC）**
+- **5 种传输**（stdio/streamable-http/sse/ws/ide，`mcp/index.ts:131,140-154`）；**OAuth + RFC7591 动态注册**（`oauth-provider.ts`、`oauth-callback.ts`）
+- resources 完整支持（`index.ts:782-800,843-848`）；`ListMcpResources`/`ReadMcpResource` 已实现（`session/tools.ts:150-152,342-364`）
+- 缺口：**无市场目录**（`marketplace/index.json` 仅 2 个示例）、**无断连重连**（`index.ts:499-506` 仅置 failed）、命名冲突仅靠前缀会静默覆盖（`catalog.ts:126-128`）
+
+**指标 11 — 多模态**
+- 协议侧齐全（OpenAI Responses / Chat / Gemini inlineData / Bedrock，`openai-responses.ts:318`、`gemini.ts:188,281`、`bedrock-media.ts:74,85`）
+- 缺口：**无截图/浏览器工具**（`registry.ts:258-293` 无 screenshot/browser/playwright）、**无 OCR**、**无 PDF 解析**（仅 base64 透传）
+- 风险：base64 内联无清理策略，compaction 依赖 `stripMedia`（`message-v2.ts:589`）；工具结果图片对不支持的模型**静默丢弃**（`message-v2.ts:406-411`）
+
+### 4.3 改进计划索引（达到并超越 CC）
+
+完整任务拆解见独立报告，此处为索引：
+
+**P0 阻断级** — 不做则无法在 Git 密集场景与 CC 平权
+| # | 事项 | 验收标准 |
+|---|------|---------|
+| P0-1 | 新增 git 工具族（status/diff/log/commit/branch/stash） | 不经 bash 完成全链路；diff 复用 `snapshot/diffFull` 已有批量比较，不重复实现 |
+| P0-2 | 复用 snapshot 影子仓库做每任务自动 commit | 每轮生成可回滚 commit（`snapshot/index.ts:354-362` 现只 `write-tree` 不建 commit 对象，补上） |
+| P0-3 | 危险命令从「提示」升为「拦截」 | curl|bash / eval / sudo / dd 默认拒绝，需显式确认 |
+| P0-4 | bash 后台任务 + 句柄回收 | 长跑命令可后台化并取回输出/退出码，消除大日志信息丢失 |
+
+**P1 竞争力级**
+P1-1 语义检索（**保持纯本地可离线**，调用云端嵌入对本地 CLI 是倒退）· P1-2 搜索相关度排序 · P1-3 read 自动 compaction · P1-4 文件级写前备份 · P1-5 MCP 断连重连 · P1-6 MCP 命名冲突检测 · P1-7 OCR/图片描述工具（不依赖模型原生视觉，让弱模型也能读图且省 token）· P1-8 PDF 解析
+
+**P2 超越级**（CC 也没有）
+| # | 事项 | 超越点 |
+|---|------|-------|
+| P2-1 | MCP 服务器目录/市场 | 做**可审计**市场：标注权限、传输、数据流向；CC 做不到细粒度权限预览 |
+| P2-2 | **无头浏览器 + 截图工具** | CC v2.1.285 亦无内置 browser。让 AI **自检 UI**（打开→渲染→截图→视觉分析），CC 当前做不到 |
+| P2-3 | 符号级代码搜索 | 复用已有 `lsp` 符号索引，支持「找出所有调用 X 的地方」，CC 默认无此能力 |
+| P2-4 | 附件外部存储 + 引用 | gyc 本地存储天然占优（无外传成本），CC 也是 base64 内联 |
+| P2-5 | 工具结果媒体的可见降级 | 不支持时**显式告知模型原因**，而非静默过滤（CC 同样静默丢弃） |
+| P2-6 | tsc/测试结果结构化注入 | 失败作为可重试的结构化诊断回灌，而非 `Effect.orDie` 升级为 defect（CC 亦犯此错） |
+
+**执行顺序**
+```
+第一批（对等化）  P0-1 git 工具族 → P0-3 危险命令拦截 → P0-2 自动 commit
+第二批（真实可用）P1-3 read compaction → P1-4 文件备份 → P1-1 语义检索 → P1-5/6 MCP 健壮性 → P0-4 bash 后台
+第三批（差异化）  P2-2 浏览器+截图（最大超越点）→ P1-7 OCR → P2-1 MCP 市场 → P2-3 符号级搜索 → P1-8 PDF → P2-4/5/6
+```
+
+### 4.4 结论
+
+MCP（10）已达 CC 水平甚至局部超越；文件操作（6）机制设计优于 CC；搜索（9）差在语义层。
+**真正的短板是 Git 集成（8）——CC 的一项核心能力在 gyc 完全没有对应物**。补齐 P0 三项即可在执行链路维度与 CC 站在同一档；
+再补 P2-2（浏览器 + 截图）则是 CC 当前没有的，可形成反超。
+
+> **诚实标注**：本次核查有 3 条未逐行确认，不作为结论依据——`fff` 原生 crate 的排除规则、worktree 是否会话启动时自动创建、`gyccode.json` 与 `~/.config/gyccode/` 的配置解析顺序。
+
+---
+
+## 五、Claude Code v2.1.285 能力快照（重采）
 
 采集时间 2026-09-30，版本 `2.1.285`，commit `afb212976052`，平台 win32-x64，`claude doctor` 报 "No installation issues found"。
 
-### 4.1 内置工具：43 个 schema
+### 5.1 内置工具：43 个 schema
 
 ```
 Agent, Artifact, AskUserQuestion, Bash, ClaudeDesign, CronCreate, CronDelete,
@@ -445,7 +536,7 @@ WebSearch, Workflow
 **gyc 独有的**：`swarm`（并行团队）、`peer_send` / `peer_read`（跨会话通信）、`tool_search`（运行时搜工具）、`lsp`（符号跳转）、`patch`（apply_patch）。
 **CC 独有且命中三指标的**：`TaskCreate/Get/Update/List`（→ C-01）、`Workflow`（→ 4.3）、`ReportFindings`、`ProposeSkills`、`Monitor`、`RemoteTrigger`、`Artifact`。
 
-### 4.2 成本与预算控制（③ 的正面差距）
+### 5.2 成本与预算控制（③ 的正面差距）
 
 | 能力 | CC v2.1.285 | gyc |
 |---|---|---|
@@ -462,7 +553,7 @@ WebSearch, Workflow
 
 > 最后两行是 ③ 的**最高杠杆差距**：gyc 为省 token 冻结截断决策（`message-v2.ts:147-156` `freezeDecision`，表定义在 `:140`）以稳 prompt cache；CC 走的是相反方向 —— **牺牲一部分静态前缀换取跨用户/跨会话的缓存复用**，且把「证据截断」和「缓存命中」当成两个可分别调节的旋钮。
 
-### 4.3 流程编排
+### 5.3 流程编排
 
 CC 的 `WorkflowInput`（`sdk-tools.d.ts:2848-2879`）：
 
@@ -478,7 +569,7 @@ resumeFromRunId  从先前 Run ID 续跑；已完成的 agent() 调用若 (promp
 
 **gyc 已有 workflow_run 表与 `gyc workflow defs|start`**（`schema.gen.ts:272-274`、`cli/cmd/workflow.ts:27,55`），但 `resumeFromRunId` 这种「按 (prompt, opts) 键做结果级缓存」的续跑语义未见实现。**这是 ①③ 兼顾的一项高价值补齐点**：任务重试不再从零烧 token。
 
-### 4.4 权限与沙箱
+### 5.4 权限与沙箱
 
 | 能力 | CC v2.1.285 |
 |---|---|
@@ -491,7 +582,7 @@ resumeFromRunId  从先前 Run ID 续跑；已完成的 agent() 调用若 (promp
 
 > **对 gyc 的意义**：`--restricted` 这类「白名单化 + 工作目录围栏 + 拒绝降级」的组合，正是 `GAP-08-23 L81` 判定的「等保 3 级入侵防范合规风险」的对症解法。gyc 现有的是 `Permission.ask` 逐次询问（`src/gyccode/tool/tools.ts:95-103`），没有模式枚举、没有围栏、没有无人值守拒绝策略。
 
-### 4.5 必须纠正的两处历史结论
+### 5.5 必须纠正的两处历史结论
 
 | 出处 | 原结论 | 源码事实 |
 |---|---|---|
