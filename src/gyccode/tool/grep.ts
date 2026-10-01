@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect"
 import { InstanceState } from "@/effect/instance-state"
 import { FSUtil } from "@gyccode/core/fs-util"
 import { Ripgrep } from "@gyccode/core/ripgrep"
+import { rankMatches } from "@gyccode/core/filesystem/search-relevance"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./grep.txt"
 import * as Tool from "./tool"
@@ -78,10 +79,8 @@ export const GrepTool = Tool.define(
             limit: MATCH_LIMIT + 1,
           })
           const truncated = result.length > MATCH_LIMIT
-          const matches = truncated ? result.slice(0, MATCH_LIMIT) : result
-          if (matches.length === 0) return empty
 
-          const rows = matches.map((item) => {
+          const rows = result.map((item) => {
             const abs = path.resolve(
               requestedInfo?.type === "Directory" ? requested : path.dirname(requested),
               item.entry.path,
@@ -93,6 +92,13 @@ export const GrepTool = Tool.define(
               text: item.text,
             }
           })
+
+          // P1-2 相关度排序：ripgrep 只按文件顺序平铺，这里改成按相关度——
+          // 符号声明行、匹配密度、命中位置、路径/文件名权重、同文件命中聚合与连续性。
+          // 排序发生在截断之前，取满 100 条的那一步不变，结构兼容下层协议。
+          const ranked = rankMatches(rows, params.pattern).map((ranked) => ranked.item)
+          const matches = truncated ? ranked.slice(0, MATCH_LIMIT) : ranked
+          if (matches.length === 0) return empty
 
           const total = rows.length
           const hasMore = truncated

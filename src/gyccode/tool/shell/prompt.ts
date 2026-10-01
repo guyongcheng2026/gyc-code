@@ -22,6 +22,9 @@ export function parameterSchema() {
     allowDangerous: Schema.optional(Schema.Boolean).annotate({
       description: `Required to run a command classified as dangerous (eval, curl|bash, sudo, dd, chmod 777, fork bomb, rm -rf /). Dangerous commands are refused by default; set this only when the command is intentional.`,
     }),
+    background: Schema.optional(Schema.Boolean).annotate({
+      description: `Start the command in the background and return immediately with a shell_id instead of waiting for it to finish. Use this for long-running processes (dev servers, watchers, tunnels) that would otherwise hit the timeout. Check progress with the bash_background tool (action "status") and stop it with action "kill". The timeout parameter does not apply to background commands.`,
+    }),
   })
 }
 

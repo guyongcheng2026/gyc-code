@@ -19,6 +19,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { FSUtil } from "@gyccode/core/fs-util"
 import * as Bom from "@/util/bom"
 import { ReadCache } from "./read-cache"
+import { backup, backupRoot } from "./file-backup"
 
 function normalizeLineEndings(text: string): string {
   return text.replaceAll("\r\n", "\n")
@@ -126,6 +127,8 @@ export const EditTool = Tool.define(
                     diff,
                   },
                 })
+                // P1-4：写盘前做文件级备份，误改可单文件回滚到本次写入前
+                yield* backup(filePath, { root: backupRoot(instance) })
                 yield* Bom.writeFileEncoded(afs, filePath, contentNew, { bom: desiredBom, encoding: "utf-8" })
                 if (yield* format.file(filePath)) {
                   contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)
@@ -196,6 +199,8 @@ export const EditTool = Tool.define(
                               throw new Error(`File ${filePath} was modified externally during approval. Please re-read and try again.`)
                             }
 
+                            // P1-4：写盘前做文件级备份，误改可单文件回滚到本次写入前
+                            yield* backup(filePath, { root: backupRoot(instance) })
                             yield* Bom.writeFileEncoded(afs, filePath, contentNew, { bom: desiredBom, encoding: source.encoding })
               if (yield* format.file(filePath)) {
                 contentNew = yield* Bom.syncFile(afs, filePath, desiredBom)

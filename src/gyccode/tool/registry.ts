@@ -10,6 +10,7 @@ import { McpAuthTool } from "./mcp-auth"
 import { Session } from "@/session/session"
 import { QuestionTool } from "./question"
 import { ShellTool } from "./shell"
+import { BashBackgroundTool } from "./bash-background"
 import { EditTool } from "./edit"
 import { GlobTool } from "./glob"
 import { GrepTool } from "./grep"
@@ -143,6 +144,8 @@ const layer = Layer.effect(
     const webfetch = yield* WebFetchTool
     const websearch = yield* WebSearchTool
     const shell = yield* ShellTool
+    // P0-4：bash 的 background 只负责启动，查询与终止由这个配套工具闭环。
+    const bashBackground = yield* BashBackgroundTool
     const globtool = yield* GlobTool
     const writetool = yield* WriteTool
     const edit = yield* EditTool
@@ -270,6 +273,7 @@ const layer = Layer.effect(
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
           shell: Tool.init(shell),
+          bashBackground: Tool.init(bashBackground),
           read: Tool.init(read),
           glob: Tool.init(globtool),
           grep: Tool.init(greptool),
@@ -327,6 +331,7 @@ const layer = Layer.effect(
             ...(questionEnabled ? [tool.question] : []),
             tool.brief,
             tool.shell,
+            tool.bashBackground,
             tool.read,
             tool.glob,
             tool.grep,

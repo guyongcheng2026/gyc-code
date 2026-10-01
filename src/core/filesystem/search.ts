@@ -7,6 +7,7 @@ import { Fff } from "#fff"
 import fuzzysort from "fuzzysort"
 import { Entry, Match } from "@gyccode/schema/filesystem"
 import type { FileSystem } from "../filesystem"
+import { rankMatches, rankPaths } from "./search-relevance"
 import { FSUtil } from "../fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
@@ -178,7 +179,10 @@ export const fffLayer = Layer.effect(
             { mode: "regex", pageSize: input.limit, timeBudgetMs: 1_500 },
           )
           if (!found.ok) throw found.error
-          return found.value.items.map((match) => {
+          // P1-2 相关度排序：fff 只负责在 1.5s 时间预算内把候选捞出来，
+          // 顺序改由「符号声明行加权 / 匹配密度 / 命中位置 / 路径权重 / 同文件连续性」决定。
+          // 打分只在已截断的结果集上做，不扩大扫描范围，时间预算不受影响。
+          const items = found.value.items.map((match) => {
             const bytes = Buffer.from(match.lineContent)
             return Match.make({
               entry: Entry.make({
@@ -195,6 +199,17 @@ export const fffLayer = Layer.effect(
               })),
             })
           })
+          return rankMatches(
+            items.map((item) => ({
+              path: item.entry.path,
+              line: item.line,
+              text: item.text,
+              submatches: item.submatches,
+              // 带上原始 Match，投影结构变化会让泛型退回投影类型
+              match: item,
+            })),
+            input.pattern,
+          ).map((ranked) => ranked.item.match)
         }),
       find: (input) =>
         Effect.sync(() => {
@@ -226,13 +241,12 @@ export const fffLayer = Layer.effect(
               score: found.value.scores[index]?.total ?? 0,
             }))
           })()
-          return items
-            .sort((a, b) => b.score - a.score || a.path.length - b.path.length)
-            .map((item) => {
-              const relative = item.path.replaceAll("\\", "/").replace(/\/$/, "")
+          return rankPaths(items, input.query, (item) => item.score)
+            .map((ranked) => {
+              const relative = ranked.item.path.replaceAll("\\", "/").replace(/\/$/, "")
               return Entry.make({
-                path: RelativePath.make(relative + (item.type === "directory" ? path.sep : "")),
-                type: item.type,
+                path: RelativePath.make(relative + (ranked.item.type === "directory" ? path.sep : "")),
+                type: ranked.item.type,
               })
             })
         }),

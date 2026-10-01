@@ -8,6 +8,7 @@ import { InstanceState } from "@/effect/instance-state"
 import { Patch } from "../patch"
 import { createTwoFilesPatch, diffLines } from "diff"
 import { assertExternalDirectoryEffect } from "./external-directory"
+import { backup, backupRoot } from "./file-backup"
 import { trimDiff } from "./edit"
 import { LSP } from "@/lsp/lsp"
 import { FSUtil } from "@gyccode/core/fs-util"
@@ -256,6 +257,11 @@ export const ApplyPatchTool = Tool.define(
       const updates: Array<{ file: string; event: "add" | "change" | "unlink" }> = []
 
       for (const change of fileChanges) {
+        // P1-4 写前备份：move 会同时写目标、删源，故源与目标都要留底
+        yield* backup(change.filePath, { root: backupRoot(instance) })
+        if (change.movePath && change.movePath !== change.filePath) {
+          yield* backup(change.movePath, { root: backupRoot(instance) })
+        }
         const edited = change.type === "delete" ? undefined : (change.movePath ?? change.filePath)
         switch (change.type) {
           case "add":

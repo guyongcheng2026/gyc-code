@@ -127,6 +127,64 @@ export const sanitize = (value: string) => value.replace(/[^a-zA-Z0-9_-]/g, "_")
 
 export const toolName = (clientName: string, name: string) => sanitize(clientName) + "_" + sanitize(name)
 
+/** P1-6：一次工具名冲突——多个来源 sanitize 之后塌缩成同一个最终工具名 */
+export interface McpToolNameConflict {
+  /** 冲突后的最终工具名，也就是模型实际看到并调用的那个名字 */
+  readonly tool: string
+  /** 占用该名字的来源，按注册顺序排列；第一个生效，其余被覆盖 */
+  readonly owners: readonly { readonly server: string; readonly raw: string }[]
+}
+
+/**
+ * 按最终工具名聚合，检出命名冲突。
+ *
+ * `toolName` 会对 server 名与工具名做 `sanitize`，因此 `a.b` / `a-b`、
+ * `read.file` / `read-file` 这类名字会塌缩成同一个 key；上层用这个 key
+ * 建索引，后写者会静默覆盖先写者，模型只拿得到其中一个。
+ */
+export function findToolNameConflicts(
+  servers: Iterable<{ readonly server: string; readonly tools: readonly { name: string }[] }>,
+): McpToolNameConflict[] {
+  const byTool = new Map<string, { server: string; raw: string }[]>()
+  for (const { server, tools } of servers) {
+    for (const tool of tools) {
+      const key = toolName(server, tool.name)
+      const owners = byTool.get(key) ?? []
+      // 同一个 (server, raw) 重复出现不算冲突——那只是同一工具被列了两次
+      if (owners.some((owner) => owner.server === server && owner.raw === tool.name)) continue
+      owners.push({ server, raw: tool.name })
+      byTool.set(key, owners)
+    }
+  }
+  return [...byTool.entries()]
+    .filter(([, owners]) => owners.length > 1)
+    .map(([tool, owners]) => ({ tool, owners }))
+}
+
+/** 生成给模型看的中文冲突说明：必须点名「哪个 server 抢了哪个工具名」 */
+export function describeToolNameConflict(conflict: McpToolNameConflict): string {
+  const [winner, ...losers] = conflict.owners
+  const owner = (item: { server: string; raw: string }) => `server "${item.server}" 的工具 "${item.raw}"`
+  return [
+    `【MCP 工具名冲突】工具名 "${conflict.tool}" 被多个 MCP server 同时抢占：`,
+    conflict.owners.map(owner).join("；"),
+    `。当前生效的是 ${owner(winner!)}，模型只能通过 "${conflict.tool}" 调用到它；`,
+    losers.length > 0
+      ? `${losers.map(owner).join("；")} 已被覆盖，无法通过原名访问。`
+      : "同名工具已被覆盖，无法通过原名访问。",
+    "如需使用被覆盖的实现，请提示用户修改 MCP server 名或工具名以消除冲突。",
+  ].join("")
+}
+
+/**
+ * 给工具定义挂上冲突说明。只复制 def 并追加描述，不改 name / inputSchema，
+ * 这样普通模式与 code 模式的工具目录都能看到提示。
+ */
+export function withConflictNotice<T extends MCPToolDef>(def: T, notice: string): T {
+  const description = [def.description, notice].filter((part) => part && part.trim()).join("\n\n")
+  return { ...def, ...(description ? { description } : {}) }
+}
+
 export function prompts(client: Client, timeout?: number) {
   if (!client.getServerCapabilities()?.prompts) return Promise.resolve([])
   return paginate(

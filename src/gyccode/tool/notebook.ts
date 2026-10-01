@@ -9,6 +9,7 @@ import { assertExternalDirectoryEffect } from "./external-directory"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { FileSystem } from "@gyccode/core/filesystem"
 import { Watcher } from "@gyccode/core/filesystem/watcher"
+import { backup, backupRoot } from "./file-backup"
 
 const readCache = ReadCache()
 
@@ -233,6 +234,8 @@ export const NotebookEditTool = Tool.define(
           }
 
           const updatedContent = JSON.stringify(notebook, null, 1)
+          // P1-4：写盘前做文件级备份，误改可单文件回滚到本次写入前
+          yield* backup(filepath, { root: backupRoot(instance) })
           yield* fs.writeFileString(filepath, updatedContent)
           // 写入后失效缓存，确保后续读取看到新内容
           readCache.invalidate(filepath)

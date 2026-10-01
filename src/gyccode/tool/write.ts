@@ -15,6 +15,7 @@ import { trimDiff } from "./edit"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import * as Bom from "@/util/bom"
 import { ReadCache } from "./read-cache"
+import { backup, backupRoot } from "./file-backup"
 
 const MAX_PROJECT_DIAGNOSTICS_FILES = 5
 
@@ -80,6 +81,9 @@ export const WriteTool = Tool.define(
               diff,
             },
           })
+
+          // P1-4：写盘前做文件级备份，误改可单文件回滚到本次写入前
+          yield* backup(filepath, { root: backupRoot(instance) })
 
           yield* Bom.writeFileEncoded(fs, filepath, contentNew, { bom: desiredBom, encoding: source.encoding })
           if (yield* format.file(filepath)) {

@@ -21,6 +21,8 @@ import { Plugin } from "@/plugin"
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner } from "effect/unstable/process/ChildProcessSpawner"
 import { ShellPrompt, type Parameters } from "./shell/prompt"
+import * as ShellCommand from "./shell/command"
+import * as ShellBackground from "./shell/background"
 import { BashArity } from "@/permission/arity"
 import { classifyCommand, SecurityClassification } from "./shell/security"
 
@@ -482,21 +484,23 @@ const ask = Effect.fn("ShellTool.ask")(function* (ctx: Tool.Context, scan: Scan,
 })
 
 function cmd(shell: string, command: string, cwd: string, env: NodeJS.ProcessEnv) {
-  if (process.platform === "win32" && Shell.ps(shell)) {
-    return ChildProcess.make(shell, ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command], {
-      cwd,
-      env,
+  const spec = ShellCommand.resolve(shell, command, cwd, env, process.platform !== "win32")
+
+  if (!spec.useShell) {
+    return ChildProcess.make(spec.file, spec.args, {
+      cwd: spec.options.cwd,
+      env: spec.options.env,
       stdin: "ignore",
       detached: false,
     })
   }
 
-  return ChildProcess.make(command, [], {
+  return ChildProcess.make(spec.file, spec.args, {
     shell,
-    cwd,
-    env,
+    cwd: spec.options.cwd,
+    env: spec.options.env,
     stdin: "ignore",
-    detached: process.platform !== "win32",
+    detached: spec.options.detached,
   })
 }
 export const ShellTool = Tool.define(
@@ -841,12 +845,41 @@ export const ShellTool = Tool.define(
                 return yield* Effect.die(new ShellDangerousError({ classification }))
               }
 
+              const env = yield* shellEnv(ctx, cwd)
+
+              // P0-4：此前长驻命令（dev server / watch / 隧道）只能阻塞到超时，
+              // 模型既拿不回句柄也查不了进度。改为后台启动并立即返回 shell_id，
+              // 进度与终止交给 bash_background 工具。
+              if (params.background) {
+                const job = yield* Effect.sync(() =>
+                  ShellBackground.start({ shell, command: params.command, cwd, env }),
+                )
+                return {
+                  title: params.command,
+                  metadata: {
+                    output: `Started in background (shell_id=${job.id}). Full output: ${job.outputPath}`,
+                    exit: null,
+                    truncated: false,
+                    shellId: job.id,
+                  },
+                  output: [
+                    `Command started in the background.`,
+                    ``,
+                    `shell_id: ${job.id}`,
+                    `Output file: ${job.outputPath}`,
+                    ``,
+                    `Use bash_background with action "status" and this shell_id to check progress or the exit code,`,
+                    `or action "kill" to terminate it.`,
+                  ].join("\n"),
+                }
+              }
+
               const result = yield* run(
                 {
                   shell,
                   command: params.command,
                   cwd,
-                  env: yield* shellEnv(ctx, cwd),
+                  env,
                   timeout,
                 },
                 ctx,

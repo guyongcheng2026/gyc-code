@@ -13,6 +13,8 @@ import { isPdfAttachment, sniffAttachmentMime } from "@/util/media"
 import { ReadCache, FILE_UNCHANGED_STUB, type StatLike } from "./read-cache"
 import { createFileDecoder, detectTextEncoding } from "@gyccode/core/util/text-encoding"
 import { maybeRegisterMagicDoc } from "../magic-docs"
+import { compact, shouldCompact } from "./read-compaction"
+import * as Truncate from "./truncate"
 
 const DEFAULT_READ_LIMIT = 2000
 const MAX_LINE_LENGTH = 2000
@@ -64,6 +66,8 @@ type Display =
 type Metadata = {
   preview: string
   truncated: boolean
+  /** 是否走了 P1-3 自动折叠：输出为「骨架 + 指针」而非原始内容 */
+  compacted?: boolean
   loaded: string[]
   display?: Display
 }
@@ -71,7 +75,7 @@ type Metadata = {
 export const ReadTool = Tool.define<
   typeof Parameters,
   Metadata,
-  FSUtil.Service | Instruction.Service | LSP.Service | Scope.Scope
+  FSUtil.Service | Instruction.Service | LSP.Service | Scope.Scope | Truncate.Service
 >(
   "read",
   Effect.gen(function* () {
@@ -79,6 +83,8 @@ export const ReadTool = Tool.define<
     const instruction = yield* Instruction.Service
     const lsp = yield* LSP.Service
     const scope = yield* Scope.Scope
+    // execute 必须留在 R=never 通道，故 Truncate 只能在 init 阶段解析后闭包捕获
+    const truncate = yield* Truncate.Service
     const configSvc = yield* Effect.serviceOption(Config.Service)
     const configInfo = Option.isSome(configSvc)
       ? yield* configSvc.value.get().pipe(Effect.catch(() => Effect.succeed(undefined)))
@@ -395,14 +401,25 @@ export const ReadTool = Tool.define<
       const last = file.offset + file.raw.length - 1
       const next = last + 1
       const truncated = file.more || file.cut
-      if (file.cut) {
-        output += `\n\n(Output capped at ${MAX_BYTES_LABEL}. Showing lines ${file.offset}-${last}. Use offset=${next} to continue.)`
+      // P1-3（对标指标 6 · §1.3「read 无自动 compaction」）：整文件读取被超限截断时，
+      // 默认折叠为「符号骨架 + 首尾样本 + 落盘指针」，模型不必再花一次工具调用翻页。
+      // 模型显式给了 offset/limit 时尊重其窗口，仍走原有的 offset 提示路径。
+      let compacted = false
+      if (shouldCompact({ truncated, offset: params.offset, limit: params.limit })) {
+        const full = yield* fs.readFile(filepath).pipe(
+          Effect.map((bytes) => createFileDecoder(file.encoding).decode(bytes)),
+          // 极端情况下二次读取失败：退回已读到的窗口内容，绝不让整个 read 失败
+          Effect.catch(() => Effect.succeed(file.raw.join("\n"))),
+        )
+        output = (yield* compact(truncate, { filepath, text: full })).content
+        compacted = true
+      } else if (file.cut) {
+        output += `\n\n(Output capped at ${MAX_BYTES_LABEL}. Showing lines ${file.offset}-${last}. Use offset=${next} to continue.)\n</content>`
       } else if (file.more) {
-        output += `\n\n(Showing lines ${file.offset}-${last} of ${file.count}. Use offset=${next} to continue.)`
+        output += `\n\n(Showing lines ${file.offset}-${last} of ${file.count}. Use offset=${next} to continue.)\n</content>`
       } else {
-        output += `\n\n(End of file - total ${file.count} lines)`
+        output += `\n\n(End of file - total ${file.count} lines)\n</content>`
       }
-      output += "\n</content>"
 
       yield* warm(filepath)
 
@@ -412,6 +429,9 @@ export const ReadTool = Tool.define<
 
         // Cache file content and stat for future reads
         readCache.markRead(filepath)
+        // 折叠后模型看到的是骨架，display 必须与之一致，否则 TUI 展示与模型所见不符
+        const displayText = compacted ? output : file.raw.join("\n")
+        const displayEnd = compacted ? file.count : last
         // 仅当整文件完整读入（未截断、未带 offset/limit）时才缓存内容，
         // 否则会把分页窗口缓存成"已读全文"，后续请求会拿到错误的 unchanged 占位。
         if (truncated || params.offset || params.limit) return {
@@ -420,13 +440,14 @@ export const ReadTool = Tool.define<
           metadata: {
             preview: file.raw.slice(0, 20).join("\n"),
             truncated,
+            compacted,
             loaded: loaded.map((item) => item.filepath),
             display: {
               type: "file" as const,
               path: filepath,
-              text: file.raw.join("\n"),
+              text: displayText,
               lineStart: file.offset,
-              lineEnd: last,
+              lineEnd: displayEnd,
               totalLines: file.count,
               truncated,
             },
@@ -446,13 +467,14 @@ export const ReadTool = Tool.define<
           metadata: {
             preview: file.raw.slice(0, 20).join("\n"),
             truncated,
+            compacted,
             loaded: loaded.map((item) => item.filepath),
             display: {
               type: "file" as const,
               path: filepath,
-              text: file.raw.join("\n"),
+              text: displayText,
               lineStart: file.offset,
-              lineEnd: last,
+              lineEnd: displayEnd,
               totalLines: file.count,
               truncated,
             },

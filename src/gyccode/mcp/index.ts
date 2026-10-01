@@ -25,12 +25,13 @@ import { McpOAuthCallback } from "./oauth-callback"
 import { McpAuth } from "./auth"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { TuiEvent } from "@/server/tui-event"
-import { Cause, Effect, Exit, Layer, Context, Schema, Stream } from "effect"
+import { Cause, Duration, Effect, Exit, Layer, Context, Schema, Stream } from "effect"
 import { EffectBridge } from "@/effect/bridge"
 import { InstanceState } from "@/effect/instance-state"
 import { ChildProcess, ChildProcessSpawner } from "effect/unstable/process"
 import { CrossSpawnSpawner } from "@gyccode/core/cross-spawn-spawner"
 import { McpCatalog } from "./catalog"
+import { McpReconnect } from "./reconnect"
 import { McpEvent } from "@gyccode/schema/mcp-event"
 import { McpBrowser } from "./browser"
 import { WSTransport } from "./transport-ws"
@@ -174,6 +175,8 @@ interface State {
   clients: Record<string, MCPClient>
   defs: Record<string, MCPToolDef[]>
   instructions: Record<string, string>
+  /** 实例 finalizer 是否已执行：桥接出来的重连 fiber 是游离的，只能靠这个标志兜底 */
+  disposed: boolean
 }
 
 export interface ServerInstructions {
@@ -484,7 +487,14 @@ const layer = Layer.effect(
       Effect.catch(() => Effect.succeed([] as number[])),
     )
 
-    function watch(s: State, name: string, client: MCPClient, bridge: EffectBridge.Shape, timeout?: number) {
+    function watch(
+      s: State,
+      name: string,
+      client: MCPClient,
+      bridge: EffectBridge.Shape,
+      timeout?: number,
+      onUnexpectedClose?: () => void,
+    ) {
       // P1 修复：防止重复设置 onclose 处理器，避免重新连接时丢失旧的处理器
       const existingHandler = client.onclose
       client.onclose = () => {
@@ -507,6 +517,9 @@ const layer = Layer.effect(
             Effect.ignore,
           ),
         )
+        // P1-5：走到这里说明不是主动关闭（主动关闭时 s.clients[name] 已被清掉），
+        // 触发退避重连。
+        onUnexpectedClose?.()
       }
 
       client.setNotificationHandler(LoggingMessageNotificationSchema, (notification) =>
@@ -555,6 +568,49 @@ const layer = Layer.effect(
           clients: {},
           defs: {},
           instructions: {},
+          disposed: false,
+        }
+
+        // P1-5：意外断连后按退避策略重连（1s 起、×2、60s 封顶、10 次封顶）。
+        // 成功恢复后重新 watch，并把重连计数归零。
+        const scheduleReconnect = (name: string, attempt = 0) => {
+          const canRetry = () =>
+            McpReconnect.shouldReconnect({
+              disposed: s.disposed,
+              status: s.status[name]?.status,
+              enabled: (s.config[name] ?? config[name])?.enabled,
+            })
+          const plan = McpReconnect.nextReconnect(attempt)
+          if (plan.exhausted || !canRetry()) return
+
+          bridge.fork(
+            Effect.gen(function* () {
+              yield* Effect.sleep(`${plan.delay!} millis`)
+              if (s.disposed) return
+              const mcp = s.config[name] ?? config[name]
+              if (!mcp || !isMcpConfigured(mcp) || !McpReconnect.shouldReconnect({
+                disposed: s.disposed,
+                status: s.status[name]?.status,
+                enabled: mcp.enabled,
+              }))
+                return
+
+              yield* Effect.logInfo("MCP reconnecting", { server: name, attempt: plan.attempt })
+              const result = yield* create(name, mcp).pipe(
+                Effect.catch(() => Effect.succeed({ status: { status: "failed" as const, error: "reconnect failed" }, mcpClient: undefined })),
+              )
+              s.status[name] = result.status
+              if (result.mcpClient) {
+                s.clients[name] = result.mcpClient
+                s.defs[name] = result.defs!
+                if (result.instructions) s.instructions[name] = result.instructions
+                watch(s, name, result.mcpClient, bridge, mcp.timeout, () => scheduleReconnect(name, 0))
+                yield* events.publish(ToolsChanged, { server: name }).pipe(Effect.ignore)
+                return
+              }
+              scheduleReconnect(name, plan.attempt)
+            }).pipe(Effect.ignore),
+          )
         }
 
         yield* Effect.forEach(
@@ -577,7 +633,7 @@ const layer = Layer.effect(
                 s.clients[key] = result.mcpClient
                 s.defs[key] = result.defs!
                 if (result.instructions) s.instructions[key] = result.instructions
-                watch(s, key, result.mcpClient, bridge, mcp.timeout)
+                watch(s, key, result.mcpClient, bridge, mcp.timeout, () => scheduleReconnect(key, 0))
               }
             }),
           { concurrency: "unbounded" },
@@ -585,6 +641,9 @@ const layer = Layer.effect(
 
         yield* Effect.addFinalizer(() =>
           Effect.gen(function* () {
+            // P1-5：EffectBridge.fork 是游离 fiber、不随本作用域中断，
+            // 必须先置 disposed，否则实例已释放后仍会重连。
+            s.disposed = true
             const clients = Object.values(s.clients)
             s.clients = {}
             s.defs = {}
@@ -743,7 +802,31 @@ const layer = Layer.effect(
         }
         const timeout = requestTimeout(s, clientName, mcpConfig, defaultTimeout)
         for (const def of listed) {
-          result[McpCatalog.toolName(clientName, def.name)] = { def, client, timeout }
+          const key = McpCatalog.toolName(clientName, def.name)
+          // P1-6：toolName 会把非 [a-zA-Z0-9_-] 折叠成 _，两个 server 可能塌缩成
+          // 同一个 key。语义统一为「先注册者生效」，与 findToolNameConflicts 的
+          // owners[0] 约定一致；被覆盖者下面统一注入冲突说明。
+          if (result[key]) continue
+          result[key] = { def, client, timeout }
+        }
+      }
+
+      // P1-6：把命名冲突显式告知模型，而不是静默丢弃
+      const connected = Object.keys(s.clients)
+        .filter((name) => s.status[name]?.status === "connected" && s.defs[name])
+        .map((name) => ({ server: name, tools: s.defs[name]! }))
+      for (const conflict of McpCatalog.findToolNameConflicts(connected)) {
+        const entry = result[conflict.tool]
+        if (!entry) continue
+        const winner = conflict.owners[0]!
+        yield* Effect.logWarning("MCP 工具命名冲突：被覆盖者无法通过原名访问", {
+          tool: conflict.tool,
+          kept: winner.server,
+          dropped: conflict.owners.slice(1).map((owner) => owner.server).join(","),
+        })
+        result[conflict.tool] = {
+          ...entry,
+          def: McpCatalog.withConflictNotice(entry.def, McpCatalog.describeToolNameConflict(conflict)),
         }
       }
       return result
