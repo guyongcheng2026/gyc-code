@@ -60,11 +60,25 @@ function isCacheValid(expiresAt: number): boolean {
   return Date.now() < expiresAt
 }
 
-/** 调用 MCP 服务获取标准元素 */
+/**
+ * 拉取标准元素。
+ *
+ * ⚠️ 桩实现：本函数**不发起任何 MCP 连接**，直接返回本地 mockStandards。
+ * 原实现用 `console.log("[MCP] Calling …")` 打印调用参数，后果有二：
+ *   1. 裸 console.log 绕过 Effect 的结构化日志体系，无法按日志级别过滤，
+ *      记忆抽取/梦境合成每触发一轮就刷一行（`enforceStandards` 最多重试 3 轮，
+ *      `extraction-runner` 对每条记忆并发调用），把调试噪音灌进用户终端；
+ *   2. `[MCP]` 前缀让人以为真有 MCP 服务器在工作，据此排查会走错方向——
+ *      实际根本没有任何 socket/stdio 连接、超时或重连。
+ *
+ * 故改为仅在 GYCCODE_DEBUG=1 时打到 stderr，且前缀标注 STUB。
+ * 接入真实 MCP 时，把 fetchStandards 改为走 Git 无关的 MCP 客户端即可，
+ * 本文件的缓存与类型定义可直接复用。
+ */
 async function callMcpServer(method: string, params: Record<string, unknown>): Promise<unknown> {
-  // 这里应该调用实际的 MCP 服务
-  // 目前返回模拟数据，实际部署时替换为真实 MCP 调用
-  console.log(`[MCP] Calling ${method} with params:`, params)
+  if (process.env.GYCCODE_DEBUG === "1") {
+    process.stderr.write(`[MCP-STUB] ${method} (未接真实 MCP，返回 mock 数据) params=${JSON.stringify(params)}\n`)
+  }
 
   // 模拟标准元素数据
   const mockStandards: Record<StandardElementType, StandardElement[]> = {
