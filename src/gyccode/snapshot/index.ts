@@ -42,9 +42,40 @@ export interface Interface {
   readonly revert: (patches: Patch[]) => Effect.Effect<void>
   readonly diff: (hash: string) => Effect.Effect<string>
   readonly diffFull: (from: string, to: string) => Effect.Effect<FileDiff[]>
+  /**
+   * P0-2（对标指标 8）：把当前索引固化成一条**真正的 commit**，返回其 hash。
+   *
+   * 此前 track() 只 `write-tree`——存的是裸 tree 对象，没有 commit、没有
+   * 父子关系、也没有 message。tree 能支撑「本轮改了什么」的 diff，但撑不起
+   * 「一整轮任务」这个粒度的回退：用户/模型拿到一串互不相关的 tree hash，
+   * 不知道哪几个属于同一轮，也无法整体回到某轮之前。
+   *
+   * 建 commit 后，影子仓库就有了历史，`revertToCommit` 能按轮次回退。
+   * 刻意不碰 HEAD、不动分支指针：影子仓库是 gyc 的私产，保持 detach 状态
+   * 才能避免和用户真实仓库的提交历史互相污染。
+   *
+   * 无变更时返回 undefined（不制造空提交）。
+   */
+  readonly commit: (message: string) => Effect.Effect<string | undefined>
+  /** 列出影子仓库的 commit 历史（时间序，旧→新），供 UI/工具展示可回退的轮次。 */
+  readonly history: (limit: number) => Effect.Effect<{ hash: string; message: string; time: number }[]>
+  /** 回退到指定 commit 的内容（不影响用户真实仓库）。 */
+  readonly revertToCommit: (hash: string) => Effect.Effect<void>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/Snapshot") {}
+
+/**
+ * P0-2：gyc 私有的任务历史 ref。
+ *
+ * 刻意不用 HEAD/分支：影子仓库与用户真实仓库共享 objects（`alternates`），
+ * 在这里动分支指针会连带影响用户仓库。用独立 ref 存放每轮任务的 commit，
+ * 既能按轮回退，又与用户历史彻底隔离。
+ */
+const TASK_REF = "refs/gyc/task"
+
+/** history 输出用 unit separator 分隔三段，避免 message 里含分隔符时解析错位。 */
+const FIELD_SEP = "\u001f"
 
 const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | Config.Service> = Layer.effect(
   Service,
@@ -569,6 +600,106 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           )
         })
 
+        /**
+         * P0-2：把当前索引固化成 commit。
+         *
+         * 关键点是**不碰 HEAD、不动分支指针**——影子仓库与用户真实仓库共享
+         * objects（`alternates`），若在这里 checkout/move 分支，用户仓库的
+         * 状态会被污染。用 `commit-tree` 直接构造 commit 对象，HEAD 保持不动，
+         * 历史只存在于 gyc 自己的 ref（refs/gyc/task）下。
+         */
+        const commit = Effect.fnUntraced(function* (message: string) {
+          return yield* locked(
+            Effect.gen(function* () {
+              const text = message.trim()
+              if (!text) {
+                yield* Effect.logWarning("commit message 为空，跳过")
+                return undefined
+              }
+              const changed = yield* add()
+              if (!changed) {
+                yield* Effect.logInfo("commit skipped (no changes)")
+                return undefined
+              }
+              const tree = yield* git(args(["write-tree"]), { cwd: state.worktree })
+              if (tree.code !== 0) {
+                yield* Effect.logWarning("write-tree 失败，无法建 commit", { stderr: tree.stderr })
+                return undefined
+              }
+              const treeHash = tree.text.trim()
+              // 父提交取该 ref 当前指向；首次则无父，形成一条独立历史。
+              const head = yield* git(args(["rev-parse", "--verify", "--quiet", TASK_REF]), {
+                cwd: state.worktree,
+              })
+              const parent = head.code === 0 ? head.text.trim() : undefined
+              const created = yield* git(args(["commit-tree", treeHash]), {
+                cwd: state.worktree,
+                stdin: text,
+              })
+              if (created.code !== 0) {
+                yield* Effect.logWarning("commit-tree 失败", { stderr: created.stderr })
+                return undefined
+              }
+              const commitHash = created.text.trim()
+              // 推进 gyc 私有 ref，形成可回退的历史
+              const update = yield* git(args(["update-ref", TASK_REF, commitHash, ...(parent ? [parent] : [])]), {
+                cwd: state.worktree,
+              })
+              if (update.code !== 0) {
+                yield* Effect.logWarning("update-ref 失败，历史未推进", { stderr: update.stderr })
+              }
+              yield* Effect.logInfo("committed", { hash: commitHash, parent, tree: treeHash })
+              return commitHash
+            }),
+          )
+        })
+
+        const history = Effect.fnUntraced(function* (limit: number) {
+          return yield* locked(
+            Effect.gen(function* () {
+              const n = Math.min(Math.max(1, Math.floor(limit)), 200)
+              // 分隔符用 %x1f（unit separator），与下方 split 的 FIELD_SEP 同一个字符；
+              // message 里若含换行会被按行切开，故用 --pretty 的定长字段而非自由文本。
+              const result = yield* git(
+                args(["log", `-${n}`, "--reverse", `--pretty=format:%H%x1f%s%x1f%ct`, TASK_REF]),
+                { cwd: state.worktree },
+              )
+              // ref 还不存在（尚未 commit 过）不是错误，返回空历史即可
+              if (result.code !== 0) return []
+              return result.text
+                .split("\n")
+                .filter(Boolean)
+                .map((line) => {
+                  const [hash, msg, time] = line.split(FIELD_SEP)
+                  return { hash: hash ?? "", message: msg ?? "", time: Number(time ?? 0) * 1000 }
+                })
+                .filter((row) => row.hash !== "")
+            }),
+          )
+        })
+
+        const revertToCommit = Effect.fnUntraced(function* (hash: string) {
+          yield* locked(
+            Effect.gen(function* () {
+              const verify = yield* git(args(["cat-file", "-e", `${hash}^{commit}`]), { cwd: state.worktree })
+              if (verify.code !== 0) {
+                yield* Effect.logWarning("目标 commit 不存在", { hash, stderr: verify.stderr })
+                return
+              }
+              const changed = yield* add()
+              if (!changed) {
+                yield* Effect.logInfo("无需回退（工作区无改动）")
+                return
+              }
+              // 只改工作区与索引，不动 HEAD、不动任何分支指针
+              const checkout = yield* git(args(["checkout", hash, "--", "."]), { cwd: state.worktree })
+              if (checkout.code !== 0) {
+                yield* Effect.logWarning("回退失败", { hash, stderr: checkout.stderr })
+              }
+            }),
+          )
+        })
+
         const diffFull = Effect.fnUntraced(function* (from: string, to: string) {
           return yield* locked(
             Effect.gen(function* () {
@@ -801,7 +932,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           Effect.forkScoped,
         )
 
-        return { cleanup, track, patch, restore, revert, diff, diffFull }
+        return { cleanup, track, patch, restore, revert, diff, diffFull, commit, history, revertToCommit }
       }),
     )
 
@@ -829,6 +960,15 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
       }),
       diffFull: Effect.fn("Snapshot.diffFull")(function* (from: string, to: string) {
         return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to))
+      }),
+      commit: Effect.fn("Snapshot.commit")(function* (message: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.commit(message))
+      }),
+      history: Effect.fn("Snapshot.history")(function* (limit: number) {
+        return yield* InstanceState.useEffect(state, (s) => s.history(limit))
+      }),
+      revertToCommit: Effect.fn("Snapshot.revertToCommit")(function* (hash: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.revertToCommit(hash))
       }),
     })
   }),
