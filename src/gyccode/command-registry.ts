@@ -30,6 +30,7 @@ const SendCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/
 const ServeCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/serve"), name: "ServeCommand" }
 const SessionCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/session"), name: "SessionCommand" }
 const StatsCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/stats"), name: "StatsCommand" }
+const TaskCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/task"), name: "TaskCommand" }
 const TuiThreadCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/tui"), name: "TuiThreadCommand" }
 const UninstallCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/uninstall"), name: "UninstallCommand" }
 const UpgradeCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/upgrade"), name: "UpgradeCommand" }
@@ -61,6 +62,7 @@ export const COMMANDS: Record<string, CommandLoader> = {
   serve: ServeCommandLoader,
   session: SessionCommandLoader,
   stats: StatsCommandLoader,
+  task: TaskCommandLoader,
   tui: TuiThreadCommandLoader,
   uninstall: UninstallCommandLoader,
   upgrade: UpgradeCommandLoader,

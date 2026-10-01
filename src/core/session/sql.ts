@@ -115,6 +115,40 @@ export const TodoTable = sqliteTable(
   ],
 )
 
+/**
+ * 2026-09-30（每任务真实成本 P0 / C-01）：此前成本只有会话与消息两个粒度，
+ * 「完成一个 feature 花多少钱」根本算不出来——任务既没有实体，也没有成败标记。
+ * 一条 task = 一个用户轮次（由 projector 在收到用户消息时开、该轮结束时结算）。
+ */
+export const TaskTable = sqliteTable(
+  "task",
+  {
+    id: text().$type<string>().primaryKey(),
+    session_id: text()
+      .$type<SessionSchema.ID>()
+      .notNull()
+      .references(() => SessionTable.id, { onDelete: "cascade" }),
+    /** 开场的用户消息，task 的锚点 */
+    message_id: text().$type<MessageID>().notNull(),
+    title: text().notNull(),
+    /** running / success / failed：判定依据是该轮 assistant 是否留下 error part */
+    status: text().notNull(),
+    /** 失败原因摘要（第一个 error part 的标题），无则为空 */
+    error: text(),
+    cost: real().notNull(),
+    tokens_input: integer().notNull(),
+    tokens_output: integer().notNull(),
+    tokens_cache_read: integer().notNull(),
+    tokens_cache_write: integer().notNull(),
+    ...Timestamps,
+    time_completed: integer(),
+  },
+  (table) => [
+    index("task_session_idx").on(table.session_id),
+    index("task_created_idx").on(table.time_created),
+  ],
+)
+
 export const SessionMessageTable = sqliteTable(
   "session_message",
   {

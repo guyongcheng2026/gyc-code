@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import type { DatabaseMigration } from "./migration"
+import { TASK_TABLE_STATEMENT } from "../session/task-table"
 
 export default {
   up(tx) {
@@ -272,6 +273,10 @@ export default {
       yield* tx.run("CREATE TABLE IF NOT EXISTS `workflow_run` (`id` text PRIMARY KEY NOT NULL, `workflow` text NOT NULL, `session_id` text NOT NULL, `directory` text NOT NULL, `status` text DEFAULT 'pending' NOT NULL, `current_step_index` integer DEFAULT -1 NOT NULL, `steps` text DEFAULT '[]' NOT NULL, `error` text, `time_created` integer NOT NULL, `time_updated` integer NOT NULL)")
       yield* tx.run("CREATE INDEX `workflow_run_session_idx` ON `workflow_run` (`session_id`)")
       yield* tx.run("CREATE INDEX `workflow_run_workflow_idx` ON `workflow_run` (`workflow`)")
+      // 2026-09-30（每任务真实成本 P0 / C-01）：任务实体
+      yield* tx.run(TASK_TABLE_STATEMENT)
+      yield* tx.run("CREATE INDEX IF NOT EXISTS `task_session_idx` ON `task` (`session_id`)")
+      yield* tx.run("CREATE INDEX IF NOT EXISTS `task_created_idx` ON `task` (`time_created`)")
     })
 
   },

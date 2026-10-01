@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { Effect, Schema } from "effect"
-import { invalidArgumentsDetail } from "./tool"
+import { invalidArgumentsDetail, InvalidArgumentsError } from "./tool"
+import { errorMessage } from "../../tui/util/error"
 
 const Params = Schema.Struct({
   path: Schema.String,
@@ -26,6 +27,23 @@ describe("S-04 参数校验失败必须回灌 schema", () => {
     const detail = invalidArgumentsDetail(toolDef, { raw: true }, () => "自定义校验说明")
     expect(detail).toContain("自定义校验说明")
     expect(detail).not.toContain("[object Object]")
+  })
+
+  test("参数失败经 orDie/runPromise 后文案仍能回到模型", async () => {
+    // 核实结论：wrap 里的 Effect.orDie 不会吞掉文案。runPromise 对 defect 的
+    // 拒绝值就是 Error 本身，processor 的 errorMessage 能取回 message，
+    // 模型因此能看到 schema 并重试。此测试锁住该语义，防止后续重构改坏。
+    const err = new InvalidArgumentsError({ tool: "read", detail: invalidArgumentsDetail(toolDef, "缺少 path") })
+    let rejected: unknown
+    try {
+      await Effect.runPromise(Effect.die(err))
+    } catch (e) {
+      rejected = e
+    }
+    const text = errorMessage(rejected)
+    expect(text).toContain("read")
+    expect(text).toContain("缺少 path")
+    expect(text).toContain("JSON Schema")
   })
 
   test("schema 推导失败时不抛异常，只退回原始校验信息", () => {

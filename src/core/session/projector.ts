@@ -1,4 +1,4 @@
-﻿export * as SessionProjector from "./projector"
+export * as SessionProjector from "./projector"
 
 import { and, desc, eq, gt, or, sql } from "drizzle-orm"
 import { DateTime, Effect, Layer, Schema } from "effect"
@@ -17,6 +17,8 @@ import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, Sessio
 import { ModelV2 } from "../model"
 import { ProviderV2 } from "../provider"
 import type { DeepMutable } from "../schema"
+import { MessageID } from "../v1/session"
+import * as TaskProjector from "./task-projector"
 
 type DatabaseService = Database.Interface["db"]
 
@@ -197,6 +199,8 @@ export function applyUsage(
 ) {
   return addUsageRow(db, events, sessionID, value, sign).pipe(
     Effect.andThen(() => rollupUsage(db, events, sessionID, value, sign)),
+    // C-01：同一份增量同时落到当前打开的 task，「每任务成本」才有数据来源
+    Effect.andThen(() => TaskProjector.applyTaskUsage(db, sessionID, value, sign)),
   )
 }
 
@@ -353,6 +357,15 @@ function run(db: DatabaseService, event: SessionEvent.Event) {
   })
 }
 
+/** 任务标题取用户消息的首段文本，截断在写入时完成。 */
+function userTitle(message: SessionMessage.Message): string {
+  const parts = (message as { parts?: ReadonlyArray<{ type?: string; text?: string }> }).parts
+  for (const part of parts ?? []) {
+    if (part?.type === "text" && typeof part.text === "string" && part.text.trim() !== "") return part.text.trim()
+  }
+  return "(空任务)"
+}
+
 function insertMessage(db: DatabaseService, event: SessionEvent.Event, message: SessionMessage.Message) {
   if (event.durable === undefined) return Effect.die("Durable Session event is missing aggregate sequence")
   const encoded = encodeMessage(message)
@@ -367,8 +380,17 @@ function insertMessage(db: DatabaseService, event: SessionEvent.Event, message: 
       time_created: DateTime.toEpochMillis(message.time.created),
       data,
     })
-    .run()
-    .pipe(Effect.orDie)
+.run()
+    .pipe(
+      Effect.orDie,
+      Effect.asVoid,
+      // C-01：用户消息即一个任务的开始；先结算上一条（用户连发两条时会走到这里）
+      Effect.flatMap(() =>
+        message.type === "user"
+          ? TaskProjector.openTask(db, event.data.sessionID, MessageID.make(id), userTitle(message))
+          : Effect.void,
+      ),
+    )
 }
 
 const layer = Layer.effectDiscard(
@@ -489,6 +511,17 @@ const layer = Layer.effectDiscard(
         const next = usage(event.data.part)
         if (previous) yield* applyUsage(db, events, row.session_id, previous, -1)
         if (next) yield* applyUsage(db, events, sessionID, next)
+        // C-05：工具失败即判本轮任务失败，并记下第一处原因。此前没有任何地方
+        // 记录「这轮到底成没成」，成功率只能靠人肉回看会话。
+        const part = event.data.part as {
+          type?: string
+          tool?: string
+          state?: { status?: string; error?: string }
+        }
+        const partState = part.state
+        if (partState?.status === "error") {
+          yield* TaskProjector.recordTaskError(db, sessionID, partState.error ?? `${part.tool ?? "工具"} 执行失败`)
+        }
       }),
     )
     yield* events.project(SessionEvent.AgentSwitched, (event) =>

@@ -34,6 +34,7 @@
     "./cmd/serve": "./cmd/serve.ts",
     "./cmd/session": "./cmd/session.ts",
     "./cmd/stats": "./cmd/stats.ts",
+    "./cmd/task": "./cmd/task.ts",
     "./cmd/tui": "./cmd/tui.ts",
     "./cmd/uninstall": "./cmd/uninstall.ts",
     "./cmd/upgrade": "./cmd/upgrade.ts",
