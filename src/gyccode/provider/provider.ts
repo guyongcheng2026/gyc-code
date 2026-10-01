@@ -35,6 +35,7 @@ import { RuntimeFlags } from "@/effect/runtime-flags"
 import { ProviderError } from "./error"
 import { logError } from "@core/observability/log-error"
 import { strip1mSuffix } from "../../llm/model-id"
+import * as ApiModels from "./api-models"
 
 const OPENAI_HEADER_TIMEOUT_DEFAULT = 300_000
 // Default per-request timeouts applied when a provider does not configure its
@@ -1221,6 +1222,8 @@ export interface Interface {
     providerID: ProviderV2.ID,
     options?: { timeoutMs?: number },
   ) => Effect.Effect<{ ok: true; latencyMs: number } | { ok: false; reason: string; latencyMs: number }>
+  /** Force-refreshes every tracked custom endpoint's `/models` listing and rebuilds the database. */
+  readonly refreshModels: () => Effect.Effect<void>
 }
 
 interface State {
@@ -1404,6 +1407,7 @@ const layer = Layer.effect(
     const plugin = yield* Plugin.Service
     const modelsDevSvc = yield* ModelsDev.Service
     const runtimeFlags = yield* RuntimeFlags.Service
+    const apiModels = yield* ApiModels.Service
 
     const state = yield* InstanceState.make<State>(() =>
       Effect.gen(function* () {
@@ -1486,16 +1490,45 @@ const layer = Layer.effect(
           })
         }
 
+        // Custom endpoints expose their own catalogue: pull the OpenAI-compatible
+        // `/models` listing (cache-only here — the network round-trip is owned by
+        // ApiModels' background loop) so freshly shipped models show up without
+        // anyone editing the whitelist by hand.
+        const apiTargets = new Map<string, { target: ApiModels.Target; models: ApiModels.ApiModel[] }>()
+        const envValues = yield* env.all()
+        for (const [id, provider] of configProviders) {
+          const providerID = ProviderV2.ID.make(id)
+          if (!isProviderAllowed(providerID)) continue
+          const raw = provider.options?.["baseURL"]
+          if (typeof raw !== "string" || raw === "") continue
+          const baseURL = raw.replace(/\$\{([^}]+)\}/g, (item, key) => envValues[String(key)] ?? item)
+          const stored = yield* auth.get(providerID).pipe(Effect.orDie)
+          const rawKey = provider.options?.["apiKey"]
+          const apiKey =
+            typeof rawKey === "string"
+              ? rawKey.replace(/\$\{([^}]+)\}/g, (item, key) => envValues[String(key)] ?? item)
+              : stored?.type === "api"
+                ? stored.key
+                : undefined
+          const target: ApiModels.Target = { providerID: id, baseURL, npm: provider.npm, url: baseURL, apiKey }
+          apiTargets.set(id, { target, models: yield* apiModels.read(target) })
+        }
+        yield* apiModels.track(Array.from(apiTargets.values(), (item) => item.target))
+
         // extend database from config
         for (const [providerID, provider] of configProviders) {
           const existing = database[providerID]
+          const listing = apiTargets.get(providerID)
           const parsed: Info = {
             id: ProviderV2.ID.make(providerID),
             name: provider.name ?? existing?.name ?? providerID,
             env: provider.env ?? existing?.env ?? [],
             options: mergeDeep(existing?.options ?? {}, provider.options ?? {}),
             source: "config",
-            models: existing?.models ?? {},
+            // API listings only fill gaps; catalog and configured entries keep their metadata.
+            models: listing
+              ? ApiModels.mergeApiModels(existing?.models ?? {}, listing.models, listing.target)
+              : (existing?.models ?? {}),
           }
 
           for (const [modelID, model] of Object.entries(provider.models ?? {})) {
@@ -2178,7 +2211,25 @@ const layer = Layer.effect(
       return { ok: false as const, reason: typeof result === "string" ? result : "unreachable", latencyMs }
     })
 
-    return Service.of({ list, getProvider, getModel, getLanguage, closest, getSmallModel, defaultModel, healthCheck })
+    const refreshModels = Effect.fnUntraced(function* () {
+      // `list()` first: tracking of custom endpoints happens while the database
+      // is built, so the refresh would otherwise see an empty target set.
+      yield* list()
+      yield* apiModels.refresh(true)
+      yield* InstanceState.invalidate(state)
+    })
+
+    return Service.of({
+      list,
+      getProvider,
+      getModel,
+      getLanguage,
+      closest,
+      getSmallModel,
+      defaultModel,
+      healthCheck,
+      refreshModels,
+    })
   }),
 )
 
@@ -2206,7 +2257,16 @@ export function parseModel(model: string) {
 export const node = LayerNode.make({
   service: Service,
   layer: layer,
-  deps: [FSUtil.node, Config.node, Auth.node, Env.node, Plugin.node, ModelsDev.node, RuntimeFlags.node],
+  deps: [
+    FSUtil.node,
+    Config.node,
+    Auth.node,
+    Env.node,
+    Plugin.node,
+    ModelsDev.node,
+    RuntimeFlags.node,
+    ApiModels.node,
+  ],
 })
 
 export * as Provider from "./provider"

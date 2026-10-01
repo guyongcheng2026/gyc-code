@@ -20,17 +20,20 @@ export const ModelsCommand = effectCmd({
         type: "boolean",
       })
       .option("refresh", {
-        describe: "从 models.dev 刷新模型缓存",
+        describe: "从 models.dev 与自定义服务端点刷新模型缓存",
         type: "boolean",
       }),
   handler: Effect.fn("Cli.models")(function* (args) {
     const { Provider } = yield* Effect.promise(() => import("@/provider/provider"))
+    const provider = yield* Provider.Service
     if (args.refresh) {
       yield* ModelsDev.Service.use((s) => s.refresh(true))
+      // Custom endpoints keep their own catalogue; refresh before listing so the
+      // output below already contains whatever they publish right now.
+      yield* provider.refreshModels()
       UI.println(UI.Style.TEXT_SUCCESS_BOLD + "模型缓存已刷新" + UI.Style.TEXT_NORMAL)
     }
 
-    const provider = yield* Provider.Service
     const providers = yield* provider.list()
 
     const print = (providerID: ProviderV2.ID, verbose?: boolean) => {
