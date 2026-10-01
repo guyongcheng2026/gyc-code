@@ -385,21 +385,27 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
       ? input.model.cost.experimentalOver200K
       : input.model.cost)
   const totalNanoAiu = input.metadata?.["copilot"]?.["totalNanoAiu"]
+  // C-04：本地没有 provider 账单可拉（各家账单 API 形态不一且需外部凭据），
+  // 因此退而求其次——把每个数字的**来源**标出来。copilot 的 totalNanoAiu 是
+  // provider 侧返回的真实扣费，其余一律是按 models.dev 单价的本地估算。
+  // 不知道来源就无法判断一个数字能不能拿去对账。
+  const authoritative =
+    typeof totalNanoAiu === "number" && Number.isFinite(totalNanoAiu) && totalNanoAiu >= 0
   return {
-    cost:
-      typeof totalNanoAiu === "number" && Number.isFinite(totalNanoAiu) && totalNanoAiu >= 0
-        ? new Decimal(totalNanoAiu).div(100_000_000_000).toNumber()
-        : safe(
-            new Decimal(0)
-              .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
-              .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
-              .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
-              .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
-              // TODO: update models.dev to have better pricing model, for now:
-              // charge reasoning tokens at the same rate as output tokens
-              .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
-              .toNumber(),
-          ),
+    cost: authoritative
+      ? new Decimal(totalNanoAiu).div(100_000_000_000).toNumber()
+      : safe(
+          new Decimal(0)
+            .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
+            .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
+            .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
+            .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
+            // TODO: update models.dev to have better pricing model, for now:
+            // charge reasoning tokens at the same rate as output tokens
+            .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
+            .toNumber(),
+        ),
+    costSource: authoritative ? ("provider-reported" as const) : ("estimated" as const),
     tokens,
   }
 }

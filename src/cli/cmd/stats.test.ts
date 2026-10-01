@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
-import { detectUnpricedModels } from "./stats"
+import { detectUnpricedModels, reconcileCost } from "./stats"
 
 const run = (keys: string[], priced: Record<string, boolean | undefined>) =>
   Effect.runSync(
@@ -47,5 +47,36 @@ describe("detectUnpricedModels（每任务成本 P0：无价模型必须被点�
       ),
     )
     expect(out).toEqual([{ model: "openrouter/meta-llama/llama-3", sessions: 1 }])
+  })
+})
+
+/**
+ * C-06：Total Cost 取 session.cost，MODEL USAGE 逐 message 累加，两条路径本应
+ * 等值。原先没人比对，对不上也没人知道 —— 这里锁定判定逻辑。
+ */
+describe("reconcileCost（C-06：两套成本口径必须对得上）", () => {
+  test("完全一致时不告警", () => {
+    const out = reconcileCost(1, { "openai/a": { cost: 0.4 }, "openai/b": { cost: 0.6 } })
+    expect(out.fromMessages).toBeCloseTo(1, 10)
+    expect(out.drift).toBeCloseTo(0, 10)
+    expect(out.mismatched).toBe(false)
+  })
+
+  test("浮点误差在 1% 内不算口径分歧", () => {
+    const out = reconcileCost(100, { "openai/a": { cost: 99.5 } })
+    expect(out.driftRatio).toBeCloseTo(0.005, 10)
+    expect(out.mismatched).toBe(false)
+  })
+
+  test("超过 1% 即判为分歧（漏计价或重复计价）", () => {
+    const out = reconcileCost(100, { "openai/a": { cost: 80 } })
+    expect(out.drift).toBeCloseTo(20, 10)
+    expect(out.mismatched).toBe(true)
+  })
+
+  test("无成本数据时不做除零，返回未分歧", () => {
+    const out = reconcileCost(0, {})
+    expect(out.driftRatio).toBe(0)
+    expect(out.mismatched).toBe(false)
   })
 })

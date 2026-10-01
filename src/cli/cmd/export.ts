@@ -6,6 +6,9 @@ import { UI } from "../ui"
 import * as prompts from "@clack/prompts"
 import { EOL } from "os"
 import { Effect } from "effect"
+import { Database } from "@gyccode/core/database/database"
+import * as TaskProjector from "@gyccode/core/session/task-projector"
+import type { SessionSchema } from "@gyccode/core/session/schema"
 
 function redact(kind: string, id: string, value: string) {
   return value.trim() ? `[redacted:${kind}:${id}]` : value
@@ -218,6 +221,69 @@ function sanitize(data: { info: Session.Info; messages: SessionV1.WithParts[] })
   }
 }
 
+/**
+ * C-09：导出成本账。会话 JSON 里虽有消息级 cost，但要回答「一个 feature 花了
+ * 多少、成了吗」需要三个聚合维度，缺一不可：
+ *
+ * - **task**：一个用户轮次一个 task，跨会话，附成败标记（C-01 / C-05）
+ * - **messages**：会话内逐轮明细，用于自行复算
+ * - **totals**：含压缩成本单列与两套口径对账（C-06 / C-08）
+ */
+function costLedger(sessionID: SessionID) {
+  return Effect.gen(function* () {
+    const { db } = yield* Database.Service
+    const svc = yield* Session.Service
+    const session = yield* svc.get(sessionID)
+    const messages = yield* svc.messages({ sessionID })
+    const tasks = yield* TaskProjector.listTasks(db, sessionID as SessionSchema.ID)
+
+    let compactionCost = 0
+    let messageCost = 0
+    const perMessage = messages.map((message) => {
+      const info = (message as { info?: { role?: string; cost?: number } }).info
+      const cost = info?.cost ?? 0
+      if (info?.role === "assistant") {
+        messageCost += cost
+        if ((info as { mode?: string }).mode === "compaction") compactionCost += cost
+      }
+      return { role: info?.role, cost, mode: (info as { mode?: string }).mode }
+    })
+
+    return {
+      generatedAt: new Date().toISOString(),
+      session: {
+        id: session.id,
+        title: session.title,
+        projectID: session.projectID,
+        cost: session.cost ?? 0,
+      },
+      totals: {
+        // 会话口径（投影侧权威值）与逐轮口径应当一致，对不上说明计价路径分叉
+        fromSessions: session.cost ?? 0,
+        fromMessages: messageCost,
+        drift: (session.cost ?? 0) - messageCost,
+        compactionCost,
+      },
+      tasks: tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        status: task.status,
+        error: task.error,
+        cost: task.cost,
+        tokens: {
+          input: task.tokens_input,
+          output: task.tokens_output,
+          cacheRead: task.tokens_cache_read,
+          cacheWrite: task.tokens_cache_write,
+        },
+        timeCreated: task.time_created,
+        timeCompleted: task.time_completed,
+      })),
+      messages: perMessage,
+    }
+  })
+}
+
 export const ExportCommand = effectCmd({
   command: "export [sessionID]",
   describe: "以 JSON 格式导出会话数据",
@@ -230,13 +296,21 @@ export const ExportCommand = effectCmd({
       .option("sanitize", {
         describe: "对敏感的对话记录和文件数据做脱敏处理",
         type: "boolean",
+      })
+      .option("cost", {
+        describe: "导出成本账（含 task 维度、压缩成本、缓存命中率），而非会话 JSON",
+        type: "boolean",
       }),
   handler: Effect.fn("Cli.export")(function* (args) {
     return yield* run(args)
   }),
 })
 
-const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; sanitize?: boolean }) {
+const run = Effect.fn("Cli.export.body")(function* (args: {
+  sessionID?: string
+  sanitize?: boolean
+  cost?: boolean
+}) {
   const svc = yield* Session.Service
   let sessionID = args.sessionID ? SessionID.make(args.sessionID) : undefined
   process.stderr.write(`正在导出会话：${sessionID ?? "latest"}\n`)
@@ -282,6 +356,15 @@ const run = Effect.fn("Cli.export.body")(function* (args: { sessionID?: string; 
   return yield* Effect.gen(function* () {
     const sessionInfo = yield* svc.get(sessionID!)
     const messages = yield* svc.messages({ sessionID: sessionInfo.id })
+
+    // C-09：默认导出的是会话数据 —— 里面虽有消息级 cost，但没有 task 维度、
+    // 没有跨会话聚合、也没有缓存命中率，想回答「一个 feature 多少钱」仍得手工拼。
+    // --cost 导出的是真正的成本账。
+    if (args.cost) {
+      process.stdout.write(JSON.stringify(yield* costLedger(sessionInfo.id), null, 2))
+      process.stdout.write(EOL)
+      return
+    }
 
     const exportData = { info: sessionInfo, messages }
 

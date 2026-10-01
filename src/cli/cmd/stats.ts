@@ -66,6 +66,23 @@ interface SessionStats {
     /** 参与统计的配对轮次数，0 表示样本不足（比率无意义） */
     pairs: number
   }
+  /**
+   * 2026-09-30（C-06）：三套成本口径的对账结果。`totalCost` 取自 `session.cost`
+   * （投影侧权威值），`modelUsage` 逐 message 累加得到第二份，两者本应相等。
+   * 差额超阈值说明某条计价路径漏了或重复了 —— 此前无人比对，对不上也没人知道。
+   */
+  costReconciliation: {
+    /** 会话口径总成本 */
+    fromSessions: number
+    /** 逐 message 累加口径总成本 */
+    fromMessages: number
+    /** fromSessions - fromMessages */
+    drift: number
+    /** drift 占 fromSessions 的比例，超过 1% 即视为口径分歧 */
+    driftRatio: number
+    /** 是否已越过阈值（需人工介入） */
+    mismatched: boolean
+  }
 }
 
 /**
@@ -98,6 +115,28 @@ export function detectUnpricedModels<R>(
     out.sort((a, b) => b.sessions - a.sessions)
     return out
   })
+}
+
+/**
+ * 2026-09-30（C-06）：成本口径对账。阈值取 1% —— 浮点累加误差远小于此，
+ * 越过即代表两条计价路径真的分叉了，而非舍入噪声。
+ *
+ * 导出以便测试直接锁定判定逻辑。
+ */
+export function reconcileCost(
+  fromSessions: number,
+  modelUsage: Record<string, { cost: number }>,
+): SessionStats["costReconciliation"] {
+  const fromMessages = Object.values(modelUsage).reduce((sum, m) => sum + m.cost, 0)
+  const drift = fromSessions - fromMessages
+  const driftRatio = fromSessions === 0 ? 0 : Math.abs(drift) / Math.abs(fromSessions)
+  return {
+    fromSessions,
+    fromMessages,
+    drift,
+    driftRatio,
+    mismatched: driftRatio > 0.01,
+  }
 }
 
 export const StatsCommand = effectCmd({
@@ -209,6 +248,7 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     medianTokensPerSession: 0,
     compactionCost: 0,
     cacheHitRate: { prefix: 0, steady: 0, pairs: 0 },
+    costReconciliation: { fromSessions: 0, fromMessages: 0, drift: 0, driftRatio: 0, mismatched: false },
   }
 
   if (filteredSessions.length > 1000) {
@@ -405,6 +445,11 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     pairs: allCacheRows.length,
   }
 
+  // C-06：把两条口径摆到同一张表上对比。totalCost 走 session.cost，
+  // modelUsage 走逐 message 累加 —— 二者同源则 drift≈0；出现 drift 说明
+  // 有消息没被投影计价、或计价被重复应用，此前这种分歧完全不可见。
+  stats.costReconciliation = reconcileCost(stats.totalCost, stats.modelUsage)
+
   return stats
 })
 
@@ -456,6 +501,16 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
     console.log(renderRow("  of which compaction", `$${stats.compactionCost.toFixed(4)} (${share.toFixed(1)}%)`))
   }
   console.log("└────────────────────────────────────────────────────────┘")
+  // C-06：Total Cost 走 session.cost，MODEL USAGE 逐 message 累加得到第二份。
+  // 二者对不上说明有计价路径漏了或重复了 —— 只在超阈值时才提示，正常情况不刷屏。
+  if (stats.costReconciliation.mismatched) {
+    console.log()
+    console.log("⚠ 成本口径对账不一致：")
+    console.log(`    会话口径   $${stats.costReconciliation.fromSessions.toFixed(4)}`)
+    console.log(`    逐轮口径   $${stats.costReconciliation.fromMessages.toFixed(4)}`)
+    console.log(`    差额       $${stats.costReconciliation.drift.toFixed(4)} (${(stats.costReconciliation.driftRatio * 100).toFixed(1)}%)`)
+    console.log("    通常意味着有消息未被投影计价，或计价被重复应用；请提交 issue 并附上本输出。")
+  }
   // 2026-09-30（每任务成本 P0）：自建/自研端点走 provider.ts 的动态发现分支，
   // 而 OpenAI 兼容的 /models 一般不返回价格字段，三级 ?? 0 兜底后 session.cost
   // 恒为 0。若不提示，谷总会把「没查到价」读成「不花钱」——而这恰恰是最需要
