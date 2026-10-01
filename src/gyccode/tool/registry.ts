@@ -3,6 +3,7 @@ import { httpClient } from "@gyccode/core/effect/app-node-platform"
 import { Ripgrep } from "@gyccode/core/ripgrep"
 import { PlanExitTool, PlanEnterTool } from "./plan"
 import { EnterWorktreeTool, ExitWorktreeTool, ListWorktreeTool } from "./worktree"
+import { GitStatusTool, GitDiffTool, GitLogTool, GitCommitTool, GitBranchTool, GitStashTool } from "./git"
 import { NotebookEditTool } from "./notebook"
 import { ScheduleCronTool, CronDeleteTool, CronListTool, CronScheduler } from "./cron"
 import { McpAuthTool } from "./mcp-auth"
@@ -66,6 +67,7 @@ import { MCP } from "@/mcp"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import { McpCatalog } from "@/mcp/catalog"
 import { Worktree } from "@/worktree"
+import { Git } from "@/git"
 
 export function webSearchEnabled(providerID: ProviderV2.ID, flags = { exa: false, parallel: false }) {
   return providerID === ProviderV2.ID.gyccode || flags.exa || flags.parallel
@@ -125,6 +127,14 @@ const layer = Layer.effect(
     const worktreeEnter = yield* EnterWorktreeTool
     const worktreeExit = yield* ExitWorktreeTool
     const worktreeList = yield* ListWorktreeTool
+    // P0-3（对标指标 8）：模型此前只能靠 shell 敲 git 命令，底层 Git.Service
+    // 完备却不暴露。注册为独立工具后无需拼命令、无需处理引号转义。
+    const gitStatus = yield* GitStatusTool
+    const gitDiff = yield* GitDiffTool
+    const gitLog = yield* GitLogTool
+    const gitCommit = yield* GitCommitTool
+    const gitBranch = yield* GitBranchTool
+    const gitStash = yield* GitStashTool
     const notebook = yield* NotebookEditTool
     const scheduleCron = yield* ScheduleCronTool
     const cronDelete = yield* CronDeleteTool
@@ -253,6 +263,9 @@ const layer = Layer.effect(
 
         yield* config.get()
         const questionEnabled = ["app", "cli", "desktop"].includes(flags.client) || flags.enableQuestionTool
+        // P0-3：git 工具只对 Git 项目暴露。非 Git 项目上暴露它们，模型只会
+        // 反复调用注定失败的工具，白白消耗轮次。
+        const gitProject = ctx.project.vcs === "git"
 
         const tool = yield* Effect.all({
           invalid: Tool.init(invalid),
@@ -280,6 +293,12 @@ const layer = Layer.effect(
           worktreeEnter: Tool.init(worktreeEnter),
           worktreeExit: Tool.init(worktreeExit),
           worktreeList: Tool.init(worktreeList),
+          gitStatus: Tool.init(gitStatus),
+          gitDiff: Tool.init(gitDiff),
+          gitLog: Tool.init(gitLog),
+          gitCommit: Tool.init(gitCommit),
+          gitBranch: Tool.init(gitBranch),
+          gitStash: Tool.init(gitStash),
           notebook: Tool.init(notebook),
           scheduleCron: Tool.init(scheduleCron),
           cronDelete: Tool.init(cronDelete),
@@ -331,6 +350,11 @@ const layer = Layer.effect(
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan, tool.planEnter] : []),
             ...(flags.experimentalWorkspaces ? [tool.worktreeEnter, tool.worktreeExit, tool.worktreeList] : []),
+            // P0-3：git 工具仅对 Git 项目暴露——非 Git 项目（vcs !== "git"）
+            // 上暴露它们只会诱导模型去调用注定失败的工具。
+            ...(gitProject
+              ? [tool.gitStatus, tool.gitDiff, tool.gitLog, tool.gitCommit, tool.gitBranch, tool.gitStash]
+              : []),
             tool.notebook,
             tool.scheduleCron,
             tool.cronDelete,
@@ -544,6 +568,8 @@ export const node = LayerNode.make({
     Ripgrep.node,
     Worktree.node,
     CronScheduler.node,
+    // P0-3：git 工具族依赖 Git.Service
+    Git.node,
   ],
 })
 

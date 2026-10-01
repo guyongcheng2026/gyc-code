@@ -1,0 +1,22 @@
+Use this tool to inspect and modify git state directly, without shelling out.
+
+Prefer these tools over running `git ...` through the shell command tool: they
+return structured metadata, need no quoting or escaping, and fail with git's own
+diagnostics attached so you can correct the next call.
+
+Available operations:
+- git_status  : staged / unstaged / untracked changes
+- git_diff    : unified diff of uncommitted changes
+- git_log     : recent commit history
+- git_commit  : create a commit (staged content only unless addAll=true)
+- git_branch  : list / create / switch / delete branches
+- git_stash   : list / push / pop the stash stack
+
+Destructive operations require an explicit opt-in flag:
+- git_branch delete needs force=true (unmerged commits would be lost)
+- git_stash pop needs force=true (may conflict with current work)
+
+Do NOT call these tools:
+- To create or inspect a commit message diff — use git_diff first
+- On a non-git project (vcs is not "git")
+- To undo a file edit — prefer the edit tool or the session snapshot

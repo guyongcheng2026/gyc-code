@@ -19,6 +19,9 @@ export function parameterSchema() {
     workdir: Schema.optional(Schema.String).annotate({
       description: `The working directory to run the command in. Defaults to the current directory. Use this instead of 'cd' commands.`,
     }),
+    allowDangerous: Schema.optional(Schema.Boolean).annotate({
+      description: `Required to run a command classified as dangerous (eval, curl|bash, sudo, dd, chmod 777, fork bomb, rm -rf /). Dangerous commands are refused by default; set this only when the command is intentional.`,
+    }),
   })
 }
 

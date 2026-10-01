@@ -30,6 +30,15 @@ export class ShellBlockedError extends Schema.TaggedErrorClass<ShellBlockedError
   classification: SecurityClassification,
 }) {}
 
+/**
+ * P0-3：命中 dangerous 但未显式放行。blocked 级（rm -rf /、fork bomb、mkfs）
+ * 无论如何都不放行——它们没有合理的「我确实想这么干」场景；而 dangerous 级
+ * （eval、curl|bash、sudo、dd）装依赖时确实会用到，所以留 allowDangerous 通道。
+ */
+export class ShellDangerousError extends Schema.TaggedErrorClass<ShellDangerousError>()("ShellDangerousError", {
+  classification: SecurityClassification,
+}) {}
+
 const MAX_METADATA_LENGTH = 30_000
 const CWD = new Set(["cd", "chdir", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([
@@ -821,9 +830,15 @@ export const ShellTool = Tool.define(
                 }),
               )
 
+              // P0-3：原先只拦 blocked，dangerous（eval / curl|bash / sudo / dd）
+              // 仅标注后照常执行——安全判定形同虚设。改为默认拒绝，blocked 级
+              // 无论如何不放行，dangerous 级需显式 allowDangerous。
               const classification = classifyCommand(params.command)
               if (classification.level === "blocked") {
                 return yield* Effect.die(new ShellBlockedError({ classification }))
+              }
+              if (classification.level === "dangerous" && params.allowDangerous !== true) {
+                return yield* Effect.die(new ShellDangerousError({ classification }))
               }
 
               const result = yield* run(
