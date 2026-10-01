@@ -111,7 +111,11 @@ function nodeHeapFlags() {
   const mb = Number.isFinite(explicit) && explicit > 0
     ? Math.round(explicit)
     : Math.min(Math.max(Math.round(totalMemMb * 0.35), 1024), 4096)
-  return ["--expose-gc", `--max-old-space-size=${mb}`]
+  // --disable-warning=ExperimentalWarning：node:sqlite 加载时 Node 会在 stderr 打印
+  // ExperimentalWarning（2 行英文），主线程与 TUI worker 线程各打一次（共 4 行），
+  // 污染启动画面。该 warning 无 code 无法精准屏蔽，故按类型屏蔽；worker 的
+  // execArgv 继承父进程，一处即可同时覆盖。Node ≥21.3 支持（engines 要求 ≥22.5）。
+  return ["--expose-gc", `--max-old-space-size=${mb}`, "--disable-warning=ExperimentalWarning"]
 }
 
 async function main() {
