@@ -10,6 +10,8 @@ import { useBindings } from "../keymap"
 import { Token } from "@/util/token"
 import * as Model from "../util/model"
 import type { AssistantMessage, Message, Part } from "@gyccode/protocol/v2"
+// C-07：与 `gyc db cache` / `gyc stats` 共用同一份命中率实现，避免 UI 与 CLI 各算各的
+import { promptCacheStats } from "@gyccode/core/session/cache-rate"
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -84,24 +86,26 @@ export function DialogCost() {
   })
 
   const cacheHitRate = createMemo(() => {
-    // 前缀命中率口径（与 sidebar computeChRate.prefix 一致）：只衡量对已有前缀
-    // 的命中 min(read, 上一轮总输入)；新增内容本就不可命中，不计入分母。
-    const completed = messages().filter(
-      (m): m is AssistantMessage => m.role === "assistant" && m.time.completed !== undefined,
-    )
-    let hit = 0
-    let base = 0
-    let prevTotal = 0
-    completed.forEach((m, i) => {
-      const inclusive = m.tokens.input + m.tokens.cache.read + m.tokens.cache.write
-      if (i > 0) {
-        hit += Math.min(m.tokens.cache.read, prevTotal)
-        base += prevTotal
-      }
-      prevTotal = inclusive
-    })
-    if (base === 0) return { rate: 0, hitTokens: 0, totalInput: 0 }
-    return { rate: hit / base, hitTokens: hit, totalInput: base }
+    // C-07：此前这里手写了一份前缀命中率算法，而 `gyc db cache` 与 `gyc stats`
+    // 各用 db.ts 的 promptCacheStats。三份口径迟早分叉，界面上显示的命中率就会
+    // 和 CLI 报的对不上。改为统一走 promptCacheStats —— UI 与 CLI 同一把尺子。
+    const rows = messages()
+      .filter((m): m is AssistantMessage => m.role === "assistant" && m.time.completed !== undefined)
+      .map((m) => ({
+        data: JSON.stringify({
+          sessionID: sessionID() ?? "",
+          tokens: {
+            input: m.tokens.input,
+            cache: { read: m.tokens.cache.read, write: m.tokens.cache.write },
+          },
+        }),
+        time_created: m.time.completed ?? 0,
+        session_id: sessionID() ?? "",
+      }))
+    const stats = promptCacheStats(rows)
+    // 分母为 0 表示样本不足（如仅有首轮），此时 rate 保持 0 且 base=0，
+    // 调用方据此显示「样本不足」而不是一个假的 0%。
+    return { rate: stats.prefixBase > 0 ? stats.prefixHit / stats.prefixBase : 0, hitTokens: stats.prefixHit, totalInput: stats.prefixBase }
   })
 
   const cost = createMemo(() =>

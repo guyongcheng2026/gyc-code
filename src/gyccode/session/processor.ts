@@ -35,6 +35,16 @@ const cacheDriftAnchors = loadCacheAnchors()
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
 
+/**
+ * C-08：判断这条 assistant 消息是不是压缩产生的。
+ *
+ * compaction.ts 造消息时同时打了 `mode: "compaction"` 与 `summary: true`。
+ * 这里两个都认：只认一个会在另一种构造路径下漏标，压缩开销又会混进 task.cost。
+ */
+function isCompactionMessage(message: { mode?: string; summary?: boolean }): boolean {
+  return message.mode === "compaction" || message.summary === true
+}
+
 export interface Handle {
   readonly message: SessionV1.Assistant
   readonly updateToolCall: (
@@ -515,6 +525,9 @@ const layer = Layer.effect(
               messageID: ctx.assistantMessage.id,
               sessionID: ctx.assistantMessage.sessionID,
               type: "step-finish",
+              // C-08：标出压缩开销，让 projectTaskUsage 不把它算进本轮任务产出。
+              // 费用照常进 cost_ledger / session.cost —— 钱确实花了，只是不算任务成本。
+              compaction: isCompactionMessage(ctx.assistantMessage),
               tokens: usage.tokens,
               cost: usage.cost,
             })

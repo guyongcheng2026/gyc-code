@@ -9,6 +9,9 @@ import { Effect } from "effect"
 import { Database } from "@gyccode/core/database/database"
 import * as TaskProjector from "@gyccode/core/session/task-projector"
 import type { SessionSchema } from "@gyccode/core/session/schema"
+import { CostLedgerTable } from "@gyccode/core/session/sql"
+import { promptCacheStats } from "@gyccode/core/session/cache-rate"
+import { eq } from "drizzle-orm"
 
 function redact(kind: string, id: string, value: string) {
   return value.trim() ? `[redacted:${kind}:${id}]` : value
@@ -223,10 +226,11 @@ function sanitize(data: { info: Session.Info; messages: SessionV1.WithParts[] })
 
 /**
  * C-09：导出成本账。会话 JSON 里虽有消息级 cost，但要回答「一个 feature 花了
- * 多少、成了吗」需要三个聚合维度，缺一不可：
+ * 多少、成了吗」需要这些聚合维度，缺一不可：
  *
  * - **task**：一个用户轮次一个 task，跨会话，附成败标记（C-01 / C-05）
- * - **messages**：会话内逐轮明细，用于自行复算
+ * - **ledger**：append-only 成本流水，含压缩开销单列，可自行复算（C-05 / C-08）
+ * - **cacheHitRate**：与 `gyc db cache` / `gyc stats` 同一口径（C-07）
  * - **totals**：含压缩成本单列与两套口径对账（C-06 / C-08）
  */
 function costLedger(sessionID: SessionID) {
@@ -249,6 +253,47 @@ function costLedger(sessionID: SessionID) {
       return { role: info?.role, cost, mode: (info as { mode?: string }).mode }
     })
 
+    // C-05：导出 append-only 流水本身，这样离线复算不必依赖投影表的聚合值。
+    // 压缩那笔带 event_type，可与 compactionCost 交叉验证。
+    const ledger = yield* db
+      .select({
+        id: CostLedgerTable.id,
+        eventType: CostLedgerTable.event_type,
+        cost: CostLedgerTable.cost_usd,
+        tokensInput: CostLedgerTable.tokens_input,
+        tokensOutput: CostLedgerTable.tokens_output,
+        tokensCacheRead: CostLedgerTable.tokens_cache_read,
+        tokensCacheWrite: CostLedgerTable.tokens_cache_write,
+        costSource: CostLedgerTable.cost_source,
+        timeCreated: CostLedgerTable.time_created,
+      })
+      .from(CostLedgerTable)
+      .where(eq(CostLedgerTable.session_id, sessionID as SessionSchema.ID))
+      .all()
+      .pipe(Effect.orDie)
+
+    // C-07：与 CLI 其余入口共用同一份命中率实现，导出的数字与 `gyc db cache` 一致。
+    const cache = promptCacheStats(
+      messages
+        .filter((m) => (m as { info?: { role?: string } }).info?.role === "assistant")
+        .map((m) => {
+          const info = (m as {
+            info?: { tokens?: { input?: number; cache?: { read?: number; write?: number } } }
+          }).info
+          return {
+            data: JSON.stringify({
+              sessionID,
+              tokens: {
+                input: info?.tokens?.input ?? 0,
+                cache: { read: info?.tokens?.cache?.read ?? 0, write: info?.tokens?.cache?.write ?? 0 },
+              },
+            }),
+            time_created: (m as { info?: { time?: { created?: number } } }).info?.time?.created ?? 0,
+            session_id: sessionID,
+          }
+        }),
+    )
+
     return {
       generatedAt: new Date().toISOString(),
       session: {
@@ -263,6 +308,15 @@ function costLedger(sessionID: SessionID) {
         fromMessages: messageCost,
         drift: (session.cost ?? 0) - messageCost,
         compactionCost,
+        // C-05：流水合计应等于会话总额；不等说明投影漏记或重复计入
+        fromLedger: ledger.reduce((sum, row) => sum + row.cost, 0),
+      },
+      // C-07：prefix/steady 与 `gyc db cache`、`gyc stats` 同一把尺子；
+      // pairs 为样本数，0 表示样本不足，此时两个 rate 无意义。
+      cacheHitRate: {
+        prefix: cache.prefixBase > 0 ? cache.prefixHit / cache.prefixBase : 0,
+        steady: cache.steadyBase > 0 ? cache.steadyHit / cache.steadyBase : 0,
+        pairs: messages.length,
       },
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -279,6 +333,7 @@ function costLedger(sessionID: SessionID) {
         timeCreated: task.time_created,
         timeCompleted: task.time_completed,
       })),
+      ledger,
       messages: perMessage,
     }
   })

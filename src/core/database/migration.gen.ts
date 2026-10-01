@@ -43,6 +43,7 @@ export const migrations = (
     import("./migration/20260823000000_workflow"),
     import("./migration/20260912000000_session_search_fts"),
     import("./migration/20261001000000_task"),
-
+    import("./migration/20261001000001_cost_ledger"),
+    import("./migration/20261001000002_task_start_cost"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

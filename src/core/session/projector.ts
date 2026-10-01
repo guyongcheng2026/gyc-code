@@ -13,11 +13,12 @@ import { SessionMessageUpdater } from "./message-updater"
 import { SessionInput } from "./input"
 import { WorkspaceV2 } from "../workspace"
 import { SessionContextEpoch } from "./context-epoch"
-import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable } from "./sql"
+import { MessageTable, PartTable, SessionInputTable, SessionMessageTable, SessionTable, CostLedgerTable } from "./sql"
 import { ModelV2 } from "../model"
 import { ProviderV2 } from "../provider"
 import type { DeepMutable } from "../schema"
 import { MessageID } from "../v1/session"
+import { SessionSchema } from "./schema"
 import * as TaskProjector from "./task-projector"
 
 type DatabaseService = Database.Interface["db"]
@@ -35,6 +36,11 @@ type Usage = {
     reasoning: number
     cache: { read: number; write: number }
   }
+  /**
+   * C-08：本 step 是压缩开销。费用照样进 cost_ledger / session.cost（钱确实花了），
+   * 但不计入 task.cost —— 压缩是维持会话的固定开销，不是本轮任务的产出。
+   */
+  compaction?: boolean
 }
 
 function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] | unknown): Usage | undefined {
@@ -42,7 +48,11 @@ function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] |
   const value = part as Record<string, unknown>
   if (value.type !== "step-finish") return undefined
   if (!("cost" in value) || !("tokens" in value)) return undefined
-  return { cost: value.cost as Usage["cost"], tokens: value.tokens as Usage["tokens"] }
+  return {
+    cost: value.cost as Usage["cost"],
+    tokens: value.tokens as Usage["tokens"],
+    compaction: value.compaction === true ? true : undefined,
+  }
 }
 
 function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInsert {
@@ -174,20 +184,53 @@ function addUsageRow(
   value: Usage,
   sign: number,
 ) {
-  return db
-    .update(SessionTable)
-    .set({
-      cost: sql`${SessionTable.cost} + ${value.cost * sign}`,
-      tokens_input: sql`${SessionTable.tokens_input} + ${value.tokens.input * sign}`,
-      tokens_output: sql`${SessionTable.tokens_output} + ${value.tokens.output * sign}`,
-      tokens_reasoning: sql`${SessionTable.tokens_reasoning} + ${value.tokens.reasoning * sign}`,
-      tokens_cache_read: sql`${SessionTable.tokens_cache_read} + ${value.tokens.cache.read * sign}`,
-      tokens_cache_write: sql`${SessionTable.tokens_cache_write} + ${value.tokens.cache.write * sign}`,
-      time_updated: sql`${SessionTable.time_updated}`,
-    })
-    .where(eq(SessionTable.id, sessionID))
-    .run()
-    .pipe(Effect.orDie, Effect.andThen(() => broadcastUsage(events, db, sessionID)))
+  return Effect.gen(function* () {
+    // Check if session exists first
+    const session = yield* db
+      .select({ id: SessionTable.id })
+      .from(SessionTable)
+      .where(eq(SessionTable.id, sessionID))
+      .get()
+      .pipe(Effect.orDie)
+    if (!session) return
+
+    // C-05: append-only cost ledger — always insert positive entry.
+    // C-08: 压缩开销用 event_type="compaction" 标记，报表可单列（钱确实花了）。
+    yield* db
+      .insert(CostLedgerTable)
+      .values({
+        session_id: sessionID as SessionSchema.ID,
+        event_type: value.compaction ? ("compaction" as const) : ("usage" as const),
+        cost_usd: value.cost,
+        tokens_input: value.tokens.input,
+        tokens_output: value.tokens.output,
+        tokens_cache_read: value.tokens.cache.read,
+        tokens_cache_write: value.tokens.cache.write,
+        tokens_reasoning: value.tokens.reasoning,
+        cost_source: "estimated" as const,
+        metadata: {} as Record<string, unknown>,
+      } as typeof CostLedgerTable.$inferInsert)
+      .execute()
+      .pipe(Effect.orDie)
+
+    // Session table: only positive increments (no rollback)
+    yield* db
+      .update(SessionTable)
+      .set({
+        cost: sql`${SessionTable.cost} + ${value.cost}`,
+        tokens_input: sql`${SessionTable.tokens_input} + ${value.tokens.input}`,
+        tokens_output: sql`${SessionTable.tokens_output} + ${value.tokens.output}`,
+        tokens_reasoning: sql`${SessionTable.tokens_reasoning} + ${value.tokens.reasoning}`,
+        tokens_cache_read: sql`${SessionTable.tokens_cache_read} + ${value.tokens.cache.read}`,
+        tokens_cache_write: sql`${SessionTable.tokens_cache_write} + ${value.tokens.cache.write}`,
+        time_updated: sql`${SessionTable.time_updated}`,
+      })
+      .where(eq(SessionTable.id, sessionID))
+      .execute()
+      .pipe(Effect.orDie)
+
+    yield* broadcastUsage(events, db, sessionID)
+  })
 }
 
 export function applyUsage(
@@ -198,9 +241,13 @@ export function applyUsage(
   sign = 1,
 ) {
   return addUsageRow(db, events, sessionID, value, sign).pipe(
-    Effect.andThen(() => rollupUsage(db, events, sessionID, value, sign)),
-    // C-01：同一份增量同时落到当前打开的 task，「每任务成本」才有数据来源
-    Effect.andThen(() => TaskProjector.applyTaskUsage(db, sessionID, value, sign)),
+    Effect.andThen(() => rollupUsage(db, events, sessionID, value, 1)),
+    // C-01：同一份增量同时落到当前打开的 task，「每任务成本」才有数据来源。
+    // C-08：压缩开销除外 —— 它是会话固定开销，算进 task 会高估「一个 feature 的成本」，
+    // 且压缩策略一变，成本曲线就出现无法解释的跳变。
+    Effect.andThen(() =>
+      value.compaction ? Effect.void : TaskProjector.applyTaskUsage(db, sessionID, value, 1),
+    ),
   )
 }
 
@@ -468,7 +515,7 @@ const layer = Layer.effectDiscard(
           .pipe(Effect.orDie)
         for (const row of rows) {
           const previous = usage(row.data)
-          if (previous) yield* applyUsage(db, events, event.data.sessionID, previous, -1)
+          // C-05: append-only, no rollback on message removal
         }
         yield* db
           .delete(MessageTable)
@@ -486,7 +533,7 @@ const layer = Layer.effectDiscard(
           .get()
           .pipe(Effect.orDie)
         const previous = row && usage(row.data)
-        if (previous) yield* applyUsage(db, events, event.data.sessionID, previous, -1)
+        // C-05: append-only, no rollback on part removal
         yield* db
           .delete(PartTable)
           .where(and(eq(PartTable.id, event.data.partID), eq(PartTable.session_id, event.data.sessionID)))
@@ -509,7 +556,7 @@ const layer = Layer.effectDiscard(
           .pipe(Effect.orDie)
         const previous = row && usage(row.data)
         const next = usage(event.data.part)
-        if (previous) yield* applyUsage(db, events, row.session_id, previous, -1)
+        // C-05: append-only, no rollback on part update
         if (next) yield* applyUsage(db, events, sessionID, next)
         // C-05：工具失败即判本轮任务失败，并记下第一处原因。此前没有任何地方
         // 记录「这轮到底成没成」，成功率只能靠人肉回看会话。

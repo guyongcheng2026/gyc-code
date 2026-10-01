@@ -12,6 +12,7 @@ export const TASK_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS \`task\` (
   \`title\` text NOT NULL,
   \`status\` text DEFAULT 'running' NOT NULL,
   \`error\` text,
+  \`start_cost\` real DEFAULT 0 NOT NULL,
   \`cost\` real DEFAULT 0 NOT NULL,
   \`tokens_input\` integer DEFAULT 0 NOT NULL,
   \`tokens_output\` integer DEFAULT 0 NOT NULL,
@@ -21,3 +22,14 @@ export const TASK_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS \`task\` (
   \`time_updated\` integer NOT NULL,
   \`time_completed\` integer
 )`
+
+/**
+ * C-05：给已建过 task 表的库补 start_cost。
+ *
+ * 抽成常量同样是因为它要与建表语句保持同步——start_cost 是后加的列，
+ * 增量迁移与建表必须都覆盖，否则「全新库有列、老库没列」，
+ * settleTask 读到 undefined 时 task.cost 会静默算成 session 全额。
+ * SQLite 的 ALTER TABLE ADD COLUMN 不支持 IF NOT EXISTS，重复执行会报错，
+ * 因此由迁移系统保证只跑一次。
+ */
+export const TASK_START_COST_ALTER = "ALTER TABLE `task` ADD COLUMN `start_cost` real DEFAULT 0 NOT NULL"

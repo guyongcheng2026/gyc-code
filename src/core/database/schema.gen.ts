@@ -1,6 +1,7 @@
 import { Effect } from "effect"
 import type { DatabaseMigration } from "./migration"
 import { TASK_TABLE_STATEMENT } from "../session/task-table"
+import { COST_LEDGER_INDEXES, COST_LEDGER_TABLE_STATEMENT } from "../session/cost-ledger-table"
 
 export default {
   up(tx) {
@@ -237,6 +238,9 @@ export default {
           CONSTRAINT \`fk_session_share_session_id_session_id_fk\` FOREIGN KEY (\`session_id\`) REFERENCES \`session\`(\`id\`) ON DELETE CASCADE
         );
       `)
+      // C-05：建表语句来自 cost-ledger-table.ts，与增量迁移共用一份常量
+      yield* tx.run(COST_LEDGER_TABLE_STATEMENT)
+      for (const index of COST_LEDGER_INDEXES) yield* tx.run(index)
       yield* tx.run(`CREATE UNIQUE INDEX \`event_aggregate_seq_idx\` ON \`event\` (\`aggregate_id\`,\`seq\`);`)
       yield* tx.run(`CREATE INDEX \`event_aggregate_type_seq_idx\` ON \`event\` (\`aggregate_id\`,\`type\`,\`seq\`);`)
       yield* tx.run(

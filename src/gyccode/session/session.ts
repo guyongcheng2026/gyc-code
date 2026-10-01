@@ -23,6 +23,7 @@ import { lt } from "drizzle-orm"
 import { or } from "drizzle-orm"
 import type { SQL } from "drizzle-orm"
 import { PartTable, SessionTable } from "@gyccode/core/session/sql"
+import { priceTokens, resolvePrice } from "@gyccode/core/session/pricing"
 import { ProjectTable } from "@gyccode/core/project/sql"
 import { MessageV2 } from "./message-v2"
 import type { CacheDrift } from "./cache-anchor"
@@ -377,13 +378,9 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   }
 
   const contextTokens = inputTokens
-  const costInfo =
-    input.model.cost?.tiers
-      ?.filter((item) => item.tier.type === "context" && contextTokens > item.tier.size)
-      .sort((a, b) => b.tier.size - a.tier.size)[0] ??
-    (input.model.cost?.experimentalOver200K && contextTokens > 200_000
-      ? input.model.cost.experimentalOver200K
-      : input.model.cost)
+  // C-06：档位选取与计价规则已收敛到 core/session/pricing。此前这里自己写了一份
+  // filter+sort 挑 tiers，另一份在 publish-llm-event.ts，两边对同一步能算出不同成本。
+  const costInfo = resolvePrice(input.model.cost as never, contextTokens)
   const totalNanoAiu = input.metadata?.["copilot"]?.["totalNanoAiu"]
   // C-04：本地没有 provider 账单可拉（各家账单 API 形态不一且需外部凭据），
   // 因此退而求其次——把每个数字的**来源**标出来。copilot 的 totalNanoAiu 是
@@ -391,21 +388,32 @@ export const getUsage = (input: { model: Provider.Model; usage: Usage; metadata?
   // 不知道来源就无法判断一个数字能不能拿去对账。
   const authoritative =
     typeof totalNanoAiu === "number" && Number.isFinite(totalNanoAiu) && totalNanoAiu >= 0
+  // C-06：计价规则（reasoning 按 output 单价等）同样收敛到 core/session/pricing。
+  // 本地估算不再用 Decimal 手写一遍——精度损失远小于单价近似本身的误差，
+  // 而两份实现分叉的代价（stats 对不上账）是实打实的。
+  const estimated = priceTokens(
+    {
+      input: tokens.input,
+      output: tokens.output,
+      reasoning: tokens.reasoning,
+      cache: { read: tokens.cache.read, write: tokens.cache.write },
+    },
+    costInfo,
+  )
   return {
     cost: authoritative
       ? new Decimal(totalNanoAiu).div(100_000_000_000).toNumber()
-      : safe(
-          new Decimal(0)
-            .add(new Decimal(tokens.input).mul(costInfo?.input ?? 0).div(1_000_000))
-            .add(new Decimal(tokens.output).mul(costInfo?.output ?? 0).div(1_000_000))
-            .add(new Decimal(tokens.cache.read).mul(costInfo?.cache?.read ?? 0).div(1_000_000))
-            .add(new Decimal(tokens.cache.write).mul(costInfo?.cache?.write ?? 0).div(1_000_000))
-            // TODO: update models.dev to have better pricing model, for now:
-            // charge reasoning tokens at the same rate as output tokens
-            .add(new Decimal(tokens.reasoning).mul(costInfo?.output ?? 0).div(1_000_000))
-            .toNumber(),
-        ),
+      : estimated,
     costSource: authoritative ? ("provider-reported" as const) : ("estimated" as const),
+    /**
+     * C-04：同时暴露本地估算值。provider-reported 时二者必然不同——只保留一个
+     * 数字就看不出「我们估了多少、账单扣了多少」，对账缺一半。estimated 时为 undefined，
+     * 避免让下游误以为存在第二个权威数字。
+     */
+    providerReportedCost: authoritative
+      ? new Decimal(totalNanoAiu).div(100_000_000_000).toNumber()
+      : undefined,
+    estimatedCost: authoritative ? estimated : undefined,
     tokens,
   }
 }

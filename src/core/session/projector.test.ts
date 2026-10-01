@@ -7,8 +7,9 @@ import { ProjectTable } from "../project/sql"
 import { ProjectV2 } from "../project"
 import { SessionSchema } from "./schema"
 import { AbsolutePath } from "../schema"
-import { SessionTable } from "./sql"
+import { SessionTable, TaskTable, CostLedgerTable } from "./sql"
 import { applyUsage } from "./projector"
+import * as TaskProjector from "./task-projector"
 
 type Usage = {
   cost: number
@@ -18,6 +19,8 @@ type Usage = {
     reasoning: number
     cache: { read: number; write: number }
   }
+  /** C-08：该 step 是压缩开销，不计入 task.cost */
+  compaction?: boolean
 }
 
 const projectID = ProjectV2.ID.make("prj_test_data")
@@ -69,7 +72,7 @@ const seed = (now: number) =>
   })
 
 const runInDb = <A, E>(effect: Effect.Effect<A, E, Database.Service>) =>
-  Effect.runSync(Effect.provide(effect, Database.layerFromPath(":memory:")))
+  Effect.runSync(Effect.provide(effect, Database.testLayer))
 
 describe("session projector usage broadcast", () => {
   it("applies usage then publishes session.updated with fresh totals", () => {
@@ -101,7 +104,7 @@ describe("session projector usage broadcast", () => {
     expect(info.tokens.input).toBe(100)
   })
 
-  it("publishes the reduced totals after a reverse delta", () => {
+  it("publishes the accumulated totals after a second usage (append-only, no rollback)", () => {
     const published: Array<{ type: string; data: unknown }> = []
     const events = fakeEvents(published)
     const now = new Date().getTime()
@@ -110,7 +113,7 @@ describe("session projector usage broadcast", () => {
         yield* seed(now)
         const { db } = yield* Database.Service
         yield* applyUsage(db, events, sessionID, usage(1.25, 100))
-        yield* applyUsage(db, events, sessionID, usage(1.25, 100), -1)
+        yield* applyUsage(db, events, sessionID, usage(1.25, 100))
         const row = yield* db
           .select({ cost: SessionTable.cost, tokensInput: SessionTable.tokens_input })
           .from(SessionTable)
@@ -124,8 +127,8 @@ describe("session projector usage broadcast", () => {
     const last = published[published.length - 1]
     if (last === undefined) throw new Error("fixture missing: last published event")
     const info = (last.data as { info: { cost: number; tokens: { input: number } } }).info
-    expect(info.cost).toBeCloseTo(0)
-    expect(info.tokens.input).toBe(0)
+    expect(info.cost).toBeCloseTo(2.5)
+    expect(info.tokens.input).toBe(200)
   })
 
   it("does not publish when the session row is missing", () => {
@@ -267,7 +270,7 @@ describe("applyUsage 子代理成本上卷", () => {
     expect(got.root.cost).toBeGreaterThanOrEqual(got.grand.cost)
   })
 
-  it("回退（sign=-1）同样上卷，父子两侧不产生永久性偏差", () => {
+  it("append-only: second usage accumulates cost (no rollback on sign=-1)", () => {
     const events = fakeEvents([])
     const now = new Date().getTime()
     const got = runInDb(
@@ -275,12 +278,12 @@ describe("applyUsage 子代理成本上卷", () => {
         yield* seedTree(now)
         const { db } = yield* Database.Service
         yield* applyUsage(db, events, grandID, usage(5, 500))
-        yield* applyUsage(db, events, grandID, usage(5, 500), -1)
+        yield* applyUsage(db, events, grandID, usage(5, 500))
         return { grand: yield* costOf(db, grandID), root: yield* costOf(db, rootID) }
       }),
     )!
-    expect(got.grand.cost).toBeCloseTo(0)
-    expect(got.root.cost).toBeCloseTo(0)
+    expect(got.grand.cost).toBeCloseTo(10)
+    expect(got.root.cost).toBeCloseTo(10)
   })
 
   it("父链成环时不会死循环（深度/自引用闸门）", () => {
@@ -319,5 +322,81 @@ describe("applyUsage 子代理成本上卷", () => {
     // 每个会话至多被计一次：a 自己 +1，b 因已访问 a 而停止上卷
     expect(got.a.cost).toBeCloseTo(1)
     expect(got.b.cost).toBeCloseTo(1)
+  })
+})
+
+/**
+ * C-08：压缩开销的钱确实花了（要进 cost_ledger 与 session.cost），但它不是
+ * 「本轮任务的产出」（不能进 task.cost）。两者混在一起时，调整压缩策略会让
+ * 「一个 feature 花了多少」凭空跳变，且压缩越频繁看起来越贵。
+ */
+describe("C-08 压缩成本与任务成本分离", () => {
+  const compactionUsage = (cost: number, input: number) => ({ ...usage(cost, input), compaction: true })
+
+  it("压缩开销进 ledger 与 session.cost，但不进 task.cost", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const got = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+
+        // 先开一个 task（模拟用户发了一轮消息）
+        yield* TaskProjector.openTask(db, sessionID, "msg_1" as never, "做一个功能")
+
+        // 一次普通用量 + 一次压缩用量
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        yield* applyUsage(db, events, sessionID, compactionUsage(0.4, 50))
+
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const task = yield* db
+          .select({ cost: TaskTable.cost })
+          .from(TaskTable)
+          .where(eq(TaskTable.session_id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const ledger = yield* db
+          .select({ eventType: CostLedgerTable.event_type, cost: CostLedgerTable.cost_usd })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+        return { sessionCost: session?.cost ?? -1, taskCost: task?.cost ?? -1, ledger }
+      }),
+    )!
+    // 钱确实花了：会话总额含压缩
+    expect(got.sessionCost).toBeCloseTo(1.4)
+    // 但不是任务产出：task 只算普通用量
+    expect(got.taskCost).toBeCloseTo(1)
+    // ledger 两笔都在，且压缩那笔可被 event_type 识别出来单列
+    expect(got.ledger).toHaveLength(2)
+    expect(got.ledger.find((r) => r.eventType === "compaction")?.cost).toBeCloseTo(0.4)
+    expect(got.ledger.find((r) => r.eventType === "usage")?.cost).toBeCloseTo(1)
+  })
+
+  it("C-05：ledger 只增不改 —— 同一次用量重放不会抵消历史", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const ledgerCount = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        return yield* db
+          .select({ id: CostLedgerTable.id })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+      }),
+    )!
+    // 两笔而不是「一增一减」——回退/重投影不该让历史成本被追溯改写
+    expect(ledgerCount).toHaveLength(2)
   })
 })

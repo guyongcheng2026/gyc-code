@@ -244,6 +244,15 @@ export const StepFinishPart = Schema.Struct({
   reason: Schema.String,
   snapshot: Schema.optional(Schema.String),
   cost: Schema.Finite,
+  /**
+   * C-08：本 step 属于压缩（compaction）开销。压缩本身是一次带完整历史输入的
+   * LLM 调用，钱确实花了，但它是「维持会话的固定开销」而非「本轮任务的产出」——
+   * 不标出来的话，task.cost 会把压缩算进去，「一个 feature 花了多少」被高估，
+   * 而且调整压缩策略会让成本曲线出现无法解释的跳变。
+   *
+   * 费用仍照常进 cost_ledger 与 session.cost（钱确实花了，只是不算进任务产出）。
+   */
+  compaction: Schema.optional(Schema.Boolean),
   tokens: Schema.Struct({
     total: Schema.optional(Schema.Finite),
     input: Schema.Finite,

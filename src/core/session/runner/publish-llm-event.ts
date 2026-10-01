@@ -31,60 +31,15 @@ const tokens = (usage: Usage | undefined) => {
 export type StepTokens = ReturnType<typeof tokens>
 
 /** Per-1M-token price for a model (models.dev convention). */
-export type Price = {
-  readonly input: number
-  readonly output: number
-  readonly cache?: { readonly read?: number; readonly write?: number }
-}
-
-/** Dollars charged for a provider step: token counts x price, per 1M tokens. */
-export function costForStep(tokens: StepTokens, price: Price | readonly CostTier[]): number {
-  const step = Array.isArray(price) ? pickCostTier(price as readonly CostTier[], stepContextTokens(tokens)) : price
-  const rate = step as Price
-  const charge = (count: number, perMillion: number) => (count * perMillion) / 1_000_000
-  return (
-    charge(tokens.input, rate.input) +
-    charge(tokens.output + tokens.reasoning, rate.output) +
-    charge(tokens.cache.read, rate.cache?.read ?? 0) +
-    charge(tokens.cache.write, rate.cache?.write ?? 0)
-  )
-}
-
 /**
- * 一条计价档位。tier 存在时表示「上下文超过 size 之后适用」——与服务商
- * 「长上下文更贵」的计费方式一致（models.dev 的 context_over_200k）。
+ * C-06：计价实现已上移到 `../pricing`（单一事实源）。此处保留类型与函数的再导出，
+ * 因为 runner/llm.ts 与测试都从这里取；删除再导出会把 C-06 的收益（两侧同源）
+ * 换成一次无谓的调用方改造。
  */
-export type CostTier = {
-  readonly input: number
-  readonly output: number
-  readonly cache?: { readonly read?: number; readonly write?: number }
-  readonly tier?: { readonly type: "context"; readonly size: number }
-}
+import { costForStep, pickCostTier, type CostTier, type Price } from "../pricing"
 
-/** 本步真实送进 provider 的上下文规模，用于挑选长上下文档位。 */
-function stepContextTokens(tokens: StepTokens): number {
-  return tokens.input + tokens.cache.read + tokens.cache.write
-}
-
-/**
- * 2026-09-30（每任务成本 P1 / C-06）：此前 core 侧一律取 `cost[0]`，把长上下文
- * 模型的加价档整个丢掉——v1 侧 session.ts 的 getUsage 会按 tiers 择优，两条路径
- * 因此算出两个不同的成本，长上下文会话的成本被系统性低估。这里按本步上下文
- * 规模挑选适用的最高档位。
- */
-export function pickCostTier(cost: readonly CostTier[], contextTokens: number): CostTier | undefined {
-  const first = cost[0]
-  if (!first) return undefined
-  let best = first
-  for (const entry of cost.slice(1)) {
-    const tier = entry?.tier
-    if (!tier || tier.type !== "context") continue
-    if (contextTokens <= tier.size) continue
-    const bestSize = best.tier?.type === "context" ? best.tier.size : 0
-    if (tier.size >= bestSize) best = entry
-  }
-  return best
-}
+export type { CostTier, Price }
+export { costForStep, pickCostTier }
 
 const record = (value: unknown): Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : { value }

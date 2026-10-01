@@ -221,6 +221,8 @@ export function layerFromPath(filename: string) {
   return layer.pipe(Layer.provide(sqliteLayer({ filename })))
 }
 
+export const testLayer = layerFromPath(":memory:")
+
 export function path() {
   if (Flag.GYCCODE_DB) {
     if (Flag.GYCCODE_DB === ":memory:" || isAbsolute(Flag.GYCCODE_DB)) return Flag.GYCCODE_DB

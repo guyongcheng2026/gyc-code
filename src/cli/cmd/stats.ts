@@ -4,12 +4,15 @@ import { Session } from "@/session/session"
 import { NotFoundError } from "@/storage/storage"
 import { Database } from "@gyccode/core/database/database"
 import { SessionTable } from "@gyccode/core/session/sql"
-import { promptCacheStats } from "./db"
+import { promptCacheStats, type CacheRowLike } from "@gyccode/core/session/cache-rate"
 import { Project } from "@/project/project"
 import { InstanceRef } from "@/effect/instance-ref"
 import { Provider } from "@/provider/provider"
 import { ProviderV2 } from "@gyccode/core/provider"
 import { ModelV2 } from "@gyccode/core/model"
+import { listAll, registered } from "@/billing/provider-billing"
+import type { BillingEntry } from "@/billing/provider-billing"
+import { formatReport, reconcile } from "@/billing/reconciliation"
 
 interface SessionStats {
   totalSessions: number
@@ -158,11 +161,26 @@ export const StatsCommand = effectCmd({
       .option("project", {
         describe: "按项目筛选（默认：所有项目，空字符串：当前项目）",
         type: "string",
+      })
+      // C-04：把本地估算与 provider 账单摆到同一张表上。缺账单与超阈值是两件事，
+      // 前者是「还没核销」，后者是「核销失败」，混在一起就等于没对账。
+      .option("reconcile", {
+        describe: "输出与 provider 账单的对账报表（默认：关闭；无可用账单来源时只报本地侧）",
+        type: "boolean",
+      })
+      .option("reconcile-limit", {
+        describe: "对账报表最多显示多少行（默认：50）",
+        type: "number",
       }),
   handler: Effect.fn("Cli.stats")(function* (args) {
     const ctx = yield* InstanceRef
     if (!ctx) return
     const stats = yield* aggregateSessionStats(args.days, args.project, ctx.project)
+    if (args.reconcile) {
+      const report = yield* reconcileLocal(stats, args.days)
+      console.log(formatReport(report, args["reconcile-limit"] ?? 50))
+      return
+    }
     let modelLimit: number | undefined
     if (args.models === true) {
       modelLimit = Infinity
@@ -171,6 +189,35 @@ export const StatsCommand = effectCmd({
     }
     displayStats(stats, args.tools, modelLimit)
   }),
+})
+
+/**
+ * C-04：从 stats 聚合出的会话成本作为本地侧，与已注册的 provider 账单源对账。
+ * 没有注册任何账单来源时返回空 provider 侧——报表会如实显示全部为「缺账单」，
+ * 而不是静默输出「已核销」。
+ */
+const reconcileLocal = Effect.fnUntraced(function* (stats: SessionStats, days: number | undefined) {
+  const local = Object.entries(stats.modelUsage ?? {}).map(([key, value]) => ({
+    key,
+    amount: value.cost,
+  }))
+  const MS_IN_DAY = 24 * 60 * 60 * 1000
+  const endTime = Date.now()
+  const startTime = days === undefined ? 0 : endTime - days * MS_IN_DAY
+  const entries =
+    registered().length === 0
+      ? []
+      : yield* listAll({ startTime, endTime }).pipe(
+          // C-04：账单源不可用（缺凭据 / provider 侧报错）不能让 stats 整体失败——
+          // 对账是观测手段，取不到就退化成「本地侧单边报表」。
+          Effect.catch((error) =>
+            Effect.logWarning("provider 账单拉取失败，对账退化为本地侧", { error }).pipe(
+              Effect.as([] as readonly BillingEntry[]),
+            ),
+          ),
+        )
+  const provider = entries.map((entry) => ({ key: entry.key, amount: entry.costUSD }))
+  return reconcile(local, provider)
 })
 
 const getAllSessions = Effect.fnUntraced(function* () {
@@ -264,9 +311,10 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
   let latestTime = 0
 
   const sessionTotalTokens: number[] = []
-  // C-07：逐轮 token 快照，供 db.ts 的 promptCacheStats 按同一口径算命中率，
-  // 避免 stats 与 `gyc db cache` 各算各的。
-  const allCacheRows: Parameters<typeof promptCacheStats>[0] = []
+  // C-07：逐轮 token 快照，供 core/session/cache-rate 的 promptCacheStats 按同一口径
+  // 算命中率，避免 stats 与 `gyc db cache` 各算各的。这里需要可 push 的可变数组，
+  // 故用 CacheRowLike[] 而非 promptCacheStats 参数的 readonly 类型。
+  const allCacheRows: CacheRowLike[] = []
 
   const results = yield* Effect.forEach(
     filteredSessions,
@@ -287,7 +335,7 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             cost: number
           }
         > = {}
-        const rows: Parameters<typeof promptCacheStats>[0] = []
+        const rows: CacheRowLike[] = []
         let compactionCost = 0
 
         for (const message of messages) {

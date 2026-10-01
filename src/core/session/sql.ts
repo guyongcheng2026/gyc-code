@@ -135,6 +135,8 @@ export const TaskTable = sqliteTable(
     status: text().notNull(),
     /** 失败原因摘要（第一个 error part 的标题），无则为空 */
     error: text(),
+    /** 任务开启时的会话成本快照，结算时 task.cost = session.cost - start_cost */
+    start_cost: real().notNull().default(0),
     cost: real().notNull(),
     tokens_input: integer().notNull(),
     tokens_output: integer().notNull(),
@@ -195,6 +197,29 @@ export const SessionInputTable = sqliteTable(
     ),
     uniqueIndex("session_input_session_admitted_seq_idx").on(table.session_id, table.admitted_seq),
     uniqueIndex("session_input_session_promoted_seq_idx").on(table.session_id, table.promoted_seq),
+  ],
+)
+
+export const CostLedgerTable = sqliteTable(
+  "cost_ledger",
+  {
+    id: integer().primaryKey({ autoIncrement: true }),
+    session_id: text().$type<SessionSchema.ID>().notNull(),
+    task_id: text().$type<string>(),
+    event_type: text().notNull(),
+    cost_usd: real().notNull(),
+    tokens_input: integer().notNull().default(0),
+    tokens_output: integer().notNull().default(0),
+    tokens_cache_read: integer().notNull().default(0),
+    tokens_cache_write: integer().notNull().default(0),
+    tokens_reasoning: integer().notNull().default(0),
+    cost_source: text().notNull().default("estimated"),
+    metadata: text({ mode: "json" }).$type<Record<string, unknown>>(),
+    time_created: integer().notNull().$default(() => Date.now()),
+  },
+  (table) => [
+    index("idx_cost_ledger_session_time").on(table.session_id, table.time_created),
+    index("idx_cost_ledger_task").on(table.task_id),
   ],
 )
 

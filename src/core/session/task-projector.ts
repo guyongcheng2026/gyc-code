@@ -15,7 +15,7 @@
 import { and, desc, eq, sql } from "drizzle-orm"
 import { Effect } from "effect"
 import * as Identifier from "../id/id"
-import { TaskTable } from "./sql"
+import { TaskTable, SessionTable } from "./sql"
 import type { Database } from "../database/database"
 import type { SessionSchema } from "./schema"
 import type { MessageID } from "../v1/session"
@@ -36,15 +36,15 @@ const runningTask = (db: DB, sessionID: SessionSchema.ID) =>
     .get()
     .pipe(Effect.orDie)
 
-const addUsage = (db: DB, id: string, value: Usage, sign: number) =>
+const addUsage = (db: DB, id: string, value: Usage) =>
   db
     .update(TaskTable)
     .set({
-      cost: sql`${TaskTable.cost} + ${value.cost * sign}`,
-      tokens_input: sql`${TaskTable.tokens_input} + ${value.tokens.input * sign}`,
-      tokens_output: sql`${TaskTable.tokens_output} + ${(value.tokens.output + value.tokens.reasoning) * sign}`,
-      tokens_cache_read: sql`${TaskTable.tokens_cache_read} + ${value.tokens.cache.read * sign}`,
-      tokens_cache_write: sql`${TaskTable.tokens_cache_write} + ${value.tokens.cache.write * sign}`,
+      cost: sql`${TaskTable.cost} + ${value.cost}`,
+      tokens_input: sql`${TaskTable.tokens_input} + ${value.tokens.input}`,
+      tokens_output: sql`${TaskTable.tokens_output} + ${value.tokens.output + value.tokens.reasoning}`,
+      tokens_cache_read: sql`${TaskTable.tokens_cache_read} + ${value.tokens.cache.read}`,
+      tokens_cache_write: sql`${TaskTable.tokens_cache_write} + ${value.tokens.cache.write}`,
       time_updated: sql`${TaskTable.time_updated}`,
     })
     .where(eq(TaskTable.id, id))
@@ -61,17 +61,28 @@ export function settleTask(
   return runningTask(db, sessionID).pipe(
     Effect.flatMap((task) => {
       if (!task) return Effect.void
-      return db
-        .update(TaskTable)
-        .set({
-          status,
-          error: error ?? task.error ?? null,
-          time_completed: Date.now(),
-          time_updated: sql`${TaskTable.time_updated}`,
-        })
-        .where(eq(TaskTable.id, task.id))
-        .run()
-        .pipe(Effect.orDie, Effect.asVoid)
+      return Effect.gen(function* () {
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const sessionCost = session?.cost ?? 0
+        const taskCost = Math.max(0, sessionCost - (task.start_cost ?? 0))
+        yield* db
+          .update(TaskTable)
+          .set({
+            status,
+            error: error ?? task.error ?? null,
+            cost: taskCost,
+            time_completed: Date.now(),
+            time_updated: sql`${TaskTable.time_updated}`,
+          })
+          .where(eq(TaskTable.id, task.id))
+          .run()
+          .pipe(Effect.orDie)
+      })
     }),
   )
 }
@@ -80,33 +91,44 @@ export function settleTask(
 export function openTask(db: DB, sessionID: SessionSchema.ID, messageID: MessageID, title: string) {
   return settleTask(db, sessionID, "success").pipe(
     Effect.andThen(() =>
-      db
-        .insert(TaskTable)
-        .values({
-          id: Identifier.create("task", "descending"),
-          session_id: sessionID,
-          message_id: messageID,
-          title: title.slice(0, 200),
-          status: "running",
-          cost: 0,
-          tokens_input: 0,
-          tokens_output: 0,
-          tokens_cache_read: 0,
-          tokens_cache_write: 0,
-          time_created: Date.now(),
-          time_updated: Date.now(),
-          time_completed: null,
-        })
-        .run()
-        .pipe(Effect.orDie, Effect.asVoid),
+      Effect.gen(function* () {
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const startCost = session?.cost ?? 0
+        yield* db
+          .insert(TaskTable)
+          .values({
+            id: Identifier.create("task", "descending"),
+            session_id: sessionID,
+            message_id: messageID,
+            title: title.slice(0, 200),
+            status: "running",
+            start_cost: startCost,
+            cost: 0,
+            tokens_input: 0,
+            tokens_output: 0,
+            tokens_cache_read: 0,
+            tokens_cache_write: 0,
+            time_created: Date.now(),
+            time_updated: Date.now(),
+            time_completed: null,
+          })
+          .run()
+          .pipe(Effect.orDie)
+      }),
     ),
   )
 }
 
 /** usage 增量同时落到当前 task；没有打开的 task 则忽略（历史会话不追溯）。 */
 export function applyTaskUsage(db: DB, sessionID: SessionSchema.ID, value: Usage, sign: number) {
+  // C-05: append-only, always positive increment
   return runningTask(db, sessionID).pipe(
-    Effect.flatMap((task) => (task ? addUsage(db, task.id, value, sign) : Effect.void)),
+    Effect.flatMap((task) => (task ? addUsage(db, task.id, value) : Effect.void)),
   )
 }
 
