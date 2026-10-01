@@ -36,7 +36,7 @@ test("selectMicrocompactParts returns empty when usage is below threshold", () =
 test("selectMicrocompactParts marks middle tool outputs when usage >= threshold", () => {
   const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
-    parts: [i % 2 === 1 ? toolPart(`c${i}`, "bash") : userMsg(`u${i}`)],
+    parts: [i % 2 === 1 ? toolPart(`c${i}`, "edit") : userMsg(`u${i}`)],
   })) as unknown as Parameters<typeof selectMicrocompactParts>[0]
   const selected = selectMicrocompactParts(msgs, 180_000, 200_000)
   // Cache prefix (first 20 messages) and last 5 messages are protected.
@@ -49,7 +49,7 @@ test("selectMicrocompactParts marks middle tool outputs when usage >= threshold"
 test("selectMicrocompactParts never touches the cache prefix or the tail", () => {
   const msgs = Array.from({ length: 30 }, (_, i) => ({
     info: { role: i % 2 === 0 ? "user" : "assistant", id: `m${i}` },
-    parts: [i % 2 === 1 ? toolPart(`c${i}`, "bash") : userMsg(`u${i}`)],
+    parts: [i % 2 === 1 ? toolPart(`c${i}`, "edit") : userMsg(`u${i}`)],
   })) as unknown as Parameters<typeof selectMicrocompactParts>[0]
   const selected = selectMicrocompactParts(msgs, 190_000, 200_000)
   const selectedIDs = new Set(selected.map((p) => p.callID))
@@ -80,7 +80,7 @@ test("selectMicrocompactParts protects skill tool outputs", () => {
   expect(selected.length).toBe(0) // all skill outputs are protected
 })
 
-function toolMsg(id: string, at: number, tool = "read") {
+function toolMsg(id: string, at: number, tool = "edit") {
   return {
     info: { role: "assistant", id, time: { created: at, completed: at } },
     parts: [

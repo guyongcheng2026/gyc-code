@@ -6,6 +6,7 @@ import type { MessageV2 } from "../session/message-v2"
 import type { Permission } from "../permission"
 import type { SessionID, MessageID } from "../session/schema"
 import * as Truncate from "./truncate"
+import * as ToolJsonSchema from "./json-schema"
 import { Agent } from "@/agent/agent"
 
 // any 为方差擦除所必需：具体工具的 metadata 接口需满足此约束并保留自有字段访问，
@@ -98,6 +99,36 @@ export type InferDef<T> =
       ? Def<P, M>
       : never
 
+/**
+ * 取出该工具期望的参数 schema，用于回灌给模型。schema 推导失败时返回
+ * undefined —— 此时宁可少一段提示，也不能把真正的 schema 构造 bug 抛给模型。
+ */
+/**
+ * 拼装参数校验失败时的模型可见提示。只回一句「请重写」的话，模型并不知道
+ * 期望结构，只能反复瞎试——因此把该工具的 JSON Schema 一并回灌。
+ *
+ * 导出以便测试锁定「提示里必须带 schema」这条语义。
+ */
+export function invalidArgumentsDetail(
+  tool: DefWithoutID<any, any>,
+  error: unknown,
+  formatValidationError?: (error: unknown) => string,
+): string {
+  const detail = formatValidationError ? formatValidationError(error) : String(error)
+  const schema = expectedSchema(tool)
+  return schema
+    ? `${detail}\n\n该工具期望的参数 schema（JSON Schema）：\n${JSON.stringify(schema, null, 2)}`
+    : detail
+}
+
+function expectedSchema(tool: DefWithoutID<any, any>): unknown {
+  try {
+    return ToolJsonSchema.fromTool(tool as Parameters<typeof ToolJsonSchema.fromTool>[0])
+  } catch {
+    return undefined
+  }
+}
+
 function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadata>(
   id: string,
   init: Init<Parameters, Result>,
@@ -125,7 +156,7 @@ function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadat
               (error) =>
                 new InvalidArgumentsError({
                   tool: id,
-                  detail: toolInfo.formatValidationError ? toolInfo.formatValidationError(error) : String(error),
+                  detail: invalidArgumentsDetail(toolInfo, error, toolInfo.formatValidationError),
                 }),
             ),
           )

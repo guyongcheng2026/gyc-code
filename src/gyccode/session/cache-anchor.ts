@@ -1,4 +1,9 @@
-﻿/**
+﻿import path from "path"
+import fs from "fs"
+import { Global } from "@gyccode/core/global"
+import { logError } from "@core/observability/log-error"
+
+/**
  * Prompt cache drift detection  mirrors reference agent's
  * utils/promptCacheBreakDetection semantics with the two documented
  * thresholds: flag when cached-input tokens drop both >5% and >2K tokens
@@ -57,6 +62,56 @@ export function cacheDriftFromUsage(
 }
 
 const ANCHOR_MAX = 1000
+
+/** 锚点持久化位置：重启后仍能对比上一轮的 cacheRead，否则漂移检测在首轮永远沉默。 */
+export const ANCHOR_FILE = path.join(Global.Path.state, "cache-anchors.json")
+
+/** 落盘最小间隔：每 step 都写会把 state 目录变成写盘热点。 */
+const PERSIST_INTERVAL_MS = 30_000
+
+type AnchorMap = Map<string, { cacheRead: number; inputTokens: number }>
+
+/**
+ * 2026-09-30（每任务成本 P2 / C-08）：锚点原先只存在进程内存里，重启即全部
+ * 丢失——紧接着重启的第一轮拿不到 prev，缓存命中骤降会被静默漏报，而这恰恰是
+ * 最该看见的一次。启动时从 state 目录恢复即可。
+ */
+export function loadCacheAnchors(): AnchorMap {
+  try {
+    const raw = fs.readFileSync(ANCHOR_FILE, "utf-8")
+    const parsed = JSON.parse(raw) as Record<string, { cacheRead?: unknown; inputTokens?: unknown }>
+    const anchors: AnchorMap = new Map()
+    for (const [sessionID, entry] of Object.entries(parsed)) {
+      const cacheRead = typeof entry?.cacheRead === "number" ? entry.cacheRead : undefined
+      const inputTokens = typeof entry?.inputTokens === "number" ? entry.inputTokens : undefined
+      if (cacheRead === undefined || inputTokens === undefined) continue
+      if (cacheRead < 0 || inputTokens < 0) continue
+      anchors.set(sessionID, { cacheRead, inputTokens })
+      if (anchors.size >= ANCHOR_MAX) break
+    }
+    return anchors
+  } catch {
+    return new Map()
+  }
+}
+
+let lastPersist = 0
+
+/** 节流落盘；写失败只记日志——锚点只是观测信号，不该因此影响会话。 */
+export function persistCacheAnchors(anchor: AnchorMap, now = Date.now()): void {
+  if (now - lastPersist < PERSIST_INTERVAL_MS) return
+  lastPersist = now
+  const payload: Record<string, { cacheRead: number; inputTokens: number }> = {}
+  for (const [sessionID, entry] of anchor) payload[sessionID] = entry
+  try {
+    fs.mkdirSync(path.dirname(ANCHOR_FILE), { recursive: true })
+    fs.writeFileSync(ANCHOR_FILE, JSON.stringify(payload), "utf-8")
+  } catch (error) {
+    // 锚点只是观测信号，落盘失败不该影响会话；但必须留下痕迹，否则「锚点没生效」
+    // 会变成一个查不到原因的现象。
+    logError("cache-anchor.persist", error, { entries: Object.keys(payload).length })
+  }
+}
 
 /**
  * 会话级跨消息 drift 追踪：与「该会话上一次请求」的 cacheRead 比较。

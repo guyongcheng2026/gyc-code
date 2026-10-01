@@ -266,6 +266,30 @@ export type Replacer = (content: string, find: string) => Generator<string, void
 const SINGLE_CANDIDATE_SIMILARITY_THRESHOLD = 0.65
 const MULTIPLE_CANDIDATES_SIMILARITY_THRESHOLD = 0.65
 
+/** 行级编辑距离占比：0 表示完全一致，1 表示毫无关系。 */
+function lineDistance(a: string, b: string): number {
+  if (a === b) return 0
+  return levenshtein(a, b) / Math.max(a.length, b.length)
+}
+
+/**
+ * 首尾锚点相同只说明「撞上了」，还不足以认定是同一段代码。要求至少有一行
+ * 高度相似（编辑距离占比 <= 0.1）作为确证，挡住「同名同签名、样板行雷同」
+ * 的相似函数被误改。过短的行不作为确证依据（`x` / `}` 到处都是）。
+ */
+function hasCloseLine(blockLines: string[], findLines: string[]): boolean {
+  for (const raw of blockLines) {
+    const line = raw.trim()
+    if (line.length < 8) continue
+    for (const rawFind of findLines) {
+      const find = rawFind.trim()
+      if (find.length < 8) continue
+      if (lineDistance(line, find) <= 0.1) return true
+    }
+  }
+  return false
+}
+
 /**
  * Levenshtein distance algorithm implementation
  */
@@ -721,6 +745,7 @@ export const ContextAwareReplacer: Replacer = function* (content, find) {
         if (blockLines.length === findLines.length) {
           let matchingLines = 0
           let totalNonEmptyLines = 0
+          let dissimilar = false
 
           for (let k = 1; k < blockLines.length - 1; k++) {
             const blockRaw = blockLines[k]
@@ -734,11 +759,19 @@ export const ContextAwareReplacer: Replacer = function* (content, find) {
               totalNonEmptyLines++
               if (blockLine === findLine) {
                 matchingLines++
+              } else if (lineDistance(blockLine, findLine) > 0.1) {
+                // 这行明显不是同一行文本：说明首尾锚点只是撞上了「同名同签名、
+                // 样板行雷同」的另一个函数。继续按比例算下去只会误改别人。
+                dissimilar = true
               }
             }
           }
 
-          if (totalNonEmptyLines === 0 || matchingLines / totalNonEmptyLines >= 0.5) {
+          if (dissimilar) break // 换下一个锚点起点，不接受这个块
+
+          // 相似度阈值与前 7 条匹配器保持一致（0.65），并额外要求至少有一行
+          // 高度相似（>=0.9）作为「确实是同一段代码」的锚，否则一律不替换。
+          if (totalNonEmptyLines === 0 || (matchingLines / totalNonEmptyLines >= 0.65 && hasCloseLine(blockLines, findLines))) {
             yield block
             break // Only match the first occurrence
           }

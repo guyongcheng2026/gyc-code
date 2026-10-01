@@ -211,7 +211,9 @@ const layer = Layer.effect(
       const system =
         initialized ?? (yield* SessionContextEpoch.prepare(db, events, loadSystemContext(agent), session.id))
       const model = yield* models.resolve(session)
-      const price = (yield* catalog.model.get(ProviderV2.ID.make(model.provider), ModelV2.ID.make(model.id)))?.cost?.[0]
+      // C-06：传整条计价档位而非 cost[0]，让 costForStep 按本步上下文规模挑长上下文档，
+// 与 v1 侧 getUsage 的分档择优保持同源。
+      const price = (yield* catalog.model.get(ProviderV2.ID.make(model.provider), ModelV2.ID.make(model.id)))?.cost
       const entries = yield* SessionHistory.entriesForRunner(db, session.id, system.baselineSeq)
       const context = entries.map((entry) => entry.message)
       const isLastStep = agent.info?.steps !== undefined && currentStep >= agent.info.steps

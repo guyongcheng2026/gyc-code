@@ -1,4 +1,5 @@
 ﻿import type { SessionV1 } from "@gyccode/core/v1/session"
+import { isProtectedToolOutput, outputLengthOf } from "./compaction-evidence"
 
 /**
  * Micro-compaction selection: when context usage reaches a high-water mark
@@ -9,12 +10,16 @@
  * Aligned with reference agent's microCompact: it clears tool results (Read/Shell/
  * Grep/Glob/WebSearch/WebFetch/Edit/Write) without dropping messages, and never
  * touches skill outputs (they carry instructions the model still needs).
+ *
+ * 幻觉率 P1（H-05）：保护清单不再只含 skill。read/grep/glob 的输出是代码事实，
+ * 清掉后模型只能凭记忆复述，幻觉率上升；bash 的输出可重跑复现，故只保护其
+ * 短输出。判定逻辑与 `compaction.ts` 的 prune 共用 `compaction-evidence.ts`，
+ * 避免两处再次漂移。
  */
 
 export const MICROCOMPACT_THRESHOLD = 0.9
 export const CACHE_PREFIX_KEEP = 20
 const TAIL_KEEP = 5
-const PROTECTED_TOOLS = new Set(["skill"])
 
 // 最小结构接口：仅声明 microcompact 实际读取的字段，便于测试注入 mock。
 // summary 在 User 消息为对象、Assistant 为 boolean，故用 unknown 承接（仅做 === true 比较）。
@@ -32,7 +37,8 @@ export interface WithParts {
  * Select tool parts whose outputs should be cleared via micro-compaction.
  * Returns an empty list when usage is below the threshold. The cache prefix
  * (first CACHE_PREFIX_KEEP messages), the last TAIL_KEEP messages, and any
- * skill tool output are always preserved.
+ * protected tool output (skill 无条件；read/grep/glob/bash 的短输出) are
+ * always preserved.
  */
 export function selectMicrocompactParts(
   msgs: readonly WithParts[],
@@ -53,7 +59,7 @@ export function selectMicrocompactParts(
       if (part.type !== "tool") continue
       if (part.state.status !== "completed") continue
       if (part.state.time.compacted) continue
-      if (PROTECTED_TOOLS.has(part.tool)) continue
+      if (isProtectedToolOutput(part.tool, outputLengthOf(part.state.output))) continue
       selected.push({ ...part, _msgIndex: i })
     }
   }
@@ -117,7 +123,7 @@ export function selectTimeBasedParts(
       if (part.type !== "tool") continue
       if (part.state.status !== "completed") continue
       if (part.state.time.compacted) continue
-      if (PROTECTED_TOOLS.has(part.tool)) continue
+      if (isProtectedToolOutput(part.tool, outputLengthOf(part.state.output))) continue
       selected.push({ ...part, _msgIndex: i })
     }
   }

@@ -20,12 +20,15 @@ import { loadRulesFromDirs, matchRules, type Rule } from "./rules"
 import type { MessageV2 } from "./message-v2"
 import type { MessageID, SessionID } from "./schema"
 
-function extract(messages: SessionV1.WithParts[]) {
+/** 已被 read 过的文件路径。导出以便测试锁定「压缩后不清零」这一语义。 */
+export function extract(messages: SessionV1.WithParts[]) {
   const paths = new Set<string>()
   for (const msg of messages) {
     for (const part of msg.parts) {
       if (part.type === "tool" && part.tool === "read" && part.state.status === "completed") {
-        if (part.state.time.compacted) continue
+        // 压缩不是「没读过」，只是内容被摘要了。compacted 的 read part 仍带着
+        // metadata.loaded，跳过它会让已读集合在压缩后凭空清零 → 模型把同一批文件
+        // 再读一遍、指令被重复注入。文件是否已变由 read 自身的 stat 校验兜底。
         const loaded = part.state.metadata?.loaded
         if (!loaded || !Array.isArray(loaded)) continue
         for (const p of loaded) {

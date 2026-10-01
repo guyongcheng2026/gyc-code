@@ -36,14 +36,27 @@ const key = (filepath: string) => FSUtil.normalizePath(filepath)
 const map = new Map<string, { content: string; encoding: TextFileEncoding; stat: StatLike | typeof FILE_UNCHANGED_STUB }>()
 const readSet = new Set<string>()
 
-/** Record a read, refreshing LRU order and evicting the oldest when over the bound. */
-function trackRead(key: string) {
-  readSet.delete(key)
-  readSet.add(key)
-  if (readSet.size > MAX_READ_SET) {
-    const oldest = readSet.values().next().value
-    if (oldest !== undefined) readSet.delete(oldest)
+/**
+ * 记录一次 read 并维持不变式 `readSet ⊇ map.keys()`。
+ *
+ * 两个容器容量相同，但淘汰语义曾经错位：readSet 是真 LRU（delete + add 会
+ * 重排），map 是 FIFO（命中已有键不重排）。于是「读 A → 读 B → 再读 A」之后
+ * 填满到第 201 个键时，map 淘汰 A、readSet 淘汰 B，结果 A 在 readSet 却不在
+ * map，B 在 map 却不在 readSet——随后读 B 命中缓存返回 `<file unchanged>`，
+ * 而 write/edit 又因 hasRead(B) 为 false 报「File has not been read」，正是
+ * 长会话里的误拦。因此淘汰 readSet 时跳过仍在 map 中的键。
+ */
+function trackRead(k: string) {
+  readSet.delete(k)
+  readSet.add(k)
+  if (readSet.size <= MAX_READ_SET) return
+  for (const candidate of readSet) {
+    if (candidate === k) continue
+    if (map.has(candidate)) continue // 仍在缓存里，丢了就会造成上面那处不一致
+    readSet.delete(candidate)
+    if (readSet.size <= MAX_READ_SET) return
   }
+  // map 里全是仍需保护的键：宁可让 readSet 略微超界，也不能制造误拦。
 }
 
 /**
@@ -64,14 +77,18 @@ export const ReadCache = () => {
     },
     /** Store a file's content and stat */
     set(filepath: string, content: string, stat: StatLike | typeof FILE_UNCHANGED_STUB, encoding: TextFileEncoding = "utf-8") {
-      // Evict the oldest entry when the cache exceeds its bound (and the key is new).
-      if (map.size >= MAX_ENTRIES && !map.has(key(filepath))) {
+      const k = key(filepath)
+      // 命中已有键时先删除再写入，让 map 也成为真正的 LRU——否则它按 FIFO 淘汰，
+      // 与 readSet 的淘汰节奏长期错位。
+      map.delete(k)
+      while (map.size >= MAX_ENTRIES) {
         const oldest = map.keys().next().value
-        if (oldest !== undefined) map.delete(oldest)
+        if (oldest === undefined) break
+        map.delete(oldest)
       }
-      map.set(key(filepath), { content, encoding, stat })
+      map.set(k, { content, encoding, stat })
       // Reading (or writing) a file means the model has seen its current content.
-      trackRead(key(filepath))
+      trackRead(k)
     },
     /** Remove a cache entry - useful after write/edit operations */
     invalidate(filepath: string) {

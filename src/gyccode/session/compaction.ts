@@ -30,13 +30,18 @@ import {
 } from "./microcompact-select"
 import { resolveOutputTokenMax } from "./llm/output-cap"
 import { isAnthropicLike } from "./llm/context-1m"
+import { isProtectedToolOutput, keepsTailOnTruncate, outputLengthOf, TOOL_OUTPUT_TAIL_CHARS } from "./compaction-evidence"
 import { readMemories, stripKeyHeader, type MemoryEntry } from "../memory/memory-bridge"
 
 export const Event = SessionCompactionEvent
 
 export const PRUNE_MINIMUM = 20_000
 export const PRUNE_PROTECT = 40_000
-const PRUNE_PROTECTED_TOOLS = ["skill"]
+// 幻觉率 P1（H-05）：原为 ["skill"]，导致 read/grep/glob 的事实证据输出比 skill
+// 更早被清，模型只能凭记忆复述代码 → 幻觉率上升。现统一走共享清单
+// （见 ./compaction-evidence.ts，与 microcompact-select.ts 共用，避免漂移）：
+// skill 无条件保护；read/grep/glob/bash 的短输出保护；超长输出走头尾截断保护；
+// 写类工具（edit/write）不保护。
 const DEFAULT_TAIL_TURNS = 2
 const MIN_PRESERVE_RECENT_TOKENS = 2_000
 const MAX_PRESERVE_RECENT_TOKENS = 8_000
@@ -54,11 +59,17 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // 路径，明确告知模型可回查。
 export const TOOL_OUTPUT_MAX_CHARS = 2_000
 
-const summarizeToolOutput = (output: string, fullPath: string): string => {
+const summarizeToolOutput = (output: string, fullPath: string, tool?: string): string => {
   if (output.length <= TOOL_OUTPUT_MAX_CHARS) return output
-  const omitted = output.length - TOOL_OUTPUT_MAX_CHARS
+  // 证据类工具额外保尾部：read 的完整性标记（Showing lines X-Y of N）在末尾，
+  // grep 的匹配行、bash 的报错也常在末尾，只留头部仍会让模型误判「这就是全部」。
+  // 尾部长度有上限，不影响压缩预算。
+  const withTail = keepsTailOnTruncate(tool) && output.length > TOOL_OUTPUT_MAX_CHARS + TOOL_OUTPUT_TAIL_CHARS
+  const tail = withTail ? output.slice(output.length - TOOL_OUTPUT_TAIL_CHARS) : ""
+  const omitted = output.length - TOOL_OUTPUT_MAX_CHARS - tail.length
   return [
     output.slice(0, TOOL_OUTPUT_MAX_CHARS),
+    ...(withTail ? ["", "（中间内容已省略）", "", tail] : []),
     "",
     `[输出已截断：此处省略了 ${omitted} 个字符（共 ${output.length}）。`,
     `完整原文已保存到 ${fullPath}`,
@@ -438,8 +449,8 @@ const layer = Layer.effect(
       let changed = false
       for (const part of parts) {
         if (part.state.status === "completed") {
-          part.state.time.compacted = Date.now()
-          // 2026-08-27 摘要式压缩：把超长工具输出替换为头部摘要再持久化。
+            part.state.time.compacted = Date.now()
+            // 2026-08-27 摘要式压缩：把超长工具输出替换为头部摘要再持久化。
           // 收益：释放 SQLite 中的大文本（库膨胀主因，174MB→可观下降）。安全
           // 依据：aggregateToolCaps（message-v2.ts:217）与 serialization
           // （message-v2.ts:527）均已跳过 compacted part 的 output 全文。
@@ -454,7 +465,7 @@ const layer = Layer.effect(
             part.state.output =
               saved === null || saved === undefined
                 ? `${full.slice(0, TOOL_OUTPUT_MAX_CHARS)}\n\n[输出已截断：此处省略了 ${full.length - TOOL_OUTPUT_MAX_CHARS} 个字符（共 ${full.length}），且原文落盘失败、已不可回查。不要仅凭以上片段断言整个输出的内容。]`
-                : summarizeToolOutput(full, saved)
+                : summarizeToolOutput(full, saved, part.tool)
           }
           yield* session.updatePart(part)
           changed = true
@@ -652,7 +663,7 @@ const layer = Layer.effect(
           if (part === undefined) continue
           if (part.type !== "tool") continue
           if (part.state.status !== "completed") continue
-          if (PRUNE_PROTECTED_TOOLS.includes(part.tool)) continue
+          if (isProtectedToolOutput(part.tool, outputLengthOf(part.state.output))) continue
           if (part.state.time.compacted) break loop
           const estimate = Token.estimate(part.state.output)
           total += estimate

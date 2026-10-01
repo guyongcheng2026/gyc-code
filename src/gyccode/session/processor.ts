@@ -25,11 +25,12 @@ import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@gyccode/core/database/database"
 import { Usage, type LLMEvent } from "@gyccode/llm"
-import { trackCacheDrift } from "./cache-anchor"
+import { loadCacheAnchors, persistCacheAnchors, trackCacheDrift } from "./cache-anchor"
 
 // 会话级 cacheRead 锚点：与该会话上一次请求比较（消息内 step 累计口径对单
 // step 消息恒为 0，跨消息前缀漂移 100% 漏检——实测 cacheDrift 告警 0 条）。
-const cacheDriftAnchors = new Map<string, { cacheRead: number; inputTokens: number }>()
+// C-08：锚点改为启动时从 state 目录恢复，避免重启后首轮必然漏报漂移。
+const cacheDriftAnchors = loadCacheAnchors()
 
 const DOOM_LOOP_THRESHOLD = 3
 export type Result = "compact" | "stop" | "continue"
@@ -482,6 +483,7 @@ const layer = Layer.effect(
               cacheRead: curCacheRead,
               inputTokens: curInputTotal,
             })
+            persistCacheAnchors(cacheDriftAnchors)
             if (usage.tokens.cacheDrift) {
               yield* Effect.logWarning("prompt cache drift detected", {
                 "session.id": input.sessionID,

@@ -96,6 +96,32 @@ export function analyzeDreamResult(content: string): DreamResult {
   }
 }
 
+/**
+ * 幻觉/不确定措辞检测（2026-09-30 幻觉率 P2 / H-07）。
+ *
+ * 原实现用 `/not sure/i`、`/maybe/i`、`/possibly/i` 这类裸词匹配，在技术文本里
+ * 几乎必然命中——「Possibly a caching layer」「not sure this covers Windows」都是
+ * 完全正常的表述，却会被判成幻觉并扣分。这里改为只匹配**模型自我认知**的固定
+ * 句式：真正该扣分的是「我是个 AI」「我不知道」这类声明，而不是句子里出现了
+ * maybe。
+ */
+export const HALLUCINATION_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
+  ["ai-self-reference", /\bas an ai(?:\s+(?:language\s+)?model)?\b/i],
+  ["first-person-unknown", /\bi\s+(?:don'?t|do\s+not|didn'?t)\s+know\b/i],
+  ["first-person-refusal", /\bi\s+(?:can'?t|cannot|am\s+unable\s+to|am\s+not\s+able\s+to)\b/i],
+  ["passive-unknown", /\b(?:it(?:'s| is)\s+)?(?:currently\s+)?unable\s+to\s+(?:determine|verify|confirm|access)\b/i],
+  ["fabrication-hedge", /\bi(?:'m| am)\s+(?:just\s+)?guessing\b/i],
+  ["fabricated-detail", /\b(?:made\s+up|fabricated|invented)\s+(?:the\s+)?(?:api|method|field|line\s+number|file\s+path)\b/i],
+]
+
+/**
+ * 返回文本中命中的幻觉措辞名称；没有命中返回空数组。
+ * 导出以便记忆提取流程复用——幻觉检测不应只覆盖 dream 自己合成的摘要。
+ */
+export function detectHallucinationMarkers(text: string): string[] {
+  return HALLUCINATION_PATTERNS.filter(([, pattern]) => pattern.test(text)).map(([name]) => name)
+}
+
 export function validateDreamResult(content: string, config: DreamConfig = DEFAULT_DREAM_CONFIG): ValidationResult {
   const errors: string[] = []
   const warnings: string[] = []
@@ -161,22 +187,10 @@ export function validateDreamResult(content: string, config: DreamConfig = DEFAU
     score -= 15
   }
 
-  // Check for hallucination markers
-  const hallucinationPatterns = [
-    /as an ai/i,
-    /i don't know/i,
-    /i cannot/i,
-    /unable to/i,
-    /not sure/i,
-    /maybe/i,
-    /possibly/i,
-  ]
-  for (const pattern of hallucinationPatterns) {
-    if (pattern.test(content)) {
-      warnings.push("Potential hallucination/uncertainty language detected")
-      score -= 10
-      break
-    }
+  const hallucinationPatterns = detectHallucinationMarkers(content)
+  if (hallucinationPatterns.length > 0) {
+    warnings.push(`Potential hallucination/uncertainty language detected: ${hallucinationPatterns.join(", ")}`)
+    score -= 10
   }
 
   score = Math.max(0, Math.min(100, score))

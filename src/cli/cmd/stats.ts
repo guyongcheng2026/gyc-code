@@ -4,6 +4,7 @@ import { Session } from "@/session/session"
 import { NotFoundError } from "@/storage/storage"
 import { Database } from "@gyccode/core/database/database"
 import { SessionTable } from "@gyccode/core/session/sql"
+import { promptCacheStats } from "./db"
 import { Project } from "@/project/project"
 import { InstanceRef } from "@/effect/instance-ref"
 import { Provider } from "@/provider/provider"
@@ -49,6 +50,22 @@ interface SessionStats {
   costPerDay: number
   tokensPerSession: number
   medianTokensPerSession: number
+  /** 2026-09-30（每任务成本 P2 / C-08）：压缩产生的开销单列，可与 totalCost 对账。 */
+  compactionCost: number
+  /**
+   * 2026-09-30（每任务成本 P1 / C-07）：真实 prompt 缓存命中率。原先 stats 只
+   * 输出 Cache Read 的绝对值，看不出「本可命中却没命中」——命中率只在
+   * `gyc db cache` 里，口径还与 UI 前端重算的那套不同。此处复用 db.ts 的
+   * promptCacheStats，保证与 `gyc db cache` 同一把尺子。
+   */
+  cacheHitRate: {
+    /** 前缀命中率：Σ min(本轮命中, 上轮总输入) / Σ 上轮总输入 */
+    prefix: number
+    /** 稳态命中率：剔除字节漂移事件行后的同式，衡量稳态健康度 */
+    steady: number
+    /** 参与统计的配对轮次数，0 表示样本不足（比率无意义） */
+    pairs: number
+  }
 }
 
 /**
@@ -190,6 +207,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     costPerDay: 0,
     tokensPerSession: 0,
     medianTokensPerSession: 0,
+    compactionCost: 0,
+    cacheHitRate: { prefix: 0, steady: 0, pairs: 0 },
   }
 
   if (filteredSessions.length > 1000) {
@@ -205,6 +224,9 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
   let latestTime = 0
 
   const sessionTotalTokens: number[] = []
+  // C-07：逐轮 token 快照，供 db.ts 的 promptCacheStats 按同一口径算命中率，
+  // 避免 stats 与 `gyc db cache` 各算各的。
+  const allCacheRows: Parameters<typeof promptCacheStats>[0] = []
 
   const results = yield* Effect.forEach(
     filteredSessions,
@@ -225,10 +247,29 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             cost: number
           }
         > = {}
+        const rows: Parameters<typeof promptCacheStats>[0] = []
+        let compactionCost = 0
 
         for (const message of messages) {
           if (message.info.role === "assistant") {
             const modelKey = `${message.info.providerID}/${message.info.modelID}`
+            if (message.info.tokens) {
+              // promptCacheStats 读的是数据库里的 JSON 文本列，因此这里同样以
+              // JSON 字符串喂入，否则每行都会在解析处被跳过、命中率恒为 0。
+              rows.push({
+                time_created: message.info.time?.completed ?? message.info.time?.created ?? 0,
+                data: JSON.stringify({
+                  sessionID: session.id,
+                  tokens: {
+                    input: message.info.tokens.input ?? 0,
+                    cache: {
+                      read: message.info.tokens.cache?.read ?? 0,
+                      write: message.info.tokens.cache?.write ?? 0,
+                    },
+                  },
+                }),
+              } as unknown as Parameters<typeof promptCacheStats>[0][number])
+            }
             if (!sessionModelUsage[modelKey]) {
               sessionModelUsage[modelKey] = {
                 messages: 0,
@@ -238,6 +279,11 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             }
             sessionModelUsage[modelKey].messages++
             sessionModelUsage[modelKey].cost += message.info.cost || 0
+            // C-08：压缩本身要花钱，但它不是「任务产出」。原先混在总量里，
+            // 压缩策略改动会让成本曲线出现无法解释的跳变。
+            if ((message.info as { mode?: string }).mode === "compaction") {
+              compactionCost += message.info.cost || 0
+            }
 
             if (message.info.tokens) {
               sessionModelUsage[modelKey].tokens.input += message.info.tokens.input || 0
@@ -267,6 +313,8 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
             sessionTokens.cache.write,
           sessionToolUsage,
           sessionModelUsage,
+          compactionCost,
+          cacheRows: rows,
           modelKey: `${session.model?.providerID ?? "unknown"}/${session.model?.id ?? "unknown"}`,
           earliestTime: cutoffTime > 0 ? session.time.updated : session.time.created,
           latestTime: session.time.updated,
@@ -279,6 +327,9 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
     earliestTime = Math.min(earliestTime, result.earliestTime)
     latestTime = Math.max(latestTime, result.latestTime)
     sessionTotalTokens.push(result.sessionTotalTokens)
+    allCacheRows.push(...result.cacheRows)
+    // C-08：压缩开销单列（可与总量对账 = totalCost - compactionCost）
+    stats.compactionCost += result.compactionCost
 
     stats.totalMessages += result.messageCount
     stats.totalCost += result.sessionCost
@@ -346,6 +397,14 @@ const aggregateSessionStats = Effect.fn("Cli.stats.aggregate")(function* (
         ? ((sessionTotalTokens[mid - 1] ?? 0) + (sessionTotalTokens[mid] ?? 0)) / 2
         : (sessionTotalTokens[mid] ?? 0)
 
+  // C-07：复用 db.ts 的口径，保证 stats 与 `gyc db cache` 报的是同一把尺子
+  const cache = promptCacheStats(allCacheRows)
+  stats.cacheHitRate = {
+    prefix: cache.prefixBase > 0 ? cache.prefixHit / cache.prefixBase : 0,
+    steady: cache.steadyBase > 0 ? cache.steadyHit / cache.steadyBase : 0,
+    pairs: allCacheRows.length,
+  }
+
   return stats
 })
 
@@ -385,6 +444,17 @@ export function displayStats(stats: SessionStats, toolLimit?: number, modelLimit
   console.log(renderRow("Output", formatNumber(stats.totalTokens.output)))
   console.log(renderRow("Cache Read", formatNumber(stats.totalTokens.cache.read)))
   console.log(renderRow("Cache Write", formatNumber(stats.totalTokens.cache.write)))
+  // C-07：绝对值看不出「本可命中却没命中」，命中率此前只在 `gyc db cache` 里，
+  // 且与 UI 前端重算的那套口径不同。样本不足时如实说明而不是显示 0%。
+  const rate = stats.cacheHitRate
+  const pct = (value: number) => (rate.pairs === 0 ? "样本不足" : `${(value * 100).toFixed(1)}%`)
+  console.log(renderRow("Cache Hit Rate (prefix)", pct(rate.prefix)))
+  console.log(renderRow("Cache Hit Rate (steady)", pct(rate.steady)))
+  // C-08：压缩开销单列。压缩策略调整会让它明显波动，混在总量里就成了「说不清的成本」
+  if (stats.compactionCost > 0) {
+    const share = cost > 0 ? (stats.compactionCost / cost) * 100 : 0
+    console.log(renderRow("  of which compaction", `$${stats.compactionCost.toFixed(4)} (${share.toFixed(1)}%)`))
+  }
   console.log("└────────────────────────────────────────────────────────┘")
   // 2026-09-30（每任务成本 P0）：自建/自研端点走 provider.ts 的动态发现分支，
   // 而 OpenAI 兼容的 /models 一般不返回价格字段，三级 ?? 0 兜底后 session.cost
