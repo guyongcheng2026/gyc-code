@@ -1490,7 +1490,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
       {
         name: "permission.mode",
         title:
-          local.permission.mode === "auto" ? "关闭自动批准权限" : "开启自动批准权限",
+          local.permission.auto ? "关闭自动批准权限" : "开启自动批准权限",
         category: "系统",
         run: () => {
           local.permission.toggle()

@@ -305,7 +305,7 @@ export const {
 
         case "permission.asked": {
           const request = event.properties
-          if (permission.mode === "auto") {
+          if (permission.auto) {
             void sdk.client.permission
               .reply({
                 requestID: request.id,

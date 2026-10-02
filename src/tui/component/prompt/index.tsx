@@ -1517,7 +1517,7 @@ title: "打开编辑器",
                       <text fg={fadeColor(highlight(), agentMetaAlpha())}>
                         {store.mode === "shell" ? "命令行" : Locale.titlecase(agent().name)}
                       </text>
-                      <Show when={store.mode === "normal" && local.permission.mode === "auto"}>
+                      <Show when={store.mode === "normal" && local.permission.auto}>
                         <text fg={fadeColor(theme.textMuted, agentMetaAlpha())}>Auto</text>
                       </Show>
                       <Show when={store.mode === "normal"}>

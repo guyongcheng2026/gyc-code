@@ -31,7 +31,7 @@ export function DialogPermissions() {
     return result
   })
 
-  const autoApproveMode = createMemo(() => local.permission.mode === "auto")
+  const autoApproveMode = createMemo(() => local.permission.auto)
 
   return (
     <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
