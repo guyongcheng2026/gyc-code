@@ -151,7 +151,11 @@ function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadat
           ...(ctx.callID ? { "tool.call_id": ctx.callID } : {}),
         }
         return Effect.gen(function* () {
+          // P2-6（对标指标 10 · 编译/测试失败的结构化回灌）：参数解码失败是模型
+          // 自己能纠正的问题，必须原样回灌让它重试，不能经 orDie 升级成进程级
+          // defect——那会中断整轮，模型连「参数写错了」都看不到。
           const decoded = yield* decode(args).pipe(
+            Effect.map((value) => ({ ok: true as const, value: value as Schema.Schema.Type<Parameters> })),
             Effect.mapError(
               (error) =>
                 new InvalidArgumentsError({
@@ -159,8 +163,30 @@ function wrap<Parameters extends Schema.Decoder<unknown>, Result extends Metadat
                   detail: invalidArgumentsDetail(toolInfo, error, toolInfo.formatValidationError),
                 }),
             ),
+            Effect.catch((error: InvalidArgumentsError) =>
+              Effect.succeed({ ok: false as const, detail: error.message }),
+            ),
           )
-          const result = yield* execute(decoded as Schema.Schema.Type<Parameters>, ctx)
+          if (!decoded.ok) {
+            const detail = decoded.detail
+            // Result 是未实例化的泛型（各工具的 metadata 结构不同），编译器无法
+            // 证明这里的字面量可赋值给它；运行时结构确实满足 Metadata 约束，
+            // 故在唯一这一处做断言。
+            return {
+              title: `${id}: invalid arguments`,
+              output:
+                `<tool_error kind="invalid_arguments" tool="${id}">\n` +
+                `${detail}\n` +
+                `请按上面的 schema 修正参数后重试；本轮未执行任何操作。\n` +
+                `</tool_error>`,
+              metadata: {
+                preview: `参数不合法：${detail.split("\n")[0]}`,
+                truncated: false,
+                loaded: [] as string[],
+              },
+            } as unknown as ExecuteResult<Result>
+          }
+          const result = yield* execute(decoded.value, ctx)
           if (result.metadata.truncated !== undefined) {
             return result
           }

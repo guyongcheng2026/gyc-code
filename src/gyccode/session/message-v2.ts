@@ -32,6 +32,7 @@ import { ProviderError } from "@/provider/error"
 import { iife } from "@/util/iife"
 import { errorMessage } from "@/util/error"
 import { isMedia } from "@/util/media"
+import { buildMediaNotice, modelAcceptsMedia } from "./media-notice"
 import type { Provider } from "@/provider/provider"
 import { Cause, Effect, Schema } from "effect"
 
@@ -581,7 +582,7 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // 数据都走 truncateToolOutput——新数据 markCompacted 时已把 output
             // 截断为 2K 摘要（re-truncate 无副作用），旧数据在此实时截断。
             // 不再使用固定占位符，LLM 能看到真实摘要，显著降低压缩后幻觉率。
-            const outputText = truncateToolOutput(
+            const baseText = truncateToolOutput(
               part.state.output,
               toolCapForOutput(toolCaps, part.callID, part.state.output, part.tool, options?.toolOutputMaxChars),
               part.tool,
@@ -592,10 +593,23 @@ export const toModelMessagesEffect = Effect.fnUntraced(function* (
             // (images, PDFs) to be sent as a separate user message
             const mediaAttachments = attachments.filter((a) => isMedia(a.mime))
             const extractedMedia = mediaAttachments.filter((a) => !supportsMediaInToolResult(a))
-            if (extractedMedia.length > 0) {
-              media.push(...extractedMedia)
+            // 模型彻底不吃这类媒体时，注入文件部件只会被 SDK 静默丢弃，
+            // 反而让模型以为「已经看过图」。改为不注入并显式说明原因。
+            const droppedMedia = extractedMedia.filter((a) => !modelAcceptsMedia(model.api, a.mime))
+            const keptMedia = extractedMedia.filter((a) => modelAcceptsMedia(model.api, a.mime))
+            if (keptMedia.length > 0) {
+              media.push(...keptMedia)
             }
             const finalAttachments = attachments.filter((a) => !isMedia(a.mime) || supportsMediaInToolResult(a))
+
+            let outputText = baseText
+            if (extractedMedia.length > 0) {
+              outputText += buildMediaNotice(
+                extractedMedia,
+                droppedMedia.length > 0,
+                `当前模型（${model.id}）不支持 ${droppedMedia[0]!.mime} 输入`,
+              )
+            }
 
             const output =
               finalAttachments.length > 0
