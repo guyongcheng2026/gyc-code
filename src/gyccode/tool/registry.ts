@@ -23,6 +23,7 @@ import { ActorTool } from "./actor"
 import { Database } from "@gyccode/core/database/database"
 import { TodoWriteTool } from "./todo"
 import { WebFetchTool } from "./webfetch"
+import { BrowserTool } from "./browser-screenshot"
 import { WriteTool } from "./write"
 import { InvalidTool } from "./invalid"
 import { SkillTool } from "./skill"
@@ -145,6 +146,7 @@ const layer = Layer.effect(
     const cronList = yield* CronListTool
     const mcpAuth = yield* McpAuthTool
     const webfetch = yield* WebFetchTool
+    const browser = yield* BrowserTool
     const websearch = yield* WebSearchTool
     const shell = yield* ShellTool
     // P0-4：bash 的 background 只负责启动，查询与终止由这个配套工具闭环。
@@ -291,6 +293,7 @@ const layer = Layer.effect(
           taskGet: Tool.init(taskGet),
           taskStop: Tool.init(taskStop),
           fetch: Tool.init(webfetch),
+          browser: Tool.init(browser),
           todo: Tool.init(todo),
           search: Tool.init(websearch),
           skill: Tool.init(skilltool),
@@ -351,6 +354,7 @@ const layer = Layer.effect(
             tool.taskGet,
             tool.taskStop,
             tool.fetch,
+            tool.browser,
             tool.todo,
             tool.search,
             tool.skill,
