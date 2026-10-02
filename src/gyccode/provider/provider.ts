@@ -1,4 +1,5 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { pickDefaultFreeModel } from "./free-models"
 import { createModelQueryCache } from "@gyccode/core/util/ttl-cache"
 import { wrapSSE } from "@gyccode/core/aisdk"
 import os from "os"
@@ -2170,7 +2171,10 @@ const layer = Layer.effect(
       const configured = Object.keys(cfg.provider ?? {})
       const provider = Object.values(s.providers).find((p) => configured.length === 0 || configured.includes(p.id))
       if (!provider) return yield* new NoProvidersError()
-      const [model] = sort(Object.values(provider.models))
+      // 零配置场景优先挑免费模型：用户装完应能直接开跑，不必先去 /connect。
+      // 清单命中不了时退回原有排序，取到的仍是同一个 sort 结果，不改变既有行为。
+      const freeID = pickDefaultFreeModel(provider.models)
+      const model = freeID !== undefined ? provider.models[freeID] : sort(Object.values(provider.models))[0]
       if (!model) return yield* new NoModelsError({ providerID: provider.id })
       return {
         providerID: provider.id,
