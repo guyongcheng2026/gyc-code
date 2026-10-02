@@ -10,6 +10,10 @@ import { Config } from "@/config/config"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import { Instruction } from "../session/instruction"
 import { isPdfAttachment, sniffAttachmentMime } from "@/util/media"
+import { extractPdfText } from "@/util/pdf"
+
+/** PDF 文字抽取的页数上限，避免超长文档把上下文一次撑爆 */
+const PDF_MAX_PAGES = 50
 import { ReadCache, FILE_UNCHANGED_STUB, type StatLike } from "./read-cache"
 import { createFileDecoder, detectTextEncoding } from "@gyccode/core/util/text-encoding"
 import { maybeRegisterMagicDoc } from "../magic-docs"
@@ -365,6 +369,34 @@ export const ReadTool = Tool.define<
           )
         }
         const bytes = yield* fs.readFile(filepath)
+
+        // P1-8（对标指标 8 · PDF 解析）：PDF 自带文字层时在本地抽成文本直接回灌，
+        // 不必把整份 PDF base64 塞进上下文（几十万 token 且要求模型具备 PDF 能力）。
+        // 抽不出文字（扫描件、加密、不支持的过滤器）才回退到整份附件交给视觉模型。
+        if (isPdfAttachment(mime)) {
+          const pdf = extractPdfText(bytes, { maxPages: PDF_MAX_PAGES })
+          if (pdf.hasText) {
+            const body = pdf.pages.map((p) => `<!-- page ${p.page} -->\n${p.text}`).join("\n\n")
+            const output = [
+              `<path>${filepath}</path>`,
+              `<type>pdf</type>`,
+              `<pages>${pdf.pageCount}</pages>`,
+              "<content>\n",
+              body,
+              "\n</content>",
+            ].join("\n")
+            return {
+              title,
+              output,
+              metadata: {
+                preview: `PDF read successfully (${pdf.pageCount} 页)`,
+                truncated: false,
+                loaded: loaded.map((item) => item.filepath),
+              },
+            }
+          }
+        }
+
         const msg = isPdfAttachment(mime) ? "PDF read successfully" : "Image read successfully"
         return {
           title,
