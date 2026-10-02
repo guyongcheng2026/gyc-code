@@ -35,6 +35,8 @@ import { DialogProvider, useDialog } from "./ui/dialog"
 import { DialogProvider as DialogProviderList } from "./component/dialog-provider"
 import { MemoryAlertToast, publishMemoryAlert } from "./ui/memory-alert"
 import { shouldEmitMemoryAlert } from "./util/memory-alert"
+import { globalHandleBudget } from "./util/handle-budget"
+import { handleBudgetPressure } from "./util/handle-pressure"
 import { ErrorComponent } from "./component/error-component"
 import { PluginRouteMissing } from "./component/plugin-route-missing"
 import { ProjectProvider, useProject } from "./context/project"
@@ -113,6 +115,7 @@ import {
   win32InstallUtf8ConsoleGuard,
 } from "./terminal-win32"
 import { destroyRenderer } from "./util/renderer"
+import { writeCrashLogSync } from "./crash-log"
 import { appendFile, mkdir, readdir, rm } from "node:fs/promises"
 import v8, { writeHeapSnapshot } from "node:v8"
 import { join } from "node:path"
@@ -194,6 +197,25 @@ export type TuiInput = {
   headers?: RequestInit["headers"]
   events?: EventSource
   pluginHost: TuiPluginHost
+}
+
+/**
+ * 当前会话 ID 记录器（进程级，供崩溃处理器读取）。
+ *
+ * uncaughtException 处理器运行在 Effect 作用域之外，拿不到 Route 上下文，
+ * 故由 App 组件在路由变化时写入；崩溃降级时据此给出可直接续接的命令，
+ * 避免谷总退出安全模式后还要自己翻会话 ID。
+ */
+let currentSessionID: string | undefined
+
+/** 记录当前会话（非会话路由时清空）。仅供 App 内部调用。 */
+export function setCurrentSessionID(sessionID: string | undefined): void {
+  currentSessionID = sessionID
+}
+
+/** 读取崩溃时所处的会话 ID（未进入会话则为 undefined）。 */
+export function getCurrentSessionID(): string | undefined {
+  return currentSessionID
 }
 
 // 骨架启动屏：零 Provider 依赖（此阶段 config/theme/KV 均未就绪），
@@ -326,14 +348,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               // GYC_TUI_BACKEND=opentui 可禁用降级。
               if (shouldUseFallback(config()?.renderer)) {
                 // S0 G5 可观测：降级事件带 renderer 归因（T3 触发条件的监测数据源）
-                void mkdir(global.log, { recursive: true })
-                  .then(() =>
-                    appendFile(
-                      join(global.log, "gyccode.log"),
-                      `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=renderer-create-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
-                    ),
-                  )
-                  .catch(() => {})
+                writeCrashLogSync(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=renderer-create-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
+                )
                 const { runFallbackSafeMode } = await import("./fallback/safe-mode")
                 await runFallbackSafeMode({ error })
               }
@@ -389,14 +407,11 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           const writeMainCrash = (kind: string, error: unknown) => {
             const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error)
             const rssMB = Math.round(process.memoryUsage().rss / 1024 / 1024)
-            void mkdir(global.log, { recursive: true })
-              .then(() =>
-                appendFile(
-                  join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} ${kind} message=${detail} rss=${rssMB}MB\n`,
-                ),
-              )
-              .catch(() => {})
+            // 同步落盘：崩溃后紧接 process.exit，异步写会被抢占导致现场全丢
+            writeCrashLogSync(
+              join(global.log, "gyccode.log"),
+              `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} ${kind} message=${detail} rss=${rssMB}MB session=${getCurrentSessionID() ?? "none"}\n`,
+            )
           }
           const restoreTerminalAndExit = (code: number) => {
             try {
@@ -421,15 +436,11 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               return
             }
             degrading = true
-            // S0 G5 可观测：运行中崩溃降级事件带 renderer 归因
-            void mkdir(global.log, { recursive: true })
-              .then(() =>
-                appendFile(
-                  join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=runtime-crash-degraded message=${error instanceof Error ? error.message : String(error)}\n`,
-                ),
-              )
-              .catch(() => {})
+            // S0 G5 可观测：运行中崩溃降级事件带 renderer 归因（同步落盘，防被 exit 抢占）
+            writeCrashLogSync(
+              join(global.log, "gyccode.log"),
+              `timestamp=${new Date().toISOString()} level=Error run=main renderer=opentui backend=${backendChoice(config()?.renderer)} event=runtime-crash-degraded message=${error instanceof Error ? error.message : String(error)} session=${getCurrentSessionID() ?? "none"}\n`,
+            )
             try {
               win32FlushInputBuffer()
             } catch {
@@ -442,7 +453,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             }
             try {
               const { runFallbackSafeMode } = await import("./fallback/safe-mode")
-              await runFallbackSafeMode({ error })
+              await runFallbackSafeMode({ error, sessionID: getCurrentSessionID() })
             } catch {
               // 降级本身失败仍要退出：已在下方 process.exit 收尾
             }
@@ -691,6 +702,20 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               } else {
                 // 系统内存恢复常态：reset 连续计数
                 fatalStreak = 0
+              }
+              // 句柄预算维度（opentui 原生内存不受 V8 堆约束的补盲）：
+              // 原生 buffer/句柄吃满物理内存时 heapRatio 可能仍正常，等 freemem
+              // 掉下去往往已经晚了一步（V8 C++ 层先触发 FatalOOM abort）。故在
+              // 句柄预算 ≥80% 时记录告警并让渲染层主动收窗（LimitedContent 降级）。
+              const handlePressure = handleBudgetPressure(globalHandleBudget.used(), globalHandleBudget.limit())
+              if (handlePressure !== "none") {
+                void appendFile(
+                  join(global.log, "gyccode.log"),
+                  `timestamp=${new Date().toISOString()} level=Warn run=main handle-budget pressure=${handlePressure} used=${globalHandleBudget.used()}/${globalHandleBudget.limit()} rss=${rssMB}MB free=${freeMB}MB\n`,
+                ).catch(() => {})
+                // 原生内存非 GC 可回收，runGc 对其无效；此处仅在 rss 也偏高时
+                // 顺带触发一次 GC，避免无谓停顿。
+                if (rss > total * 0.4) runGc()
               }
               // 二级降载：rss 接近上限或 free 进入紧张带——写堆快照留证 + 主动
               // GC，尽量避免走到 fatal 退出。独立于 fatal 判断，fatal streak
@@ -992,6 +1017,11 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   const [pasteSummaryEnabled, setPasteSummaryEnabled] = createSignal(
     kv.get("paste_summary_enabled", !sync.data.config.experimental?.disable_paste_summary),
   )
+
+  // 路由切到会话时记录会话 ID，供崩溃降级链路（作用域外）读取以给出续接命令
+  createEffect(() => {
+    setCurrentSessionID(route.data.type === "session" ? route.data.sessionID : undefined)
+  })
 
   // Update terminal window title based on current route and session
   createEffect(() => {

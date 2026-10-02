@@ -279,6 +279,36 @@ function DiffViewer(props: { api: TuiPluginApi }) {
     scrollToFileIndex(next)
   }
 
+  // hunk 行偏移缓存：diff 字符串不变时其 "@@" 行的行号也不变。
+  // 原实现在每次按键跳转时对整份 patch 做 split("\n") + flatMap + sort，
+  // 大 patch（数万行）下每次按键都要全量重扫，是 diff 视图的卡顿主因。
+  // 这里按 diff 内容缓存行偏移，滚动/换文件只做 O(1) 查表。
+  const hunkRowsCache = new Map<string, number[]>()
+  const HUNK_ROWS_CACHE_LIMIT = 32
+  const hunkRows = (diff: string): number[] => {
+    const cached = hunkRowsCache.get(diff)
+    if (cached) return cached
+    const rows: number[] = []
+    let start = 0
+    let row = 0
+    while (start <= diff.length) {
+      const end = diff.indexOf("\n", start)
+      const line = diff.slice(start, end === -1 ? diff.length : end)
+      if (line.startsWith("@@")) rows.push(row)
+      row += 1
+      if (end === -1) break
+      start = end + 1
+    }
+    // 仅缓存最近 N 份：diff 频繁变化时不让缓存本身变成新的泄露点
+    if (hunkRowsCache.size >= HUNK_ROWS_CACHE_LIMIT) {
+      const oldest = hunkRowsCache.keys().next().value
+      if (oldest !== undefined) hunkRowsCache.delete(oldest)
+    }
+    hunkRowsCache.set(diff, rows)
+    return rows
+  }
+  onCleanup(() => hunkRowsCache.clear())
+
   const jumpRelativeHunk = (offset: -1 | 1) => {
     const patchScroll = scroll
     if (!patchScroll) return
@@ -287,14 +317,11 @@ function DiffViewer(props: { api: TuiPluginApi }) {
         const node = diffNodeByFileIndex.get(entry.fileIndex)
         if (!node || node.isDestroyed) return []
         const contentY = patchScroll.scrollTop + node.y - patchScroll.viewport.y
-        return node.diff
-          .split("\n")
-          .flatMap((line, row) => (line.startsWith("@@") ? [row] : []))
-          .map((row, hunkIndex) => ({
-            fileIndex: entry.fileIndex,
-            hunkIndex,
-            contentY: contentY + row,
-          }))
+        return hunkRows(node.diff).map((row, hunkIndex) => ({
+          fileIndex: entry.fileIndex,
+          hunkIndex,
+          contentY: contentY + row,
+        }))
       })
       .sort((left, right) => left.contentY - right.contentY)
     const selected = selectedHunk()

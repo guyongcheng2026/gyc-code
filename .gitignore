@@ -72,3 +72,7 @@ tsconfig.poc-fallback.json
 .mimocode/
 .model-mirror/
 
+# Python 构建缓存（scripts/manual_content_*.py 生成操作手册 docx 时产生）
+__pycache__/
+*.pyc
+

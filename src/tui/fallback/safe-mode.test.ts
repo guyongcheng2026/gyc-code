@@ -91,6 +91,29 @@ describe("安全模式降级通道", () => {
 		expect(await app).toBe(true)
 	})
 
+	test("崩溃发生在会话中：安全模式给出可直接续接该会话的命令", async () => {
+		const backend = new MemoryBackend(80, 10)
+		const app = runFallbackSafeMode({
+			backend,
+			error: new Error("Failed to create TextBuffer"),
+			sessionID: "ses_f2f26a44cffePdmSm4HWrAYtg6",
+		})
+		await new Promise((r) => setTimeout(r, 0))
+		expect(backend.output).toContain("ses_f2f26a44cffePdmSm4HWrAYtg6")
+		expect(backend.output).toContain("--session")
+		backend.emitInput("\x1b")
+		expect(await app).toBe(true)
+	})
+
+	test("无会话上下文（启动期崩溃）：不展示续接命令", async () => {
+		const backend = new MemoryBackend(80, 10)
+		const app = runFallbackSafeMode({ backend, error: new Error("boom") })
+		await new Promise((r) => setTimeout(r, 0))
+		expect(backend.output).not.toContain("--session")
+		backend.emitInput("\x1b")
+		expect(await app).toBe(true)
+	})
+
 	test("降级护栏：全进程仅首次放行", () => {
 		resetFallbackClaimForTest()
 		expect(claimFallbackOnce()).toBe(true)

@@ -85,6 +85,8 @@ import { useClipboard } from "../../context/clipboard"
 import { nextThinkingMode, reasoningSummary, useThinkingMode, type ThinkingMode } from "../../context/thinking"
 import { getScrollAcceleration } from "../../util/scroll"
 import { collapseToolOutput } from "../../util/collapse-tool-output"
+import { LimitedContent } from "../../component/limited-content"
+import { probeTerminal, sessionTargetFps } from "../../fallback/capability"
 import { usePluginRuntime } from "../../plugin/runtime"
 import { DialogRetryAction } from "../../component/dialog-retry-action"
 import { DialogCost } from "../../component/dialog-cost"
@@ -381,15 +383,16 @@ export function Session() {
   const dialog = useDialog()
   const renderer = useRenderer()
 
-  // 流式输出帧率对标 pi agent（16ms/60fps）：生成期间升到 60fps 保证
-  // delta 上屏节奏；空闲回落 30fps 控制 CPU（4GB 机的内存/CPU 底线）。
+  // 流式输出帧率对标 pi agent（16ms/60fps）：生成期间升到上限保证
+  // delta 上屏节奏；空闲回落控制 CPU。帧率按终端能力分档（capability.ts）：
+  // plain 终端（TERM=dumb / CI）贴 10fps，此前无论终端能力一律 60fps 属空转。
   createEffect(() => {
     const streaming = pending() !== undefined
     if (renderer.isDestroyed) return
-    renderer.targetFps = streaming ? 60 : 30
+    renderer.targetFps = sessionTargetFps(probeTerminal(), streaming)
   })
   onCleanup(() => {
-    if (!renderer.isDestroyed) renderer.targetFps = 30
+    if (!renderer.isDestroyed) renderer.targetFps = sessionTargetFps(probeTerminal(), false)
   })
 
   onCleanup(
@@ -1513,14 +1516,16 @@ export function Session() {
       },
     ),
   )
-  // 滚动接近顶部自动展开（500ms 轮询：OpenTUI scrollbox 无滚动事件，
-  // 单次属性读取开销可忽略；Solid 组件内 onCleanup 兜底清理）
+  // 滚动接近顶部自动展开（1s 轮询：OpenTUI scrollbox 无滚动事件，只能轮询；
+  // 单次属性读取开销可忽略，故取较宽松的 1s——展开是连续上滚触发的用户动作，
+  // 500ms 与 1s 的体感差别不可察，但长会话下轮询次数直接减半）。
+  // 短路：渲染器已销毁 / 未折叠（renderFrom=0）/ 未贴顶，任一命中即跳过。
   const virtualTopPoll = setInterval(() => {
     if (!scroll || scroll.isDestroyed) return
     if (virtualRenderFrom() === 0) return
     if (scroll.y > scroll.height) return
     expandMore()
-  }, 500)
+  }, 1000)
   onCleanup(() => clearInterval(virtualTopPoll))
 
   return (
@@ -2031,14 +2036,26 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
         </box>
         <Show when={(!inMinimal() || expanded()) && summary().body}>
           <box paddingLeft={inMinimal() ? 2 : 0} marginTop={1}>
-            <code
-              filetype="markdown"
-              drawUnstyledText={false}
-              streaming={true}
-              syntaxStyle={syntax()}
-              content={summary().body}
-              conceal={ctx.conceal()}
-              fg={theme.textMuted}
+            <LimitedContent
+              text={summary().body}
+              cols={ctx.width}
+              plainColor={theme.textMuted}
+              rich={() => (
+                <code
+                  filetype="markdown"
+                  drawUnstyledText={false}
+                  streaming={true}
+                  syntaxStyle={syntax()}
+                  content={summary().body}
+                  conceal={ctx.conceal()}
+                  fg={theme.textMuted}
+                />
+              )}
+              plain={(text) => (
+                <text fg={theme.textMuted} wrapMode="word">
+                  {text}
+                </text>
+              )}
             />
           </box>
         </Show>
@@ -2097,15 +2114,27 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
   return (
     <Show when={props.part.text.trim()}>
       <box ref={(el: BoxRenderable) => alwaysSeparate.add(el)} paddingLeft={3} marginTop={1} flexShrink={0}>
-        <markdown
-          syntaxStyle={syntax()}
-          streaming={true}
-          internalBlockMode="top-level"
-          content={props.part.text.trim()}
-          tableOptions={{ style: "grid" }}
-          conceal={ctx.conceal()}
-          fg={theme.markdownText}
-          bg={theme.background}
+        <LimitedContent
+          text={props.part.text.trim()}
+          cols={ctx.width}
+          plainColor={theme.textMuted}
+          rich={() => (
+            <markdown
+              syntaxStyle={syntax()}
+              streaming={true}
+              internalBlockMode="top-level"
+              content={props.part.text.trim()}
+              tableOptions={{ style: "grid" }}
+              conceal={ctx.conceal()}
+              fg={theme.markdownText}
+              bg={theme.background}
+            />
+          )}
+          plain={(text) => (
+            <text fg={theme.markdownText} bg={theme.background} wrapMode="word">
+              {text}
+            </text>
+          )}
         />
       </box>
     </Show>
@@ -2827,24 +2856,36 @@ function Edit(props: ToolProps) {
       <Match when={stringValue(props.metadata.diff) !== undefined}>
         <BlockTool title={"← 编辑 " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
           <box paddingLeft={1}>
-            <diff
-              diff={diffContent()}
-              view={view()}
-              filetype={ft()}
-              syntaxStyle={syntax()}
-              showLineNumbers={true}
-              width="100%"
-              wrapMode={ctx.diffWrapMode()}
-              fg={theme.text}
-              addedBg={theme.diffAddedBg}
-              removedBg={theme.diffRemovedBg}
-              contextBg={theme.diffContextBg}
-              addedSignColor={theme.diffHighlightAdded}
-              removedSignColor={theme.diffHighlightRemoved}
-              lineNumberFg={theme.diffLineNumber}
-              lineNumberBg={theme.diffContextBg}
-              addedLineNumberBg={theme.diffAddedLineNumberBg}
-              removedLineNumberBg={theme.diffRemovedLineNumberBg}
+            <LimitedContent
+              text={diffContent()}
+              cols={ctx.width}
+              plainColor={theme.textMuted}
+              rich={() => (
+                <diff
+                  diff={diffContent()}
+                  view={view()}
+                  filetype={ft()}
+                  syntaxStyle={syntax()}
+                  showLineNumbers={true}
+                  width="100%"
+                  wrapMode={ctx.diffWrapMode()}
+                  fg={theme.text}
+                  addedBg={theme.diffAddedBg}
+                  removedBg={theme.diffRemovedBg}
+                  contextBg={theme.diffContextBg}
+                  addedSignColor={theme.diffHighlightAdded}
+                  removedSignColor={theme.diffHighlightRemoved}
+                  lineNumberFg={theme.diffLineNumber}
+                  lineNumberBg={theme.diffContextBg}
+                  addedLineNumberBg={theme.diffAddedLineNumberBg}
+                  removedLineNumberBg={theme.diffRemovedLineNumberBg}
+                />
+              )}
+              plain={(text) => (
+                <text fg={theme.text} wrapMode="word">
+                  {text}
+                </text>
+              )}
             />
           </box>
           <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.filePath) ?? ""} />

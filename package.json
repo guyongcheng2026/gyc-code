@@ -13,7 +13,7 @@
   },
   "main": "./src/gyccode/index.ts",
   "scripts": {
-    "postinstall": "node scripts/apply-opentui-patch.cjs && node scripts/apply-opentui-ffi-patch.cjs && node scripts/apply-opentui-orphan-patch.cjs && node scripts/install-hooks.mjs",
+    "postinstall": "node scripts/apply-opentui-patch.cjs || true; node scripts/apply-opentui-ffi-patch.cjs || true; node scripts/apply-opentui-orphan-patch.cjs || true; node scripts/install-hooks.mjs; node scripts/verify-opentui-patches.cjs",
     "dev": "bun --preload ./scripts/bun-solid-preload.ts --conditions=browser ./src/gyccode/index.ts",
     "build": "bun build.mjs",
     "start": "bun dist/index.js",

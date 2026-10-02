@@ -28,3 +28,22 @@
 3. **experimental.primary_tools**（subagent 通道）——spawn 子代理时的白名单快捷方式，经 `subagent-permissions.ts` 合成 deny。
 
 **约束**：不得新增并行的第四套可见性机制（历史评估 2026-09-24：三套已够用且职责清晰，profile 类配置若引入必须编译降级为第 1 层 ruleset）。已知风险观察项：explore 白名单含 `bash`（只读语义的执行面残留，探索类只读命令有价值，暂不裁，见真实滥用再议）。
+
+## opentui 原生句柄硬上限 65,535（TUI 崩溃第一现场）
+
+opentui 0.5.6 原生句柄表上限 65,535（实测第 65,535 次 `createTextBuffer` 返回无效句柄 → 「打开会话即退出」）。单 `<text>` ≈ 3 句柄，带边框 `<box>` 再 +1。
+
+- 消息条数由 `src/tui/routes/session/virtual-window.ts` 管（`VIRTUAL_WINDOW=40` / `VIRTUAL_MAX_WINDOW=600` / `VIRTUAL_COLLAPSED_SUMMARY_LIMIT=500`）；**单条内容的行数/字节由 `src/tui/component/limited-content.tsx` 管**（2000 行 / 512KB，超出折叠并显示折叠行数）。
+- 改 TUI 渲染层时，凡新增 `<markdown>` / `<diff>` / `<code>` / `<text>` 挂载点，**一律走 `LimitedContent`**，不要直送全文。
+- **原生内存不受 V8 堆上限约束**：`app.tsx` 内存守护只看 rss/heapRatio/freemem，句柄吃满物理内存时 heapRatio 仍可能正常，等 freemem 掉下去往往已晚一步（V8 C++ 层先 FatalOOM abort）。
+- 已知限制：`globalHandleBudget` 目前只被 `canRenderRich` 只读查询，`reserve/release` 未接线到节点生命周期，故 `handleBudgetPressure` 恒为 `none`。收敛靠内容硬上限，不要指望预算计数器。
+- 完整问题清单与证据：`docs/compose/plans/2026-10-02-opentui-stability-long-session.md`
+
+## opentui 补丁链（勿改 postinstall 串联方式）
+
+`package.json` postinstall 跑三个 patch + hooks + 校验，**必须用 `;` / `|| true` 不短路串联**：patch 在「上游升级、原文不匹配」时 `exit(1)`，短路会中断 hooks 安装并让用户拿到未打补丁的 opentui（TUI 直接崩且无提示指向真因）。
+`node scripts/verify-opentui-patches.cjs` 是收尾校验（恒 exit 0，未生效只 WARN）。当前三项均 OK。补丁含义见 `docs/compose/plans/2026-10-02-opentui-stability-long-session.md` 第四节对照表。
+
+## 含中文的文件一律用 Edit/Write 工具改，禁用 PowerShell 改写
+
+PowerShell 的 `Get-Content -Raw` 配合 `Set-Content -Encoding UTF8` 改写文件时，会按 GBK 误解码中文并吞掉行尾字节。实测在 `src/tui/routes/session/index.tsx` 上产生数十个 `TS1002 Unterminated string literal`，且 `git diff` 显示中文注释全部损坏。已发生一次，需 `git checkout --` 回滚后用 Edit 重做。附带一条：终端回显中文乱码通常是 PowerShell 控制台码页问题，不代表文件本身损坏——以 `git diff` 能否正常解析为准；提交钩子的 `check-mojibake.mjs` 亦按此判定。

@@ -63,13 +63,15 @@ export function resetFallbackClaimForTest(): void {
 export type CloseWatcher = (onClose: () => void) => () => void
 
 export interface SafeModeOptions {
-	/** 触发降级的错误 */
-	error: unknown
-	/** 产品名与版本，用于标题条 */
-	productLabel?: string
-	backend?: TerminalBackend
-	/** 终端关闭检测注入点（测试用）；默认 watchTerminalClose */
-	watchClose?: CloseWatcher
+  /** 触发降级的错误 */
+  error: unknown
+  /** 产品名与版本，用于标题条 */
+  productLabel?: string
+  backend?: TerminalBackend
+  /** 崩溃时所处的会话 ID；有值时展示可直接续接该会话的命令 */
+  sessionID?: string
+  /** 终端关闭检测注入点（测试用）；默认 watchTerminalClose */
+  watchClose?: CloseWatcher
 }
 
 function formatError(error: unknown): string {
@@ -102,6 +104,10 @@ export async function runFallbackSafeMode(options: SafeModeOptions): Promise<boo
       `错误: ${formatError(options.error).slice(0, 200)}`,
       "说明: 本界面为纯 JS 差分帧渲染器，不依赖原生库",
       "操作: 输入文字回车可测试终端通路；Esc 或 Ctrl+C 退出",
+      // 崩溃发生在会话中时直接给出续接命令：会话数据已落盘，退出后一条命令即可回到原会话
+      ...(options.sessionID
+        ? [`续接: 会话数据已保存，退出后执行 gyc --session ${options.sessionID} 继续`]
+        : []),
       "恢复: 重启终端或检查 GYC_TUI_BACKEND 环境变量后重试 gyc tui",
     ],
     onDone: () => finish(),

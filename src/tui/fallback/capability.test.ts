@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { probeTerminal, renderBudget } from "./capability"
+import { probeTerminal, renderBudget, sessionTargetFps } from "./capability"
 
 function makeEnv(overrides: Record<string, string | undefined>): Record<string, string | undefined> {
 	return { TERM: "xterm-256color", ...overrides }
@@ -61,5 +61,31 @@ describe("渲染预算", () => {
 		expect(budget.maxFps).toBe(60)
 		expect(budget.mouseEnabled).toBe(true)
 		expect(budget.kittyKeyboard).toBe(true)
+	})
+})
+
+describe("会话阶段帧率", () => {
+	const plain = probeTerminal({ env: makeEnv({ TERM: "dumb", CI: undefined }) })
+	const rich = probeTerminal({ env: makeEnv({ CI: undefined, TERM_PROGRAM: undefined }) })
+
+	test("非 plain：流式 60fps / 空闲 30fps", () => {
+		expect(sessionTargetFps(rich, true)).toBe(60)
+		expect(sessionTargetFps(rich, false)).toBe(30)
+	})
+
+	test("plain：流式与空闲均为 10fps（renderBudget 的 plain 上限）", () => {
+		// delta 合并窗口为 30ms（context/delta-flush.ts）：plain 终端跑 60fps
+		// 纯属空转烧 CPU，对上屏节奏无任何肉眼差别，故直接贴住 maxFps 上限。
+		expect(sessionTargetFps(plain, true)).toBe(10)
+		expect(sessionTargetFps(plain, false)).toBe(10)
+	})
+
+	test("始终不超过 renderBudget 上限，空闲帧率不高于流式", () => {
+		for (const probe of [plain, rich]) {
+			const budget = renderBudget(probe)
+			expect(sessionTargetFps(probe, true)).toBeLessThanOrEqual(budget.maxFps)
+			expect(sessionTargetFps(probe, false)).toBeLessThanOrEqual(budget.maxFps)
+			expect(sessionTargetFps(probe, false)).toBeLessThanOrEqual(sessionTargetFps(probe, true))
+		}
 	})
 })

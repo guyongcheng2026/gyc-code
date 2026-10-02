@@ -32,6 +32,8 @@ import { useArgs } from "./args"
 import { batch, createSignal, onCleanup, onMount } from "solid-js"
 import path from "path"
 import { tuiTiming } from "../util/timing"
+import { capDiffByBytes } from "../util/diff-budget"
+import { isOrphanPartEvent } from "./part-guard"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
 import { createDeltaFlushController, DELTA_FLUSH_MS } from "./delta-flush"
@@ -378,9 +380,10 @@ export const {
           setStore("todo", event.properties.sessionID, event.properties.todos)
           break
 
-        case "session.diff":
-          setStore("session_diff", event.properties.sessionID, event.properties.diff)
+        case "session.diff": {
+          setStore("session_diff", event.properties.sessionID, capDiffByBytes(event.properties.diff).diff)
           break
+        }
 
         case "session.deleted": {
           const id = event.properties.info.id
@@ -546,6 +549,10 @@ export const {
         }
         case "message.part.updated": {
           touchPart(event.properties.part.sessionID, event.properties.part.id)
+          // 孤儿拦截：父消息已被淘汰/删除时不再重建 part 条目，否则该条目
+          // 永无清理路径（淘汰/删除/LRU 均遍历不到它），store.part 单调增长。
+          const sessionMessages = store.message[event.properties.part.sessionID]
+          if (isOrphanPartEvent(sessionMessages, event.properties.part.messageID)) break
           const parts = store.part[event.properties.part.messageID]
           if (!parts) {
             setStore("part", event.properties.part.messageID, [event.properties.part])
@@ -609,6 +616,9 @@ export const {
         }
 
         case "vcs.branch.updated": {
+          // workspace 必须在本 case 内取：lsp.updated 的 const 属于其 case 块作用域，
+          // 跨 case 引用会抛 ReferenceError（此前该分支实际从未成功执行过）。
+          const workspace = project.workspace.current()
           if (workspace === project.workspace.current()) {
             setStore("vcs", { branch: event.properties.branch })
           }
@@ -830,7 +840,7 @@ export const {
                 }
                 for (const message of removed) delete draft.part[message.id]
                 draft.message[sessionID] = visible
-                draft.session_diff[sessionID] = diff.data ?? []
+                draft.session_diff[sessionID] = capDiffByBytes(diff.data ?? []).diff
               }),
             )
             fullSyncedSessions.add(sessionID)
