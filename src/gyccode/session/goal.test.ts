@@ -144,3 +144,54 @@ describe("Goal.lifecycle", () => {
     expect(svc.get(ses("l3"))?.condition).toBe("c")
   })
 })
+describe("Goal.decideGoalAction（A-1 目标收敛）", () => {
+  const state = (over: Partial<Goal.GoalState>): Goal.GoalState => ({
+    condition: "测试通过",
+    react: 0,
+    ...over,
+  })
+
+  it("没有活动目标时继续", () => {
+    expect(Goal.decideGoalAction(undefined).kind).toBe("continue")
+  })
+
+  it("判官尚未给出裁决时继续", () => {
+    expect(Goal.decideGoalAction(state({})).kind).toBe("continue")
+  })
+
+  it("判官出错时不据此收敛，继续跑", () => {
+    const s = state({ lastVerdict: { ok: false, reason: "judge 超时", attempt: 1, error: true } })
+    expect(Goal.decideGoalAction(s).kind).toBe("continue")
+  })
+
+  it("判官认定达成时收敛退出", () => {
+    const s = state({ lastVerdict: { ok: true, reason: "5 个用例全绿", attempt: 1 } })
+    const action = Goal.decideGoalAction(s)
+    expect(action.kind).toBe("achieved")
+    expect(action.kind === "achieved" && action.reason).toBe("5 个用例全绿")
+  })
+
+  it("判官认定不可能时停止重试并带出原因", () => {
+    const s = state({ lastVerdict: { ok: false, impossible: true, reason: "该 API 在本仓库不存在", attempt: 1 } })
+    const action = Goal.decideGoalAction(s)
+    expect(action.kind).toBe("impossible")
+    expect(action.kind === "impossible" && action.reason).toBe("该 API 在本仓库不存在")
+  })
+
+  it("未达成且未超上限时继续", () => {
+    const s = state({ react: 2, lastVerdict: { ok: false, reason: "还差一步", attempt: 2 } })
+    expect(Goal.decideGoalAction(s).kind).toBe("continue")
+  })
+
+  it("达到重入上限仍未达成时停止，避免无限循环", () => {
+    const s = state({ react: Goal.MAX_GOAL_REACT, lastVerdict: { ok: false, reason: "始终不满足", attempt: 9 } })
+    const action = Goal.decideGoalAction(s)
+    expect(action.kind).toBe("exhausted")
+    expect(action.kind === "exhausted" && action.react).toBe(Goal.MAX_GOAL_REACT)
+  })
+
+  it("「达成」优先于「超上限」：已达成的目标不再报 exhausted", () => {
+    const s = state({ react: 99, lastVerdict: { ok: true, reason: "最终达成", attempt: 10 } })
+    expect(Goal.decideGoalAction(s).kind).toBe("achieved")
+  })
+})

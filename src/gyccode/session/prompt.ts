@@ -1933,6 +1933,18 @@ const layer = Layer.effect(
               Effect.ignore,
               Effect.forkIn(scope),
             )
+            // A-1（对标指标 16 · 目标漂移控制）：判官异步评估，其裁决在下一轮生效。
+            // 此前这里只 fork 不看结果，bumpReact 也无人调用，导致 goal 永远停不下来。
+            const react = goal.bumpReact(sessionID)
+            const action = Goal.decideGoalAction(goal.get(sessionID))
+            if (action.kind !== "continue") {
+              yield* Effect.logInfo("goal converged", {
+                "session.id": sessionID,
+                kind: action.kind,
+                react,
+              })
+              break
+            }
           }
           if (outcome === "break") break
           continue

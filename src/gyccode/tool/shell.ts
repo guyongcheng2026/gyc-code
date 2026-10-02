@@ -24,7 +24,8 @@ import { ShellPrompt, type Parameters } from "./shell/prompt"
 import * as ShellCommand from "./shell/command"
 import * as ShellBackground from "./shell/background"
 import { BashArity } from "@/permission/arity"
-import { classifyCommand, SecurityClassification } from "./shell/security"
+import { Permission } from "@/permission"
+import { classifyCommand, decideShellSafety, SecurityClassification } from "./shell/security"
 
 export { Parameters } from "./shell/prompt"
 
@@ -36,6 +37,9 @@ export class ShellBlockedError extends Schema.TaggedErrorClass<ShellBlockedError
  * P0-3：命中 dangerous 但未显式放行。blocked 级（rm -rf /、fork bomb、mkfs）
  * 无论如何都不放行——它们没有合理的「我确实想这么干」场景；而 dangerous 级
  * （eval、curl|bash、sudo、dd）装依赖时确实会用到，所以留 allowDangerous 通道。
+ *
+ * R-1：这两个类已不再由 shell 工具抛出（拒绝改为结构化 output 回灌），保留定义
+ * 仅为兼容外部引用。
  */
 export class ShellDangerousError extends Schema.TaggedErrorClass<ShellDangerousError>()("ShellDangerousError", {
   classification: SecurityClassification,
@@ -513,6 +517,8 @@ export const ShellTool = Tool.define(
     const plugin = yield* Plugin.Service
     const flags = yield* RuntimeFlags.Service
     const events = yield* EventV2Bridge.Service
+    // R-1：权限模式在 init 阶段闭包捕获，使 execute 的 R 通道保持 never。
+    const permission = yield* Permission.Service
     const defaultTimeoutMs = flags.bashDefaultTimeoutMs ?? 2 * 60 * 1000
 
     const cygpath = Effect.fn("ShellTool.cygpath")(function* (shell: string, text: string) {
@@ -837,12 +843,26 @@ export const ShellTool = Tool.define(
               // P0-3：原先只拦 blocked，dangerous（eval / curl|bash / sudo / dd）
               // 仅标注后照常执行——安全判定形同虚设。改为默认拒绝，blocked 级
               // 无论如何不放行，dangerous 级需显式 allowDangerous。
+              // R-1：改为尊重当前权限模式（decideShellSafety），并且从 Effect.die
+              // 改成结构化 output 回灌——die 是进程级 defect，模型看不到拒绝
+              // 原因，只能反复重试同一条被拒的命令。execute 的 E 通道是 never，
+              // 故此处只能 return，不能 Effect.fail。
               const classification = classifyCommand(params.command)
-              if (classification.level === "blocked") {
-                return yield* Effect.die(new ShellBlockedError({ classification }))
-              }
-              if (classification.level === "dangerous" && params.allowDangerous !== true) {
-                return yield* Effect.die(new ShellDangerousError({ classification }))
+              const safety = decideShellSafety({
+                classification,
+                mode: yield* permission.mode(),
+                allowDangerous: params.allowDangerous,
+              })
+              if (!safety.run) {
+                return {
+                  title: `bash: ${safety.kind === "shell_blocked" ? "命令被安全策略硬拒绝" : "危险命令需显式放行"}`,
+                  metadata: {
+                    output: safety.text,
+                    exit: null,
+                    truncated: false,
+                  },
+                  output: safety.text,
+                }
               }
 
               const env = yield* shellEnv(ctx, cwd)

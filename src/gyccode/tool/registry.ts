@@ -582,6 +582,9 @@ export const node = LayerNode.make({
     CronScheduler.node,
     // P0-3：git 工具族依赖 Git.Service
     Git.node,
+    // R-1：shell 工具在 init 阶段捕获 Permission.Service，用于按当前权限模式
+    // 裁决 blocked / dangerous 命令。
+    Permission.node,
   ],
 })
 

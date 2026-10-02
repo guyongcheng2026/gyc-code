@@ -82,6 +82,40 @@ export const reset = (): void => {
   store.clear()
 }
 
+/**
+ * A-1（对标指标 16 · 目标漂移控制）：判官是异步评估的，主循环必须在**下一轮**
+ * 读它的裁决来收敛，否则 goal 只是建议性的、永远停不下来。这里把收敛决策
+ * 做成纯函数，便于单测；调用方（prompt.ts）据此决定是否继续循环。
+ */
+export const MAX_GOAL_REACT = 5
+
+export type GoalAction =
+  /** 没有活动目标，或判官尚未给出裁决：正常继续 */
+  | { readonly kind: "continue" }
+  /** 判官认定目标已达成：收敛退出 */
+  | { readonly kind: "achieved"; readonly reason: string }
+  /** 判官认定目标不可能达成：停止重试并上报原因 */
+  | { readonly kind: "impossible"; readonly reason: string }
+  /** 已达重入上限仍未达成：停止重试，避免无限循环 */
+  | { readonly kind: "exhausted"; readonly reason: string; readonly react: number }
+
+export function decideGoalAction(state: GoalState | undefined): GoalAction {
+  if (!state) return { kind: "continue" }
+  const verdict = state.lastVerdict
+  // 判官出错时不据此收敛，只是本轮没有裁决
+  if (!verdict || verdict.error) return { kind: "continue" }
+  if (verdict.ok) return { kind: "achieved", reason: verdict.reason }
+  if (verdict.impossible) return { kind: "impossible", reason: verdict.reason }
+  if (state.react >= MAX_GOAL_REACT) {
+    return {
+      kind: "exhausted",
+      reason: verdict.reason,
+      react: state.react,
+    }
+  }
+  return { kind: "continue" }
+}
+
 /** Drop the goal state for one session (used from Session.remove cleanup). */
 export const clearSession = (sessionID: SessionID): void => {
   store.delete(sessionID)

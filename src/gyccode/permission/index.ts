@@ -7,6 +7,7 @@ import * as RefModule from "effect/Ref"
 import os from "os"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { resolveAction, writeDangerLevel, type PermissionAction, type PermissionMode } from "./modes"
 
 export const Event = PermissionV1.Event
 
@@ -14,6 +15,10 @@ export interface Interface {
   readonly ask: (input: PermissionV1.AskInput) => Effect.Effect<void, PermissionV1.Error>
   readonly reply: (input: PermissionV1.ReplyInput) => Effect.Effect<void, PermissionV1.NotFoundError>
   readonly list: () => Effect.Effect<ReadonlyArray<PermissionV1.Request>>
+  /** 当前权限模式。R-1：模式此前只存在于枚举里，没有任何读取入口。 */
+  readonly mode: () => Effect.Effect<PermissionMode>
+  /** 切换权限模式。仅内存态，不落盘。 */
+  readonly setMode: (mode: PermissionMode) => Effect.Effect<void>
 }
 
 interface PendingEntry {
@@ -25,6 +30,8 @@ interface State {
   pending: RefModule.Ref<Map<PermissionV1.ID, PendingEntry>>
   // P0 修复：使用 Ref 包装 approved 数组，避免并发修改导致的数据竞争
   approved: RefModule.Ref<PermissionV1.Rule[]>
+  // R-1：权限模式。默认 default——未显式设置时不得默认绕过任何询问。
+  mode: RefModule.Ref<PermissionMode>
 }
 
 export function evaluate(permission: string, pattern: string, ...rulesets: PermissionV1.Ruleset[]): PermissionV1.Rule {
@@ -41,7 +48,9 @@ export function evaluate(permission: string, pattern: string, ...rulesets: Permi
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/Permission") {}
 
-const layer = Layer.effect(
+// 导出 layer 供测试装配：node 里只有 LayerNode，而测试需要单独 provide
+// EventV2Bridge 桩，不能顺着 node 把真实事件总线一并拉起来。
+export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2Bridge.Service
@@ -52,6 +61,8 @@ const layer = Layer.effect(
           pending: yield* RefModule.make(new Map<PermissionV1.ID, PendingEntry>()),
           // P0 修复：使用 Ref 包装 approved 数组
           approved: yield* RefModule.make<PermissionV1.Rule[]>([]),
+          // R-1：权限模式默认 default
+          mode: yield* RefModule.make<PermissionMode>("default"),
         }
 
         yield* Effect.addFinalizer(() =>
@@ -74,15 +85,37 @@ const layer = Layer.effect(
       const { ruleset, ...request } = input
       let needsAsk = false
 
+      // R-1（对标指标 22 · 权限与沙箱边界 · P0）：模式裁决接进 ask()。
+      // 只有登记在 writeDangerLevel 的写/执行类权限进模式裁决；读权限不受
+      // 模式影响，否则 plan 模式连文件都读不了。
+      //
+      // 未登记的权限拿到 undefined 而**不是** allow：这里若默认放行，将来新增
+      // 一类权限忘了登记就会静默变成「无需询问」，是典型的放行型回归。保守侧是
+      // 让它沿用既有询问链路。
+      const mode = yield* RefModule.get(state.mode)
+      const level = writeDangerLevel(request.permission)
+      const modeAction: PermissionAction | undefined =
+        level === undefined ? undefined : resolveAction(level, mode)
+
       for (const pattern of request.patterns) {
         const rule = evaluate(request.permission, pattern, ruleset, approved)
         yield* Effect.logDebug("evaluated", { permission: request.permission, pattern, action: rule })
-        if (rule.action === "deny") {
+        // 安全侧优先：ruleset 的显式 deny 永远生效，bypassPermissions 也不覆盖它。
+        // 用户手写的规则比模式开关更硬——模式放行不该推翻「我明确禁了这东西」。
+        if (rule.action === "deny" || modeAction === "deny") {
           return yield* new PermissionV1.DeniedError({
-            ruleset: ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),
+            ruleset: [
+              ...ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),
+              // 模式导致的拒绝补一条合成规则，让模型能从回灌文本里看出是模式
+              // （plan / acceptEdits / ...）而非用户逐条手写的规则挡下的。
+              ...(modeAction === "deny" && rule.action !== "deny"
+                ? [{ permission: request.permission, pattern: "*", action: "deny" as const, mode } as PermissionV1.Rule]
+                : []),
+            ],
           })
         }
-        if (rule.action === "allow") continue
+        // 模式放行同样按 allow 处理：不挂起、不询问。
+        if (rule.action === "allow" || modeAction === "allow") continue
         needsAsk = true
       }
 
@@ -197,7 +230,18 @@ const layer = Layer.effect(
       return Array.from(pending.values(), (item) => item.info)
     })
 
-    return Service.of({ ask, reply, list })
+    const mode = Effect.fn("Permission.mode")(function* () {
+      const state = yield* InstanceState.get(stateCache)
+      return yield* RefModule.get(state.mode)
+    })
+
+    const setMode = Effect.fn("Permission.setMode")(function* (next: PermissionMode) {
+      const state = yield* InstanceState.get(stateCache)
+      yield* Effect.logInfo("permission mode changed", { mode: next })
+      yield* RefModule.set(state.mode, next)
+    })
+
+    return Service.of({ ask, reply, list, mode, setMode })
   }),
 )
 
