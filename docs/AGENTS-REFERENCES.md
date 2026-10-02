@@ -41,9 +41,9 @@ opentui 0.5.6 原生句柄表上限 65,535（实测第 65,535 次 `createTextBuf
 
 ## opentui 补丁链（勿改 postinstall 串联方式）
 
-`package.json` postinstall 跑三个 patch + hooks + 校验，**必须用 `;` / `|| true` 不短路串联**：patch 在「上游升级、原文不匹配」时 `exit(1)`，短路会中断 hooks 安装并让用户拿到未打补丁的 opentui（TUI 直接崩且无提示指向真因）。
+`package.json` postinstall 跑三个 patch + hooks + 校验，**必须用 `;` / `|| true` 不短路串联**：patch 在「上游升级、原文不匹配」时 `exit(1)`，短路会中断 hooks 安装并让谷总拿到未打补丁的 opentui（TUI 直接崩且无提示指向真因）。
 `node scripts/verify-opentui-patches.cjs` 是收尾校验（恒 exit 0，未生效只 WARN）。当前三项均 OK。补丁含义见 `docs/compose/plans/2026-10-02-opentui-stability-long-session.md` 第四节对照表。
 
-## 含中文的文件一律用 Edit/Write 工具改，禁用 PowerShell 改写
+## 排查结论沉淀位置约定
 
-PowerShell 的 `Get-Content -Raw` 配合 `Set-Content -Encoding UTF8` 改写文件时，会按 GBK 误解码中文并吞掉行尾字节。实测在 `src/tui/routes/session/index.tsx` 上产生数十个 `TS1002 Unterminated string literal`，且 `git diff` 显示中文注释全部损坏。已发生一次，需 `git checkout --` 回滚后用 Edit 重做。附带一条：终端回显中文乱码通常是 PowerShell 控制台码页问题，不代表文件本身损坏——以 `git diff` 能否正常解析为准；提交钩子的 `check-mojibake.mjs` 亦按此判定。
+长期排查/审计类只读结论落 `docs/compose/reports/`（含 `file:line` 证据与证据级别标注）；带修复动作的落 `docs/compose/plans/`。两者均只增不删——历史结论不因后续修复而改写，只在新增文档里声明已被推翻。
