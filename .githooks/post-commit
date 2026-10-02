@@ -9,4 +9,6 @@ if ! err=$(git push --quiet origin HEAD 2>&1); then
   printf '%s post-commit push failed: %s\n' "$(git log -1 --format='%cI %h')" "$err" >>"$ROOT/.git/worklog-sync.log"
 fi
 node "$ROOT/scripts/worklog-sync.mjs" >/dev/null 2>&1
+# 操作手册同步校验：功能面（命令/工具/快捷键/配置/权限）变更而手册未跟上时提示，fail-soft
+node "$ROOT/scripts/sync-manual.mjs" >/dev/null 2>&1
 exit 0

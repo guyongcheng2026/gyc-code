@@ -42,3 +42,11 @@
 3. 直连 github 超时走 gh-proxy 两步（fetch/push）：详见 `docs/AGENTS-REFERENCES.md`。
 4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本内中文路径用 `\uXXXX` 转义。
 5. 人工工作记录笔记放 Obsidian 同目录（前缀 `gyc-code-`），提交推送 vault。
+
+## 操作手册同步（对外可见功能面）
+
+- 手册交付件：`docs/gyccode操作手册.docx`（GB/T 9704 公文版式，78 页 21 章 102 表）。正文与排版分离：正文在 `scripts/manual_content_1.py`～`_7.py`，版式在 `scripts/manual_docx_style.py`，入口 `scripts/gen_manual_docx.py`。
+- **凡改动下列功能面，必须同步更新手册正文并重新生成**：命令与选项（`src/cli/cmd/`、`command-registry.ts`）、内置工具与启用规则（`src/gyccode/tool/`）、快捷键（`src/tui/config/`）、配置项（`src/gyccode/config/`、`src/core/v1/config/`）、权限规则（`src/gyccode/permission/`）、Agent/Skill/MCP。
+- 重新生成：`python scripts/gen_manual_docx.py`（需 python-docx）。改版式只动 `manual_docx_style.py`，改内容只动 `manual_content_*.py`。
+- 漏同步由 `scripts/sync-manual.mjs` 兜底：post-commit 比较「功能面最近提交」与「手册源最近提交」，落后则在 `.git/manual-sync.log` 留一行并提示，fail-soft 不阻塞提交。
+- 事实基准：手册以**源码 + `gyc --help` 实测**为准，与 `README.md` 冲突时以手册为准（已知差异列于手册第十四章）。

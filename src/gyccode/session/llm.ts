@@ -35,6 +35,7 @@ import {
   resolveStreamIdleTimeout,
   resolveMaxConcurrentStreams,
   withFirstEventTimeout,
+  withFirstTokenLatency,
   resolveFirstTokenTimeout,
 } from "./llm-timeout"
 
@@ -402,6 +403,8 @@ const live: Layer.Layer<
             )
 
             const cfg = yield* config.get()
+            // TTFT 基准点：从发起请求（含并发 permit 等待）开始计时，故放在 run 之前
+            const ttftStartedAt = Date.now()
             // P2 修复：semaphore 应在整个流生命周期内持有，使用 flatMap 将释放延迟到流完成之后
             const result = yield* Effect.gen(function* () {
               const start = Date.now()
@@ -429,12 +432,23 @@ const live: Layer.Layer<
               Stream.mapEffect((event) => LLMAISDK.toLLMEvents(state, event)),
               Stream.flatMap((events) => Stream.fromIterable(events)),
             )
-            return streamWithIdleTimeout(
-              // First-event timeout fails fast when the provider accepts the
-              // connection but never responds; the idle timeout (reset on every
-              // event) stays the guard for mid-stream stalls.
-              withFirstEventTimeout(converted, resolveFirstTokenTimeout(cfg)),
-              resolveStreamIdleTimeout(cfg),
+            // 首 token 时延打点包在最外层：覆盖 permit 等待 + 首事件到达的完整耗时
+            return withFirstTokenLatency(
+              streamWithIdleTimeout(
+                // First-event timeout fails fast when the provider accepts the
+                // connection but never responds; the idle timeout (reset on every
+                // event) stays the guard for mid-stream stalls.
+                withFirstEventTimeout(converted, resolveFirstTokenTimeout(cfg)),
+                resolveStreamIdleTimeout(cfg),
+              ),
+              {
+                startedAt: ttftStartedAt,
+                onSlow: (ttftMs) =>
+                  Effect.logInfo("llm first-token latency is slow", {
+                    "session.id": input.sessionID,
+                    ttftMs,
+                  }),
+              },
             )
           }),
         ),

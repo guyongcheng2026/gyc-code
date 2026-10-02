@@ -65,6 +65,50 @@ export function resolveMaxConcurrentStreams(
 }
 
 /**
+ * 首 token（TTFT）告警阈值。
+ *
+ * `withFirstEventTimeout` 只负责「首事件有没有来」，从不记录「首事件实际用了
+ * 多久」——这导致首 token 体验完全不可观测：慢的时候只能靠用户主观感知。
+ * 本阈值用于把慢首 token 显式记入日志，与并发 permit 争用的
+ * `waitMs > 200` 属同一类可观测性打点。
+ */
+export const LLM_TTFT_SLOW_MS = 3_000
+
+/**
+ * 记录首 token 时延。
+ *
+ * 在流的**首块**到达处测量「距 startedAt 的毫秒数」，超过阈值时触发 `onSlow`
+ * （默认写 logInfo）。首块会被原样回放，故不改变流内容、不丢块、不重复。
+ * 空流不会触发（没有首块就没有 TTFT）。
+ *
+ * `onSlow` 可注入，便于测试断言而不必捕获日志。
+ */
+export function withFirstTokenLatency<A, E, R>(
+  stream: Stream.Stream<A, E, R>,
+  options: {
+    readonly startedAt: number
+    readonly thresholdMs?: number
+    readonly onSlow?: (ttftMs: number) => Effect.Effect<unknown>
+  },
+): Stream.Stream<A, E, R> {
+  const thresholdMs = options.thresholdMs ?? LLM_TTFT_SLOW_MS
+  return Stream.unwrap(
+    Effect.gen(function* () {
+      const pull = yield* Stream.toPull(stream)
+      const first = yield* pull
+      const ttftMs = Date.now() - options.startedAt
+      if (ttftMs > thresholdMs) {
+        const report =
+          options.onSlow ??
+          ((ms: number) =>
+            Effect.logInfo("llm first-token latency is slow", { ttftMs: ms, thresholdMs }))
+        yield* report(ttftMs)
+      }
+      return Stream.concat(Stream.fromIterable([first]), Stream.fromPull(Effect.sync(() => pull)))
+    }),
+  ) as unknown as Stream.Stream<A, E, R>
+}
+/**
  * Wrap a stream with an idle timeout. If the stream produces no value within
  * `duration`, it is replaced by a stream that fails, so upstream retry/error
  * handling runs instead of hanging.
