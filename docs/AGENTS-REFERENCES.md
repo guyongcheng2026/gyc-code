@@ -9,11 +9,17 @@
 - 产物布局固定 `dist/index.js` + `dist/worker.js`：bin/gyc、install.sh、多个脚本均按此定位，勿改入口命名
 - 可用内存 <1.2GB 时 Bun 打包器可能 OOM panic（exit 3/9），build.mjs 父进程会自动以低内存模式重试一次；`GYCCODE_BUILD_LOW_MEM=1` 强制
 
-## 直连 github.com 超时的 gh-proxy 两步走（fetch / push 均适用）
+## 直连 github.com 超时的代理两步走（fetch / push 均适用）
 
-- 拉取：`git fetch https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main` 后 `git merge --ff-only origin`（带镜像 URL 直接 pull 会报 Cannot fast-forward to multiple branches）。
-- 推送：gh-proxy 只读免鉴权、**推须转发 github.com 凭据**——用 `git credential fill`（host=github.com）取凭据，经 `GIT_ASKPASS` 临时脚本提供（口令只进环境变量，不落盘不回显），加 `-c credential.helper=` 清空默认辅助器，向 `https://gh-proxy.com/https://github.com/guyongcheng2026/gyc-code.git` 执行 `push HEAD:main`（2026-09-24 实测通过；gh-proxy 单纯转发 Authorization，github.com 的 PAT 可直接用于该通道）。
-- 推完按上一行 fetch 同步 `origin/main` 追踪引用，`git status` 应无 `[ahead]`。
+本机 `NO_PROXY` 含 `github.com,*.github.com`，curl 直连 api.github.com 会被出口策略拒（**403 而非超时**）——这是网络环境问题，**不要据此判定凭据失效**。git 走代理通道时认证头转发正常。
+
+**两个代理的实测可用性（2026-10-02）**：`ghfast.top` fetch/push 均通；`gh-proxy.com` fetch 通但 push 报 `No anonymous write access`。**优先用 `ghfast.top`**（即本机 `GH_PROXY` 环境变量指向的那个），`gh-proxy.com` 仅作 fetch 备选。
+
+- 拉取：`git fetch https://ghfast.top/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main` 后 `git merge --ff-only origin`（带镜像 URL 直接 pull 会报 Cannot fast-forward to multiple branches）。
+- 推送：**凭据 URL 内嵌是最省事且实测可用的一条**——`git credential fill`（host=github.com）取出 user/token，各自 `EscapeDataString` 后拼进代理 URL，加 `-c credential.helper=` 清空默认辅助器（2026-10-02 实测 `284f704..a20f0b1` 一次成功）。口令只在本条命令的进程内出现，不落盘；回显前务必过滤。
+- **不要用 `GIT_ASKPASS` 或 `http.extraHeader`**：这两种方式对代理形态的嵌套 URL 不生效，git 不会触发询问而直接以匿名身份发请求（表现为 `No anonymous write access`）。
+- **每次 shell 调用是独立进程**，`$env:X` 不跨调用；设了凭据环境变量必须在**同一条命令内**用掉。
+- 推完按 fetch 那行同步 `origin/main`，`git status` 应无 `[ahead]`；再用 `git ls-remote <代理URL> refs/heads/main` 独立复核远端哈希（不依赖本地追踪引用）。
 
 ## 行数口径
 

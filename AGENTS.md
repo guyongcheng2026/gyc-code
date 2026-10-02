@@ -60,7 +60,7 @@
 
 1. **提交即推送**：`.git/hooks/post-commit` 自动 push + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
 2. **pre-commit 乱码防线**：`check-mojibake.mjs --staged` 拒 GBK 双重编码（gen 产物豁免）。
-3. 直连 github 超时走 gh-proxy 两步（fetch/push）：详见 `docs/AGENTS-REFERENCES.md`。
+3. 直连 github 超时走代理两步（fetch/push，优先 `ghfast.top`）：详见 `docs/AGENTS-REFERENCES.md`。
 4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本内中文路径用 `\uXXXX` 转义。
 5. 人工工作记录笔记放 Obsidian 同目录（前缀 `gyc-code-`），提交推送 vault。
 6. **规则分层**：全局偏好写在 gyccode 用户级配置，项目技术栈约定写在本文件与就近的 `AGENTS.md`；越靠近目标目录优先级越高。一次性任务约束不写进本文件。
@@ -70,7 +70,7 @@
 
 - **含中文的文件一律用 Edit/Write 工具改，禁用 `Get-Content`+`Set-Content` 批量改写**：PowerShell 会按 GBK 误解码中文并吞行尾字节，实测在 `src/tui/routes/session/index.tsx` 上产生数十个 `TS1002`，需 `git checkout --` 回滚重做。
 - 终端回显中文乱码通常是控制台码页问题，**不代表文件损坏**；判断依据是 `git diff` 能否正常解析。
-- 本机设了 `NO_PROXY=github.com,*.github.com`，会使 GitHub 直连被出口策略拒掉（403 而非超时）；这是环境问题不是凭据问题。
+- 本机设了 `NO_PROXY=github.com,*.github.com`，curl 直连 GitHub 会被出口拒（403 而非超时）；**这是环境问题，不能据此判定凭据失效**——git 走代理通道时认证正常。
 - 每次 shell 调用是独立进程，环境变量不跨调用；设了 `$env:X` 后必须**在同一条命令内**用掉。
 
 ## 操作手册同步（对外可见功能面）
