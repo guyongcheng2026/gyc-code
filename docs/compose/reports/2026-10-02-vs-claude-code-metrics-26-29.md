@@ -142,10 +142,10 @@ G-29-1 是**本指标最重的缺口**。CC 虽也需付费，但其用户可用
 
 | 指标 | 说明 | CC 表现 | gyc-code 档位 | 核心依据 |
 |---|---|---|---|---|
-| 26 | 速度 | 中：模型偏重 | 🟡 中 | 流式达标；冷启动实测 5871ms（`src/gyccode/index.ts:141-147`） |
+| 26 | 速度 | 中：模型偏重 | 🟡 中（复核后维持，附条件） | 流式达标；但 **TTFT 无任何测量**，机制齐备而首 token 体验不可观测（`llm-timeout.ts:51-55`） |
 | 27 | Token 消耗 | 中高 | 🟢 中上 | 压缩阈值明确，但工具 schema 全量下发（`llm.ts:226-235`） |
-| 28 | 成本可视化 | 中：有 usage 统计 | 🟢🟢 **超越** | append-only 账本 + 五维归因（`cost-ledger-table.ts:7-23`） |
-| 29 | 免费可用性 | ❌ 付费 | 🟡 中（弱于 CC） | 无本机推理（全仓 ollama 零命中）；匿名免费仅限 `cost===0` |
+| 28 | 成本可视化 | 中：有 usage 统计 | 🟢🟢 **超越** | append-only 账本 + 五维归因（`cost-ledger-table.ts:7-23`）+ reconcile 对账（`stats.ts:181`） |
+| 29 | 免费可用性 | ❌ 付费 | 🟢 **中上（复核后上调）** | A-29-2 已落地本机推理：`priced=false`、cost 全 0、零 key 零配额（`src/gyccode/provider/local.ts`）；叠加零配置免费云模型清单，构成订阅制 CC 无法对标的结构性差异 |
 
 **超越项 1 个**（指标 28）。**持平 2 个**（26、27）。**弱于 CC 1 个**（29）。
 
@@ -216,10 +216,14 @@ G-29-1 是**本指标最重的缺口**。CC 虽也需付费，但其用户可用
 | A-26-1 | 冷启动 <1s | 26 | P1 | 5 人日 |
 | A-27-1 | 工具 schema 按需检索 + grep/glob 上限 | 27 | P1 | 5 人日 |
 | A-26-2 | 并发上限 + 请求总超时 | 26 | P2 | 1 人日 |
+| A-26-3 | TTFT / 首 token 埋点（复核新增） | 26 | P1 | 0.5 人日 |
+| A-29-3 | 免费额度与速率限制语义字段（复核新增） | 29 | P2 | 1 人日 |
 | A-28-2 | CSV 导出与成本趋势图 | 28 | P2 | 2 人日 |
 | A-27-2 | prune 生效 + 非 Anthropic 缓存 | 27 | P2 | 2 人日 |
 
-**合计 21 人日。** 建议执行序：`A-29-1 → A-28-1 → A-29-2 → A-26-1 → A-27-1`。
+**合计 24.5 人日**（复核后由 21 人日上修）。建议执行序：`A-29-1 → A-28-1 → A-29-2 → A-26-1 → A-27-1`。
+
+> 复核补充：A-26-3 成本极低（0.5 人日）却能直接点亮指标 26 的核心体验指标，建议在 A-26-1 完成后立即插入。
 
 理由：先做 P0 保住现有超越项（28）的可信度与最低 PLG 门槛；再做 A-29-2 拿下指标 29 的超越 —— 这是四指标中唯一能形成**结构性差异化**的机会（永久免费 vs 订阅制）；最后做性能与 token 优化，它们的收益是渐进的。
 
@@ -231,4 +235,75 @@ G-29-1 是**本指标最重的缺口**。CC 虽也需付费，但其用户可用
 
 ---
 
-*本轮全程只读：未修改任何源码，未执行 git commit。唯一写入为本文件与主报告末尾的一行索引。*
+## 五、源码取证明细（第二轮复核）
+
+本节为 A-26-1 / A-27-1 两轮只读取证的结论汇总，逐条可复现。完整报告见
+`2026-10-02-a26-speed-token-audit.md` 与 `2026-10-02-a27-cost-free-audit.md`。
+
+### 5.1 指标 26（速度）复核
+
+| 判断 | 证据 | 状态 |
+|---|---|---|
+| delta 事件**不进 SQLite**，故库写压力不随 token 量增长 | `src/gyccode/session/session.ts:965-973` 仅 `events.publish`；`src/core/session/projector.ts` 中 `part.delta` 零命中 | 已确认 |
+| 端到端仅一处节流：TUI 侧 30ms 合流 | `src/tui/context/delta-flush.ts:7,21-42`；`src/tui/context/sync.tsx:240,267` | 已确认 |
+| 非 TUI 路径**无节流** | `src/cli/cmd/run/stream-cli.ts:159-269` 直接 `process.stdout.write` | 已确认 |
+| **TTFT 无任何测量** | `src/gyccode/session/llm-timeout.ts:51-55` 的 `resolveFirstTokenTimeout` 仅用于超时判定；全仓无首事件到达耗时字段 | **未找到（新缺口）** |
+| 全局 SQL 串行是并发天花板 | `src/core/database/sqlite.node.ts:139-140` `Semaphore.make(1)`；`sqlite.bun.ts:156-157` 同构 | 已确认 |
+| 用量上卷严格串行 | `src/core/session/projector.ts:178-185` `concurrency: 1` | 已确认 |
+| SQLite 已做合理优化（WAL/NORMAL/5s busy_timeout/16MB cache） | `src/core/database/sqlite.node.ts:183-191` | 已确认 |
+| 默认最大并发流仅 3，等待 permit 自身 30s 超时 | `src/gyccode/session/llm-timeout.ts:34`；`src/gyccode/session/llm.ts:405-419` | 已确认 |
+| 无全局工具并发上限 | `src/gyccode/tool/registry.ts:471`、`read.ts:134`、`swarm.ts:238` 标注 `concurrency: "unbounded"` | 已确认 |
+| LLM 重试参数**不可配置**（唯一配置能力不齐项） | `src/llm/route/executor.ts:38-40` 模块内 `const`，无 config 读取路径；退避 `:377-383` | 已确认 |
+| 工具 / MCP / 流超时**均可配** | `src/gyccode/mcp/index.ts:783-793` 优先级链完整；`src/gyccode/session/llm-timeout.ts:40-65` 三项可覆盖 | 已确认 |
+| 有 TUI/ACP 打点与真实 OTel span，但无 telemetry 上报出口 | `src/tui/util/timing.ts:6-15`、`src/gyccode/acp/profile.ts:3-42`、`src/core/util/flock.ts:352-359` | 已确认 |
+| 冷启动 `--version` 实测 3.7~5.9s；TUI 已并行化 | `src/gyccode/index.ts:141-147`；`src/cli/cmd/tui.ts:164-177,206` | 已确认 |
+
+> **对档位的影响**：新发现 TTFT 不可观测（指标 26 的核心体验指标），原 🟡 中判定**偏乐观**，实际应为「机制齐备但首 token 体验不可观测」。A-26-1（冷启动）与 A-26-2（并发/超时）优先级维持，**新增 TTFT 埋点为 P1**。
+
+### 5.2 指标 27（Token 消耗）复核
+
+| 判断 | 证据 | 状态 |
+|---|---|---|
+| 自动 compaction 保留 8k token 尾部 | `src/core/session/compaction.ts:13,125` | 已确认 |
+| 压缩链路完整（含 epoch / history / message-updater） | `src/core/session/context-epoch.ts`、`history.ts`、`message-updater.ts` | 已确认 |
+| prompt cache 三协议各自落地 breakpoint | `src/llm/protocols/anthropic-messages.ts`、`bedrock-converse.ts`、`openai-responses.ts` | 已确认 |
+| 有独立命中率统计与**缺失归因** | `src/core/session/cache-rate.ts:87` `promptCacheStats`；`:47` 10min 窗口；`:144-150` 累计 `prefixHit`/`steadyHit`；`:59` `classifyMiss` | 已确认 |
+| 工具输出截断有明确上限与落盘回执 | `src/gyccode/tool/shell.ts:48` 30k、`:422-423` 保留尾部、`:792` 落盘回执、`:803,862,882` `truncated` 标记、`:141` JSON 深度 8 | 已确认 |
+| builtin 组实际注册条目数与 schema 序列化体积未核实 | — | **未找到** |
+
+> **对档位的影响**：🟢 中上判定维持，`classifyMiss` 缺失归因是超出 CC 公开能力的加分项。
+
+### 5.3 指标 28（成本可视化）复核
+
+| 判断 | 证据 | 状态 |
+|---|---|---|
+| `cost_ledger` 字段完备且按会话/任务建索引 | `src/core/session/sql.ts:204`；索引 `:221-222` | 已确认 |
+| `cost_source` 默认 `estimated`，口径分层标注 | `src/core/session/sql.ts` cost_source 字段 | 已确认 |
+| 定价源为 models.dev，注意 per-1M vs per-token 单位换算 | `src/gyccode/provider/api-models.ts:15` 注释、`:186-195` 拉取 | 已确认 |
+| CLI `stats` 带 **reconcile-limit** 对账参数 | `src/cli/cmd/stats.ts:181` | 已确认 |
+| TUI 有独立成本/用量对话框与侧栏常驻 | `src/tui/component/dialog-cost.tsx`、`dialog-usage.tsx`、`sidebar.tsx` | 已确认 |
+| 提供 cache 优化建议 | `src/core/session/cost-advisor.ts:23` `cacheOpportunityAdvice` | 已确认 |
+| **CSV / 图表导出未找到** | `src/cli/cmd/export.ts` 仅确认存在文件导出路径 | **未找到（A-28-2 依据）** |
+
+> **对档位的影响**：🟢🟢 超越判定维持，`reconcile-limit` 对账与 `cost-advisor` 是超越点依据。
+
+### 5.4 指标 29（免费可用性）复核
+
+| 判断 | 证据 | 状态 |
+|---|---|---|
+| 免费模型为**显式清单**而非隐式推断 | `src/gyccode/provider/free-models.ts:18` `FREE_MODELS`、`:42` `pickDefaultFreeModel` | 已确认 |
+| 默认模型记忆用户最近选择 | `src/gyccode/provider/provider.ts:2165` 读 `Global.Path.state/model.json` 的 `recent`；`:1164` `defaultModelIDs` | 已确认 |
+| **本机推理零 key 零配额**，未装 Ollama 时 3ms 返回空表不挂住 | `src/gyccode/provider/local.ts`（A-29-2 新增，实测） | 已确认 |
+| 本机模型声明 `priced=false`、四项 cost 全 0，且通过 `Schema.decodeUnknownEffect(Model)` 校验 | `src/gyccode/provider/local-schema.test.ts`（2 pass） | 已确认 |
+| 免费额度 / 速率限制语义**无字段承载** | — | **未找到（新缺口）** |
+
+> **对档位的影响**：Ollama 本机推理（A-29-2）已落地，指标 29 由「弱于 CC」上调为 **🟢 中上**——本仓同时具备零配置免费云模型与永久免费的本地推理两条零成本路径，这是订阅制 CC 无法对标的结构性差异。剩余缺口收敛为「免费额度语义缺失」一项。
+
+### 5.5 本轮新增待办
+
+- **Pixel Canary 未收录**：本地快照与上游 models.dev（89 provider / 529 万字符）双路搜索 `canary`、`pixel` 均零命中，属上游数据源尚未收录，不强行补录以免同步时被覆盖。
+- 已确认免费可用的同类模型：`inclusionai/ling-3.0-flash-sante`（262144 ctx，cost 0）、`poolside/laguna-s-2.1`（262144 ctx，cost 0）。注意 `poolside/laguna-xs-2.1` **并非免费**（input 0.435 / output 0.87，context 1M）。
+
+---
+
+*第二节（A-26-1 / A-27-1）取证全程只读，未修改源码。*
