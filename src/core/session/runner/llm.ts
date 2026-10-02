@@ -36,6 +36,7 @@ import { type RunError, Service } from "./index"
 import { SessionRunnerModel } from "./model"
 import { createLLMEventPublisher } from "./publish-llm-event"
 import { toLLMMessages } from "./to-llm-message"
+import { AttachmentStore } from "../../attachment-store"
 import { MAX_STEPS_PROMPT } from "./max-steps"
 import { Snapshot } from "../../snapshot"
 import { makeLocationNode } from "../../effect/app-node"
@@ -184,6 +185,9 @@ const layer = Layer.effect(
         concurrency: "unbounded",
       }).pipe(Effect.map(SystemContext.combine))
 
+    // P2-4：附件存储在 layer 构建期解析并闭包捕获，保持 runTurnAttempt 的 R 通道为 never
+    const attachments = yield* AttachmentStore.Service
+
     const runTurnAttempt = Effect.fn("SessionRunner.runTurn")(function* (
       sessionID: SessionSchema.ID,
       promotion: SessionInput.Delivery | undefined,
@@ -225,7 +229,7 @@ const layer = Layer.effect(
         system: [agent.info?.system, system.baseline]
           .filter((part): part is string => part !== undefined && part.length > 0)
           .map(SystemPart.make),
-        messages: [...toLLMMessages(context, model), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],
+        messages: [...(yield* toLLMMessages(context, model, attachments)), ...(isLastStep ? [Message.assistant(MAX_STEPS_PROMPT)] : [])],
         tools: toolMaterialization?.definitions ?? [],
         toolChoice: isLastStep ? "none" : undefined,
       })
@@ -545,5 +549,6 @@ export const node = makeLocationNode({
     Config.node,
     Snapshot.node,
     Database.node,
+    AttachmentStore.node,
   ],
 })

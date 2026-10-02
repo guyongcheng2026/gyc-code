@@ -16,6 +16,8 @@ export const FileAttachment = Schema.Struct({
   name: Schema.String.pipe(optional),
   description: Schema.String.pipe(optional),
   source: Source.pipe(optional),
+  // P2-4：uri 指向 AttachmentStore 落盘后的本地文件时，ref 显式标记这一条是引用
+  ref: Schema.String.pipe(optional),
 })
   .annotate({ identifier: "Prompt.FileAttachment" })
   .pipe(
@@ -27,6 +29,7 @@ export const FileAttachment = Schema.Struct({
           name: input.name,
           description: input.description,
           source: input.source,
+          ref: input.ref,
         }),
     })),
   )

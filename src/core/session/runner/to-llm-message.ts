@@ -1,3 +1,5 @@
+export * as ToLLMMessage from "./to-llm-message"
+
 import {
   Message,
   ToolCallPart,
@@ -9,14 +11,32 @@ import {
 } from "@gyccode/llm"
 import { SessionMessage } from "../message"
 import type { FileAttachment } from "../prompt"
+import { AttachmentStore } from "../../attachment-store"
+import { Effect, Schema } from "effect"
 
-const media = (file: FileAttachment): ContentPart => ({
-  type: "media",
-  mediaType: file.mime,
-  data: file.uri,
-  filename: file.name,
-  metadata: file.description === undefined ? undefined : { description: file.description },
-})
+/** P2-4：引用指向的附件已从磁盘消失（例如用户清过 data 目录）。要有明确错误，不能静默丢图。 */
+export class MissingAttachmentError extends Schema.TaggedErrorClass<MissingAttachmentError>()(
+  "ToLLMMessage.MissingAttachmentError",
+  {
+    uri: Schema.String,
+    message: Schema.String,
+  },
+) {}
+
+// P2-4：uri 指向 AttachmentStore 落盘文件时，字节由 toLLMMessages 预读后按 ref 查表。
+// provider 层的 validateMedia 已支持直接给 Uint8Array（protocols/shared.ts:183-186），
+// 因此这里不再把字节编回 base64 data URL，既省内存也省一次编解码。
+// 表里查不到只可能是加载阶段漏了引用，退回原 uri 属于不可达分支。
+const media = (loaded: ReadonlyMap<string, Uint8Array>, file: FileAttachment): ContentPart => {
+  const shared = {
+    type: "media" as const,
+    mediaType: file.mime,
+    filename: file.name,
+    metadata: file.description === undefined ? undefined : { description: file.description },
+  }
+  if (file.ref === undefined) return { ...shared, data: file.uri }
+  return { ...shared, data: loaded.get(file.ref) ?? file.uri }
+}
 
 const toolInput = (tool: SessionMessage.AssistantTool) => {
   if (tool.state.status !== "pending") return tool.state.input
@@ -112,7 +132,11 @@ const assistant = (message: SessionMessage.Assistant, model: Model) => {
   ]
 }
 
-function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] {
+function toLLMMessage(
+  message: SessionMessage.Message,
+  model: Model,
+  loaded: ReadonlyMap<string, Uint8Array>,
+): Message[] {
   switch (message.type) {
     case "agent-switched":
     case "model-switched":
@@ -122,7 +146,7 @@ function toLLMMessage(message: SessionMessage.Message, model: Model): Message[] 
         Message.make({
           id: message.id,
           role: "user",
-          content: [{ type: "text", text: message.text }, ...(message.files ?? []).map(media)],
+          content: [{ type: "text", text: message.text }, ...(message.files ?? []).map((file) => media(loaded, file))],
           metadata: {
             ...message.metadata,
             ...(message.agents?.length ? { agents: message.agents } : {}),
@@ -166,6 +190,36 @@ ${message.recent}
   }
 }
 
-/** Translate projected V2 Session history into canonical @gyccode/llm context. */
-export const toLLMMessages = (messages: readonly SessionMessage.Message[], model: Model) =>
-  messages.flatMap((message) => toLLMMessage(message, model))
+/**
+ * 翻译会话历史为 LLM 上下文。
+ *
+ * P2-4：先把这批消息里所有 ref 附件的字节读出来，再交给纯函数 toLLMMessage 组装。
+ * 之所以分两步而不是在组装时现读，是为了让组装逻辑保持纯函数——
+ * 它要遍历十几种消息分支，每一处都塞 IO 会让分支难以审阅。
+ */
+export const toLLMMessages = (
+  messages: readonly SessionMessage.Message[],
+  model: Model,
+  store: AttachmentStore.Interface,
+): Effect.Effect<Message[], MissingAttachmentError> =>
+  Effect.gen(function* () {
+    const refs = new Set<string>()
+    for (const message of messages) {
+      if (message.type !== "user") continue
+      for (const file of message.files ?? []) if (file.ref !== undefined) refs.add(file.ref)
+    }
+    const loaded = new Map<string, Uint8Array>()
+    for (const ref of refs) {
+      const bytes = yield* store.load(ref).pipe(
+        Effect.mapError(
+          (cause) =>
+            new MissingAttachmentError({
+              uri: ref,
+              message: `附件已不在磁盘上，无法读取：${ref}（${cause.message}）。请重新附加该文件。`,
+            }),
+        ),
+      )
+      loaded.set(ref, bytes)
+    }
+    return messages.flatMap((message) => toLLMMessage(message, model, loaded))
+  })

@@ -5,6 +5,7 @@ import { Effect, JsonSchema, Schema } from "effect"
 import type { AgentV2 } from "../agent"
 import type { SessionMessage } from "../session/message"
 import type { SessionSchema } from "../session/schema"
+import { AttachmentStore } from "../attachment-store"
 
 export interface Context {
   readonly sessionID: SessionSchema.ID
@@ -63,7 +64,7 @@ type Config<
 type Runtime = {
   readonly permission?: string
   readonly definition: (name: string) => ToolDefinition
-  readonly settle: (call: ToolCall, context: Context) => Effect.Effect<ToolOutput, ToolFailure>
+  readonly settle: (call: ToolCall, context: Context, store: AttachmentStore.Interface) => Effect.Effect<ToolOutput, ToolFailure>
 }
 
 const runtimes = new WeakMap<AnyTool, Runtime>()
@@ -88,7 +89,7 @@ export function make<
       definitions.set(name, definition)
       return definition
     },
-    settle: (call, context) =>
+    settle: (call, context, attachments) =>
       Schema.decodeUnknownEffect(config.input)(call.input).pipe(
         Effect.mapError((error) => new ToolFailure({ message: `Invalid tool input: ${error.message}` })),
         Effect.flatMap((input) =>
@@ -110,20 +111,45 @@ export function make<
                 ),
               ),
             ),
-            Effect.map(({ output, structured }) => ({
-              structured,
-              content:
-                config.toModelOutput?.({ input, output }).map((part) =>
-                  part.type === "text"
-                    ? { type: "text" as const, text: part.text }
-                    : {
-                        type: "file" as const,
-                        uri: `data:${part.mime};base64,${part.data}`,
-                        mime: part.mime,
-                        name: part.name,
-                      },
-                ) ?? (typeof output === "string" ? [{ type: "text" as const, text: output }] : []),
-            })),
+// P2-4：媒体内容先落盘，消息里只保留引用，避免 base64 撑爆会话库
+            Effect.flatMap(({ output, structured }) =>
+              Effect.gen(function* () {
+                const parts = config.toModelOutput?.({ input, output })
+                const content =
+                  parts === undefined
+                    ? typeof output === "string"
+                      ? [{ type: "text" as const, text: output }]
+                      : []
+                    : yield* Effect.all(
+                        parts.map((part) =>
+                          part.type === "text"
+                            ? Effect.succeed({ type: "text" as const, text: part.text })
+                            : Effect.gen(function* () {
+                                const reference = yield* attachments
+                                  .externalize({
+                                    uri: `data:${part.mime};base64,${part.data}`,
+                                    mime: part.mime,
+                                    name: part.name,
+                                  })
+                                  .pipe(
+                                    Effect.mapError(
+                                      (cause) =>
+                                        new ToolFailure({ message: `Failed to store attachment: ${cause.message}` }),
+                                    ),
+                                  )
+                                return {
+                                  type: "file" as const,
+                                  uri: reference.uri,
+                                  mime: reference.mime,
+                                  name: reference.name,
+                                  ref: reference.ref,
+                                }
+                              }),
+                        ),
+                      )
+                return { structured, content }
+              }),
+            ),
           ),
         ),
       ),
@@ -147,7 +173,12 @@ export const withPermission = <Input extends SchemaType<any>, Output extends Sch
 
 export const permission = (tool: AnyTool, name: string) => runtimeOf(tool).permission ?? name
 export const definition = (name: string, tool: AnyTool) => runtimeOf(tool).definition(name)
-export const settle = (tool: AnyTool, call: ToolCall, context: Context) => runtimeOf(tool).settle(call, context)
+export const settle = (
+  tool: AnyTool,
+  call: ToolCall,
+  context: Context,
+  store: AttachmentStore.Interface,
+) => runtimeOf(tool).settle(call, context, store)
 
 function runtimeOf(tool: AnyTool) {
   const runtime = runtimes.get(tool)

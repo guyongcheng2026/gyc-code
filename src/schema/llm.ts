@@ -20,6 +20,9 @@ export const ToolFileContent = Schema.Struct({
   uri: Schema.String,
   mime: Schema.String,
   name: optional(Schema.String),
+  // P2-4：uri 指向 AttachmentStore 落盘后的本地文件时，用 ref 显式标记，
+  // 避免下游把一个普通路径误当成需要再次物化的远程引用。
+  ref: optional(Schema.String),
 }).annotate({ identifier: "Tool.FileContent" })
 
 export const ToolContent = Schema.Union([ToolTextContent, ToolFileContent])

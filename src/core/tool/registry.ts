@@ -7,6 +7,7 @@ import { PermissionV2 } from "../permission"
 import { SessionMessage } from "../session/message"
 import { SessionSchema } from "../session/schema"
 import { ToolOutputStore } from "../tool-output-store"
+import { AttachmentStore } from "../attachment-store"
 import { Wildcard } from "../util/wildcard"
 import { ApplicationTools } from "./application-tools"
 import { definition, permission, settle, validateName, type AnyTool, type RegistrationError } from "./tool"
@@ -44,6 +45,7 @@ const registryLayer = Layer.effect(
   Effect.gen(function* () {
     const applications = yield* ApplicationTools.Service
     const resources = yield* ToolOutputStore.Service
+    const attachments = yield* AttachmentStore.Service
     type Registration = { readonly identity: object; readonly tool: AnyTool }
     const local = new Map<string, Array<{ readonly token: object; readonly registration: Registration }>>()
 
@@ -59,12 +61,17 @@ const registryLayer = Layer.effect(
         }
       if (advertised && registration.identity !== advertised)
         return { result: { type: "error" as const, value: `Stale tool call: ${input.call.name}` } }
-      const pending = yield* settle(registration.tool, input.call, {
-        sessionID: input.sessionID,
-        agent: input.agent,
-        assistantMessageID: input.assistantMessageID,
-        toolCallID: input.call.id,
-      }).pipe(
+      const pending = yield* settle(
+        registration.tool,
+        input.call,
+        {
+          sessionID: input.sessionID,
+          agent: input.agent,
+          assistantMessageID: input.assistantMessageID,
+          toolCallID: input.call.id,
+        },
+        attachments,
+      ).pipe(
         Effect.map((output) => ({ output })),
         Effect.catchTag("LLM.ToolFailure", (failure) =>
           Effect.succeed({ result: { type: "error" as const, value: failure.message } }),
@@ -137,11 +144,11 @@ function whollyDisabled(action: string, rules: PermissionV2.Ruleset) {
 export const node = makeLocationNode({
   service: Service,
   layer,
-  deps: [ApplicationTools.node, ToolOutputStore.node],
+  deps: [ApplicationTools.node, ToolOutputStore.node, AttachmentStore.node],
 })
 
 export const toolsNode = makeLocationNode({
   service: Tools.Service,
   layer,
-  deps: [ApplicationTools.node, ToolOutputStore.node],
+  deps: [ApplicationTools.node, ToolOutputStore.node, AttachmentStore.node],
 })
