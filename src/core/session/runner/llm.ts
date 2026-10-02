@@ -418,6 +418,9 @@ const layer = Layer.effect(
                 }
               }
               // Check step output token budget
+              // A-28-1：只发布告警，不中断本轮。此前 config.ts 把这个字段描述为
+              // "forced stop"，与实现不符 —— 已改为如实描述告警语义。真正的硬上限
+              // 由请求侧的 maxOutputTokens 承担，超限会让 provider 直接拒绝。
               if (budgetConfig.step_output_tokens !== undefined && stepSettlement.tokens.output > budgetConfig.step_output_tokens) {
                 yield* withPublication(
                   events.publish(SessionEvent.Budget.Warning, {

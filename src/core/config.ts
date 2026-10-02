@@ -117,7 +117,7 @@ export class Info extends Schema.Class<Info>("Config.Info")({
       description: "Maximum total tokens per session (input+output+reasoning). Triggers warning when exceeded.",
     }),
     step_output_tokens: Schema.optional(NonNegativeInt).annotate({
-      description: "Maximum output tokens per LLM step (default: model limit). Triggers forced stop when exceeded.",
+      description: "Maximum output tokens per LLM step (default: model limit). Exceeding it publishes a Budget.Warning event; it does NOT halt the run.",
     }),
     alert_threshold: Schema.optional(Schema.Finite).annotate({
       description: "Cost threshold (0-1) that triggers a warning event (default: 0.8 = 80% of budget).",

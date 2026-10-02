@@ -399,4 +399,70 @@ describe("C-08 压缩成本与任务成本分离", () => {
     // 两笔而不是「一增一减」——回退/重投影不该让历史成本被追溯改写
     expect(ledgerCount).toHaveLength(2)
   })
+
+  // A-28-1：成本口径必须可追溯。此前 cost_source 恒为 "estimated"，
+  // 即便 v1 已算出 provider 实报值（session.ts:407）也会被 usage() 丢弃。
+  it("A-28-1：provider 实报的用量在 ledger 里标为 provider-reported", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const sources = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, sessionID, {
+          ...usage(1, 100),
+          costSource: "provider-reported",
+        })
+        return yield* db
+          .select({ source: CostLedgerTable.cost_source })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+      }),
+    )!
+    expect(sources).toHaveLength(1)
+    expect(sources[0]?.source).toBe("provider-reported")
+  })
+
+  it("A-28-1：本地估算的用量标为 estimated，不与实报混淆", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const sources = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, sessionID, {
+          ...usage(1, 100),
+          costSource: "estimated",
+        })
+        return yield* db
+          .select({ source: CostLedgerTable.cost_source })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+      }),
+    )!
+    expect(sources[0]?.source).toBe("estimated")
+  })
+
+  it("A-28-1：缺省（旧事件无该字段）回落为 estimated，不写成 unknown", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const sources = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        return yield* db
+          .select({ source: CostLedgerTable.cost_source })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+      }),
+    )!
+    expect(sources[0]?.source).toBe("estimated")
+  })
 })

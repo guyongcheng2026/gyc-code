@@ -41,6 +41,12 @@ type Usage = {
    * 但不计入 task.cost —— 压缩是维持会话的固定开销，不是本轮任务的产出。
    */
   compaction?: boolean
+  /**
+   * A-28-1：成本口径。v1 已在 SessionV1 里算出 provider 实报值（session.ts:407），
+   * 但此前 usage() 只取 cost/tokens 把口径丢了，ledger 一律记 estimated。
+   * 结果是实报与估算混在一张表里无法对账，也看不出账单与本地估算的差。
+   */
+  costSource?: "provider-reported" | "estimated"
 }
 
 function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] | unknown): Usage | undefined {
@@ -52,6 +58,8 @@ function usage(part: (typeof SessionV1.Event.PartUpdated.Type)["data"]["part"] |
     cost: value.cost as Usage["cost"],
     tokens: value.tokens as Usage["tokens"],
     compaction: value.compaction === true ? true : undefined,
+    // A-28-1：只认 provider 实报这一个权威口径，其余一律 estimated
+    costSource: value.costSource === "provider-reported" ? "provider-reported" : "estimated",
   }
 }
 
@@ -207,7 +215,9 @@ function addUsageRow(
         tokens_cache_read: value.tokens.cache.read,
         tokens_cache_write: value.tokens.cache.write,
         tokens_reasoning: value.tokens.reasoning,
-        cost_source: "estimated" as const,
+        // A-28-1：旧事件可能没有该字段，回落 estimated（不是 unknown ——
+// unknown 会让「没标记」和「确实查不到来源」混为一谈）
+        cost_source: value.costSource === "provider-reported" ? ("provider-reported" as const) : ("estimated" as const),
         metadata: {} as Record<string, unknown>,
       } as typeof CostLedgerTable.$inferInsert)
       .execute()
