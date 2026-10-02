@@ -13,6 +13,7 @@ import { McpAuth } from "@/mcp/auth"
 import { McpOAuthProvider } from "@/mcp/oauth-provider"
 import { Config } from "@/config/config"
 import { ConfigMCPV1 } from "@gyccode/core/v1/config/mcp"
+import { McpCatalog } from "@gyccode/core/config/mcp-catalog"
 import { InstanceRef } from "@/effect/instance-ref"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import path from "path"
@@ -92,6 +93,86 @@ function authState() {
   })
 }
 
+export const McpCatalogCommand = effectCmd({
+  command: "catalog [query]",
+  describe: "浏览可审计的 MCP 服务器目录（标注权限、传输与数据流向）",
+  builder: (yargs) =>
+    yargs.positional("query", {
+      describe: "按名称或描述过滤",
+      type: "string",
+    }),
+  handler: Effect.fn("Cli.mcp.catalog")(function* (args) {
+    UI.empty()
+    prompts.intro("MCP 服务器目录")
+
+    const entries = McpCatalog.Builtin.search(args.query ?? "")
+    if (entries.length === 0) {
+      prompts.log.warn("没有匹配的目录条目")
+      prompts.outro("去掉过滤词再看全部条目：gyccode mcp catalog")
+      return
+    }
+
+    for (const entry of entries) {
+      prompts.log.info(
+        `● ${entry.name} ${entry.transport}\n` +
+          `    ${entry.description}\n` +
+          `    权限 ${McpCatalog.normalize(entry.permissions).join("、")}` +
+          ` · 数据 ${entry.dataFlow.join("、")}`,
+      )
+    }
+
+    prompts.outro(`共 ${entries.length} 个条目。安装：gyccode mcp install <名称>`)
+  }),
+})
+
+export const McpInstallCommand = effectCmd({
+  command: "install <name>",
+  describe: "从目录安装 MCP 服务器（安装前先展示权限与数据流向）",
+  builder: (yargs) =>
+    yargs.positional("name", {
+      describe: "目录中的条目名称",
+      type: "string",
+      demandOption: true,
+    }),
+  handler: Effect.fn("Cli.mcp.install")(function* (args) {
+    const entry = McpCatalog.Builtin.entry(args.name)
+    if (!entry) {
+      prompts.log.error(`目录中没有条目：${args.name}`)
+      prompts.log.info(`可用条目：${McpCatalog.Builtin.entryNames().join("、")}`)
+      return
+    }
+
+    const serverConfig = McpCatalog.Builtin.toConfig(args.name)
+    if (!serverConfig) {
+      prompts.log.error(`条目 ${entry.name} 无法生成配置（传输与端点不自洽）`)
+      return
+    }
+
+    UI.empty()
+    prompts.intro("安装前确认")
+    // 目录的核心价值在这一屏：装之前先把「这台服务器会拿到什么」摊开
+    prompts.note(McpCatalog.describeForReview(entry))
+
+    const confirmed = yield* Effect.promise(() =>
+      prompts.confirm({ message: "确认写入配置文件？", initialValue: false }),
+    )
+    if (!confirmed) {
+      prompts.outro("已取消，未修改任何配置")
+      return
+    }
+
+    const maybeCtx = yield* InstanceRef
+    if (!maybeCtx) return yield* Effect.die("InstanceRef not provided")
+    const path = yield* Effect.promise(async () =>
+      addMcpToConfig(entry.name, serverConfig, await resolveConfigPath(maybeCtx.directory)),
+    )
+    yield* Effect.sync(() => {
+      prompts.log.success(`已写入 ${path}`)
+      prompts.outro("用 gyccode mcp list 查看状态")
+    })
+  }),
+})
+
 export const McpCommand = cmd({
   command: "mcp",
   describe: "管理 MCP（Model Context Protocol）服务器",
@@ -99,6 +180,8 @@ export const McpCommand = cmd({
     yargs
       .command(McpAddCommand)
       .command(McpListCommand)
+      .command(McpCatalogCommand)
+      .command(McpInstallCommand)
       .command(McpAuthCommand)
       .command(McpLogoutCommand)
       .command(McpDebugCommand)
