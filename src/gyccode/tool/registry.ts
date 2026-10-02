@@ -42,6 +42,7 @@ import { Provider } from "@/provider/provider"
 
 import { WebSearchTool } from "./websearch"
 import { LspTool } from "./lsp"
+import { FindReferencesTool } from "./find-references"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
 import { Glob } from "@gyccode/core/util/glob"
@@ -124,6 +125,7 @@ const layer = Layer.effect(
     const question = yield* QuestionTool
     const todo = yield* TodoWriteTool
     const lsptool = yield* LspTool
+    const findReferences = yield* FindReferencesTool
     const plan = yield* PlanExitTool
     const planEnter = yield* PlanEnterTool
     const worktreeEnter = yield* EnterWorktreeTool
@@ -295,6 +297,7 @@ const layer = Layer.effect(
           patch: Tool.init(patchtool),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
+          findReferences: Tool.init(findReferences),
           plan: Tool.init(plan),
           planEnter: Tool.init(planEnter),
           worktreeEnter: Tool.init(worktreeEnter),
