@@ -1,5 +1,7 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { pickDefaultFreeModel } from "./free-models"
+import * as LocalInference from "./local"
+import { discoverOllamaModels } from "./local"
 import { createModelQueryCache } from "@gyccode/core/util/ttl-cache"
 import { wrapSSE } from "@gyccode/core/aisdk"
 import os from "os"
@@ -174,6 +176,17 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
         options: ok ? {} : { apiKey: "public" },
       }
     }),
+    // A-29-2：本机推理（Ollama）。autoload=false —— 本机装没装 Ollama 只有用户知道，
+    // 自动探测会在每次启动时白等一次超时；改为显式配置后再加载。
+    // 模型列表走 discoverModels 动态发现，成本恒 0 且 priced=false（本机不计费）。
+    ollama: () =>
+      Effect.succeed({
+        autoload: false,
+        options: { baseURL: LocalInference.DEFAULT_BASE_URL },
+        async discoverModels() {
+          return discoverOllamaModels()
+        },
+      }),
     openai: () =>
       Effect.succeed({
         autoload: false,
