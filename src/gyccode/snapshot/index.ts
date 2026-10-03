@@ -61,6 +61,13 @@ export interface Interface {
   readonly history: (limit: number) => Effect.Effect<{ hash: string; message: string; time: number }[]>
   /** 回退到指定 commit 的内容（不影响用户真实仓库）。 */
   readonly revertToCommit: (hash: string) => Effect.Effect<void>
+  /**
+   * 任务收尾时自动固化一轮快照（对标 P0-2 的「每任务自动 commit」接线点）。
+   *
+   * 与 `commit` 同语义，单独命名是为了让调用方的意图自解释：无变更或 message 为空
+   * 时同样返回 undefined，调用方据此静默跳过即可。
+   */
+  readonly commitTaskEnd: (message: string) => Effect.Effect<string | undefined>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/Snapshot") {}
@@ -932,7 +939,19 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           Effect.forkScoped,
         )
 
-        return { cleanup, track, patch, restore, revert, diff, diffFull, commit, history, revertToCommit }
+        return {
+          cleanup,
+          track,
+          patch,
+          restore,
+          revert,
+          diff,
+          diffFull,
+          commit,
+          commitTaskEnd: commit,
+          history,
+          revertToCommit,
+        }
       }),
     )
 
@@ -962,6 +981,13 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
         return yield* InstanceState.useEffect(state, (s) => s.diffFull(from, to))
       }),
       commit: Effect.fn("Snapshot.commit")(function* (message: string) {
+        return yield* InstanceState.useEffect(state, (s) => s.commit(message))
+      }),
+      /**
+       * 任务结束自动快照的薄封装：直接复用 commit 的完整语义
+       * （空 message 或工作区无变更时返回 undefined，不产生空快照）。
+       */
+      commitTaskEnd: Effect.fn("Snapshot.commitTaskEnd")(function* (message: string) {
         return yield* InstanceState.useEffect(state, (s) => s.commit(message))
       }),
       history: Effect.fn("Snapshot.history")(function* (limit: number) {

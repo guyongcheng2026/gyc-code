@@ -30,6 +30,99 @@ const SUPPORTED_IMAGE_MIMES = new Set(["image/jpeg", "image/png", "image/gif", "
 
 const readCache = ReadCache()
 
+/**
+ * R-3（对标指标 23 · 可靠性与安全）：凭据文件屏蔽。
+ *
+ * 此前 `read('.env')` 会原样把密钥回灌给模型，模型随后极可能把它抄进日志、
+ * 提交或后续对话。这里在工具入口直接拦掉，并返回结构化说明而不是静默空内容，
+ * 让模型知道「这是被拦的、为什么被拦、正确做法是找用户要凭据」。
+ *
+ * 判定与文案都是纯函数（同 MATCH_LIMIT / compaction 的分层），执行路径只做调用。
+ */
+
+/** 放行名单：这些是样例/模板，不含真实凭据，不应被拦 */
+export const SENSITIVE_FILE_ALLOWLIST: readonly string[] = [".env.example", ".env.sample", ".env.template"]
+
+/**
+ * 敏感文件名规则（作用于 basename，已转小写）。
+ * `pattern` 是纯正则，`reason` 会原样出现在屏蔽说明里，供模型与用户理解拦截依据。
+ */
+export const SENSITIVE_FILE_RULES: readonly { id: string; pattern: RegExp; reason: string }[] = [
+  {
+    id: "env-file",
+    pattern: /^\.env($|\.)/,
+    reason: "环境变量文件，通常包含 API Key、令牌与数据库口令等明文凭据",
+  },
+  {
+    id: "private-key",
+    pattern: /\.(pem|key|p8)$/,
+    reason: "PEM/私钥文件，密钥材料不得进入模型上下文",
+  },
+  {
+    id: "ssh-private-key",
+    pattern: /^id_(rsa|dsa|ecdsa|ed25519)$/,
+    reason: "SSH 私钥文件，属于最高敏感度的凭据",
+  },
+  {
+    id: "key-store",
+    pattern: /\.(p12|pfx|jks|keystore)$/,
+    reason: "密钥库/证书包，通常打包了私钥",
+  },
+  {
+    id: "credentials-json",
+    pattern: /(^|[-_.])credentials(\.json|\.yml|\.yaml)?$/,
+    reason: "凭据配置文件，通常保存服务账号的密钥对",
+  },
+]
+
+export type SensitiveVerdict =
+  | { blocked: true; reason: string; ruleId: string }
+  | { blocked: false }
+
+/**
+ * 判定某路径是否命中屏蔽清单（纯函数，无 IO）。
+ * basename 大小写不敏感；`.pub` 结尾视为公钥，不屏蔽。
+ */
+export const evaluateSensitiveFile = (filepath: string): SensitiveVerdict => {
+  const base = path.basename(filepath.replace(/\\/g, "/")).toLowerCase()
+  if (!base) return { blocked: false }
+  if (SENSITIVE_FILE_ALLOWLIST.includes(base)) return { blocked: false }
+  // 公钥可以公开，不作为凭据拦截
+  if (base.endsWith(".pub")) return { blocked: false }
+
+  for (const rule of SENSITIVE_FILE_RULES) {
+    if (rule.pattern.test(base)) return { blocked: true, reason: rule.reason, ruleId: rule.id }
+  }
+  return { blocked: false }
+}
+
+/**
+ * 被拦截时返回给模型的结构化说明（纯函数）。
+ * 明确写出路径、原因与「不要绕过、需要凭据请让用户提供」，避免模型静默得到空内容。
+ */
+export const buildSensitiveBlockedOutput = (input: { filepath: string; reason: string }): string =>
+  [
+    `<path>${input.filepath}</path>`,
+    `<type>sensitive</type>`,
+    "<blocked>",
+    `该文件因疑似凭据/密钥材料已被屏蔽，未读取任何内容。`,
+    `屏蔽原因：${input.reason}`,
+    "",
+    "请不要尝试绕过此限制（例如改用 grep/shell/base64/改名读取等方式）。",
+    "如果任务确实需要其中的凭据，请让用户提供凭据本身或由用户确认后再继续。",
+    "若用户明确知情并坚持读取，可在本工具上显式传入 allow_sensitive=true；否则到此为止。",
+    "</blocked>",
+  ].join("\n")
+
+/** 显式放行时的告知文案：让模型知道本次内容并非默认读取而来 */
+export const buildSensitiveBypassNotice = (input: { filepath: string; reason: string }): string =>
+  [
+    `<sensitive-notice>`,
+    `${input.filepath} 是敏感文件（${input.reason}），本次是显式放行读取（allow_sensitive=true）。`,
+    "请勿把其中的密钥写入日志、提交或后续对话；如无必要应尽快停止引用。",
+    "</sensitive-notice>",
+  ].join("\n")
+
 class ReadStop extends Schema.TaggedErrorClass<ReadStop>()("ReadStop", {}) {}
 
 
@@ -45,6 +138,10 @@ export const Parameters = Schema.Struct({
   }),
   limit: Schema.optional(NonNegativeInt).annotate({
     description: "The maximum number of lines to read (defaults to 2000)",
+  }),
+  allow_sensitive: Schema.optional(Schema.Boolean).annotate({
+    description:
+      "Set to true to read a credential/secret file that would otherwise be blocked (e.g. .env, *.pem, id_rsa). Default false. Only use when the user has explicitly asked for it.",
   }),
 })
 
@@ -292,6 +389,25 @@ export const ReadTool = Tool.define<
 
       if (!stat) return yield* miss(filepath)
 
+      // R-3（对标指标 23）：凭据文件默认屏蔽。放在权限询问之后、任何内容读取之前，
+      // 保证密钥不会进入上下文；模型显式传 allow_sensitive=true 时放行并在输出中注明。
+      const sensitiveVerdict = evaluateSensitiveFile(filepath)
+      const sensitiveBypassed = stat.type !== "Directory" && sensitiveVerdict.blocked && params.allow_sensitive === true
+      if (stat.type !== "Directory" && sensitiveVerdict.blocked && !sensitiveBypassed) {
+        return {
+          title,
+          output: buildSensitiveBlockedOutput({ filepath, reason: sensitiveVerdict.reason }),
+          metadata: {
+            preview: `已屏蔽敏感文件：${filepath}`,
+            truncated: false,
+            loaded: [] as string[],
+          },
+        }
+      }
+      const sensitiveNotice = sensitiveBypassed
+        ? buildSensitiveBypassNotice({ filepath, reason: sensitiveVerdict.reason })
+        : undefined
+
       if (stat.type === "Directory") {
         const items = yield* list(filepath)
         const limit = params.limit ?? DEFAULT_READ_LIMIT
@@ -428,6 +544,7 @@ export const ReadTool = Tool.define<
       }
 
       let output = [`<path>${filepath}</path>`, `<type>file</type>`, "<content>\n"].join("\n")
+      if (sensitiveNotice) output += `${sensitiveNotice}\n`
       output += file.raw.map((line, i) => `${i + file.offset}: ${line}`).join("\n")
 
       const last = file.offset + file.raw.length - 1

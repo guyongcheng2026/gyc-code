@@ -3,7 +3,18 @@ import { httpClient } from "@gyccode/core/effect/app-node-platform"
 import { Ripgrep } from "@gyccode/core/ripgrep"
 import { PlanExitTool, PlanEnterTool } from "./plan"
 import { EnterWorktreeTool, ExitWorktreeTool, ListWorktreeTool } from "./worktree"
-import { GitStatusTool, GitDiffTool, GitLogTool, GitCommitTool, GitBranchTool, GitStashTool } from "./git"
+import {
+  GitStatusTool,
+  GitDiffTool,
+  GitLogTool,
+  GitCommitTool,
+  GitBranchTool,
+  GitStashTool,
+  GitPushTool,
+  GhPrCreateTool,
+  CiStatusTool,
+  FileRollbackTool,
+} from "./git"
 import { NotebookEditTool } from "./notebook"
 import { ScheduleCronTool, CronDeleteTool, CronListTool, CronScheduler } from "./cron"
 import { McpAuthTool } from "./mcp-auth"
@@ -51,6 +62,7 @@ import path from "path"
 import { pathToFileURL } from "url"
 import { Effect, Layer, Context } from "effect"
 import { CrossSpawnSpawner } from "@gyccode/core/cross-spawn-spawner"
+import { AppProcess } from "@gyccode/core/process"
 import { Format } from "../format"
 import { InstanceState } from "@/effect/instance-state"
 import { EffectBridge } from "@/effect/bridge"
@@ -140,6 +152,11 @@ const layer = Layer.effect(
     const gitCommit = yield* GitCommitTool
     const gitBranch = yield* GitBranchTool
     const gitStash = yield* GitStashTool
+    // W-3 / W-4 / W-5：推送、建 PR、查 CI、单文件回滚
+    const gitPush = yield* GitPushTool
+    const ghPrCreate = yield* GhPrCreateTool
+    const ciStatus = yield* CiStatusTool
+    const fileRollback = yield* FileRollbackTool
     const notebook = yield* NotebookEditTool
     const scheduleCron = yield* ScheduleCronTool
     const cronDelete = yield* CronDeleteTool
@@ -312,6 +329,10 @@ const layer = Layer.effect(
           gitCommit: Tool.init(gitCommit),
           gitBranch: Tool.init(gitBranch),
           gitStash: Tool.init(gitStash),
+          gitPush: Tool.init(gitPush),
+          ghPrCreate: Tool.init(ghPrCreate),
+          ciStatus: Tool.init(ciStatus),
+          fileRollback: Tool.init(fileRollback),
           notebook: Tool.init(notebook),
           scheduleCron: Tool.init(scheduleCron),
           cronDelete: Tool.init(cronDelete),
@@ -369,7 +390,7 @@ const layer = Layer.effect(
             // P0-3：git 工具仅对 Git 项目暴露——非 Git 项目（vcs !== "git"）
             // 上暴露它们只会诱导模型去调用注定失败的工具。
             ...(gitProject
-              ? [tool.gitStatus, tool.gitDiff, tool.gitLog, tool.gitCommit, tool.gitBranch, tool.gitStash]
+              ? [tool.gitStatus, tool.gitDiff, tool.gitLog, tool.gitCommit, tool.gitBranch, tool.gitStash, tool.gitPush, tool.ghPrCreate, tool.ciStatus]
               : []),
             tool.notebook,
             tool.scheduleCron,
@@ -576,6 +597,8 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     httpClient,
     CrossSpawnSpawner.node,
+    // W-3 / W-5：gh_pr_create 与 ci_status 需要跑 GitHub CLI 子命令
+    AppProcess.node,
     Format.node,
     Truncate.node,
     RuntimeFlags.node,

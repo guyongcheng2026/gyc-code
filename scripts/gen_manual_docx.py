@@ -30,6 +30,8 @@ import manual_content_4 as c4
 import manual_content_5 as c5
 import manual_content_6 as c6
 import manual_content_7 as c7
+import manual_content_8 as c8
+import manual_content_9 as c9
 
 # 文档属性
 CORE_TITLE = "gyccode 操作手册"
@@ -137,6 +139,10 @@ def main():
     c7.chapter19(doc)
     c7.chapter20(doc)
     c7.chapter21(doc)
+    doc.add_page_break()
+    c8.appendix_a(doc)
+    c9.appendix_b(doc)
+    c9.appendix_c(doc)
     c4.closing(doc)
     stamp_sync_token(doc)
 

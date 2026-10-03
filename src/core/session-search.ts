@@ -13,7 +13,8 @@ import { TRIGRAM_MIN_LENGTH, toFtsPhrase } from "./session-search-index"
  *   - LIKE 全表扫——回退。查询短于 3 字、索引尚未建（老库未迁移）、或 FTS 报错时
  *     都走这条，保证功能不因缺少索引而失效。
  *
- * 两条路径返回同一套字段与同一种排序（时间倒序、同时间按 part id 升序）。
+ * 两条路径返回同一套字段与同一种排序：先按相关度（命中次数多、首次出现靠前），
+ * 相关度完全相同时才回落到时间倒序、同时间按 part id 升序。
  */
 export interface Input {
   query: string
@@ -49,6 +50,19 @@ function asResults(rows: unknown): Result[] {
   return (rows ?? []) as Result[]
 }
 
+/**
+ * 相关度排序子句：命中次数多 → 首次出现靠前 → 时间倒序 → part id 升序。
+ *
+ * 直接在 SQL 里排序，而不是「先取 limit 条再在 JS 里重排」——后者会先把时间最新的
+ * N 条截断，命中质量更高的老结果根本进不了候选池（缺口 P1-2：此前只按时间倒序）。
+ * 两个 `?` 依次绑定**原始 query**（不转义、不加引号），因为 REPLACE/INSTR 做的是字面匹配。
+ */
+function relevanceOrder(text: string): string {
+  return `ORDER BY (LENGTH(${text}) - LENGTH(REPLACE(${text}, ?, ''))) DESC,
+            INSTR(${text}, ?) ASC,
+            m.time_created DESC`
+}
+
 function searchViaLike(db: Database, query: string, sessionID: string | undefined, limit: number): Result[] {
   const statement = db.query(`
     SELECT p.session_id AS session_id,
@@ -63,14 +77,14 @@ function searchViaLike(db: Database, query: string, sessionID: string | undefine
      WHERE json_extract(p.data, '$.type') = 'text'
        AND json_extract(p.data, '$.text') LIKE '%' || ? || '%' ESCAPE '\\'
        ${sessionID ? "AND p.session_id = ?" : ""}
-     ORDER BY m.time_created DESC, p.id ASC
+     ${relevanceOrder("json_extract(p.data, '$.text')")}, p.id ASC
      LIMIT ?
   `)
   ;(statement as { safeIntegers?: (v: boolean) => unknown }).safeIntegers?.(false)
 
   const params: SQLQueryBindings[] = [escapeLike(query)]
   if (sessionID) params.push(sessionID)
-  params.push(limit)
+  params.push(query, query, limit)
 
   return asResults(statement.all(...params))
 }
@@ -89,14 +103,14 @@ function searchViaFts(db: Database, query: string, sessionID: string | undefined
       LEFT JOIN session s ON s.id = pt.session_id
      WHERE part_fts MATCH ?
        ${sessionID ? "AND pt.session_id = ?" : ""}
-     ORDER BY m.time_created DESC, pt.id ASC
+     ${relevanceOrder("pt.text")}, pt.id ASC
      LIMIT ?
   `)
   ;(statement as { safeIntegers?: (v: boolean) => unknown }).safeIntegers?.(false)
 
   const params: SQLQueryBindings[] = [toFtsPhrase(query)]
   if (sessionID) params.push(sessionID)
-  params.push(limit)
+  params.push(query, query, limit)
 
   return asResults(statement.all(...params))
 }

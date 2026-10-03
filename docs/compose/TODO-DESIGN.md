@@ -1,4 +1,4 @@
-# 待设计清单（TODO-DESIGN）
+﻿# 待设计清单（TODO-DESIGN）
 
 > 本清单记录工作中所有"待设计"的内容——需架构决策后才能实施，不属即时缺陷。
 > 用户询问"待设计"任务时，依此清单逐条列出供决策。
@@ -29,6 +29,32 @@
 | D8 | **上游 AI SDK 补丁是否引入** | 上游 1.18.32 新增 `patches/@ai-sdk%2Fopenai@3.0.88.patch`（去除 serviceTier 能力校验与参数剔除）；gyc 无 `patches/` 机制与 `patchedDependencies` | 是否新建 `patches/` + 登记依赖补丁并移植该补丁；或永久保持不引入（gyc 自研 `src/llm` 直构请求、vendored copilot 语言模型自带 serviceTier 逻辑） | 2026-09-27 内核升级 |
 | D9 | **anthropicBlockBinding 是否移植** | 上游把 thinking 绑定控制（`blockBinding` + thinking-binding-controls）改为按 Claude 5.1+ 生效并支持 opt-out；gyc 用 `anthropicUsesModernAdaptiveThinking` 走等价路径，未实现 `blockBinding` | 是否引入（前置依赖 D8 的 SDK 补丁支持）或永久保持差异 | 2026-09-27 内核升级 |
 | D10 | **内核升级流程沉淀为 SKILL** | 本次升级流程可复用：gh-proxy 取上游参考仓库 → 建映射表 → 逐文件 hunk 移植 → EOL/BOM 归一化比对 → tsc + 全量测试 | 是否新建 `gyc-kernel-upgrade` SKILL 固化该流程（含「本地已拆分文件按符号定位」等坑位） | 2026-09-27 内核升级 |
+
+### ✅ 已完成（2026-10-03 落地，附证据）
+
+| 编号 | 内容 | 落地位置与验证方式 |
+|---|---|---|
+| W-2 | 提交前四检接入工具层 | `.githooks/pre-commit-checks.mjs` 抽取为可调用模块（含超时与输出截断收口）；`src/gyccode/tool/git.ts:280,290,309` 新增 `run_checks`（默认关闭）；`pre-commit-checks.test.ts` 9 项 |
+| W-3 | 推送与合并请求工具 | `git.ts:483` `GitPushTool`（`force` 走既有 `destructiveGuard`）、`:556` `GhPrCreateTool`、`:592` `CiStatusTool`（零新增依赖，缺 `gh` 时返回可读诊断）；`registry.ts:156-158,332-334` 注册；`git-extended.test.ts` 6 项 |
+| W-4 | swarm teammate 有界并发 | `src/gyccode/tool/swarm.ts:34,43-57,129-130,270` 由 `unbounded` 改为信号量有界，默认 4、夹到上限、非法值回落；`swarm-concurrency.test.ts` 5 项 |
+| W-5 | 备份回滚入口 | `git.ts:629` `FileRollbackTool` 复用 `file-backup.ts` 既有函数，未改动该文件；`registry.ts:159,335` 注册 |
+| A-3 | `dontAsk` 权限模式 | `permission/modes.ts` 登记；`index.ts` 未命中 allow 的请求直接拒绝而不挂 `Deferred` |
+| A-4 | 工作目录路径围栏 | `permission/index.ts:25` `FENCED_PERMISSIONS`；编辑/写入/读取/补丁/笔记本五类带 path 的权限做围栏校验 |
+| A-5 | 权限拒绝流水表 | `src/core/session/permission-denial-table.ts` DDL；迁移 `20261001000003_permission_denials`；`migration.gen.ts:51`、`schema.gen.ts:292-294` |
+| A-1 | 结构化错误落库 | `src/core/observability/error-audit-table.ts` DDL；`error-audit.ts`（写入函数 + 可注入 sink + 微任务投递）；`log-error.ts:12-26,32,38,45` 接线；`src/gyccode/effect/app-runtime.ts:178-182` 注入；迁移 `20261001000004_error_audit`；`error-audit.test.ts` 12 项 |
+| S-05 | 高相似内容误替换 | `edit.ts:868-871,887` 已加「匹配跨度远大于 oldString 则拒绝」与「多处匹配要求补上下文」两道闸门 |
+| S-06 | 缓存淘汰与读取状态同步 | `tool/read-cache.ts:42-56,94-95` readSet 与缓存淘汰语义对齐；`edit.ts:143,215`、`write.ts:98` 写后失效缓存 |
+| TUI 崩溃 | 富渲染绕过句柄预算闸门 | `routes/session/index.tsx:2557,2874,2936`、`feature-plugins/system/diff-viewer.tsx:870-905`、`routes/session/permission.tsx:61-92` 四条路径补接入 `LimitedContent`；`rich-render-guarded.test.ts` 12 项锁死接线关系 |
+| MCP 日志 | 长会话重复刷 `[MCP] Calling ... with params` | 源码侧早已改（`mcp/standard-elements.ts:78-81` 需 `GYCCODE_DEBUG=1` 才输出）；实际来源是 9 月的陈旧孤儿产物 `dist/cli/tui/worker.js`，已删除 |
+| 模型目录 | 全量同步与指定免费模型核验 | `bun scripts/sync-models.mjs` → 220 供应商 / 8157 模型；Ling 3.0 Flash Sante 与 Laguna S 2.1 均已收录；**Pixel Canary 在全部 220 家供应商中均无记录**（见 U-1） |
+| 手册 | 附录 A/B/C 此前未接入生成脚本 | `scripts/gen_manual_docx.py:33-34,136-141` 补 `import manual_content_8/9` 并串入 `appendix_a/b/c`；`manual_content_5.py` 补四个新工具与 `git_commit.run_checks`；`manual_content_3.py` 补 `dontAsk`、路径围栏与拒绝流水 |
+
+### ❌ 未解决项（需谷总决策）
+
+| 编号 | 内容 | 现状 |
+|---|---|---|
+| U-1 | Pixel Canary 未收录 | 对 `models-mirror/api.json` 全部 220 家供应商做 `pixel` / `canary` 模糊检索，零命中。无法确认它是新发布尚未被上游目录收录，还是名称记法有误。若能提供确切的供应商与模型 ID，可作为临时补充收录 |
+| U-2 | `Failed to create TextBuffer` 原生路径根因 | 已把四条富渲染路径纳入句柄预算闸门并加测试锁死，但未能复现崩溃本身（opentui 真实渲染需原生终端，bun test 起不来）。若仍复现，需在原生终端下抓取句柄分配栈 |
 
 ### ✅ 已决策（历史，供追溯）
 

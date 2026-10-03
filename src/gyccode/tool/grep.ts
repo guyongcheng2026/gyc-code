@@ -10,6 +10,16 @@ import * as Tool from "./tool"
 
 export const MATCH_LIMIT = 100
 
+/**
+ * 零命中时的回执文案。
+ *
+ * 语义必须与「内容搜索」一致：这里搜的是文件内容，不是文件本身。历史上此处返回
+ * "No files found"，模型会读成「这个目录下没有文件」，进而判定目标文件/API 不存在
+ * 并转而自己造一个（对标 H-04）。单独导出是为了让这段关键文案可被测试直接锁定。
+ */
+export const emptyMatchNotice = (pattern: string, path?: string): string =>
+  `No matches found for pattern /${pattern}/${path ? ` in ${path}` : ""}. The pattern does not occur in any searched file's contents. If you expected a match: widen the pattern, pass \`include\`, or point \`path\` at a different directory. Do not conclude the symbol or file does not exist from this result alone.`
+
 export const Parameters = Schema.Struct({
   pattern: Schema.String.annotate({ description: "The regex pattern to search for in file contents" }),
   path: Schema.optional(Schema.String).annotate({
@@ -36,9 +46,7 @@ export const GrepTool = Tool.define(
             // 语义必须与「内容搜索」一致：这里搜的是文件内容，不是文件本身。
             // 历史上此处返回 "No files found"，模型会读成「这个目录下没有文件」，
             // 进而判定目标文件/API 不存在并转而自己造一个。
-            output: `No matches found for pattern /${params.pattern}/${
-              params.path ? ` in ${params.path}` : ""
-            }. The pattern does not occur in any searched file's contents. If you expected a match: widen the pattern, pass \`include\`, or point \`path\` at a different directory. Do not conclude the symbol or file does not exist from this result alone.`,
+            output: emptyMatchNotice(params.pattern, params.path),
           }
           if (!params.pattern) {
             throw new Error("pattern is required")
@@ -100,12 +108,12 @@ export const GrepTool = Tool.define(
           const matches = truncated ? ranked.slice(0, MATCH_LIMIT) : ranked
           if (matches.length === 0) return empty
 
-          const total = rows.length
+          const total = matches.length
           const hasMore = truncated
           const output = [`Found ${total} matches${hasMore ? " (more matches available)" : ""}`]
 
           let current = ""
-          for (const match of rows) {
+          for (const match of matches) {
             if (current !== match.path) {
               if (current !== "") output.push("")
               current = match.path

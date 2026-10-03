@@ -59,7 +59,7 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // 路径，明确告知模型可回查。
 export const TOOL_OUTPUT_MAX_CHARS = 2_000
 
-const summarizeToolOutput = (output: string, fullPath: string, tool?: string): string => {
+export const summarizeToolOutput = (output: string, fullPath: string, tool?: string): string => {
   if (output.length <= TOOL_OUTPUT_MAX_CHARS) return output
   // 证据类工具额外保尾部：read 的完整性标记（Showing lines X-Y of N）在末尾，
   // grep 的匹配行、bash 的报错也常在末尾，只留头部仍会让模型误判「这就是全部」。

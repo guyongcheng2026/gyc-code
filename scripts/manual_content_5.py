@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 scripts/manual_content_5.py
 《gyccode 操作手册》正文 —— 第十六章（内置工具参数大全）。
@@ -362,11 +362,16 @@ def chapter16(doc):
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["message", "是", "提交信息。必须提供，不填则拒绝提交"],
         ["addAll", "否", "是否一并暂存所有改动。默认为否"],
+        ["run_checks", "否", "提交前是否跑与本机提交钩子相同的四项检查。默认为否"],
     ], widths=[3.0, 1.6, 10.4])
     note(doc, "警告：默认仅提交已暂存内容，即只提交使用者或模型已执行暂存的部分，"
               "不会顺带提交其他未暂存的改动。"
               "只有显式设置 addAll 才会一并暂存。"
               "这是为避免误提交而设的保护，修改此项须格外谨慎。")
+    note(doc, "run_checks 为真时会在提交前检查：编码乱码、品牌用词、缺陷写法、"
+              "以及仅当暂存区含 src 目录下的 TypeScript 文件时才做的类型检查。"
+              "任一项不通过即拒绝提交并回灌失败原因。"
+              "单项检查最长 120 秒，超时按失败计入，不会无限等待。")
 
     h2(doc, "（三十九）git_branch 分支操作")
     code(doc, "工具标识: git_branch    归属: 仅版本控制仓库")
@@ -384,7 +389,48 @@ def chapter16(doc):
         ["force", "否", "取出时是否强制。属破坏性操作，须显式确认"],
     ], widths=[3.0, 1.8, 10.2])
 
-    h2(doc, "（四十一）worktree 隔离工作区")
+    h2(doc, "（四十一）git_push 推送远端")
+    code(doc, "工具标识: git_push    归属: 仅版本控制仓库")
+    table(doc, rows=[["参数", "必填", "说明与取值"]] + [
+        ["remote", "否", "远端名称。缺省时取当前分支的上游"],
+        ["branch", "否", "要推送的分支。缺省时推送当前分支"],
+        ["set_upstream", "否", "是否同时建立上游跟踪关系"],
+        ["force", "否", "是否强制推送。属破坏性操作，默认拒绝"],
+    ], widths=[3.0, 1.8, 10.2])
+    note(doc, "强制推送默认为拒绝执行。确需覆盖远端历史时必须显式确认，"
+              "且请先确认远端没有他人协作的提交。")
+
+    h2(doc, "（四十二）gh_pr_create 创建合并请求")
+    code(doc, "工具标识: gh_pr_create    归属: 仅版本控制仓库")
+    table(doc, rows=[["参数", "必填", "说明与取值"]] + [
+        ["title", "是", "合并请求标题。必须提供"],
+        ["body", "否", "合并请求正文说明"],
+        ["base", "否", "目标分支。缺省时由远端仓库默认值决定"],
+        ["head", "否", "来源分支。缺省时取当前分支"],
+        ["draft", "否", "是否以草稿状态创建"],
+    ], widths=[3.0, 1.6, 10.4])
+    note(doc, "依赖本机已安装并登录 GitHub 命令行工具。未安装时会返回可读提示，"
+              "不会静默失败。具体命令单次最长 30 秒。")
+
+    h2(doc, "（四十三）ci_status 查询持续集成状态")
+    code(doc, "工具标识: ci_status    归属: 仅版本控制仓库")
+    table(doc, rows=[["参数", "必填", "说明与取值"]] + [
+        ["branch", "否", "要查询的分支。缺省时查当前分支"],
+    ], widths=[3.0, 1.6, 10.4])
+    note(doc, "同样依赖 GitHub 命令行工具。未安装时返回安装提示。"
+              "无新增依赖：直接复用本机已装的命令行工具，未安装即明确告知，"
+              "不做网络探测。")
+
+    h2(doc, "（四十四）file_rollback 回滚文件改动")
+    code(doc, "工具标识: file_rollback    归属: 文件操作")
+    table(doc, rows=[["参数", "必填", "说明与取值"]] + [
+        ["path", "是", "要回滚的文件路径"],
+    ], widths=[3.0, 1.6, 10.4])
+    body(doc, "写文件类工具在改写前会自动留存原始副本。"
+              "本工具用于把某个文件恢复到最近一次留存副本的内容。"
+              "可回滚的前提是该文件此前被写过且留存副本仍在。")
+
+    h2(doc, "（四十五）worktree 隔离工作区")
     code(doc, "工具标识: worktree_enter / worktree_exit / worktree_list    归属: 实验特性")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["name", "否", "工作区名称。进入与退出时指定，列出时忽略"],
@@ -393,7 +439,7 @@ def chapter16(doc):
               "为并行任务建立独立的检出目录。适用于同时处理多个需求。")
 
     # ---------------------------------------------------------------- 系统类
-    h2(doc, "（四十二）config 读写配置")
+    h2(doc, "（四十六）config 读写配置")
     code(doc, "工具标识: config    权限类别: 无需审批    归属: 始终提供")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["setting", "是", "配置项名称，可填 model 默认模型、shell 默认外壳、"
@@ -403,7 +449,7 @@ def chapter16(doc):
     ], widths=[3.0, 1.6, 10.4])
     body(doc, "写入作用于全局配置。值支持字符串、布尔、数字三种类型。")
 
-    h2(doc, "（四十三）lsp 语言服务")
+    h2(doc, "（四十七）lsp 语言服务")
     code(doc, "工具标识: lsp    权限类别: lsp    归属: 实验特性")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["operation", "是", "操作类型，可填 goToDefinition 跳转定义、findReferences 查找引用、"
@@ -417,7 +463,7 @@ def chapter16(doc):
         ["query", "按操作", "查询词。工作区符号操作须填"],
     ], widths=[3.4, 2.4, 9.2])
 
-    h2(doc, "（四十四）execute 代码模式")
+    h2(doc, "（四十八）execute 代码模式")
     code(doc, "工具标识: execute    归属: 实验特性")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["background", "否", "是否在后台执行"],
@@ -425,7 +471,7 @@ def chapter16(doc):
     body(doc, "代码模式将多个工具的调用编排为一段代码一次执行，"
               "可显著减少模型与系统之间的往返次数，适合批量处理。")
 
-    h2(doc, "（四十五）tool_search 检索工具")
+    h2(doc, "（四十九）tool_search 检索工具")
     code(doc, "工具标识: tool_search    权限类别: 无需审批    归属: 始终提供")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["query", "是", "检索关键词"],
@@ -434,7 +480,7 @@ def chapter16(doc):
     body(doc, "当可用工具数量较多时，模型通过该工具按需检索，"
               "而非一次性载入全部工具说明，从而节省令牌。")
 
-    h2(doc, "（四十六）invalid 参数纠错")
+    h2(doc, "（五十）invalid 参数纠错")
     code(doc, "工具标识: invalid    归属: 始终提供")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
         ["tool", "是", "调用出错的工具名称"],
@@ -443,7 +489,7 @@ def chapter16(doc):
     body(doc, "当模型以错误参数调用工具时，该工具返回如何修正参数的指引。")
 
     # ---------------------------------------------------------------- 汇总
-    h2(doc, "（四十七）工具参数速查汇总")
+    h2(doc, "（五十一）工具参数速查汇总")
     body(doc, "下表按字母序列出全部内置工具及其参数，便于快速查阅。")
     table(doc, [
         ["工具标识", "参数（括号内为是否必填）"],
@@ -461,10 +507,14 @@ def chapter16(doc):
         ["edit", "filePath（是）、oldString（是）、newString（是）、replaceAll"],
         ["execute", "background"],
         ["find_references", "symbol（是）、path（是）、include"],
+        ["ci_status", "branch"],
+        ["file_rollback", "path（是）"],
+        ["gh_pr_create", "title（是）、body、base、head、draft"],
         ["git_branch", "action（是）、name、force"],
-        ["git_commit", "message（是）、addAll"],
+        ["git_commit", "message（是）、addAll、run_checks"],
         ["git_diff", "staged、path"],
         ["git_log", "count、path"],
+        ["git_push", "remote、branch、set_upstream、force"],
         ["git_stash", "action（是）、message、force"],
         ["git_status", "path"],
         ["glob", "pattern（是）、path"],
@@ -498,6 +548,8 @@ def chapter16(doc):
     ], widths=[4.2, 10.8])
     body(doc, "上表共列四十八项，与前文逐一说明的条目一致，"
               "另有若干工具在特定条件下方提供，详见第七章第七节。")
+
+
 
 
 

@@ -2540,6 +2540,7 @@ function Shell(props: ToolProps) {
 }
 
 function Write(props: ToolProps) {
+  const ctx = use()
   const { theme, syntax } = useTheme()
   const pathFormatter = usePathFormatter()
   const code = createMemo(() => {
@@ -2551,12 +2552,26 @@ function Write(props: ToolProps) {
       <Match when={props.metadata.diagnostics !== undefined}>
         <BlockTool title={"# Wrote " + pathFormatter.format(stringValue(props.input.filePath))} part={props.part}>
           <line_number fg={theme.textMuted} minWidth={3} paddingRight={1}>
-            <code
-              conceal={false}
-              fg={theme.text}
-              filetype={filetype(stringValue(props.input.filePath))}
-              syntaxStyle={syntax()}
-              content={code()}
+            {/* 写文件的内容可以任意大，直接进 <code> 会按行创建原生句柄，
+                必须过 LimitedContent 的行数/字节上限与句柄预算闸门。 */}
+            <LimitedContent
+              text={code()}
+              cols={ctx.width}
+              plainColor={theme.textMuted}
+              rich={() => (
+                <code
+                  conceal={false}
+                  fg={theme.text}
+                  filetype={filetype(stringValue(props.input.filePath))}
+                  syntaxStyle={syntax()}
+                  content={code()}
+                />
+              )}
+              plain={(text) => (
+                <text fg={theme.text} wrapMode="word">
+                  {text}
+                </text>
+              )}
             />
           </line_number>
           <Diagnostics diagnostics={props.metadata.diagnostics} filePath={stringValue(props.input.filePath) ?? ""} />
@@ -2916,24 +2931,38 @@ function ApplyPatch(props: ToolProps) {
   function Diff(p: { diff: string; filePath: string }) {
     return (
       <box paddingLeft={1}>
-        <diff
-          diff={p.diff}
-          view={view()}
-          filetype={filetype(p.filePath)}
-          syntaxStyle={syntax()}
-          showLineNumbers={true}
-          width="100%"
-          wrapMode={ctx.diffWrapMode()}
-          fg={theme.text}
-          addedBg={theme.diffAddedBg}
-          removedBg={theme.diffRemovedBg}
-          contextBg={theme.diffContextBg}
-          addedSignColor={theme.diffHighlightAdded}
-          removedSignColor={theme.diffHighlightRemoved}
-          lineNumberFg={theme.diffLineNumber}
-          lineNumberBg={theme.diffContextBg}
-          addedLineNumberBg={theme.diffAddedLineNumberBg}
-          removedLineNumberBg={theme.diffRemovedLineNumberBg}
+        {/* apply_patch 的每个文件 patch 都可能很大：一次改 20 个文件就是 20 份
+            diff 并存，不设闸门会直接把句柄表吃光（表现为「打开会话即退出」）。 */}
+        <LimitedContent
+          text={p.diff}
+          cols={ctx.width}
+          plainColor={theme.textMuted}
+          rich={() => (
+            <diff
+              diff={p.diff}
+              view={view()}
+              filetype={filetype(p.filePath)}
+              syntaxStyle={syntax()}
+              showLineNumbers={true}
+              width="100%"
+              wrapMode={ctx.diffWrapMode()}
+              fg={theme.text}
+              addedBg={theme.diffAddedBg}
+              removedBg={theme.diffRemovedBg}
+              contextBg={theme.diffContextBg}
+              addedSignColor={theme.diffHighlightAdded}
+              removedSignColor={theme.diffHighlightRemoved}
+              lineNumberFg={theme.diffLineNumber}
+              lineNumberBg={theme.diffContextBg}
+              addedLineNumberBg={theme.diffAddedLineNumberBg}
+              removedLineNumberBg={theme.diffRemovedLineNumberBg}
+            />
+          )}
+          plain={(text) => (
+            <text fg={theme.diffAdded} wrapMode="word">
+              {text}
+            </text>
+          )}
         />
       </box>
     )

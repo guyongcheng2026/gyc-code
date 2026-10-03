@@ -120,3 +120,51 @@ describe("SessionSearch.search", () => {
     expect(SessionSearch.search(db, { query: "   " })).toEqual([])
   })
 })
+
+describe("SessionSearch.search · 相关度排序", () => {
+  // 「缓存」只有 2 个码点，走 LIKE 回退路径，这里同时覆盖回退路径的排序。
+  const strong = "缓存策略讨论：缓存命中、缓存刷新、缓存预热都围绕缓存展开"
+  const weak = "今天只聊了天气，末尾顺口提一句缓存"
+
+  test("命中更多且更早出现的结果排在时间更新的弱命中之前", () => {
+    const db = makeDb()
+    seed(db, [
+      // 旧但强相关：命中 4 次，首次出现在开头
+      { message: { id: "m1", sessionId: "s1", timeCreated: 10 }, part: { id: "p1", messageId: "m1", sessionId: "s1", data: textPart(strong) } },
+      // 新但弱相关：只命中 1 次，且出现在末尾
+      { message: { id: "m2", sessionId: "s1", timeCreated: 99 }, part: { id: "p2", messageId: "m2", sessionId: "s1", data: textPart(weak) } },
+    ])
+
+    expect(SessionSearch.search(db, { query: "缓存" }).map((r) => r.part_id)).toEqual(["p1", "p2"])
+  })
+
+  test("命中次数相同时，首次命中位置更靠前的排前面", () => {
+    const db = makeDb()
+    seed(db, [
+      { message: { id: "m1", sessionId: "s1", timeCreated: 10 }, part: { id: "p1", messageId: "m1", sessionId: "s1", data: textPart("后面才提到缓存，仅此一次") } },
+      { message: { id: "m2", sessionId: "s1", timeCreated: 99 }, part: { id: "p2", messageId: "m2", sessionId: "s1", data: textPart("缓存就是这次的核心，仅此一次") } },
+    ])
+
+    expect(SessionSearch.search(db, { query: "缓存" }).map((r) => r.part_id)).toEqual(["p2", "p1"])
+  })
+
+  test("limit 在排序之后生效：被截断留下的是最相关的而不是最新的", () => {
+    const db = makeDb()
+    seed(db, [
+      { message: { id: "m1", sessionId: "s1", timeCreated: 10 }, part: { id: "p1", messageId: "m1", sessionId: "s1", data: textPart(strong) } },
+      { message: { id: "m2", sessionId: "s1", timeCreated: 99 }, part: { id: "p2", messageId: "m2", sessionId: "s1", data: textPart(weak) } },
+    ])
+
+    expect(SessionSearch.search(db, { query: "缓存", limit: 1 }).map((r) => r.part_id)).toEqual(["p1"])
+  })
+
+  test("相关度完全相同时仍回落到时间倒序，保证结果稳定", () => {
+    const db = makeDb()
+    seed(db, [
+      { message: { id: "m1", sessionId: "s1", timeCreated: 10 }, part: { id: "p1", messageId: "m1", sessionId: "s1", data: textPart("关键词甲") } },
+      { message: { id: "m2", sessionId: "s1", timeCreated: 30 }, part: { id: "p2", messageId: "m2", sessionId: "s1", data: textPart("关键词乙") } },
+    ])
+
+    expect(SessionSearch.search(db, { query: "关键词" }).map((r) => r.part_id)).toEqual(["p2", "p1"])
+  })
+})

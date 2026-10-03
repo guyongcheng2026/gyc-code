@@ -18,6 +18,7 @@ import { DiffViewerFileTree } from "./diff-viewer-file-tree"
 import { Panel, PanelGroup, Separator } from "./diff-viewer-ui"
 import { DialogSelect } from "../../ui/dialog-select"
 import { getScrollAcceleration } from "../../util/scroll"
+import { LimitedContent } from "../../component/limited-content"
 import {
   allExpandedFileTreeDirectories,
   buildFileTree,
@@ -867,27 +868,42 @@ function DiffViewer(props: { api: TuiPluginApi }) {
                             >
                               {(patch) => (
                                 <box border={patchLeftBorder()} borderColor={theme().border}>
-                                  <diff
-                                    ref={(element: DiffRenderable) => diffNodeByFileIndex.set(entry.fileIndex, element)}
-                                    diff={patch()}
-                                    view={view()}
-                                    filetype={reviewed() ? PLAIN_TEXT_FILETYPE : filetype(entry.file.file)}
-                                    syntaxStyle={themeState.syntax()}
-                                    showLineNumbers={true}
-                                    width="100%"
-                                    wrapMode="char"
-                                    fg={reviewed() ? theme().textMuted : theme().text}
-                                    addedBg={reviewed() ? theme().backgroundElement : theme().diffAddedBg}
-                                    removedBg={reviewed() ? theme().backgroundElement : theme().diffRemovedBg}
-                                    addedSignColor={reviewed() ? theme().textMuted : theme().diffHighlightAdded}
-                                    removedSignColor={reviewed() ? theme().textMuted : theme().diffHighlightRemoved}
-                                    lineNumberFg={theme().diffLineNumber}
-                                    addedLineNumberBg={
-                                      reviewed() ? theme().backgroundElement : theme().diffAddedLineNumberBg
-                                    }
-                                    removedLineNumberBg={
-                                      reviewed() ? theme().backgroundElement : theme().diffRemovedLineNumberBg
-                                    }
+                                  {/* 一次 review 可能有几十个文件，patch 全部并存会吃光
+                                      原生句柄表（表现为「打开会话即退出」）。过 LimitedContent
+                                      后超限文件降级为纯文本，滚动定位会自动跳过它们。 */}
+                                  <LimitedContent
+                                    text={patch()}
+                                    cols={patchPaneWidth()}
+                                    plainColor={theme().textMuted}
+                                    rich={() => (
+                                      <diff
+                                        ref={(element: DiffRenderable) => diffNodeByFileIndex.set(entry.fileIndex, element)}
+                                        diff={patch()}
+                                        view={view()}
+                                        filetype={reviewed() ? PLAIN_TEXT_FILETYPE : filetype(entry.file.file)}
+                                        syntaxStyle={themeState.syntax()}
+                                        showLineNumbers={true}
+                                        width="100%"
+                                        wrapMode="char"
+                                        fg={reviewed() ? theme().textMuted : theme().text}
+                                        addedBg={reviewed() ? theme().backgroundElement : theme().diffAddedBg}
+                                        removedBg={reviewed() ? theme().backgroundElement : theme().diffRemovedBg}
+                                        addedSignColor={reviewed() ? theme().textMuted : theme().diffHighlightAdded}
+                                        removedSignColor={reviewed() ? theme().textMuted : theme().diffHighlightRemoved}
+                                        lineNumberFg={theme().diffLineNumber}
+                                        addedLineNumberBg={
+                                          reviewed() ? theme().backgroundElement : theme().diffAddedLineNumberBg
+                                        }
+                                        removedLineNumberBg={
+                                          reviewed() ? theme().backgroundElement : theme().diffRemovedLineNumberBg
+                                        }
+                                      />
+                                    )}
+                                    plain={(text) => (
+                                      <text fg={theme().text} wrapMode="char">
+                                        {text}
+                                      </text>
+                                    )}
                                   />
                                 </box>
                               )}

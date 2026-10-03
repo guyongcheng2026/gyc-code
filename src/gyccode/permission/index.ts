@@ -3,13 +3,71 @@ import { ConfigPermissionV1 } from "@gyccode/core/v1/config/permission"
 import { InstanceState } from "@/effect/instance-state"
 import { Wildcard } from "@gyccode/core/util/wildcard"
 import { Deferred, Effect, Layer, Context } from "effect"
+import * as Option from "effect/Option"
 import * as RefModule from "effect/Ref"
 import os from "os"
 import { PermissionV1 } from "@gyccode/core/v1/permission"
+import { SessionID } from "@gyccode/schema/session-id"
 import { EventV2Bridge } from "@/event-v2-bridge"
+import { containsPath } from "@/project/instance-context"
+import { Database } from "@gyccode/core/database/database"
+import { PermissionDenialTable } from "@gyccode/core/session/sql"
 import { resolveAction, writeDangerLevel, type PermissionAction, type PermissionMode } from "./modes"
 
 export const Event = PermissionV1.Event
+
+/**
+ * A-4（对标指标 22 · 破坏性风险）：哪些权限的 pattern 是**文件路径**、需要工作目录围栏。
+ *
+ * 只对以路径为 pattern 的文件类权限生效——bash / webfetch 的 pattern 是命令或 URL，
+ * 拿它们去比路径会误拒所有命令。
+ */
+const FENCED_PERMISSIONS = new Set(["edit", "write", "read", "patch", "notebook"])
+
+const isFenceRelevant = (permission: string): boolean => FENCED_PERMISSIONS.has(permission)
+
+/**
+ * A-5（对标指标 22 · 审计）：把一次拒绝写入 `permission_denials`。
+ *
+ * 数据库在 layer 构建期解析并闭包捕获（node 已声明 Database.node 依赖），因此
+ * 拒绝路径上没有任何额外依赖，也不会把服务解析失败带进 `ask()` 的错误通道。
+ * 数据库缺席（早期启动、部分单测）时静默跳过——审计缺失不能反过来阻塞用户操作。
+ */
+const recordDenial = (
+  database: Database.Interface | undefined,
+  input: { sessionID: SessionID | undefined; permission: string; patterns: string[]; reason: string },
+) =>
+  Effect.gen(function* () {
+    if (!database) return
+    // 直接调用，落库失败（含表不存在）只记警告，不影响拒绝本身。
+    yield* recordDenialRow(database, input)
+  })
+
+/**
+ * A-5：写一条拒绝流水。独立成函数是为了能被单测直接驱动——它需要真实数据库实例，
+ * 而 permission 的 layer 是通过 node 图注入数据库的，测试里手工装配很别扭。
+ */
+export const recordDenialRow = (
+  database: Database.Interface,
+  input: { sessionID: SessionID | undefined; permission: string; patterns: string[]; reason: string },
+) =>
+  database.db
+    .insert(PermissionDenialTable)
+    .values({
+      id: PermissionV1.ID.ascending(),
+      session_id: input.sessionID,
+      permission: input.permission,
+      patterns: input.patterns,
+      reason: input.reason,
+    })
+    .pipe(
+      Effect.catchCause((cause) =>
+        Effect.logWarning("permission denial not recorded", {
+          "session.id": input.sessionID,
+          cause,
+        }),
+      ),
+    )
 
 export interface Interface {
   readonly ask: (input: PermissionV1.AskInput) => Effect.Effect<void, PermissionV1.Error>
@@ -54,6 +112,10 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const events = yield* EventV2Bridge.Service
+    // A-5：数据库可选。生产环境 node 已声明依赖，这里取到实例后闭包捕获；
+    // 单测只 provide 事件总线时取不到，落库自动跳过。
+    const maybeDatabase = yield* Effect.serviceOption(Database.Service)
+    const database = Option.isNone(maybeDatabase) ? undefined : maybeDatabase.value
     const stateCache = yield* InstanceState.make<State>(
       Effect.fn("Permission.state")(function* (ctx) {
         void ctx
@@ -96,23 +158,49 @@ export const layer = Layer.effect(
       const level = writeDangerLevel(request.permission)
       const modeAction: PermissionAction | undefined =
         level === undefined ? undefined : resolveAction(level, mode)
+      // A-3：dontAsk 对**所有**权限生效（不限于 write/bash 这三类登记过的），
+      // 未命中 allow 的一律拒绝，绝不挂 Deferred 等用户。
+      const isDontAsk = mode === "dontAsk"
+      // A-4：工作目录围栏。文件类权限的路径必须落在 worktree 内，
+      // 越界即 deny。用现成的 containsPath（走 FSUtil.contains，Windows 下
+      // 大小写不敏感），不要自己造路径归一化。
+      const instance = isFenceRelevant(request.permission) ? yield* InstanceState.context : undefined
+
+      /** A-5：拒绝落库。写库失败绝不能影响拒绝本身，只记一条日志。 */
+      const deny = (reason: string, ruleset: PermissionV1.Ruleset) =>
+        Effect.gen(function* () {
+          yield* recordDenial(database, {
+            sessionID: request.sessionID,
+            permission: String(request.permission),
+            patterns: [...request.patterns],
+            reason,
+          })
+          return yield* new PermissionV1.DeniedError({ ruleset })
+        })
 
       for (const pattern of request.patterns) {
+        if (instance && !containsPath(pattern, instance)) {
+          return yield* deny("out_of_worktree", [
+            { permission: request.permission, pattern, action: "deny" as const },
+          ])
+        }
         const rule = evaluate(request.permission, pattern, ruleset, approved)
         yield* Effect.logDebug("evaluated", { permission: request.permission, pattern, action: rule })
         // 安全侧优先：ruleset 的显式 deny 永远生效，bypassPermissions 也不覆盖它。
         // 用户手写的规则比模式开关更硬——模式放行不该推翻「我明确禁了这东西」。
-        if (rule.action === "deny" || modeAction === "deny") {
-          return yield* new PermissionV1.DeniedError({
-            ruleset: [
+        const deniedByMode = modeAction === "deny" || (isDontAsk && rule.action !== "allow")
+        if (rule.action === "deny" || deniedByMode) {
+          return yield* deny(
+            deniedByMode ? `mode:${mode}` : "ruleset",
+            [
               ...ruleset.filter((rule) => Wildcard.match(request.permission, rule.permission)),
               // 模式导致的拒绝补一条合成规则，让模型能从回灌文本里看出是模式
               // （plan / acceptEdits / ...）而非用户逐条手写的规则挡下的。
-              ...(modeAction === "deny" && rule.action !== "deny"
+              ...(deniedByMode && rule.action !== "deny"
                 ? [{ permission: request.permission, pattern: "*", action: "deny" as const, mode } as PermissionV1.Rule]
                 : []),
             ],
-          })
+          )
         }
         // 模式放行同样按 allow 处理：不挂起、不询问。
         if (rule.action === "allow" || modeAction === "allow") continue
@@ -288,7 +376,13 @@ export function visibleTools<T>(tools: Record<string, T>, ruleset: PermissionV1.
   return Object.fromEntries(Object.entries(tools).filter(([name]) => !hidden.has(name)))
 }
 
-export const node = LayerNode.make({ service: Service, layer: layer, deps: [EventV2Bridge.node] })
+export const node = LayerNode.make({
+  service: Service,
+  layer: layer,
+  // A-5 需要写 permission_denials 表，故把数据库挂进节点依赖；在 layer 内部
+  // provide 后 ask() 的 R 通道仍是 PermissionV1.Error，不污染调用方。
+  deps: [EventV2Bridge.node, Database.node],
+})
 
 export { PermissionMode, PermissionAction, resolveAction } from "./modes"
 export { DenialTracker } from "./classifier"

@@ -19,6 +19,7 @@ import { SystemPrompt } from "./system"
 import { Instruction } from "./instruction"
 import { Goal } from "./goal"
 import { Plugin } from "../plugin"
+import { Snapshot } from "@/snapshot"
 import { MAX_STEPS_PROMPT } from "@gyccode/core/session/runner/max-steps"
 import { ToolRegistry } from "@/tool/registry"
 import { MCP } from "../mcp"
@@ -234,6 +235,7 @@ const layer = Layer.effect(
     const flags = yield* RuntimeFlags.Service
     const database = yield* Database.Service
     const { db } = database
+    const snapshot = yield* Snapshot.Service
 
     // Per-session stop-condition goal: an independent low-temperature judge
     // reads the transcript and decides whether the active goal is met. Wired
@@ -1951,6 +1953,9 @@ const layer = Layer.effect(
         }
 
         yield* compaction.prune({ sessionID }).pipe(Effect.ignore, Effect.forkIn(scope))
+        // 任务结束自动快照：在影子仓库生成一个不碰 HEAD 的可回滚 commit。
+        // 失败或无变更时 commitTaskEnd 返回 undefined，忽略即可，绝不影响任务收尾。
+        yield* snapshot.commitTaskEnd("任务结束自动快照").pipe(Effect.ignore)
         return yield* lastAssistant(sessionID)
       },
     )
@@ -2342,6 +2347,7 @@ export const node = LayerNode.make({
     EventV2Bridge.node,
     RuntimeFlags.node,
     Database.node,
+    Snapshot.node,
     CronScheduler.node,
   ],
 })

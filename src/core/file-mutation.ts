@@ -2,7 +2,10 @@ export * as FileMutation from "./file-mutation"
 
 import { makeLocationNode } from "./effect/app-node"
 import { Context, Effect, Layer, Schema, Option, Cause } from "effect"
-import { dirname } from "path"
+import { dirname, join } from "path"
+import { spawn } from "node:child_process"
+import type { ChildProcess } from "node:child_process"
+import { readFile } from "node:fs/promises"
 import { KeyedMutex } from "./effect/keyed-mutex"
 import { FSUtil } from "./fs-util"
 import { detectTextEncoding, encodeForWrite } from "./util/text-encoding"
@@ -291,6 +294,218 @@ function hasUtf8Bom(content: Uint8Array) {
 function sameBytes(left: Uint8Array, right: Uint8Array) {
   if (left.length !== right.length) return false
   return left.every((byte, index) => byte === right[index])
+}
+
+/** 写后自动类型检查：默认最长等待时间（毫秒）。超时必须中止，绝不允许无限等待。 */
+export const AUTOCHECK_MAX_LATENCY_MS = 20_000
+
+/** 自动检查可调项：enabled=false 或环境变量 GYCCODE_AUTOCHECK=0/off/false 均可关闭 */
+export interface AutocheckOptions {
+  readonly enabled?: boolean
+  readonly maxLatencyMs?: number
+  /** 直接指定命令，便于测试与特殊工程覆盖 */
+  readonly command?: readonly string[]
+}
+
+/** 单条结构化类型诊断 */
+export interface TypecheckDiagnostic {
+  readonly file: string
+  readonly line: number
+  readonly code: string
+  readonly message: string
+}
+
+/** checked=真的跑了；skipped=超时/命令起不来/被关闭 */
+export type TypecheckStatus = "checked" | "skipped"
+
+export interface TypecheckReport {
+  readonly status: TypecheckStatus
+  readonly command: string
+  readonly reason?: string
+  readonly diagnostics: readonly TypecheckDiagnostic[]
+}
+
+type RunResult =
+  | { readonly kind: "done"; readonly stdout: string; readonly stderr: string }
+  | { readonly kind: "timeout"; readonly reason?: string }
+  | { readonly kind: "spawn-error"; readonly reason: string }
+
+/** 依次尝试的 typecheck 脚本名，取自 package.json 的 scripts */
+const TYPECHECK_SCRIPTS = ["typecheck", "check-types", "tsc", "check"]
+
+const DISABLED_ENV_VALUES = new Set(["0", "false", "off", "no"])
+
+function autocheckEnabledByEnv() {
+  const raw = process.env["GYCCODE_AUTOCHECK"]
+  if (raw === undefined) return true
+  return !DISABLED_ENV_VALUES.has(raw.trim().toLowerCase())
+}
+
+function readScripts(root: string) {
+  return readFile(join(root, "package.json"), "utf8")
+    .then((raw) => (JSON.parse(raw) as { scripts?: Record<string, string> }).scripts)
+    .catch(() => undefined)
+}
+
+/** 先看工程 scripts 里有没有现成的 typecheck，没有再退回 npx tsc --noEmit */
+async function resolveTypecheckCommand(root: string): Promise<readonly string[]> {
+  const scripts = await readScripts(root)
+  if (scripts) {
+    for (const name of TYPECHECK_SCRIPTS) {
+      const script = scripts[name]
+      if (typeof script === "string" && script.length > 0) return ["bun", "run", name]
+    }
+  }
+  return ["npx", "--no-install", "tsc", "--noEmit"]
+}
+
+/**
+ * 启动子进程并收集输出。硬超时到点立即 kill，保证自动检查绝不会把主流程挂死。
+ */
+function runCommand(command: readonly string[], cwd: string, timeoutMs: number): Promise<RunResult> {
+  return new Promise<RunResult>((resolve) => {
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const finish = (result: RunResult) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      resolve(result)
+    }
+
+    let child: ChildProcess
+    try {
+      child = spawn(command[0] as string, command.slice(1), {
+        cwd,
+        shell: false,
+        windowsHide: true,
+        env: process.env,
+      })
+    } catch (error) {
+      finish({ kind: "spawn-error", reason: error instanceof Error ? error.message : String(error) })
+      return
+    }
+
+    timer = setTimeout(() => {
+      // kill 失败（进程已自行退出、或无权限终止）不改变超时判定：finish 仍照常收尾，
+      // 但要把失败原因带出去，否则这就是一处静默吞掉失败的分支。
+      let killReason: string | undefined
+      try {
+        child.kill("SIGKILL")
+      } catch (error) {
+        killReason = error instanceof Error ? error.message : String(error)
+      }
+      finish({ kind: "timeout", reason: killReason })
+    }, timeoutMs)
+
+    let stdout = ""
+    let stderr = ""
+    child.stdout?.setEncoding("utf8")
+    child.stderr?.setEncoding("utf8")
+    child.stdout?.on("data", (chunk: string) => {
+      stdout += chunk
+    })
+    child.stderr?.on("data", (chunk: string) => {
+      stderr += chunk
+    })
+    child.on("error", (error) => finish({ kind: "spawn-error", reason: error.message }))
+    child.on("close", () => finish({ kind: "done", stdout, stderr }))
+  })
+}
+
+/** 兼容 tsc 两种输出形态：file(line,col): error TSxxxx: msg 与 file:line:col - error TSxxxx: msg */
+const TSC_PAREN = /^(.+?)\((\d+),(\d+)\):\s+error\s+(TS\d+):\s+(.*)$/
+const TSC_PRETTY = /^(.+?):(\d+):(\d+)\s+-\s+error\s+(TS\d+):\s+(.*)$/
+
+export function parseTypecheckOutput(output: string): TypecheckDiagnostic[] {
+  const diagnostics: TypecheckDiagnostic[] = []
+  for (const raw of output.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    const match = TSC_PAREN.exec(line) ?? TSC_PRETTY.exec(line)
+    if (!match) continue
+    diagnostics.push({
+      file: match[1] as string,
+      line: Number(match[2]),
+      code: match[4] as string,
+      message: (match[5] as string).trim(),
+    })
+  }
+  return diagnostics
+}
+
+/**
+ * 在项目根目录跑类型检查并解析成结构化诊断。
+ * 超时、命令起不来、被显式关闭时一律返回 status="skipped"，绝不抛异常、绝不无限等待。
+ */
+export async function typecheckDiagnostics(
+  root: string,
+  opts: AutocheckOptions = {},
+): Promise<TypecheckReport> {
+  const enabled = opts.enabled ?? autocheckEnabledByEnv()
+  if (!enabled) {
+    return { status: "skipped", command: "", reason: "自动类型检查已被开关关闭", diagnostics: [] }
+  }
+
+  const budget =
+    opts.maxLatencyMs !== undefined && Number.isFinite(opts.maxLatencyMs) && opts.maxLatencyMs > 0
+      ? opts.maxLatencyMs
+      : AUTOCHECK_MAX_LATENCY_MS
+  const command = opts.command ? [...opts.command] : await resolveTypecheckCommand(root)
+  const display = command.join(" ")
+
+  const run = await runCommand(command, root, budget)
+  if (run.kind === "spawn-error") {
+    return {
+      status: "skipped",
+      command: display,
+      reason: `类型检查命令未能启动，已跳过：${run.reason}`,
+      diagnostics: [],
+    }
+  }
+  if (run.kind === "timeout") {
+    const killNote = run.reason ? `（终止子进程失败：${run.reason}）` : ""
+    return {
+      status: "skipped",
+      command: display,
+      reason: `类型检查超时（超过 ${budget}ms），已中止并跳过${killNote}`,
+      diagnostics: [],
+    }
+  }
+  return { status: "checked", command: display, diagnostics: parseTypecheckOutput(`${run.stderr}\n${run.stdout}`) }
+}
+
+/** 把诊断报告转成回灌给模型的结构化文案，风格对齐 shell.ts 的 <tool_error> 约定 */
+export function typecheckNotice(report: TypecheckReport, maxItems = 5): string {
+  if (report.status === "skipped") {
+    return [
+      `<tool_error kind="typecheck_skipped" tool="edit">`,
+      `写后类型检查已跳过，本次改动未做类型验证。`,
+      `命令：${report.command || "(未解析)"}`,
+      `原因：${report.reason ?? "未知"}`,
+      `请勿据此认为改动类型正确；如需确认请自行运行类型检查。`,
+      `</tool_error>`,
+    ].join("\n")
+  }
+
+  if (report.diagnostics.length === 0) {
+    return `<typecheck_report tool="edit" status="passed">类型检查通过：本次改动后未发现类型错误。</typecheck_report>`
+  }
+
+  const total = report.diagnostics.length
+  const shown = report.diagnostics.slice(0, Math.max(1, maxItems))
+  const lines = [
+    `<tool_error kind="typecheck_failed" tool="edit">`,
+    `本次改动后类型检查发现 ${total} 个错误，必须修复后再交付。`,
+    `命令：${report.command}`,
+  ]
+  for (const item of shown) {
+    lines.push(`${item.file}:${item.line} [${item.code}] ${item.message}`)
+  }
+  if (total > shown.length) lines.push(`另有 ${total - shown.length} 个错误未展示。`)
+  lines.push(`以上类型错误由自动检查捕获，必须修复后再交付，不得忽略。`)
+  lines.push(`</tool_error>`)
+  return lines.join("\n")
 }
 
 export const locationLayer = layer

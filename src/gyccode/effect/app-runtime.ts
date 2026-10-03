@@ -1,6 +1,7 @@
 import { Layer, ManagedRuntime } from "effect"
 import { attach } from "./run-service"
 import * as Observability from "@gyccode/core/observability"
+import { setErrorAuditSink, writeErrorAudit } from "@gyccode/core/observability/error-audit"
 
 import { FSUtil } from "@gyccode/core/fs-util"
 import { Database } from "@gyccode/core/database/database"
@@ -172,6 +173,13 @@ export const AppLayer = AppNodeBuilderV1.build(
 
 const rt = ManagedRuntime.make(AppLayer, { memoMap })
 type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "runFork" | "runCallback" | "dispose">
+
+// 把 logError 的落库通道接到全局运行时上。放在这里是因为这是唯一同时握有
+// 「Database.Service 已就绪的运行时」与「进程级入口」的地方；core 层因此完全
+// 不需要知道数据库的存在（未注入时 logError 行为与改动前一致）。
+setErrorAuditSink((record) => {
+  void rt.runPromise(writeErrorAudit(record as never))
+})
 
 /** Services provided by AppRuntime — i.e. what an Effect run via AppRuntime.runPromise can yield. */
 export type AppServices = ManagedRuntime.ManagedRuntime.Services<typeof rt>

@@ -16,6 +16,19 @@ import { Tools } from "./tools"
 
 export const name = "grep"
 
+/** 默认命中上限；与模型侧 `src/gyccode/tool/grep.ts` 的 MATCH_LIMIT 取值一致。 */
+export const DEFAULT_MATCH_LIMIT = 100
+
+/**
+ * 归一化调用方传入的命中上限：未传、非正数或非有限值一律回落到默认上限。
+ * 修复缺口 G-27-2——旧实现直接回落到 `Number.MAX_SAFE_INTEGER`，命中数不可控。
+ */
+export const resolveMatchLimit = (limit?: number): number => {
+  if (limit === undefined) return DEFAULT_MATCH_LIMIT
+  if (!Number.isFinite(limit) || limit <= 0) return DEFAULT_MATCH_LIMIT
+  return limit
+}
+
 export const Input = Schema.Struct({
   pattern: FileSystem.GrepInput.fields.pattern.annotate({
     description: "Regex pattern to search for in file contents",
@@ -27,7 +40,7 @@ export const Input = Schema.Struct({
     description: 'File glob to include in the search (for example, "*.js" or "*.{ts,tsx}")',
   }),
   limit: FileSystem.GrepInput.fields.limit.annotate({
-    description: "Maximum matches to return",
+    description: `Maximum matches to return. Defaults to ${DEFAULT_MATCH_LIMIT}.`,
   }),
 })
 
@@ -100,7 +113,7 @@ const layer = Layer.effectDiscard(
                   pattern: input.pattern,
                   file: info?.type === "File" ? path.basename(target) : undefined,
                   include: input.include,
-                  limit: input.limit ?? Number.MAX_SAFE_INTEGER,
+                  limit: resolveMatchLimit(input.limit),
                 })
                 .pipe(
                   Effect.map((result) =>

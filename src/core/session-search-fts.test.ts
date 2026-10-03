@@ -95,6 +95,24 @@ describe("session-search · FTS5 路径", () => {
   })
 })
 
+describe("session-search · FTS5 相关度排序", () => {
+  test("命中更多且更早出现的结果排在时间更新的弱命中之前", () => {
+    const db = withIndex(makeDb())
+    addPart(db, { partId: "p1", messageId: "m1", sessionId: "s1", timeCreated: 10, text: "缓存策略讨论：缓存策略命中、缓存策略刷新、缓存策略预热" })
+    addPart(db, { partId: "p2", messageId: "m2", sessionId: "s1", timeCreated: 99, text: "今天只聊天气，末尾提一句缓存策略" })
+
+    expect(SessionSearch.search(db, { query: "缓存策略" }).map((r) => r.part_id)).toEqual(["p1", "p2"])
+  })
+
+  test("limit 截断按相关度：留下的不是时间最新的那条", () => {
+    const db = withIndex(makeDb())
+    addPart(db, { partId: "p1", messageId: "m1", sessionId: "s1", timeCreated: 10, text: "缓存策略讨论：缓存策略命中、缓存策略刷新" })
+    addPart(db, { partId: "p2", messageId: "m2", sessionId: "s1", timeCreated: 99, text: "末尾提一句缓存策略" })
+
+    expect(SessionSearch.search(db, { query: "缓存策略", limit: 1 }).map((r) => r.part_id)).toEqual(["p1"])
+  })
+})
+
 describe("session-search · 索引维护", () => {
   test("索引建好之后新增的 part 也能被搜到（触发器生效）", () => {
     const db = withIndex(makeDb())

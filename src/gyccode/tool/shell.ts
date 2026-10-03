@@ -45,6 +45,27 @@ export class ShellDangerousError extends Schema.TaggedErrorClass<ShellDangerousE
   classification: SecurityClassification,
 }) {}
 
+/**
+ * 把 shell 执行失败整理成模型可读的结构化诊断（不抛 defect）。
+ *
+ * 此前 `Effect.scoped(...)` 外层是 `Effect.orDie`：spawn 失败、输出流解码异常、
+ * 落盘失败等都会升级成进程级 defect，模型既看不到原因、也无法重试。这里对齐
+ * `shell/security.ts` 的 `<tool_error>` 文案约定，把失败原因回灌给模型。
+ */
+export const shellFailureNotice = (input: { command: string; shell: string }, error: unknown) => {
+  const reason = error instanceof Error ? error.message : String(error)
+  const lines = [
+    `<tool_error kind="shell_failed" tool="bash">`,
+    `命令未执行成功，本轮没有任何命令输出。原因：${reason}`,
+    `命令：${input.command}`,
+    `shell：${input.shell}`,
+    "常见原因：shell 路径不存在或不可执行、cwd 不存在、环境变量缺失、进程启动即崩溃。",
+    "请先确认命令与 shell 路径是否正确后重试；若确属安全策略拦截，需显式设置 allowDangerous=true（仅对 dangerous 级生效，blocked 级无效），blocked 级命令请改写后再试。",
+    `</tool_error>`,
+  ]
+  return lines.join("\n")
+}
+
 const MAX_METADATA_LENGTH = 30_000
 const CWD = new Set(["cd", "chdir", "popd", "pushd", "push-location", "set-location"])
 const FILES = new Set([
@@ -680,6 +701,7 @@ export const ShellTool = Tool.define(
         },
       })
 
+      let failure: { error: unknown } | undefined
       const code: number | null = yield* Effect.scoped(
         Effect.gen(function* () {
           yield* Effect.addFinalizer(closeSink)
@@ -769,7 +791,28 @@ export const ShellTool = Tool.define(
 
           return exit.kind === "exit" ? exit.code : null
         }),
-      ).pipe(Effect.orDie)
+      ).pipe(
+        // 失败不再 orDie：改用结构化诊断回灌，保持与成功分支一致的返回形状。
+        Effect.catch((error) =>
+          Effect.sync(() => {
+            failure = { error }
+            return null
+          }),
+        ),
+      )
+
+      if (failure) {
+        const notice = shellFailureNotice({ command: input.command, shell: input.shell }, failure.error)
+        return {
+          title: input.command,
+          metadata: {
+            output: preview(notice),
+            exit: null,
+            truncated: false,
+          },
+          output: notice,
+        }
+      }
 
       const meta: string[] = []
       if (expired) {

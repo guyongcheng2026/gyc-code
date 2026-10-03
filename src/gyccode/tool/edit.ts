@@ -10,6 +10,7 @@ import { LSP } from "@/lsp/lsp"
 import { createTwoFilesPatch, diffLines } from "diff"
 import DESCRIPTION from "./edit.txt"
 import { FileSystem } from "@gyccode/core/filesystem"
+import { FileMutation } from "@gyccode/core/file-mutation"
 import { Watcher } from "@gyccode/core/filesystem/watcher"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Format } from "../format"
@@ -250,6 +251,20 @@ export const EditTool = Tool.define(
           const normalizedFilePath = FSUtil.normalizePath(filePath)
           const block = LSP.Diagnostic.report(filePath, diagnostics[normalizedFilePath] ?? [])
           if (block) output += `\n\nLSP errors detected in this file, please fix:\n${block}`
+
+          // 写后自动类型检查：把结构化诊断回灌给模型。
+          // 内部自带硬超时与异常兜底，绝不允许把主流程挂死。
+          const typecheckNotice = yield* Effect.promise(async () => {
+            const report = await FileMutation.typecheckDiagnostics(instance.worktree)
+            return FileMutation.typecheckNotice(report)
+          }).pipe(
+            Effect.catchCause(() =>
+              Effect.succeed(
+                `<tool_error kind="typecheck_failed" tool="edit">自动类型检查异常终止，已跳过，本次改动未做类型验证。</tool_error>`,
+              ),
+            ),
+          )
+          if (typecheckNotice) output += `\n\n${typecheckNotice}`
 
           return {
             metadata: {

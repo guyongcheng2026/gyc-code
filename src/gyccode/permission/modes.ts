@@ -1,6 +1,15 @@
 ﻿import { Schema } from "effect"
 
-export const PermissionMode = Schema.Literals(["default", "acceptEdits", "bypassPermissions", "plan"])
+export const PermissionMode = Schema.Literals([
+  "default",
+  "acceptEdits",
+  "bypassPermissions",
+  "plan",
+  // A-3（对标指标 22）：等价于 Claude Code 的 `--permission-prompts none`——
+  // 未命中 allow 的请求一律按拒绝处理，不弹窗、不挂 Deferred、绝无限等待。
+  // 与 `bypassPermissions` 的区别是方向相反：那个放行，这个拒绝。
+  "dontAsk",
+])
 export type PermissionMode = typeof PermissionMode.Type
 
 export const PermissionAction = Schema.Literals(["allow", "ask", "deny"])
@@ -27,6 +36,9 @@ export type DangerLevel = "safe" | "warning" | "dangerous" | "blocked"
  */
 export function resolveAction(dangerLevel: DangerLevel, mode: PermissionMode): PermissionAction {
   if (mode === "bypassPermissions") return dangerLevel === "blocked" ? "deny" : "allow"
+  // A-3：dontAsk 下不做任何自动放行/询问，只有命中 allow 的请求才通过。
+  // 由调用方（ask）把「非 allow 一律 deny」落实为 DeniedError。
+  if (mode === "dontAsk") return dangerLevel === "blocked" ? "deny" : "ask"
   if (mode === "plan") return "deny"
   if (dangerLevel === "blocked") return "deny"
   if (dangerLevel === "dangerous") return "ask"

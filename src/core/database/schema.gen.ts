@@ -2,6 +2,11 @@ import { Effect } from "effect"
 import type { DatabaseMigration } from "./migration"
 import { TASK_TABLE_STATEMENT } from "../session/task-table"
 import { COST_LEDGER_INDEXES, COST_LEDGER_TABLE_STATEMENT } from "../session/cost-ledger-table"
+import {
+  PERMISSION_DENIALS_INDEXES,
+  PERMISSION_DENIALS_TABLE_STATEMENT,
+} from "../session/permission-denial-table"
+import { ERROR_AUDIT_INDEXES, ERROR_AUDIT_TABLE_STATEMENT } from "../observability/error-audit-table"
 
 export default {
   up(tx) {
@@ -281,6 +286,12 @@ export default {
       yield* tx.run(TASK_TABLE_STATEMENT)
       yield* tx.run("CREATE INDEX IF NOT EXISTS `task_session_idx` ON `task` (`session_id`)")
       yield* tx.run("CREATE INDEX IF NOT EXISTS `task_created_idx` ON `task` (`time_created`)")
+      // 2026-10-02（A-5）：权限拒绝流水，供「哪些命令反复被拒」统计
+      yield* tx.run(PERMISSION_DENIALS_TABLE_STATEMENT)
+      for (const index of PERMISSION_DENIALS_INDEXES) yield* tx.run(index)
+      // 2026-10-02：logError 的结构化落库，供按 scope / session 聚合排查
+      yield* tx.run(ERROR_AUDIT_TABLE_STATEMENT)
+      for (const index of ERROR_AUDIT_INDEXES) yield* tx.run(index)
     })
 
   },

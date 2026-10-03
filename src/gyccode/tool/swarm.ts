@@ -7,7 +7,7 @@ import { Agent } from "../agent/agent"
 import { deriveSubagentSessionPermission } from "../agent/subagent-permissions"
 import type { SessionPrompt } from "../session/prompt"
 import { Config } from "@/config/config"
-import { Cause, Effect, Schema } from "effect"
+import { Cause, Effect, Schema, Semaphore } from "effect"
 import { Database } from "@gyccode/core/database/database"
 import { Provider } from "@/provider/provider"
 import { ModelV2 } from "@gyccode/core/model"
@@ -18,6 +18,45 @@ import { planSwarm, assignTasks } from "../agent/swarm/coordinator"
 import type { TaskPromptOps } from "./task"
 
 const id = "swarm"
+
+/**
+ * 全局并发闸（对标指标 16 · 错误恢复 / Agent 自主性）
+ *
+ * 此前 Effect.forEach 用 `concurrency: "unbounded"` 起 teammate：20 个 teammate
+ * 就是 20 路并发直打 provider，长会话极易触发 429，而且进程内没有任何总量约束。
+ * 这里改成有界并发：
+ *   - 闸门 permit 数取自配置 llm.tool_concurrency（默认 4，保守值）；
+ *   - 闸门是**模块级**的，因此两次并发调用的 swarm 共享同一批 permit，
+ *     不是「每次调用各自 4 路」这种看起来有界、实际总量仍会叠加的假约束。
+ */
+
+/** 未配置 llm.tool_concurrency 时的默认并发上限（保守值，宁可慢也不要打爆 provider）。 */
+export const DEFAULT_TEAMMATE_CONCURRENCY = 4
+
+/** 并发上限的硬天花板：配置写错成 999 时也不至于把闸门彻底放开。 */
+export const MAX_TEAMMATE_CONCURRENCY = 16
+
+/**
+ * 把配置值规整成合法的 permit 数：缺省/非法（0、负数、NaN、非整数）落到默认值，
+ * 超过天花板则夹到天花板。抽成纯函数是为了能脱离 Effect 直接测。
+ */
+export const teammateConcurrencyLimit = (configured: number | undefined | null): number => {
+  if (typeof configured !== "number" || !Number.isFinite(configured)) return DEFAULT_TEAMMATE_CONCURRENCY
+  const floored = Math.floor(configured)
+  if (floored < 1) return DEFAULT_TEAMMATE_CONCURRENCY
+  return Math.min(floored, MAX_TEAMMATE_CONCURRENCY)
+}
+
+const gates = new Map<number, Semaphore.Semaphore>()
+
+/** 按 permit 数取全局闸门；同 permit 数复用同一个 Semaphore（与 edit.ts 的锁池同模式）。 */
+export const globalGate = (permits: number): Semaphore.Semaphore => {
+  const cached = gates.get(permits)
+  if (cached) return cached
+  const created = Semaphore.makeUnsafe(permits)
+  gates.set(permits, created)
+  return created
+}
 
 const DESCRIPTION = [
   "Launch a coordinated team of in-process sub-agents (teammates) to work on a single goal.",
@@ -85,6 +124,10 @@ export const SwarmTool = Tool.define(
       ctx: Tool.Context,
     ) {
       const cfg = yield* config.get()
+
+      // 并发闸参数在每次调用开头就定下来：同一轮 swarm 内所有 teammate 共用同一个闸门。
+      const limit = teammateConcurrencyLimit(cfg.llm?.tool_concurrency)
+      const gate = globalGate(limit)
 
       const ops = ctx.extra?.promptOps as TaskPromptOps
       if (!ops) return yield* Effect.fail(new Error("SwarmTool requires promptOps in ctx.extra"))
@@ -223,6 +266,8 @@ export const SwarmTool = Tool.define(
         teammates,
         (teammate) =>
           runTeammate(teammate).pipe(
+            // 全局并发闸：拿到 permit 才允许直打 provider，超出的 teammate 在此排队。
+            gate.withPermit,
             Effect.catchCause((cause) => {
               const error = Cause.squash(cause)
               return Effect.succeed(
@@ -235,7 +280,8 @@ export const SwarmTool = Tool.define(
               )
             }),
           ),
-        { concurrency: "unbounded" },
+        // 单次 swarm 内部的有界并发 + 模块级闸门，两者叠加才是真正的全局上限。
+        { concurrency: limit },
       )
 
       const summary = summarizeTeammateResults(results)

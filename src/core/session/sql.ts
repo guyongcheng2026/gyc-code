@@ -223,6 +223,47 @@ export const CostLedgerTable = sqliteTable(
   ],
 )
 
+/**
+ * A-5（对标指标 22 · 审计日志）：权限拒绝流水。
+ *
+ * 回答「哪些命令反复被拒 / 被谁拒的」这类问题——Claude Code 有同名遥测，
+ * 此前 gyc 的拒绝只存在于内存 pending 与日志里，进程结束即丢。
+ */
+export const PermissionDenialTable = sqliteTable(
+  "permission_denials",
+  {
+    id: text().primaryKey(),
+    session_id: text().$type<SessionSchema.ID>(),
+    permission: text().notNull(),
+    patterns: text({ mode: "json" }).$type<string[]>().notNull(),
+    reason: text().notNull(),
+    time_created: integer().notNull().$default(() => Date.now()),
+  },
+  (table) => [index("idx_permission_denials_session_time").on(table.session_id, table.time_created)],
+)
+
+/**
+ * 结构化错误落库表。
+ *
+ * 控制台输出不持久、也不带会话维度，进程一关就没法回答「昨晚那批失败到底是哪些
+ * scope」。写入方是 logError，append-only，无外键——很多调用点在会话之外。
+ */
+export const ErrorAuditTable = sqliteTable(
+  "error_audit",
+  {
+    id: text().primaryKey(),
+    session_id: text().$type<SessionSchema.ID>(),
+    scope: text().notNull(),
+    message: text().notNull(),
+    fields: text({ mode: "json" }).$type<Record<string, unknown>>(),
+    time_created: integer().notNull().$default(() => Date.now()),
+  },
+  (table) => [
+    index("idx_error_audit_scope_time").on(table.scope, table.time_created),
+    index("idx_error_audit_session_time").on(table.session_id, table.time_created),
+  ],
+)
+
 export const SessionContextEpochTable = sqliteTable("session_context_epoch", {
   session_id: text()
     .$type<SessionSchema.ID>()

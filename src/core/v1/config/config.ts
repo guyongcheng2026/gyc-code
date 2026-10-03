@@ -314,6 +314,10 @@ export const Info = Schema.Struct({
         description:
           "Hard cap on loop steps for the primary agent, 0 = unlimited (default: 200). The primary agent previously had no cap at all (Infinity), so a drifting loop could run unbounded and burn tokens with no termination. Subagents are capped separately at 20 via agent.steps.",
       }),
+      tool_concurrency: Schema.optional(PositiveInt).annotate({
+        description:
+          "全局工具并发闸：同一时刻最多几个 teammate 直打 provider（默认 4，上限 16）。此前 swarm 以 unbounded 并发起 teammate，20 个 teammate 就是 20 路并发，长会话极易触发 429 且没有任何总量约束",
+      }),
     }),
   ),
   memory: Schema.optional(

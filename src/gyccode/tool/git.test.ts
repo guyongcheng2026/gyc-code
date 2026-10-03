@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test"
 import { Effect, Exit, Layer } from "effect"
 import { GitStatusTool, GitDiffTool, GitLogTool, GitCommitTool, GitBranchTool, GitStashTool } from "./git"
 import { Git } from "@/git"
+import { AppProcess } from "@gyccode/core/process"
 import { Truncate } from "./truncate"
 import { Agent } from "@/agent/agent"
 import { SessionID, MessageID } from "@/session/schema"
@@ -56,6 +57,21 @@ const truncateStub = {
 const stubs = Layer.mergeAll(
   Layer.succeed(Truncate.Service, truncateStub as never),
   Layer.succeed(Agent.Service, agentStub as never),
+  // W-2：git_commit 的 run_checks 需要跑 .githooks/pre-commit-checks.mjs 子进程。
+  // 既有 git_commit 用例不开 run_checks，这里给一个「全部通过」的桩即可。
+  Layer.succeed(
+    AppProcess.Service,
+    {
+      run: () =>
+        Effect.succeed({
+          command: "node",
+          exitCode: 0,
+          stdout: Buffer.from("[PASS] 提交前检查"),
+          stderr: Buffer.from(""),
+          output: Buffer.from(""),
+        }),
+    } as never,
+  ),
 )
 
 type AnyTool = {
