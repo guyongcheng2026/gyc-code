@@ -84,9 +84,21 @@ if (DRY_RUN) {
   process.stdout.write(`[push-proxy] dry-run：proxy=${proxy} remote=${mask(remote)}\n`)
   process.exit(0)
 }
+// 推送目标必须是「当前分支」，不能写死 main：在特性分支上提交后执行本脚本，
+// 写死 main 会把提交直接推到 main，绕过 review，且与无代理时 `push origin HEAD`
+// 的同名推送语义不一致（那才是本脚本要对齐的回退行为）。
+// detached HEAD 时 rev-parse 返回 HEAD，此时退回不带 refspec 的推送，
+// 由 git 自身的 push.default 决定目标，绝不猜一个分支名。
+let currentBranch = "HEAD"
 try {
-  git(["-c", "credential.helper=", "push", remote, "HEAD:main"])
-  process.stderr.write(`[push-proxy] 经 ${proxy} 推送成功\n`)
+  const name = git(["rev-parse", "--abbrev-ref", "HEAD"]).trim()
+  if (name && name !== "HEAD") currentBranch = name
+} catch {
+  // 取不到分支名就用 HEAD，保持与回退链路一致
+}
+try {
+  git(["-c", "credential.helper=", "push", remote, `HEAD:${currentBranch}`])
+  process.stderr.write(`[push-proxy] 经 ${proxy} 推送 ${currentBranch} 成功\n`)
 } catch (e) {
   fail(`经 ${proxy} 推送失败`, e.stderr || e.message)
 }

@@ -277,6 +277,11 @@ function applyPredictor(data: Uint8Array, parms: PdfValue, resolve: (v: PdfValue
   const bpc = Number(resolve(d.get("BitsPerComponent"))) || 8
   const columns = Number(resolve(d.get("Columns"))) || 1
   if (bpc !== 8 || columns <= 0) return data // 非 8 位组件的预测器罕见，直接放行
+  // /Columns 是文档里自报的整数，没有任何上界。一个构造出来的 2e9 会让下面的
+  // new Uint8Array(rows * rowLength) 去申请 2GB——恶意或损坏的 PDF 即可把进程内存打爆。
+  // 与实际数据长度做一致性校验：对不上说明声明值不可信，直接放弃反预测。
+  const rowLengthRaw = columns * colors
+  if (!Number.isSafeInteger(rowLengthRaw) || rowLengthRaw > data.length + colors) return data
   const bpp = colors
   const rowLength = columns * bpp
 

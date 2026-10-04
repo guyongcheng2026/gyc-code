@@ -100,7 +100,19 @@ describe("git_push", () => {
     const recorded: Recorded[] = []
     const tool = await prepare(GitPushTool.pipe(Effect.provideService(Git.Service, fakeGit({}, recorded))))
     await tool.invoke({ set_upstream: true, remote: "upstream", branch: "feature/x" })
-    expect(recorded[0]!.args).toEqual(["push", "--set-upstream", "upstream", "feature/x"])
+    // branch 前有 "--"：remote/branch 是模型可控的自由文本，以 "-" 开头会被 git
+    // 当成选项解析，用 -- 结束选项解析是这条防线的一半（另一半是前导 - 的拒绝）。
+    expect(recorded[0]!.args).toEqual(["push", "--set-upstream", "upstream", "--", "feature/x"])
+  })
+
+  it("remote/branch 以 - 开头一律被拒绝，不会落到 git 命令行", async () => {
+    for (const bad of [{ remote: "--mirror" }, { branch: "-f" }]) {
+      const recorded: Recorded[] = []
+      const tool = await prepare(GitPushTool.pipe(Effect.provideService(Git.Service, fakeGit({}, recorded))))
+      const exit = await tool.invoke(bad)
+      expect(Exit.isFailure(exit)).toBe(true)
+      expect(recorded).toHaveLength(0)
+    }
   })
 })
 

@@ -14,7 +14,13 @@ export const DANGEROUS_PATTERNS = {
   curlPipeBash: /curl[\s\S]*\|[\s\S]*(?:ba)?sh/,
   wgetPipeBash: /wget[\s\S]*\|[\s\S]*(?:ba)?sh/,
   devTcp: /\/dev\/tcp/,
-  rmRfRoot: /rm\s+-rf\s+\/(?:\s|$)/,
+  // 只拦「目标就是根目录/家目录本身」：`/`、`/*`、`~`、`~/`、`$HOME` 及其变体。
+  // 原写法要求 `/` 后必须紧跟空白或结尾，于是 `rm -rf /*`、`rm -rf ~`、
+  // `rm -rf $HOME/` 这三种最常见的写法全部漏判。
+  // 反过来也不能放宽成「目标以 / 开头」，那会把 `rm -rf /tmp/build`
+  // 这类完全正常的清理一并拦掉——故这里逐个枚举根/家目录的完整形态。
+  rmRfRoot:
+    /rm\s+-rf\s+["']?(?:\/\*?(?:[\s"']|$)|~\/?(?:[\s"']|$)|\$(?:\{HOME\}|HOME)\/?(?:[\s"']|$))/,
   chmod777: /chmod\s+777/,
   sudo: /\bsudo\b/,
   redirectAppend: />>\s*\/etc\/|>>\s*\/sys\//,
@@ -25,8 +31,9 @@ export const DANGEROUS_PATTERNS = {
 } as const
 
 /**
- * Strip backslash escapes outside single quotes so heuristics see what the
- * shell will actually run: `e\val` -> `eval`, `c\u\r\l | b\ash` -> `curl | bash`.
+ * Strip escape sequences outside single quotes so heuristics see what the
+ * shell will actually run: `e\val` -> `eval`, `c\u\r\l | b\ash` -> `curl | bash`,
+ * and PowerShell's backtick form `su`do` -> `sudo`.
  * Inside single quotes a backslash is literal (no escaping), so those spans
  * are left untouched.
  */
@@ -40,7 +47,9 @@ function deescape(command: string): string {
       out += ch
       continue
     }
-    if (ch === "\\" && !inSingle && i + 1 < command.length) {
+    // 反引号同样是转义符：PowerShell/Cmd 里 `su`do` 会执行成 sudo。
+    // 只剥反斜杠时 `\bsudo\b` 匹配不上形如 su`do 的命令，等级一路掉到 safe。
+    if ((ch === "\\" || ch === "`") && !inSingle && i + 1 < command.length) {
       out += command[i + 1]
       i++
       continue
@@ -67,7 +76,12 @@ export function classifyCommand(command: string): SecurityClassification {
   if (hasBlocked) {
     return new SecurityClassification({ level: "blocked", patterns: matched, reason: `Blocked patterns: ${matched.join(", ")}` })
   }
-  const hasDangerous = matched.some(p => ["evalExec", "curlPipeBash", "wgetPipeBash", "sudo", "ddIf"].includes(p))
+  // chmod777 必须进 dangerous 档：shell/prompt.ts 的 allowDangerous 描述里明确把
+  // chmod 777 列为「需显式放行」，此前它落在 warning 档，而 warning 档在
+  // decideShellSafety 里无条件 run:true——描述与实现直接矛盾。
+  const hasDangerous = matched.some(p =>
+    ["evalExec", "curlPipeBash", "wgetPipeBash", "sudo", "ddIf", "chmod777"].includes(p),
+  )
   if (hasDangerous) {
     return new SecurityClassification({ level: "dangerous", patterns: matched, reason: `Dangerous patterns: ${matched.join(", ")}` })
   }

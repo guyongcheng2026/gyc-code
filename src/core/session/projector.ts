@@ -174,10 +174,11 @@ function rollupUsage(
   sessionID: SessionIDLike,
   value: Usage,
   sign: number,
+  key?: string,
 ) {
   return ancestorChain(db, sessionID).pipe(
     Effect.flatMap((chain) =>
-      Effect.forEach(chain, (ancestorID) => addUsageRow(db, events, ancestorID, value, sign), {
+      Effect.forEach(chain, (ancestorID) => addUsageRow(db, events, ancestorID, value, sign, key), {
         concurrency: 1,
         discard: true,
       }),
@@ -185,12 +186,23 @@ function rollupUsage(
   )
 }
 
+/**
+ * C-05 幂等键在 ledger.metadata 中的固定序列化形式。
+ *
+ * 只放一个字段是刻意的：去重是拿 metadata 列做等值比较，比较的是落库后的
+ * 字符串，多字段的键序一旦变化，去重会静默失效并重新开始重复计费。
+ * 无幂等键时仍写 {}，与本改动前的行为完全一致。
+ */
+const idempotencyMetadata = (key: string | undefined): Record<string, unknown> =>
+  key === undefined ? {} : { idempotency: key }
+
 function addUsageRow(
   db: DatabaseService,
   events: EventV2.Interface,
   sessionID: SessionIDLike,
   value: Usage,
   sign: number,
+  key?: string,
 ) {
   return Effect.gen(function* () {
     // Check if session exists first
@@ -201,6 +213,25 @@ function addUsageRow(
       .get()
       .pipe(Effect.orDie)
     if (!session) return
+
+    // C-05 幂等：流水只增不回退，session.cost 也就没有 -1 兜底可依赖。
+    // 投影重放（init-projectors / sync.replay）会把同一条 PartUpdated 再跑一遍，
+    // 没有幂等键就重复计费，且重复几次取决于重放几次——账单随重放漂移。
+    // 以 callID/partID 为幂等键：命中已记账的条目就整段跳过（流水与 session.cost 都不动）。
+    if (key !== undefined) {
+      const seen = yield* db
+        .select({ id: CostLedgerTable.id })
+        .from(CostLedgerTable)
+        .where(
+          and(
+            eq(CostLedgerTable.session_id, sessionID as SessionSchema.ID),
+            eq(CostLedgerTable.metadata, idempotencyMetadata(key)),
+          ),
+        )
+        .get()
+        .pipe(Effect.orDie)
+      if (seen) return
+    }
 
     // C-05: append-only cost ledger — always insert positive entry.
     // C-08: 压缩开销用 event_type="compaction" 标记，报表可单列（钱确实花了）。
@@ -218,7 +249,7 @@ function addUsageRow(
         // A-28-1：旧事件可能没有该字段，回落 estimated（不是 unknown ——
 // unknown 会让「没标记」和「确实查不到来源」混为一谈）
         cost_source: value.costSource === "provider-reported" ? ("provider-reported" as const) : ("estimated" as const),
-        metadata: {} as Record<string, unknown>,
+        metadata: idempotencyMetadata(key),
       } as typeof CostLedgerTable.$inferInsert)
       .execute()
       .pipe(Effect.orDie)
@@ -249,9 +280,14 @@ export function applyUsage(
   sessionID: (typeof SessionV1.Event.MessageUpdated.Type)["data"]["sessionID"],
   value: Usage,
   sign = 1,
+  /**
+   * 幂等键（通常是 partID 或 callID）。C-05 的流水只增不回退，
+   * 重投影必须靠它去重，否则同一笔费用会被反复累加。缺省表示不做去重。
+   */
+  key?: string,
 ) {
-  return addUsageRow(db, events, sessionID, value, sign).pipe(
-    Effect.andThen(() => rollupUsage(db, events, sessionID, value, 1)),
+  return addUsageRow(db, events, sessionID, value, sign, key).pipe(
+    Effect.andThen(() => rollupUsage(db, events, sessionID, value, 1, key)),
     // C-01：同一份增量同时落到当前打开的 task，「每任务成本」才有数据来源。
     // C-08：压缩开销除外 —— 它是会话固定开销，算进 task 会高估「一个 feature 的成本」，
     // 且压缩策略一变，成本曲线就出现无法解释的跳变。
@@ -567,7 +603,9 @@ const layer = Layer.effectDiscard(
         const previous = row && usage(row.data)
         const next = usage(event.data.part)
         // C-05: append-only, no rollback on part update
-        if (next) yield* applyUsage(db, events, sessionID, next)
+        // C-05: append-only, no rollback on part update
+        // 传 partID 作幂等键：同一条 part 的用量在重投影时只应计一次
+        if (next) yield* applyUsage(db, events, sessionID, next, 1, id)
         // C-05：工具失败即判本轮任务失败，并记下第一处原因。此前没有任何地方
         // 记录「这轮到底成没成」，成功率只能靠人肉回看会话。
         const part = event.data.part as {

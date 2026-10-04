@@ -102,6 +102,14 @@ export const {
       session_diff: {
         [sessionID: string]: SnapshotFileDiff[]
       }
+      /**
+       * diff 因字节预算被裁掉的文件数。capDiffByBytes 的模块注释写明「把被裁数量
+       * 带给 UI，避免静默丢 diff」，此前只取 .diff 把 truncated/dropped 整个丢掉，
+       * 于是截断发生与否在界面上完全不可见。
+       */
+      session_diff_dropped: {
+        [sessionID: string]: number
+      }
       todo: {
         [sessionID: string]: Todo[]
       }
@@ -160,6 +168,7 @@ export const {
       session: [],
       session_status: {},
       session_diff: {},
+      session_diff_dropped: {},
       todo: {},
       message: {},
       part: {},
@@ -381,7 +390,11 @@ export const {
           break
 
         case "session.diff": {
-          setStore("session_diff", event.properties.sessionID, capDiffByBytes(event.properties.diff).diff)
+          const capped = capDiffByBytes(event.properties.diff)
+          batch(() => {
+            setStore("session_diff", event.properties.sessionID, capped.diff)
+            setStore("session_diff_dropped", event.properties.sessionID, capped.dropped)
+          })
           break
         }
 
@@ -840,7 +853,9 @@ export const {
                 }
                 for (const message of removed) delete draft.part[message.id]
                 draft.message[sessionID] = visible
-                draft.session_diff[sessionID] = capDiffByBytes(diff.data ?? []).diff
+                const cappedDiff = capDiffByBytes(diff.data ?? [])
+                draft.session_diff[sessionID] = cappedDiff.diff
+                draft.session_diff_dropped[sessionID] = cappedDiff.dropped
               }),
             )
             fullSyncedSessions.add(sessionID)

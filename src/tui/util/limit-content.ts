@@ -34,8 +34,14 @@ export function limitContentLines(text: string, maxLines: number = DEFAULT_MAX_C
   while (start <= text.length) {
     const end = text.indexOf("\n", start)
     if (end === -1) {
-      // 最后一行
+      // 最后一行没有换行符结尾，同样要计入并接受上限判定。
+      // 此前这里直接 break，绕过了下方的 lines > limit 检查：
+      // 正文一行没少，limitContent 却按 countLines 报「已折叠 N 行」。
       lines += 1
+      if (lines > limit) {
+        const boundary = lineEndAt(text, limit)
+        return text.slice(0, boundary) + "\n" + TRUNCATION_MARKER
+      }
       break
     }
     lines += 1

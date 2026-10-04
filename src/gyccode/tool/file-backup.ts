@@ -159,14 +159,23 @@ export const rollback = (file: string, options?: Options) =>
     const entries = yield* list(file, options)
     const last = entries.at(-1)
     if (!last) return false
+    // 失败必须返回 false：此前两处都是「catch 里记一条日志，然后无条件 return true」，
+    // 调用方（file_rollback 工具）据此回报「已回滚」，而文件其实还是改坏的状态。
+    // 静默的成功比明确的失败有害得多——用户会以为已经退回干净版本。
     if (last.absent) {
-      yield* io(() => NFS.rm(file, { force: true })).pipe(
-        Effect.catch(() => warn("回滚删除失败", file)),
+      const removed = yield* io(() => NFS.rm(file, { force: true })).pipe(
+        Effect.as(true),
+        Effect.catch(() =>
+          warn("回滚删除失败", file).pipe(Effect.as(false)),
+        ),
       )
-      return true
+      return removed
     }
-    yield* io(() =>
+    const restored = yield* io(() =>
       NFS.mkdir(path.dirname(file), { recursive: true }).then(() => NFS.copyFile(last.path, file)),
-    ).pipe(Effect.catch(() => warn("回滚写回失败", file)))
-    return true
+    ).pipe(
+      Effect.as(true),
+      Effect.catch(() => warn("回滚写回失败", file).pipe(Effect.as(false))),
+    )
+    return restored
   }).pipe(Effect.catch(() => Effect.succeed(false)))

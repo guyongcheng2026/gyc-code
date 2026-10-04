@@ -385,6 +385,9 @@ const layer = Layer.effect(
             toolSearchDef,
             ...(tool.execute ? [tool.execute] : []),
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
+            // find_references 自带 ripgrep 降级，不随 LSP 实验开关一起隐藏。
+            // 它此前只 Tool.init 未进 builtin，表现为「搜得到、调不了」。
+            tool.findReferences,
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan, tool.planEnter] : []),
             ...(flags.experimentalWorkspaces ? [tool.worktreeEnter, tool.worktreeExit, tool.worktreeList] : []),
             // P0-3：git 工具仅对 Git 项目暴露——非 Git 项目（vcs !== "git"）
@@ -392,6 +395,9 @@ const layer = Layer.effect(
             ...(gitProject
               ? [tool.gitStatus, tool.gitDiff, tool.gitLog, tool.gitCommit, tool.gitBranch, tool.gitStash, tool.gitPush, tool.ghPrCreate, tool.ciStatus]
               : []),
+            // 写前备份的单文件回滚入口：同属「改错了怎么退」，但不依赖 git，
+            // 非 Git 工程同样可用。此前同样只 Tool.init 未进 builtin。
+            tool.fileRollback,
             tool.notebook,
             tool.scheduleCron,
             tool.cronDelete,

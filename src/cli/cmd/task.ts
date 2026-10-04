@@ -48,17 +48,23 @@ const ListCommand = effectCmd({
     const { session, limit, status } = parsed.data
     const { db } = yield* Database.Service
 
-    const all = yield* TaskProjector.listTasks(db, session as SessionSchema.ID | undefined)
-    const rows = (status === "all" ? all : all.filter((t) => t.status === status)).slice(0, limit)
+    // limit 下推到 SQL；状态筛选仍需在 JS 侧做（列上无索引，SQL 侧过滤反而更慢），
+    // 因此两种情况都按 limit 取满，避免全表载入。
+    const rows = yield* TaskProjector.listTasks(
+      db,
+      session as SessionSchema.ID | undefined,
+      status === "all" ? limit : undefined,
+    )
+    const visible = status === "all" ? rows : rows.filter((t) => t.status === status).slice(0, limit)
 
-    if (rows.length === 0) {
+    if (visible.length === 0) {
       yield* Console.log("没有匹配的任务。")
       return
     }
 
     let total = 0
     yield* Console.log("状态    成本      词元      耗时   标题")
-    for (const row of rows) {
+    for (const row of visible) {
       total += row.cost
       const tokens =
         row.tokens_input + row.tokens_output + row.tokens_cache_read + row.tokens_cache_write
@@ -70,7 +76,7 @@ const ListCommand = effectCmd({
       )
     }
     yield* Console.log("")
-    yield* Console.log(`合计 ${rows.length} 个任务，成本 ${money(total)}`)
+    yield* Console.log(`合计 ${visible.length} 个任务，成本 ${money(total)}`)
   }),
 })
 

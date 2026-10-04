@@ -17,7 +17,6 @@ export type RunError =
   | ContextSnapshotDecodeError
   | SystemContext.InitializationBlocked
   | ToolOutputStore.Error
-  | ToLLMMessage.MissingAttachmentError
 
 /** Runs one local continuation from already-recorded Session history. */
 export interface Interface {

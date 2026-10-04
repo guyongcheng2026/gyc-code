@@ -26,16 +26,27 @@ export class MissingAttachmentError extends Schema.TaggedErrorClass<MissingAttac
 // P2-4：uri 指向 AttachmentStore 落盘文件时，字节由 toLLMMessages 预读后按 ref 查表。
 // provider 层的 validateMedia 已支持直接给 Uint8Array（protocols/shared.ts:183-186），
 // 因此这里不再把字节编回 base64 data URL，既省内存也省一次编解码。
-// 表里查不到只可能是加载阶段漏了引用，退回原 uri 属于不可达分支。
-const media = (loaded: ReadonlyMap<string, Uint8Array>, file: FileAttachment): ContentPart => {
+// 查不到不再是不可达分支：ref 常驻历史，用户清一次 data 目录后该 ref 就永远读不到。
+// 此时若沿用「把 uri 丢给 provider」的旧兜底，模型会收到一个本地磁盘路径当作图片数据；
+// 若让它冒泡成 MissingAttachmentError，整个会话会永久砖死——每一轮都在同一处失败，
+// 且用户无从恢复。两者都不可接受，因此降级成一段说明文字：模型知道自己没看到这张图，
+// 可以向用户说明并请其重新附加，而会话继续可用。
+const media = (loaded: ReadonlyMap<string, Uint8Array>, file: FileAttachment): ContentPart[] => {
   const shared = {
     type: "media" as const,
     mediaType: file.mime,
     filename: file.name,
     metadata: file.description === undefined ? undefined : { description: file.description },
   }
-  if (file.ref === undefined) return { ...shared, data: file.uri }
-  return { ...shared, data: loaded.get(file.ref) ?? file.uri }
+  if (file.ref === undefined) return [{ ...shared, data: file.uri }]
+  const bytes = loaded.get(file.ref)
+  if (bytes !== undefined) return [{ ...shared, data: bytes }]
+  return [
+    {
+      type: "text",
+      text: `<attachment-unavailable name="${file.name}" mime="${file.mime}">附件已不在磁盘上，无法读取：${file.name}（原路径 ${file.uri}）。你没有看到它的内容，请勿据此作答；如仍需要，请让用户重新附加该文件。</attachment-unavailable>`,
+    },
+  ]
 }
 
 const toolInput = (tool: SessionMessage.AssistantTool) => {
@@ -146,7 +157,10 @@ function toLLMMessage(
         Message.make({
           id: message.id,
           role: "user",
-          content: [{ type: "text", text: message.text }, ...(message.files ?? []).map((file) => media(loaded, file))],
+          content: [
+            { type: "text", text: message.text },
+            ...(message.files ?? []).flatMap((file) => media(loaded, file)),
+          ],
           metadata: {
             ...message.metadata,
             ...(message.agents?.length ? { agents: message.agents } : {}),
@@ -201,7 +215,7 @@ export const toLLMMessages = (
   messages: readonly SessionMessage.Message[],
   model: Model,
   store: AttachmentStore.Interface,
-): Effect.Effect<Message[], MissingAttachmentError> =>
+): Effect.Effect<Message[]> =>
   Effect.gen(function* () {
     const refs = new Set<string>()
     for (const message of messages) {
@@ -210,16 +224,12 @@ export const toLLMMessages = (
     }
     const loaded = new Map<string, Uint8Array>()
     for (const ref of refs) {
-      const bytes = yield* store.load(ref).pipe(
-        Effect.mapError(
-          (cause) =>
-            new MissingAttachmentError({
-              uri: ref,
-              message: `附件已不在磁盘上，无法读取：${ref}（${cause.message}）。请重新附加该文件。`,
-            }),
-        ),
-      )
-      loaded.set(ref, bytes)
+      // 读不到就跳过这一份，由 media() 降级成说明文字。
+      // 此处原本直接冒泡 MissingAttachmentError：ref 常驻历史，附件一旦从磁盘消失
+      // （清过 data 目录、换机器、同步被裁剪），此后每一轮都在同一处失败，
+      // 整个会话永久砖死且用户无从恢复。降级后会话照常可用。
+      const bytes = yield* store.load(ref).pipe(Effect.catch(() => Effect.succeed(undefined)))
+      if (bytes !== undefined) loaded.set(ref, bytes)
     }
     return messages.flatMap((message) => toLLMMessage(message, model, loaded))
   })

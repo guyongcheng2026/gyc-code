@@ -10,8 +10,10 @@ const headers = Flag.OTEL_EXPORTER_OTLP_HEADERS
   ? Flag.OTEL_EXPORTER_OTLP_HEADERS.split(",").reduce(
       (acc, entry) => {
         const [key, ...value] = entry.split("=")
-        // 缺少头名的条目直接跳过，不写入空名头
-        if (key === undefined) return acc
+        // 缺少头名或头名为空的条目直接跳过，不写入空名头。
+        // "=secret" 切分后 key 是空串而非 undefined，原判据放行，
+        // 于是会写出一个名为 "" 的头——OTLP 端点收到后行为未定义。
+        if (key === undefined || key.trim() === "") return acc
         acc[key] = value.join("=")
         return acc
       },

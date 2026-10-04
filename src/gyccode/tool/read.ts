@@ -500,12 +500,19 @@ export const ReadTool = Tool.define<
               "<content>\n",
               body,
               "\n</content>",
+              // 抽取过程中的降级说明必须回灌给模型：截断到前 N 页、字符上限截断、
+              // 加密/DRM、若干页解码失败……此前 pdf.warnings 全段未被引用，
+              // 模型只会看到「读取成功」+ 正文，以为拿到了全文，
+              // 实际缺的页与降级原因一律静默丢失。
+              ...(pdf.warnings.length > 0 ? ["", "<warnings>", ...pdf.warnings, "</warnings>"] : []),
             ].join("\n")
             return {
               title,
               output,
               metadata: {
-                preview: `PDF read successfully (${pdf.pageCount} 页)`,
+                preview: pdf.warnings.length
+                  ? `PDF read successfully (${pdf.pageCount} 页，${pdf.warnings.length} 条降级说明)`
+                  : `PDF read successfully (${pdf.pageCount} 页)`,
                 truncated: false,
                 loaded: loaded.map((item) => item.filepath),
               },

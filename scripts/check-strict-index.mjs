@@ -27,6 +27,9 @@ const run = () => {
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
   )
   // tsc 有错误时非零退出是预期的；这里只要统计行数
+  // 但 proc.error（tsc 根本没能启动：找不到文件/OOM 被杀/超时）必须与「0 个错误」区分开：
+  // 此前两者都算出 measured=0，脚本静默 exit 0，基线比对等于没跑。
+  if (proc.error) throw proc.error
   const out = `${proc.stdout ?? ""}${proc.stderr ?? ""}`
   return out.split(/\r?\n/).filter((line) => /error TS\d+/.test(line)).length
 }

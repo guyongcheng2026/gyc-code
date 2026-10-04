@@ -653,7 +653,15 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 cwd: state.worktree,
               })
               if (update.code !== 0) {
-                yield* Effect.logWarning("update-ref 失败，历史未推进", { stderr: update.stderr })
+                // CAS（compare-and-swap）失败说明并发下 ref 已被别人推进，
+                // 此处返回 commitHash 就是一个「游离 commit」——对象存在但不在任何
+                // 历史链上：history 看不到它，revertToCommit 之外的路径也引用不到，
+                // 而调用方会当成「快照成功」继续往下走。必须当作失败。
+                yield* Effect.logWarning("update-ref 失败，历史未推进", {
+                  stderr: update.stderr,
+                  hash: commitHash,
+                })
+                return undefined
               }
               yield* Effect.logInfo("committed", { hash: commitHash, parent, tree: treeHash })
               return commitHash

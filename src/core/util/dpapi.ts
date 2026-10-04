@@ -28,15 +28,41 @@ function fallbackKeyPath() {
   return join(gycHome(), "credentials", "secret.key")
 }
 
+/** 旧版密钥路径。存量安装的密钥仍在这里，只读不写。 */
+function legacyFallbackKeyPath() {
+  return join(gycHome(), "secret.key")
+}
+
+function readKeyFile(file: string): Buffer | undefined {
+  try {
+    const key = Buffer.from(readFileSync(file, "utf8").trim(), "hex")
+    return key.length === 32 ? key : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function loadFallbackKey(): Buffer | undefined {
   if (fallbackKeyCache !== undefined) return fallbackKeyCache ?? undefined
   try {
     const file = fallbackKeyPath()
     mkdirSync(dirname(file), { recursive: true })
     if (existsSync(file)) {
-      const key = Buffer.from(readFileSync(file, "utf8").trim(), "hex")
-      fallbackKeyCache = key.length === 32 ? key : null
+      const key = readKeyFile(file)
+      fallbackKeyCache = key ?? null
       return fallbackKeyCache ?? undefined
+    }
+    // 新路径没有密钥时必须回退读旧路径，否则存量安装的非 Windows 凭据全部解不开：
+    // unprotectSecret 是 `fallbackUnprotect(value) ?? value`，解不开就会把
+    // `fallback.v1:` 密文原样当明文返回，最终被当作 API key 上送给 provider。
+    // 沿用旧密钥（不迁走）是为了让该机器上已有的密文继续可读。
+    const legacyFile = legacyFallbackKeyPath()
+    if (existsSync(legacyFile)) {
+      const legacy = readKeyFile(legacyFile)
+      if (legacy) {
+        fallbackKeyCache = legacy
+        return legacy
+      }
     }
     const key = randomBytes(32)
     writeFileSync(file, key.toString("hex"), { mode: 0o600 })

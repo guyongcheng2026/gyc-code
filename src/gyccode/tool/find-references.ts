@@ -235,7 +235,12 @@ export const FindReferencesTool = Tool.define(
 
           const merged = [...(declared ?? []), ...textHits]
           const kept = yield* Effect.promise(() => filterGitIgnoredLocations(merged, ins.worktree))
-          const hits = dedupeHits(kept as SymbolHit[]).slice(0, HIT_LIMIT)
+          // 多取一条用于精确判定「是否还有更多」：恰好 HIT_LIMIT 条不算截断。
+          // 直接用 slice 后的长度 >= HIT_LIMIT 判定时，恰好 100 条会误报截断
+          // （grep.ts:80-89 早已改成 MATCH_LIMIT + 1 的写法，此处未同步）。
+          const deduped = dedupeHits(kept as SymbolHit[])
+          const truncated = deduped.length > HIT_LIMIT
+          const hits = deduped.slice(0, HIT_LIMIT)
 
           return {
             title: `find_references ${params.symbol}`,
@@ -243,9 +248,9 @@ export const FindReferencesTool = Tool.define(
               symbol: params.symbol,
               source: declared ? ("lsp" as const) : ("text" as const),
               ...countByKind(hits),
-              truncated: hits.length >= HIT_LIMIT,
+              truncated,
             },
-            output: formatHits(params.symbol, hits, { lsp: declared !== undefined, truncated: hits.length >= HIT_LIMIT }),
+            output: formatHits(params.symbol, hits, { lsp: declared !== undefined, truncated }),
           }
         }).pipe(Effect.orDie),
     }

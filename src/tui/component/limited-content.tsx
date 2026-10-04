@@ -1,7 +1,7 @@
-import { Show, createMemo, type JSX } from "solid-js"
+import { Show, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
 import type { RGBA } from "@opentui/core"
 import { limitContent, DEFAULT_MAX_CONTENT_BYTES, DEFAULT_MAX_CONTENT_LINES } from "../util/limit-content"
-import { canRenderRich } from "../util/handle-budget"
+import { estimateContentHandles, globalHandleBudget } from "../util/handle-budget"
 
 /**
  * 受限富渲染：长会话 / 超长会话崩溃的统一闸门。
@@ -39,9 +39,35 @@ export function LimitedContent(props: {
       maxBytes: props.maxBytes ?? DEFAULT_MAX_CONTENT_BYTES,
     }),
   )
-  // 句柄预算不足时降级：纯文本按行渲染仍会占句柄，但结构简单、无块级 style，
-  // 单位内容句柄数远低于 markdown/diff。
-  const affordable = createMemo(() => canRenderRich(limited().text, props.cols))
+  // 句柄预算必须真正占用，不能只查询。
+  //
+  // 此前只调 fits()（纯查询），全仓 reserve() 的生产调用点为零，used() 恒 0：
+  //  - app.tsx:710/714 的句柄压力告警成了死代码；
+  //  - fits 拿「单条内容 vs 全量 50535」比较，多条内容各自都判定为装得下，
+  //    累计起来照样能撞上 65,535 的原生句柄上限。
+  //
+  // 这里在挂载期间按份 reserve，文本变化或组件卸载时归还；
+  // reserve 本身在越界时返回 false 且不改变占用，正好就是原先 fits 的判定语义，
+  // 因此占用一旦真实维护起来，比较自然变成累计口径。
+  const handles = createMemo(() => estimateContentHandles(limited().text, props.cols))
+  const [affordable, setAffordable] = createSignal(false)
+  let reserved = 0
+  const acquire = () => {
+    if (reserved > 0) {
+      globalHandleBudget.release(reserved)
+      reserved = 0
+    }
+    const amount = handles()
+    reserved = globalHandleBudget.reserve(amount) ? amount : 0
+    setAffordable(reserved > 0)
+  }
+  // 首次渲染前先占用，Show 首次求值时 affordable 才是准的
+  acquire()
+  createEffect(acquire)
+  onCleanup(() => {
+    if (reserved > 0) globalHandleBudget.release(reserved)
+    reserved = 0
+  })
   return (
     <>
       <Show when={affordable()} fallback={<>{props.plain(limited().text)}</>}>

@@ -62,20 +62,20 @@ export function settleTask(
     Effect.flatMap((task) => {
       if (!task) return Effect.void
       return Effect.gen(function* () {
-        const session = yield* db
-          .select({ cost: SessionTable.cost })
-          .from(SessionTable)
-          .where(eq(SessionTable.id, sessionID))
-          .get()
-          .pipe(Effect.orDie)
-        const sessionCost = session?.cost ?? 0
-        const taskCost = Math.max(0, sessionCost - (task.start_cost ?? 0))
+        // 不再用 session.cost - task.start_cost 覆写 cost。
+        //
+        // 口径必须与 addUsage 的逐笔累加一致，两个原因：
+        // 1. C-08：projector 只把压缩开销排除在 task 之外，却照进了 session.cost，
+        //    用差值覆写等于把压缩费又加回 task，C-08 的语义被原地抵消。
+        // 2. token 是逐笔累加出来的，cost 却取总额差值——同一行里两种口径，
+        //    「task.cost 对不上 task.tokens 对应的钱」。
+        //
+        // 逐笔累加的 task.cost 已经排除了压缩开销，正是 C-08 要的口径，直接沿用。
         yield* db
           .update(TaskTable)
           .set({
             status,
             error: error ?? task.error ?? null,
-            cost: taskCost,
             time_completed: Date.now(),
             time_updated: sql`${TaskTable.time_updated}`,
           })
@@ -151,11 +151,18 @@ export function recordTaskError(db: DB, sessionID: SessionSchema.ID, error: stri
   )
 }
 
-/** 列出某会话（或全部）的 task，供 `gyc task list` 使用。 */
-export function listTasks(db: DB, sessionID?: SessionSchema.ID) {
+/**
+ * 列出某会话（或全部）的 task，供 `gyc task list` 使用。
+ *
+ * limit 直接下推到 SQL：此前 CLI 只在 JS 侧 slice，全量行先整表进内存再丢掉，
+ * 长会话里 task 表可以很大，`gyc task list --limit 20` 的内存占用与全表同阶。
+ */
+export function listTasks(db: DB, sessionID?: SessionSchema.ID, limit?: number) {
   const base = db.select().from(TaskTable)
   const query = sessionID ? base.where(eq(TaskTable.session_id, sessionID)) : base
-  return query.orderBy(desc(TaskTable.time_created)).all().pipe(Effect.orDie)
+  const ordered = query.orderBy(desc(TaskTable.time_created))
+  const bounded = limit !== undefined && Number.isFinite(limit) ? ordered.limit(Math.max(0, Math.floor(limit))) : ordered
+  return bounded.all().pipe(Effect.orDie)
 }
 
 /** 尚未结算的 task 数量，供会话结束/健康检查使用。 */

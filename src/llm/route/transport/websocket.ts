@@ -21,7 +21,9 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@gyccode/LLM/WebSocketExecutor") {}
 
-const isNodeRuntime = typeof globalThis.WebSocket === "undefined"
+// 仅用于选择构造器，不用于判定运行形态：Node 22+ 内置的全局 WebSocket 是
+// 浏览器 API 实现，不支持自定义 header；要带 header 必须走 ws 包。
+const hasGlobalWebSocket = typeof globalThis.WebSocket !== "undefined"
 
 // 心跳周期：两个周期（约 60s）收不到 pong 即判定链路已死
 const HEARTBEAT_INTERVAL_MS = 30_000
@@ -30,7 +32,7 @@ const createWebSocket = (
   url: string,
   headers: Headers.Headers,
 ): globalThis.WebSocket => {
-  if (isNodeRuntime) {
+  if (!hasGlobalWebSocket) {
     type NodeWebSocketModule = typeof import("ws")
     const mod: NodeWebSocketModule = require("ws")
     return new mod.WebSocket(url, { headers }) as unknown as globalThis.WebSocket
@@ -265,29 +267,36 @@ export const fromWebSocket = (
     // 心跳：长会话中途被网关/代理静默断开时，既无 error 也无 close 事件，
     // 只能靠 ping/pong 探测。连续两个周期收不到 pong 即判定链路已死并失败，
     // 否则只能等首包超时甚至永久挂起。
+    const ping = (ws as { ping?: () => void }).ping
+    // 只有具备应用层 ping 的实现才会派发 "pong" 事件。浏览器 API 以及
+    // Node 22+ 内置的全局 WebSocket 都没有 ping()，onPong 永远不会被触发；
+    // 若此时照常按「收不到 pong 即超时」判定，健康长连接会在约 60s 后被误杀。
+    // 因此无 ping 能力时干脆不起心跳 fork。
+    const supportsHeartbeat = typeof ping === "function"
     let lastPongAt = Date.now()
     const onPong = () => {
       lastPongAt = Date.now()
     }
-    const ping = (ws as { ping?: () => void }).ping
-    const heartbeat = yield* Effect.forkDetach(
-      Effect.forever(
-        Effect.andThen(Effect.sleep(HEARTBEAT_INTERVAL_MS), () =>
-          Effect.sync(() => {
-            if (Date.now() - lastPongAt > HEARTBEAT_INTERVAL_MS * 2) {
-              Queue.failCauseUnsafe(
-                messages,
-                Cause.fail(
-                  transportError("message", "WebSocket heartbeat timeout", { url: input.url, kind: "timeout" }),
-                ),
-              )
-              return
-            }
-            ping?.call(ws)
-          }),
-        ),
-      ),
-    )
+    const heartbeat = supportsHeartbeat
+      ? yield* Effect.forkDetach(
+          Effect.forever(
+            Effect.andThen(Effect.sleep(HEARTBEAT_INTERVAL_MS), () =>
+              Effect.sync(() => {
+                if (Date.now() - lastPongAt > HEARTBEAT_INTERVAL_MS * 2) {
+                  Queue.failCauseUnsafe(
+                    messages,
+                    Cause.fail(
+                      transportError("message", "WebSocket heartbeat timeout", { url: input.url, kind: "timeout" }),
+                    ),
+                  )
+                  return
+                }
+                ping?.call(ws)
+              }),
+            ),
+          ),
+        )
+      : undefined
 
     const cleanup = Effect.sync(() => {
       ws.removeEventListener("message", onMessage)
@@ -295,7 +304,7 @@ export const fromWebSocket = (
       ws.removeEventListener("close", onClose)
       ws.removeEventListener("pong", onPong)
     }).pipe(
-      Effect.andThen(Fiber.interrupt(heartbeat)),
+      Effect.andThen(Effect.suspend(() => (heartbeat ? Fiber.interrupt(heartbeat) : Effect.void))),
       Effect.andThen(Queue.shutdown(messages)),
     )
 

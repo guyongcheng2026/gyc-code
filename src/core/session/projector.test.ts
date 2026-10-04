@@ -379,6 +379,42 @@ describe("C-08 压缩成本与任务成本分离", () => {
     expect(got.ledger.find((r) => r.eventType === "usage")?.cost).toBeCloseTo(1)
   })
 
+  it("settleTask 不把压缩开销加回 task.cost（与 token 同口径）", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const got = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        // 开第一个 task，计入普通用量 + 压缩用量
+        yield* TaskProjector.openTask(db, sessionID, "msg_1" as never, "做一个功能")
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        yield* applyUsage(db, events, sessionID, compactionUsage(0.4, 50))
+        // 再发一条消息：openTask 会先 settleTask 结算上一个
+        yield* TaskProjector.openTask(db, sessionID, "msg_2" as never, "再做一个功能")
+        const tasks = yield* db
+          .select({ status: TaskTable.status, cost: TaskTable.cost })
+          .from(TaskTable)
+          .where(eq(TaskTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const settled = tasks.find((t) => t.status === "success")
+        return { settledCost: settled?.cost ?? -1, sessionCost: session?.cost ?? -1 }
+      }),
+    )!
+    // 会话总额含压缩：1 + 0.4
+    expect(got.sessionCost).toBeCloseTo(1.4)
+    // 已结算的 task 只认普通用量。此前 settleTask 用 session.cost - start_cost 覆写，
+    // 会把压缩费加回来，C-08 被原地抵消。
+    expect(got.settledCost).toBeCloseTo(1)
+  })
+
   it("C-05：ledger 只增不改 —— 同一次用量重放不会抵消历史", () => {
     const events = fakeEvents([])
     const now = new Date().getTime()
@@ -464,5 +500,61 @@ describe("C-08 压缩成本与任务成本分离", () => {
       }),
     )!
     expect(sources[0]?.source).toBe("estimated")
+  })
+
+  // 流水只增不回退后，重复计费没有任何兜底：投影重放（init-projectors /
+  // sync.replay）会把同一条 PartUpdated 再跑一遍，没有幂等键账单就随重放次数漂移。
+  it("C-05：同一幂等键重复投影只计费一次（重投影不累加）", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const got = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        // 同一个 partID 的用量被投影三次，模拟三次重放
+        yield* applyUsage(db, events, sessionID, usage(1, 100), 1, "prt_same")
+        yield* applyUsage(db, events, sessionID, usage(1, 100), 1, "prt_same")
+        yield* applyUsage(db, events, sessionID, usage(1, 100), 1, "prt_same")
+        // 不同 partID 仍应各自计费
+        yield* applyUsage(db, events, sessionID, usage(2, 200), 1, "prt_other")
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        const ledger = yield* db
+          .select({ id: CostLedgerTable.id })
+          .from(CostLedgerTable)
+          .where(eq(CostLedgerTable.session_id, sessionID))
+          .all()
+          .pipe(Effect.orDie)
+        return { cost: session?.cost ?? -1, ledgerCount: ledger.length }
+      }),
+    )!
+    // 1 + 2，不是 1+1+1+2
+    expect(got.cost).toBeCloseTo(3)
+    expect(got.ledgerCount).toBe(2)
+  })
+
+  it("C-05：不传幂等键时行为不变（逐次累加）", () => {
+    const events = fakeEvents([])
+    const now = new Date().getTime()
+    const got = runInDb(
+      Effect.gen(function* () {
+        yield* seed(now)
+        const { db } = yield* Database.Service
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        yield* applyUsage(db, events, sessionID, usage(1, 100))
+        const session = yield* db
+          .select({ cost: SessionTable.cost })
+          .from(SessionTable)
+          .where(eq(SessionTable.id, sessionID))
+          .get()
+          .pipe(Effect.orDie)
+        return session?.cost ?? -1
+      }),
+    )!
+    expect(got).toBeCloseTo(2)
   })
 })

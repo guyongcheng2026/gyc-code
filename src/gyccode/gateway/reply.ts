@@ -104,20 +104,42 @@ function truncate(text: string, limit = REPLY_MAX_CHARS): string {
   return text.slice(0, limit) + `\n…（内容过长已截断，共 ${text.length} 字符）`
 }
 
+/** 排队上限：超过就立刻拒绝，而不是无限攒着。 */
+const MAX_QUEUE = 64
+/** 单个任务最长执行时间复用模块级的 TASK_TIMEOUT_MS（子进程挂死时靠它兜底）。 */
+
 /** 互斥任务执行：同一时刻仅允许一个 gyc run 子进程。 */
 class TaskMutex {
   private queue: Array<() => void> = []
   private locked = false
 
   async run<T>(fn: () => Promise<T>): Promise<T> {
+    // 队列无上限、无超时：子进程挂死时这个 Promise 永远不 settle，
+    // 后续请求全堆在 queue 里既没人看也不报错，网关连接被无声挂住。
+    // 这里在入口处拒绝超额请求，并对单次执行加超时兜底。
+    if (this.queue.length >= MAX_QUEUE) {
+      throw new Error(`任务队列已满（${MAX_QUEUE}），拒绝新请求`)
+    }
     return new Promise<T>((resolve, reject) => {
+      let settled = false
+      const settle = (fn2: () => void) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        fn2()
+      }
+      const timer = setTimeout(() => {
+        settle(() => reject(new Error(`任务执行超时（${TASK_TIMEOUT_MS}ms），子进程可能已挂死`)))
+      }, TASK_TIMEOUT_MS)
+      timer.unref?.()
+
       const execute = async () => {
         this.locked = true
         try {
           const result = await fn()
-          resolve(result)
+          settle(() => resolve(result))
         } catch (e) {
-          reject(e)
+          settle(() => reject(e))
         } finally {
           this.locked = false
           this.next()

@@ -390,6 +390,16 @@ export const GitBranchTool = Tool.define(
             }
             case "switch": {
               if (!params.name) return yield* Effect.die(new Error("git_branch switch 失败：缺少 name 参数"))
+              // 必须先确认目标是分支。`git checkout <path>` 对存在的路径同样退出码 0，
+              // 于是 name 传成目录/文件时会静默丢弃工作区里对它的未提交改动，
+              // 工具却回报「已切换到分支」。这里用 show-ref 精确判定。
+              const verify = yield* runGit(git, cwd, ["show-ref", "--verify", "--quiet", `refs/heads/${params.name}`])
+              if (verify.code !== 0)
+                return yield* Effect.die(
+                  new Error(
+                    `git_branch switch 失败：${params.name} 不是已存在的分支（可能误传了目录/文件路径）。请先用 action=list 查看可用分支。`,
+                  ),
+                )
               const r = yield* runGit(git, cwd, ["checkout", params.name])
               if (r.code !== 0) return yield* failWith("git_branch switch", r.code, r.out, r.err)
               return {
@@ -470,10 +480,10 @@ export const GitStashTool = Tool.define(
 
 const PushParameters = Schema.Struct({
   remote: Schema.optional(Schema.String).annotate({
-    description: "远端名。默认 origin。",
+    description: "远端名。默认 origin。不能以 - 开头，否则会被 git 当作选项解析。",
   }),
   branch: Schema.optional(Schema.String).annotate({
-    description: "要推送的分支。默认当前分支。",
+    description: "要推送的分支。默认当前分支。不能以 - 开头，否则会被 git 当作选项解析。",
   }),
   set_upstream: Schema.optional(Schema.Boolean).annotate({
     description: "首次推送新分支时建立跟踪关系，等价于 git push -u。",
@@ -489,12 +499,25 @@ export const GitPushTool = Tool.define(
         "把本地提交推送到远端。只能做普通推送：强制推送(force)会被直接拒绝，因为会覆盖远端历史、丢失他人已拉取的提交。",
       parameters: PushParameters,
       execute: (params: Schema.Schema.Type<typeof PushParameters>, _ctx: Tool.Context) =>
-        gitCommand(git, "git_push", [
-          "push",
-          ...(params.set_upstream ? ["--set-upstream"] : []),
-          ...(params.remote ? [params.remote] : []),
-          ...(params.branch ? [params.branch] : []),
-        ]).pipe(
+        Effect.gen(function* () {
+          // 与 git_branch / git_stash 同口径先过破坏性守卫（push 分支只拦强制推送）
+          const denied = destructiveGuard("push", undefined, undefined)
+          if (denied) return yield* Effect.die(new Error(denied))
+          // remote / branch 是模型可控的自由文本，以 "-" 开头会被 git 当成选项解析
+          // （--mirror、--receive-pack=... 等），与工具描述「只能做普通推送」的承诺相悖，
+          // 故一律拒绝，并在这两个位置之后用 -- 结束选项解析。
+          if (params.remote?.startsWith("-"))
+            return yield* Effect.die(new Error(`git_push 失败：remote 不能以 "-" 开头（收到 ${params.remote}）。`))
+          if (params.branch?.startsWith("-"))
+            return yield* Effect.die(new Error(`git_push 失败：branch 不能以 "-" 开头（收到 ${params.branch}）。`))
+          return yield* gitCommand(git, "git_push", [
+            "push",
+            ...(params.set_upstream ? ["--set-upstream"] : []),
+            ...(params.remote ? [params.remote] : []),
+            "--",
+            ...(params.branch ? [params.branch] : []),
+          ])
+        }).pipe(
           Effect.map(({ out }) => ({
             title: "已推送",
             output: out || "推送完成。",

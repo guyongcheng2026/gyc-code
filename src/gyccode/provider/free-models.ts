@@ -20,13 +20,21 @@ export const FREE_MODELS: ReadonlyArray<string> = [
   "gyccode/deepseek-v3.2",
 ]
 
-/** 最小模型信息形状：只需要知道定价，用于判断免费 */
-type CostLike = { cost?: { input?: number } }
+/** 最小模型信息形状：只需要知道定价与是否标价，用于判断免费 */
+type CostLike = { cost?: { input?: number }; priced?: boolean }
 type ModelsLike = Record<string, CostLike>
 
-/** 该模型是否免费：定价输入价为 0（priced=false 即价格未知，不在此列） */
+/**
+ * 该模型是否免费：**必须明确标价且输入价为 0**。
+ *
+ * 此前只判 `cost.input === 0`，而上游对未标价的模型会给 `priced: false` 并让
+ * cost.input 落成 0——于是「价格未知」被当成「免费」，被 pickDefaultFreeModel
+ * 优先选为零配置默认值，用户第一次调用就被计费。未知价格一律不算免费。
+ */
 function isFreeByCost(model: CostLike | undefined): boolean {
-  return model?.cost?.input === 0
+  if (model === undefined) return false
+  if (model.priced === false) return false
+  return model.cost?.input === 0
 }
 
 /** 是否在显式清单内 */

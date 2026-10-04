@@ -156,7 +156,10 @@ export const McpInstallCommand = effectCmd({
     const confirmed = yield* Effect.promise(() =>
       prompts.confirm({ message: "确认写入配置文件？", initialValue: false }),
     )
-    if (!confirmed) {
+    // Esc / Ctrl+C 时 @clack/prompts 返回的是 cancel symbol（真值），只判 !confirmed
+    // 会把「用户按了取消」当成「用户确认」，照常写配置——同文件 uninstall 与 :332 处
+    // 都做了 isCancel 检查，这里漏了。
+    if (prompts.isCancel(confirmed) || !confirmed) {
       prompts.outro("已取消，未修改任何配置")
       return
     }

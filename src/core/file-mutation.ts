@@ -190,6 +190,9 @@ const layer = Layer.effect(
     const create = Effect.fn("FileMutation.create")((input: WriteInput) =>
       withTargetLock(input.target)(
         Effect.gen(function* () {
+          // 与其余写操作保持一致：先 pre（含 snapshot.capture）再落盘。
+          // 放在写之后会让 snapshot 捕获到新内容，create 的撤销点等于失效。
+          yield* runPreWriteHooks(input.target)
           const write =
             typeof input.content === "string"
               ? fs.writeFileString(input.target.canonical, input.content, { flag: "wx" })
@@ -202,7 +205,6 @@ const layer = Layer.effect(
               Effect.fail(new TargetExistsError({ path: input.target.canonical })),
             ),
           )
-          yield* runPreWriteHooks(input.target)
           const result = writeResult(input.target, false)
           yield* runPostWriteHooks(input.target)
           return result

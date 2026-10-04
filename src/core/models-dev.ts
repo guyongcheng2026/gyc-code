@@ -169,10 +169,15 @@ const layer = Layer.effect(
     // 超 200K context 分级定价、免费模型策略等高价值信息均来自此数据源。
     // 强制刷新走 `gyc models --refresh`。
     const ttl = Duration.minutes(5)
-    // 读/写/新鲜度/文件锁必须指向同一个路径：此前读走 GYCCODE_MODELS_PATH、
+    // 读/新鲜度/文件锁指向同一个路径：此前读走 GYCCODE_MODELS_PATH、
     // 写却固定落 filepath，导致用户自定义清单永远读不到刷新结果（永远不更新）。
     const readPath = Flag.GYCCODE_MODELS_PATH ?? filepath
     const lockKey = `models-dev:${readPath}`
+    // 但写必须回缓存目录，不能回 readPath：设了 GYCCODE_MODELS_PATH 时那份文件是
+    // 用户自己维护的源文件（通常还纳管在版本库里），拿上游数据覆盖它等于静默
+    // 改写用户配置，且不可逆。因此写回始终落在 filepath 上。
+    // 与下方 loadFromDisk 的失败清理同口径：GYCCODE_MODELS_PATH 指向的文件一律不动。
+    const writePath = filepath
 
     const fresh = Effect.fnUntraced(function* () {
       const stat = yield* fs.stat(readPath).pipe(Effect.catch(() => Effect.succeed(undefined)))
@@ -229,9 +234,9 @@ const layer = Layer.effect(
       }
       if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed) || Object.keys(parsed).length === 0)
         return yield* Effect.fail(new Error("models.dev 返回空模型清单，跳过写入缓存"))
-      const tempfile = `${readPath}.${process.pid}.${Date.now()}.tmp`
+      const tempfile = `${writePath}.${process.pid}.${Date.now()}.tmp`
       yield* fs.writeWithDirs(tempfile, text).pipe(
-        Effect.andThen(fs.rename(tempfile, readPath)),
+        Effect.andThen(fs.rename(tempfile, writePath)),
         Effect.catch((error) =>
           Effect.gen(function* () {
             yield* fs.remove(tempfile, { force: true }).pipe(Effect.ignore)

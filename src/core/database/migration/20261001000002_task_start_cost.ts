@@ -13,6 +13,15 @@ export default {
   id: "20261001000002_task_start_cost",
   up(tx) {
     return Effect.gen(function* () {
+      // 幂等：SQLite 的 ADD COLUMN 不支持 IF NOT EXISTS，重复执行会抛
+      // duplicate column name，而 migration.ts 没有 try/catch，会直接冒泡
+      // 中断整条迁移链。task 表的建表语句与本迁移来自同一批提交，老库若已
+      // 跑过建表迁移、其代码版本又含 start_cost，就正好落进这个区间。
+      // 先查列再决定是否 ALTER，两种库都能安全通过。
+      if (
+        (yield* tx.all<{ name: string }>(`PRAGMA table_info(\`task\`)`)).some((column) => column.name === "start_cost")
+      )
+        return
       yield* tx.run(TASK_START_COST_ALTER)
     })
   },

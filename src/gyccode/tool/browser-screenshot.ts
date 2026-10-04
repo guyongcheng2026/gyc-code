@@ -8,7 +8,7 @@
 // 足以跟 CDP 说话。代价是需要本机装有 Edge/Chrome/Chromium；找不到时明确
 // 报错，不假装截了图。
 import { spawn, type ChildProcess } from "child_process";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir, writeFile, rm } from "fs/promises";
 import path from "path";
 import { Effect, Schema } from "effect";
 import { Browser } from "./browser";
@@ -76,14 +76,17 @@ async function launchAny(
   deadline: number,
 ): Promise<{ child: ChildProcess; endpoint: string; used: string }> {
   const failures: string[] = [];
-  for (const executable of executables) {
+  for (const [index, executable] of executables.entries()) {
     const child = spawn(executable, Browser.launchArgs(profile, port), {
       stdio: "ignore",
       detached: false,
     });
-    // 每个候选分到 deadline 的剩余时间，避免整体超时把候选数放大
+    // 每个候选只分到「剩余时间 ÷ 剩余候选数」。
+    // 除以 1 等于把整份剩余时间给每个候选，候选有 N 个时整体超时被放大到 N 倍，
+    // 首个候选坏掉时用户要等 N 倍时长才看到失败。
+    const remainingCandidates = Math.max(1, executables.length - index);
     const slice =
-      Date.now() + Math.max(5_000, Math.floor((deadline - Date.now()) / 1));
+      Date.now() + Math.max(5_000, Math.floor((deadline - Date.now()) / remainingCandidates));
     try {
       const endpoint = await Browser.waitForEndpoint(port, slice);
       return { child, endpoint, used: executable };
@@ -109,11 +112,14 @@ async function capture(
     dataRoot: string;
   },
 ): Promise<{ bytes: Buffer; title: string; file: string; fullPage: boolean }> {
+  // 端口与 profile 目录都带随机成分：崩溃或超时退出时上一次留下的 profile 会一直堆积，
+// 而残留的浏览器实例仍占着同一个调试端口，下次可能直接连上旧实例（页面、cookie 全是上次的）。
+  // 因此每次都用一次性目录，结束后在 finally 里连目录一起清掉。
   const port = Browser.DEBUG_PORT + Math.floor(Math.random() * 800);
   const profile = path.join(
     options.dataRoot,
     Browser.USER_DATA_DIR,
-    String(port),
+    `${port}-${process.pid}-${Date.now()}`,
   );
   await mkdir(profile, { recursive: true });
 
@@ -194,6 +200,8 @@ async function capture(
     }
   } finally {
     child.kill();
+    // 一次性 profile：留着只会在下次启动前堆积，并可能让调试端口被上一次的残留实例占住
+    await rm(profile, { recursive: true, force: true }).catch(() => {})
   }
 }
 

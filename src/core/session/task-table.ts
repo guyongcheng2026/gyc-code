@@ -29,7 +29,8 @@ export const TASK_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS \`task\` (
  * 抽成常量同样是因为它要与建表语句保持同步——start_cost 是后加的列，
  * 增量迁移与建表必须都覆盖，否则「全新库有列、老库没列」，
  * settleTask 读到 undefined 时 task.cost 会静默算成 session 全额。
- * SQLite 的 ALTER TABLE ADD COLUMN 不支持 IF NOT EXISTS，重复执行会报错，
- * 因此由迁移系统保证只跑一次。
+ * SQLite 的 ALTER TABLE ADD COLUMN 不支持 IF NOT EXISTS，重复执行会抛
+ * duplicate column name，因此迁移 20261001000002 采用「先 PRAGMA table_info
+ * 查列、再决定是否 ALTER」的幂等写法，不依赖迁移系统只跑一次。
  */
 export const TASK_START_COST_ALTER = "ALTER TABLE `task` ADD COLUMN `start_cost` real DEFAULT 0 NOT NULL"

@@ -315,10 +315,19 @@ const XML_ENTITIES: Record<string, string> = {
   apos: "'",
 }
 
+// String.fromCodePoint 对 & 越界码点会抛 RangeError（合法范围 0..0x10FFFF，
+// 且代理区 0xD800..0xDFFF 无对应字符）。SVG 是外部输入，&#x110000; 这种
+// 构造出来的实体一旦漏过去就会一路冒泡到 describe-image.ts:70 的 Effect.orDie，
+// 变成进程级中断。越界一律原样保留实体文本。
+const codePoint = (value: number, all: string) =>
+  Number.isInteger(value) && value >= 0 && value <= 0x10ffff && !(value >= 0xd800 && value <= 0xdfff)
+    ? String.fromCodePoint(value)
+    : all
+
 function decodeXml(s: string): string {
   return s.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (all, body: string) => {
-    if (body.startsWith("#x") || body.startsWith("#X")) return String.fromCodePoint(Number.parseInt(body.slice(2), 16))
-    if (body.startsWith("#")) return String.fromCodePoint(Number.parseInt(body.slice(1), 10))
+    if (body.startsWith("#x") || body.startsWith("#X")) return codePoint(Number.parseInt(body.slice(2), 16), all)
+    if (body.startsWith("#")) return codePoint(Number.parseInt(body.slice(1), 10), all)
     return XML_ENTITIES[body] ?? all
   })
 }
@@ -338,6 +347,28 @@ function textOf(xml: string): string {
 function sanitizeText(s: string): string {
   const flat = s.replace(/\s+/g, " ").trim()
   return flat.length > 2000 ? `${flat.slice(0, 2000)}…（已截断）` : flat
+}
+
+/**
+ * 按**总**预算拼接多个 <text> 的内容。
+ *
+ * 2000 字上限此前只作用在单个节点上（sanitizeText 逐个调用），一个含几百个
+ * <text> 的 SVG 会把上限绕过几百倍，整份文本照灌进上下文。
+ * 这里按累计长度裁剪，并在超限时说明丢了多少段，避免「静默丢内容」。
+ */
+function joinTextBudget(lines: readonly string[], budget = 2000): string {
+  const SEP = " | "
+  const kept: string[] = []
+  let used = 0
+  for (const line of lines) {
+    const cost = line.length + (kept.length > 0 ? SEP.length : 0)
+    if (used + cost > budget) break
+    kept.push(line)
+    used += cost
+  }
+  if (kept.length === lines.length) return kept.join(SEP)
+  if (kept.length === 0) return "…（已截断）"
+  return `${kept.join(SEP)}…（其余 ${lines.length - kept.length} 段已截断）`
 }
 
 function parseSvg(b: Uint8Array): ImageInfo {
@@ -368,7 +399,7 @@ function parseSvg(b: Uint8Array): ImageInfo {
   const nodes = [...xml.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/gi)]
   if (nodes.length > 0) {
     const lines = nodes.map((m) => textOf(m[1]!)).filter((s) => s.length > 0)
-    if (lines.length > 0) text.text = lines.join(" | ")
+    if (lines.length > 0) text.text = joinTextBudget(lines)
   }
   if (Object.keys(text).length > 0) info.text = text
 

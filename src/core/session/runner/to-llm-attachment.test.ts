@@ -55,16 +55,44 @@ describe("toLLMMessages — ref 附件物化", () => {
     expect(typeof (media?.type === "media" ? media.data : undefined)).not.toBe("string")
   })
 
-  test("附件已被清掉时报 MissingAttachmentError，不静默丢图", async () => {
+  test("附件已被清掉时降级为说明文字，整轮照常成功（不静默丢图，也不砖死会话）", async () => {
     const missing = path.join(ROOT, "attachment", "does-not-exist.png")
-    const exit = await Effect.runPromiseExit(
+    // ref 常驻历史：附件从磁盘消失后，此前每一轮都在同一处失败，会话永久砖死。
+    // 降级后本轮成功，且模型能读到「这张图没看到」的明确事实。
+    const messages = await Effect.runPromise(
       ToLLMMessage.toLLMMessages(
-        [userMessage([{ uri: missing, mime: "image/png", ref: missing }])] as never,
+        [userMessage([{ uri: missing, mime: "image/png", ref: missing, name: "shot.png" }])] as never,
         MODEL,
         store,
       ),
     )
-    expect(exit._tag).toBe("Failure")
+    const parts = messages[0]?.content ?? []
+    expect(parts.some((part) => part.type === "media")).toBe(false)
+    const notice = parts.find((part) => part.type === "text" && part.text.includes("attachment-unavailable"))
+    expect(notice).toBeDefined()
+    // 原文仍保留，模型不会因为附件没了而丢失用户输入
+    expect(parts.some((part) => part.type === "text" && part.text.includes("看这张图"))).toBe(true)
+  })
+
+  test("缺失附件不影响同一条消息里其他附件", async () => {
+    const missing = path.join(ROOT, "attachment", "gone.png")
+    const reference = await Effect.runPromise(
+      store.externalize({ uri: `data:image/png;base64,${Buffer.from(PNG).toString("base64")}`, mime: "image/png" }),
+    )
+    const messages = await Effect.runPromise(
+      ToLLMMessage.toLLMMessages(
+        [
+          userMessage([
+            { uri: missing, mime: "image/png", ref: missing },
+            { uri: reference.uri, mime: "image/png", ref: reference.ref },
+          ]) as never,
+        ],
+        MODEL,
+        store,
+      ),
+    )
+    const media = messages[0]?.content.find((part) => part.type === "media")
+    expect(media?.type === "media" ? media.data : undefined).toEqual(PNG)
   })
 
   test("无 ref 的 http(s) 附件原样透传 uri，不去磁盘找", async () => {

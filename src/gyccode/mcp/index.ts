@@ -177,6 +177,12 @@ interface State {
   instructions: Record<string, string>
   /** 实例 finalizer 是否已执行：桥接出来的重连 fiber 是游离的，只能靠这个标志兜底 */
   disposed: boolean
+  /**
+   * 断连重连调度器。由 state 初始化时注入——它闭包了 config 与 bridge，
+   * 作用域止于 InstanceState.make 的初始化函数内，而 storeClient 定义在外层，
+   * 取不到它；挂到 state 上是让两者共用同一个调度器的最小改法。
+   */
+  reconnect?: (name: string, attempt?: number) => void
 }
 
 export interface ServerInstructions {
@@ -604,7 +610,10 @@ const layer = Layer.effect(
                 s.clients[name] = result.mcpClient
                 s.defs[name] = result.defs!
                 if (result.instructions) s.instructions[name] = result.instructions
-                watch(s, name, result.mcpClient, bridge, mcp.timeout, () => scheduleReconnect(name, 0))
+                // 计数必须带着本次的 attempt 继续，不能归零：归零后「连上→再掉→再连上」
+                // 的循环永远把 attempt 压回 0，maxAttempts:10 这道闸门形同虚设，
+                // 对一个稳定复现崩溃的服务端会无限重连下去。
+                watch(s, name, result.mcpClient, bridge, mcp.timeout, () => scheduleReconnect(name, plan.attempt))
                 yield* events.publish(ToolsChanged, { server: name }).pipe(Effect.ignore)
                 return
               }
@@ -612,6 +621,9 @@ const layer = Layer.effect(
             }).pipe(Effect.ignore),
           )
         }
+        // 暴露给外层：storeClient 在 mcp.connect / auth 完成后会重新 watch，
+        // 那条 watch 的 onUnexpectedClose 也必须能排到重连。
+        s.reconnect = scheduleReconnect
 
         yield* Effect.forEach(
           Object.entries(config),
@@ -704,7 +716,9 @@ const layer = Layer.effect(
       s.defs[name] = listed
       if (instructions) s.instructions[name] = instructions
       else delete s.instructions[name]
-      watch(s, name, client, bridge, timeout)
+      // onUnexpectedClosure 必须传：漏传时 watch 不会登记重连回调，MCP 断连后永不重连。
+      // 初始连接与重连成功后的两处都传了，只有这里漏。s.reconnect 由 state 初始化时注入。
+      watch(s, name, client, bridge, timeout, () => s.reconnect?.(name, 0))
       if (previous) yield* Effect.tryPromise(() => previous.close()).pipe(Effect.ignore)
       return s.status[name]
     })

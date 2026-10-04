@@ -59,13 +59,30 @@ const MAX_PRESERVE_RECENT_TOKENS = 8_000
 // 路径，明确告知模型可回查。
 export const TOOL_OUTPUT_MAX_CHARS = 2_000
 
+/**
+ * 从尾部取 n 个 UTF-16 码元，但不切开代理对。
+ *
+ * 直接 slice 可能把一个代理对劈成两半，落进上下文的是孤立代理项（U+D800..U+DFFF），
+ * JSON 序列化后模型看到的是乱码，且这段尾部长度恰好是按码元算的，下游任何
+ * 「按字符数截断」的二次处理都会把它留在边界上。
+ * 切片起点若是高位代理（0xD800..0xDBFF），说明它属于一对、另一半在更前面，
+ * 往前让一个码元即可。
+ */
+const safeTail = (output: string, n: number): string => {
+  if (n <= 0) return ""
+  let start = Math.max(0, output.length - n)
+  const code = output.charCodeAt(start)
+  if (start < output.length && code >= 0xd800 && code <= 0xdbff) start += 1
+  return output.slice(start)
+}
+
 export const summarizeToolOutput = (output: string, fullPath: string, tool?: string): string => {
   if (output.length <= TOOL_OUTPUT_MAX_CHARS) return output
   // 证据类工具额外保尾部：read 的完整性标记（Showing lines X-Y of N）在末尾，
   // grep 的匹配行、bash 的报错也常在末尾，只留头部仍会让模型误判「这就是全部」。
   // 尾部长度有上限，不影响压缩预算。
   const withTail = keepsTailOnTruncate(tool) && output.length > TOOL_OUTPUT_MAX_CHARS + TOOL_OUTPUT_TAIL_CHARS
-  const tail = withTail ? output.slice(output.length - TOOL_OUTPUT_TAIL_CHARS) : ""
+  const tail = withTail ? safeTail(output, TOOL_OUTPUT_TAIL_CHARS) : ""
   const omitted = output.length - TOOL_OUTPUT_MAX_CHARS - tail.length
   return [
     output.slice(0, TOOL_OUTPUT_MAX_CHARS),

@@ -113,8 +113,12 @@ describe("句柄预算闸门本身的前提", () => {
 
   test("预算耗尽时全局降级为纯文本，而不是撞上限崩溃", () => {
     const source = read("tui/component/limited-content.tsx")
-    expect(source).toContain("canRenderRich")
     expect(source).toContain("fallback")
+    // 必须真的占用预算：此前只用 fits() 纯查询，used() 恒 0，
+    // 多条内容各自都判定装得下，累计起来照样能撞 65,535 的原生上限。
+    expect(source).toContain("globalHandleBudget.reserve")
+    // 卸载/换文本时归还，否则占用只增不减，降级会来得越来越早
+    expect(source).toContain("globalHandleBudget.release")
   })
 
   test("安全模式降级通道仍然存在（原生崩溃后的最后兜底）", () => {

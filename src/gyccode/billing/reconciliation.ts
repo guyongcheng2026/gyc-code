@@ -84,7 +84,11 @@ export function reconcile(
       continue
     }
     const drift = providerAmount - localAmount
-    const driftRatio = providerAmount === 0 ? 0 : Math.abs(drift) / Math.abs(providerAmount)
+    // provider 账单为 0 而本地有花费时，比值没有定义（除零）。
+    // 记 0 等于宣称「零差异」，100% 的漏记会被判成未超阈值而静默通过。
+    // 约定：分母为 0 且本地也为 0 才是 0；有本地花费则记 1（完全对不上）。
+    const driftRatio =
+      providerAmount === 0 ? (localAmount === 0 ? 0 : 1) : Math.abs(drift) / Math.abs(providerAmount)
     rows.push({
       key,
       local: localAmount,
