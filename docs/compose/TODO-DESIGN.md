@@ -55,6 +55,7 @@
 |---|---|---|
 | U-1 | Pixel Canary 未收录 | 对 `models-mirror/api.json` 全部 220 家供应商做 `pixel` / `canary` 模糊检索，零命中。无法确认它是新发布尚未被上游目录收录，还是名称记法有误。若能提供确切的供应商与模型 ID，可作为临时补充收录 |
 | U-2 | `Failed to create TextBuffer` 原生路径根因 | 已把四条富渲染路径纳入句柄预算闸门并加测试锁死，但未能复现崩溃本身（opentui 真实渲染需原生终端，bun test 起不来）。若仍复现，需在原生终端下抓取句柄分配栈 |
+| U-3 | tool part 状态停在 `running`（生产库 24 条残留） | 与权限超时无关：超时只救活未被杀死的进程，被 SIGKILL 的 part 不会落地对账。根因未定位，需先确认会话启动是否存在状态对账路径 |
 
 ### ✅ 已决策（历史，供追溯）
 
@@ -65,6 +66,27 @@
 | A/B | 执行器统一 / API 收敛 | 2026-08-12：仅出路线图（报告已写入），不实施 |
 
 ---
+
+---
+
+## 2026-10-04 取证复核（撤回 4 条误判）
+
+对本轮提出的 5 条「已确认缺陷」逐条回源码核对，**4 条不成立**，已从缺陷清单移除：
+
+| # | 原说法 | 裁定 | 实据 |
+|---|---|---|---|
+| 1 | 权限 ask 无超时 | 已修并推送 | `c6893c3`；`src/gyccode/permission/index.ts:243-261` 有 `Effect.timeout` + `catchTag("TimeoutError")` → `RejectedError`，`:35` 默认 30 分钟，已配 `ask-timeout.test.ts` |
+| 2 | `gyc run` 25 分钟挂起是 bug | 不成立 | 默认 30 分钟自动拒绝；复现时提前 5 分钟 kill，未观察到恢复 |
+| 3 | task 表 token 口径分叉 | 不成立 | `src/core/session/task-table.ts:15-20` 无 `tokens_reasoning` 列，reasoning 并入 output 是单桶设计 |
+| 4 | post-commit 推送静默失败 | 不成立 | `.githooks/post-commit:9-12` 本就有 `if ! err=$(...)` → 追加 `.git/worklog-sync.log` |
+| 5 | 守卫漏检跨行空 catch | 已修并推送 | `d94e86e`；`scripts/check-bug-patterns.mjs:39-41` 已是整段 `text.matchAll(...)` 而非逐行匹配 |
+
+第 5 条已实测验证：以 `.ts` 探针确认跨行空 catch 被拦截（退出码 1），带注释的 `catch (e) { /* … */ }` 不误报。
+
+> 注意：守卫不扫 `.mjs`，用 `.mjs` 探针会得到假阴性（文件数不变）。
+
+> 教训：`git show <ref>` 取到的内容可能滞后于工作区。判定缺陷必须以**工作区实际文件**为准，
+> 否则会把已修复项当成缺陷重复报。
 
 ## 相关文档
 - 架构评估报告：`docs/compose/reports/2026-08-12-architecture-convergence.md`
