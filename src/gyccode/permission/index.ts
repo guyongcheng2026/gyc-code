@@ -2,7 +2,7 @@ import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { ConfigPermissionV1 } from "@gyccode/core/v1/config/permission"
 import { InstanceState } from "@/effect/instance-state"
 import { Wildcard } from "@gyccode/core/util/wildcard"
-import { Deferred, Effect, Layer, Context } from "effect"
+import { Deferred, Duration, Effect, Layer, Context } from "effect"
 import * as Option from "effect/Option"
 import * as RefModule from "effect/Ref"
 import os from "os"
@@ -25,6 +25,20 @@ export const Event = PermissionV1.Event
 const FENCED_PERMISSIONS = new Set(["edit", "write", "read", "patch", "notebook"])
 
 const isFenceRelevant = (permission: string): boolean => FENCED_PERMISSIONS.has(permission)
+
+/**
+ * 审批等待上限（毫秒）。原先 `Deferred.await` 无任何超时，只要没有 reply 到达就永久挂起——
+ * `gyc run` 这类非交互进程会连同整轮对话一起卡死，工具 part 也永远停在 `running`。
+ * 超过上限按「没人应答」处理：自动拒绝，让工具失败并把控制权交回模型，而不是挂死。
+ * 交互式 TUI 下人思考的时间通常远小于该上限，需要放宽时用环境变量覆盖。
+ */
+export const DEFAULT_ASK_TIMEOUT_MS = 30 * 60 * 1000
+
+export const resolveAskTimeoutMs = (): number => {
+  const raw = process.env.GYCCODE_PERMISSION_ASK_TIMEOUT_MS
+  const parsed = raw === undefined ? Number.NaN : Number.parseInt(raw, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_ASK_TIMEOUT_MS
+}
 
 /**
  * A-5（对标指标 22 · 审计）：把一次拒绝写入 `permission_denials`。
@@ -226,8 +240,25 @@ export const layer = Layer.effect(
         return [undefined, m] as const
       })
       yield* events.publish(Event.Asked, info)
+      const askTimeoutMs = resolveAskTimeoutMs()
       return yield* Effect.ensuring(
-        Deferred.await(deferred),
+        Deferred.await(deferred).pipe(
+          Effect.timeout(Duration.millis(askTimeoutMs)),
+          // Effect.timeout 抛出的是内置 Cause.TimeoutError，换算为领域错误，
+          // 否则调用方拿到的错误通道与接口声明不符（与 question/index.ts 一致）。
+          Effect.catchTag("TimeoutError", () =>
+            Effect.as(
+              Effect.logWarning("permission ask timed out; auto rejecting", {
+                "session.id": info.sessionID,
+                id,
+                permission: info.permission,
+                patterns: info.patterns,
+                timeoutMs: askTimeoutMs,
+              }),
+              new PermissionV1.RejectedError(),
+            ),
+          ),
+        ),
         RefModule.modify(state.pending, (m) => {
           m.delete(id)
           return [undefined, m] as const

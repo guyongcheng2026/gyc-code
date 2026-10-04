@@ -35,11 +35,13 @@ function checkFile(path) {
 
   // A. 空 catch（单行 catch {} 或 catch (e) {}）
   if (!isTestFile(path) && !EMPTY_CATCH_ALLOW.has(path.replace(/\\/g, "/"))) {
-    lines.forEach((line, i) => {
-      if (/\bcatch\s*(\([^)]*\))?\s*\{\s*\}/.test(line)) {
-        hits.push(`${path}:${i + 1} empty catch 吞错（失败被静默忽略）`)
-      }
-    })
+    // 对整段文本匹配而不是逐行：正则里的 \s 本身就能跨换行，逐行匹配会让
+    // `catch (e) {\n}` 这种跨行空 catch 漏检。注释不会被 \s 吃掉，
+    // 因此 `catch {\n  // 说明\n}` 依旧不算空 catch，语义与原来一致。
+    for (const m of text.matchAll(/\bcatch\s*(\([^)]*\))?\s*\{\s*\}/g)) {
+      const lineNo = text.slice(0, m.index).split("\n").length
+      hits.push(`${path}:${lineNo} empty catch 吞错（失败被静默忽略）`)
+    }
   }
 
   // B. 空壳自递归：function NAME(...) { return NAME(...) }，中间只有空白
