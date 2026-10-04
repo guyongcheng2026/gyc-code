@@ -10,6 +10,7 @@
 import { spawn, type ChildProcess } from "child_process";
 import { mkdir, writeFile, rm } from "fs/promises";
 import path from "path";
+import { pathToFileURL } from "url";
 import { Effect, Schema } from "effect";
 import { Browser } from "./browser";
 import { Tool } from "@/tool/tool";
@@ -298,7 +299,10 @@ export const BrowserTool = Tool.define<typeof Parameters, Metadata, never>(
                 type: "file" as const,
                 mime: "image/png",
                 filename: path.basename(result.file),
-                url: `file://${result.file}`,
+                // 不能拼 `file://${result.file}`：Windows 下绝对路径形如 C:\...\a.png，
+                // 拼出来是 file://C:\...\a.png —— 三斜杠缺失、反斜杠未转义，
+                // 下游按 URL 解析时会把 "C:" 当成主机名。交给 node:url 生成标准 file URL。
+                url: pathToFileURL(result.file).href,
               },
             ],
           };

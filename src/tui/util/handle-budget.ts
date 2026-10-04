@@ -95,22 +95,33 @@ export class HandleBudget {
     this.#limit = Math.max(0, Math.floor(limit))
   }
 
-  /** 占用 n 个句柄；额度不足返回 false 且不改变占用。 */
+  /**
+   * 占用 n 个句柄；额度不足返回 false 且不改变占用。
+   *
+   * 必须拒掉非有限值：入参来自 estimateContentHandles（纯算术，输入含调用方给的列宽）。
+   * 一旦算出 NaN，`#used + NaN > limit` 恒为 false，于是 NaN 被累加进 #used，
+   * 此后所有比较都是 false —— 闸门被永久焊死，且没有任何报错。
+   * 这不是理论风险：reserve 此前只有测试调用，是 LimitedContent 真正挂上富渲染后
+   * 才第一次进入生产路径的。
+   */
   reserve(n: number): boolean {
+    if (!Number.isFinite(n)) return false
     const amount = Math.max(0, Math.floor(n))
     if (this.#used + amount > this.#limit) return false
     this.#used += amount
     return true
   }
 
-  /** 归还 n 个句柄；下限钳到 0，避免 release 顺序颠倒导致负数。 */
+  /** 归还 n 个句柄；下限钳到 0，避免 release 顺序颠倒导致负数。非有限值按 0 处理。 */
   release(n: number): void {
+    if (!Number.isFinite(n)) return
     const amount = Math.max(0, Math.floor(n))
     this.#used = Math.max(0, this.#used - amount)
   }
 
-  /** 仅查询是否会超限，不改变占用。 */
+  /** 仅查询是否会超限，不改变占用。非有限值一律判为装得下（与 reserve 的拒绝策略一致）。 */
   fits(n: number): boolean {
+    if (!Number.isFinite(n)) return false
     return this.#used + Math.max(0, Math.floor(n)) <= this.#limit
   }
 

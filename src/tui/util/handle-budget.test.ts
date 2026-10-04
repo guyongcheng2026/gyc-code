@@ -109,6 +109,24 @@ describe("HandleBudget", () => {
     expect(b.available()).toBe(30)
   })
 
+  // reserve 自 LimitedContent 真正挂上富渲染后才第一次进入生产路径。
+  // 若放行 NaN，`#used + NaN > limit` 恒为 false → NaN 被累加进 #used，
+  // 此后所有比较都失效，撞上限崩溃的闸门被永久焊死且不报错。
+  test("非有限入参被拒绝，不会把 used 污染成 NaN", () => {
+    const b = new HandleBudget(100)
+    expect(b.reserve(NaN)).toBe(false)
+    expect(b.used()).toBe(0)
+    expect(Number.isNaN(b.used())).toBe(false)
+    expect(b.available()).toBe(100)
+    // 污染之后闸门会彻底失效：正常的 10 反而也占了 100
+    expect(b.reserve(10)).toBe(true)
+    expect(b.used()).toBe(10)
+    expect(b.fits(NaN)).toBe(false)
+    b.release(NaN)
+    expect(b.used()).toBe(10)
+    expect(b.available()).toBe(90)
+  })
+
   test("tryReserve：额度不足时返回 false 且不占用", () => {
     const b = new HandleBudget(100)
     expect(b.tryReserve(1000)).toBe(false)
