@@ -65,9 +65,9 @@ function EditBody(props: { request: PermissionRequest }) {
             text={diff()}
             cols={dimensions().width}
             plainColor={theme.textMuted}
-            rich={() => (
+            rich={(text) => (
               <diff
-                diff={diff()}
+                diff={text}
                 view={view()}
                 filetype={ft()}
                 syntaxStyle={syntax()}

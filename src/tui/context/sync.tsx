@@ -629,12 +629,11 @@ export const {
         }
 
         case "vcs.branch.updated": {
-          // workspace 必须在本 case 内取：lsp.updated 的 const 属于其 case 块作用域，
-          // 跨 case 引用会抛 ReferenceError（此前该分支实际从未成功执行过）。
-          const workspace = project.workspace.current()
-          if (workspace === project.workspace.current()) {
-            setStore("vcs", { branch: event.properties.branch })
-          }
+          // 该事件只带 branch，schema 里没有 workspace/directory 字段
+          // （src/schema/vcs-event.ts:7-12），无法做跨工作区过滤。
+          // 此前这里写的是 `workspace === project.workspace.current()`——同一个 memo
+          // 连读两次必然相等，守卫恒真、形同虚设，只能老老实实赋值。
+          setStore("vcs", { branch: event.properties.branch })
           break
         }
       }

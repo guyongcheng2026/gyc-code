@@ -18,7 +18,7 @@
 // 其余位置靠 review 保证，不做正则误伤。
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { extname, join, relative } from "node:path"
-import { BANNED_BRAND_WORDS, findBannedWord, isExemptLine } from "./brand-words.mjs"
+import { BANNED_BRAND_WORDS, findBannedWord, stripExemptContext } from "./brand-words.mjs"
 
 const ROOT = process.argv[2] ?? "."
 const BANNED = BANNED_BRAND_WORDS
@@ -75,8 +75,7 @@ function scan(file) {
     // 按行豁免：第三方端点 / 包名 / 模型 ID / 环境变量名属铁律 2 合理引用。
     // 守卫词表已收敛为产品名，若不做行级豁免会把协议互操作代码误判为违规，
     // 进而在后续维护中被整体关闭——这正是 2026-09-30 之前 62 处残留无人拦截的成因。
-    if (isExemptLine(line)) return
-    const word = findBannedWord(line, BANNED)
+    const word = findBannedWord(stripExemptContext(line), BANNED)
     if (word) violations.push(`${rel}:${i + 1} 命中禁用品牌词 "${word}"`)
   })
 }

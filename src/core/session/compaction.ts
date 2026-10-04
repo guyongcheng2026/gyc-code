@@ -191,7 +191,9 @@ export const make = (dependencies: Dependencies) => {
     if (context === undefined || context <= 0) return false
     const output = input.request.generation?.maxTokens ?? input.model.route.defaults.limits?.output ?? 0
     const selected = select(input.entries, config.tokens)
-    const previousSummary = input.entries.find((entry) => entry.message.type === "compaction")?.message
+    // entries 按 seq 升序，find 会拿到最早那次压缩的摘要。buildPrompt 要求「更新锚定
+    // 摘要、剔除过期内容」，喂最旧的等于让已被标记 stale 的内容继续当基座，摘要逐轮退化。
+    const previousSummary = input.entries.findLast((entry) => entry.message.type === "compaction")?.message
     if (!selected || (selected.head.length === 0 && previousSummary?.type !== "compaction")) return false
     const summaryPrompt = buildPrompt({
       previousSummary: previousSummary?.type === "compaction" ? previousSummary.summary : undefined,

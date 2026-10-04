@@ -2040,13 +2040,13 @@ function ReasoningPart(props: { last: boolean; part: ReasoningPart; message: Ass
               text={summary().body}
               cols={ctx.width}
               plainColor={theme.textMuted}
-              rich={() => (
+              rich={(text) => (
                 <code
                   filetype="markdown"
                   drawUnstyledText={false}
                   streaming={true}
                   syntaxStyle={syntax()}
-                  content={summary().body}
+                  content={text}
                   conceal={ctx.conceal()}
                   fg={theme.textMuted}
                 />
@@ -2118,12 +2118,12 @@ function TextPart(props: { last: boolean; part: TextPart; message: AssistantMess
           text={props.part.text.trim()}
           cols={ctx.width}
           plainColor={theme.textMuted}
-          rich={() => (
+          rich={(text) => (
             <markdown
               syntaxStyle={syntax()}
               streaming={true}
               internalBlockMode="top-level"
-              content={props.part.text.trim()}
+              content={text}
               tableOptions={{ style: "grid" }}
               conceal={ctx.conceal()}
               fg={theme.markdownText}
@@ -2558,13 +2558,13 @@ function Write(props: ToolProps) {
               text={code()}
               cols={ctx.width}
               plainColor={theme.textMuted}
-              rich={() => (
+              rich={(text) => (
                 <code
                   conceal={false}
                   fg={theme.text}
                   filetype={filetype(stringValue(props.input.filePath))}
                   syntaxStyle={syntax()}
-                  content={code()}
+                  content={text}
                 />
               )}
               plain={(text) => (
@@ -2875,9 +2875,9 @@ function Edit(props: ToolProps) {
               text={diffContent()}
               cols={ctx.width}
               plainColor={theme.textMuted}
-              rich={() => (
+              rich={(text) => (
                 <diff
-                  diff={diffContent()}
+                  diff={text}
                   view={view()}
                   filetype={ft()}
                   syntaxStyle={syntax()}
@@ -2937,9 +2937,9 @@ function ApplyPatch(props: ToolProps) {
           text={p.diff}
           cols={ctx.width}
           plainColor={theme.textMuted}
-          rich={() => (
+          rich={(text) => (
             <diff
-              diff={p.diff}
+              diff={text}
               view={view()}
               filetype={filetype(p.filePath)}
               syntaxStyle={syntax()}

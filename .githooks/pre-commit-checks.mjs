@@ -15,12 +15,73 @@
 // pre-commit 只剩「取仓库根 → 调本模块 → 按退出码放行」，行为与抽出的逐字等价。
 // 三项 node 脚本全部为真实实现，无占位。
 import { spawnSync } from "node:child_process"
-import { existsSync, realpathSync } from "node:fs"
-import { join } from "node:path"
+import { existsSync, realpathSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 /** 与 scripts/check-mojibake.mjs 的 CHECK_EXTS 保持一致。 */
 export const MOJIBAKE_EXTS = [".ts", ".tsx", ".md", ".json", ".mjs", ".cjs"]
+
+/**
+ * 把 git index 里的真实内容物化到临时目录，返回 原路径 -> 临时路径 的映射。
+ *
+ * 守卫脚本一律 readFileSync(路径)，读的是**工作区**。于是「先 git add、再改工作区」
+ * 时，进入提交的是暂存区的旧内容，守卫看到的却是工作区已修好的新内容——违规内容
+ * 就能带着一份干净的检查结果合进来。这里把 index 的字节落盘后再交给脚本，
+ * 保证「守卫检查的」与「将要提交的」是同一份。
+ */
+function snapshotIndex(cwd, files) {
+  const map = new Map()
+  if (files.length === 0) return map
+  const dir = mkdtempSync(join(tmpdir(), "gyc-precommit-"))
+  // 退出期兜底清理；临时目录删不掉不影响提交正确性，故吞掉异常。
+  process.on("exit", () => {
+    try {
+      rmSync(dir, { recursive: true, force: true })
+    } catch {
+      // 退出期清理失败无需处理
+    }
+  })
+  files.forEach((rel, i) => {
+    const r = spawnSync("git", ["show", `:${rel}`], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 })
+    if (r.status !== 0 || !r.stdout) return // 二进制或已删除：退回工作区路径
+    const dest = join(dir, `${i}-${basename(rel)}`)
+    writeFileSync(dest, r.stdout)
+    map.set(rel, dest)
+  })
+  return map
+}
+
+/**
+ * 把 git index 里的真实内容物化到临时目录，返回 原路径 -> 临时路径 的映射。
+ *
+ * 守卫脚本一律 readFileSync(路径)，读的是**工作区**。于是「先 git add、再改工作区」
+ * 时，进入提交的是暂存区的旧内容，守卫看到的却是工作区已修好的新内容——违规内容
+ * 就能带着一份干净的检查结果合进来。这里把 index 的字节落盘后再交给脚本，
+ * 保证「守卫检查的」与「将要提交的」是同一份。
+ */
+function snapshotIndex(cwd, files) {
+  const map = new Map()
+  if (files.length === 0) return map
+  const dir = mkdtempSync(join(tmpdir(), "gyc-precommit-"))
+  // 退出期兜底清理；临时目录删不掉不影响提交正确性，故吞掉异常。
+  process.on("exit", () => {
+    try {
+      rmSync(dir, { recursive: true, force: true })
+    } catch {
+      // 退出期清理失败无需处理
+    }
+  })
+  files.forEach((rel, i) => {
+    const r = spawnSync("git", ["show", `:${rel}`], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 })
+    if (r.status !== 0 || !r.stdout) return // 二进制或已删除：退回工作区路径
+    const dest = join(dir, `${i}-${basename(rel)}`)
+    writeFileSync(dest, r.stdout)
+    map.set(rel, dest)
+  })
+  return map
+}
 
 /** 乱码检查要读的暂存文件后缀。 */
 const MOJIBAKE_EXT_RE = /\.(ts|tsx|md|json|mjs|cjs)$/i
@@ -116,6 +177,8 @@ export function runChecks(options = {}) {
   const cwd = options.cwd ?? process.cwd()
   const root = options.root ?? detectRoot(cwd) ?? cwd
   const staged = options.staged ?? stagedFiles(cwd)
+  const indexSnap = snapshotIndex(cwd, staged)
+  const snapOf = (list) => list.map((f) => indexSnap.get(f) ?? f)
   const checks = []
 
   // 1. UTF-8 乱码防线
@@ -123,7 +186,7 @@ export function runChecks(options = {}) {
   if (mojibakeFiles.length === 0) {
     checks.push(skipped("mojibake", "UTF-8 乱码防线", "暂存区没有需要检查的文本文件", mojibakeFiles))
   } else {
-    const r = runNodeScript(cwd, join(root, "scripts", "check-mojibake.mjs"), mojibakeFiles)
+    const r = runNodeScript(cwd, join(root, "scripts", "check-mojibake.mjs"), snapOf(mojibakeFiles))
     checks.push(r.code === 0 ? pass("mojibake", "UTF-8 乱码防线", mojibakeFiles) : fail("mojibake", "UTF-8 乱码防线", r, mojibakeFiles))
   }
 
@@ -138,7 +201,7 @@ export function runChecks(options = {}) {
   if (tsFiles.length === 0) {
     checks.push(skipped("bugPatterns", "高频缺陷模式防线", "暂存区没有 TS/TSX 文件", tsFiles))
   } else {
-    const r = runNodeScript(cwd, join(root, "scripts", "check-bug-patterns.mjs"), tsFiles)
+    const r = runNodeScript(cwd, join(root, "scripts", "check-bug-patterns.mjs"), snapOf(tsFiles))
     checks.push(r.code === 0 ? pass("bugPatterns", "高频缺陷模式防线", tsFiles) : fail("bugPatterns", "高频缺陷模式防线", r, tsFiles))
   }
 

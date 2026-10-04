@@ -875,10 +875,10 @@ function DiffViewer(props: { api: TuiPluginApi }) {
                                     text={patch()}
                                     cols={patchPaneWidth()}
                                     plainColor={theme().textMuted}
-                                    rich={() => (
+                                    rich={(text) => (
                                       <diff
                                         ref={(element: DiffRenderable) => diffNodeByFileIndex.set(entry.fileIndex, element)}
-                                        diff={patch()}
+                                        diff={text}
                                         view={view()}
                                         filetype={reviewed() ? PLAIN_TEXT_FILETYPE : filetype(entry.file.file)}
                                         syntaxStyle={themeState.syntax()}

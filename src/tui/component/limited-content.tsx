@@ -26,8 +26,14 @@ export function LimitedContent(props: {
   maxLines?: number
   /** 字节上限；默认 DEFAULT_MAX_CONTENT_BYTES。 */
   maxBytes?: number
-  /** 预算充足时的富渲染分支（opentui <markdown>/<diff>/<code> 等）。 */
-  rich: () => JSX.Element
+  /**
+   * 预算充足时的富渲染分支（opentui <markdown>/<diff>/<code> 等）。
+   *
+   * 必须接收 limited 之后的文本作为参数：此前签名无参，调用点闭包里直接引用
+   * 原始内容，导致折叠上限只对 plain 降级分支生效，富渲染这条真正吃句柄的
+   * 路径完全绕过闸门——「打开超长会话即退出」的防护形同虚设。
+   */
+  rich: (text: string) => JSX.Element
   /** 降级分支：纯文本渲染，必须不创建额外的块级节点。 */
   plain: (text: string) => JSX.Element
   /** 折叠提示行的前景色。 */
@@ -71,7 +77,7 @@ export function LimitedContent(props: {
   return (
     <>
       <Show when={affordable()} fallback={<>{props.plain(limited().text)}</>}>
-        {props.rich()}
+        {props.rich(limited().text)}
       </Show>
       <Show when={limited().truncated}>
         <text fg={props.plainColor}>（内容过长，已折叠 {limited().hiddenLines} 行）</text>

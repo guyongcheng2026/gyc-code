@@ -42,18 +42,24 @@ export const COMPLIANCE_FORBIDDEN = [...new Set([...BANNED_BRAND_WORDS, ...SUPPL
  * 第三方供应商 / 模型 ID 子串：命中且同处一行出现这些信号时，视为铁律 2 合理引用。
  * 用于把「自有文案违规」与「协议标识符 / 模型 ID」区分开，避免守卫误伤导致被绕过。
  */
-export const EXEMPT_CONTEXT_SIGNALS = [
-  /\bmodels\./i, // models.dev / models.opencode.ai 等模型清单服务
-  /@[a-z0-9-]+\//i, // 第三方包名，如 @opencode-ai/plugin
-  /https?:\/\//i, // 第三方端点
-  /\bv?\d+\.\d+/, // 第三方版本号（v0.20.5 等）
-  /process\.env|env\./, // 环境变量名，如 HERMES_HOME / CODEX_CI
-  /协议|标识符|互操作|端点|上游|沿革|逆向|实证/, // 注释中说明引用来源
+const EXEMPT_CONTEXT_SPANS = [
+  /https?:\/\/\S+/gi, // 第三方端点
+  /@[a-z0-9-]+\/\S*/gi, // 第三方包名，如 @opencode-ai/plugin
+  /\bmodels\.\S*/gi, // models.dev / models.opencode.ai 等模型清单服务
+  /\bprocess\.env\.\S+|\benv\.\S+/g, // 环境变量名，如 HERMES_HOME / CODEX_CI
+  /\bv?\d+\.\d+(?:\.\d+)?\b/g, // 第三方版本号（v0.20.5 等）
+  /协议|标识符|互操作|端点|上游|沿革|逆向|实证/g, // 注释中说明引用来源
 ]
 
-/** 该行是否属于铁律 2 合理引用（第三方端点 / 包名 / 模型 ID / 环境变量名）。 */
-export function isExemptLine(line) {
-  return EXEMPT_CONTEXT_SIGNALS.some((re) => re.test(line))
+/**
+ * 剥掉属于「铁律 2 合理引用」的片段，只留自有文案部分供查禁用词。
+ *
+ * 此前是「同行出现任一信号就整行放行」，等于给守卫留了一条只需在违规行末尾
+ * 补一个链接即可绕过的通路——守卫一旦能被这么绕过，白名单之外的检查形同虚设。
+ * 改成先切除合理引用片段、再在剩余文案里查词，误伤面不增，绕过面消失。
+ */
+export function stripExemptContext(line) {
+  return EXEMPT_CONTEXT_SPANS.reduce((acc, re) => acc.replace(re, " "), line)
 }
 
 /**

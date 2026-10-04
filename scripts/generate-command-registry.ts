@@ -35,6 +35,7 @@ const COMMAND_EXPORTS: Record<string, string> = {
   "web": "WebCommand",
   "models": "ModelsCommand",
   "stats": "StatsCommand",
+  "task": "TaskCommand",
   "export": "ExportCommand",
   "import": "ImportCommand",
   "github": "GithubCommand",
