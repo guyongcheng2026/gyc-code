@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "bun:test"
+import { describe, expect, it } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Database } from "../database/database"
 import { ErrorAuditTable } from "../session/sql"
@@ -9,7 +9,7 @@ import {
   writeErrorAudit,
   type ErrorAuditRecord,
 } from "./error-audit"
-import { logError } from "./log-error"
+import { logError, logWarn } from "./log-error"
 
 /**
  * A-1（对标指标 22 · 审计日志）：logError 此前只往控制台写，进程一关就没法回答
@@ -160,6 +160,138 @@ describe("error_audit · logError 接线", () => {
     }
     await new Promise((resolve) => setTimeout(resolve, 10))
     setErrorAuditSink(undefined)
+  })
+})
+
+/**
+ * R-4：logWarn 此前只 console.warn、完全不落库，进程一关就没法回答「昨晚那批降级/重试
+ * 到底发生在哪些 scope」。这里锁定它与 logError 一样投递 error_audit，并且靠
+ * `fields.level` 区分级别——error_audit 表没有 severity 列，加列要动 DDL + 增量迁移
+ * + schema.gen.ts，超出本轮范围。
+ */
+describe("error_audit · logWarn 接线（R-4）", () => {
+  /** dispatch 走 queueMicrotask，等一拍让它落地 */
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 10))
+
+  /** 临时静音 console.warn，避免测试输出被刷屏；返回 fn 的结果 */
+  const mutedWarn = <A>(fn: () => A): A => {
+    const original = console.warn
+    console.warn = () => {}
+    try {
+      return fn()
+    } finally {
+      console.warn = original
+    }
+  }
+
+  it("带 fields 的 logWarn 会落库，且落库记录里能区分出 warn 级别", async () => {
+    const received: ErrorAuditRecord[] = []
+    setErrorAuditSink((record) => received.push(record))
+
+    mutedWarn(() => logWarn("cli.db.cache", "检测到前缀部分漂移", { prefix: "ses" }))
+    await flush()
+    setErrorAuditSink(undefined)
+
+    expect(received).toHaveLength(1)
+    expect(received[0]).toMatchObject({ scope: "cli.db.cache", message: "检测到前缀部分漂移" })
+    // error_audit 无 severity 列，级别只能落在 fields.level
+    expect(received[0]!.fields).toMatchObject({ level: "warn", prefix: "ses" })
+  })
+
+  it("不带 fields 的 logWarn 同样落库，不丢记录（级别标记仍要带上）", async () => {
+    const received: ErrorAuditRecord[] = []
+    setErrorAuditSink((record) => received.push(record))
+
+    mutedWarn(() => logWarn("cli.tui", "警告：已禁用所有权限检查"))
+    await flush()
+    setErrorAuditSink(undefined)
+
+    expect(received).toHaveLength(1)
+    expect(received[0]).toMatchObject({ scope: "cli.tui", message: "警告：已禁用所有权限检查" })
+    // 无 fields 时也必须带级别标记，否则这条记录无法与 error 区分开
+    expect(received[0]!.fields).toMatchObject({ level: "warn" })
+    expect(received[0]!.sessionID).toBeUndefined()
+  })
+
+  it("带 session.id 的 logWarn 能正确提取 sessionID", async () => {
+    const received: ErrorAuditRecord[] = []
+    setErrorAuditSink((record) => received.push(record))
+
+    mutedWarn(() =>
+      logWarn("memory.bridge", "readMemories failed", { "session.id": "ses_warn1", retry: 2 }),
+    )
+    await flush()
+    setErrorAuditSink(undefined)
+
+    expect(received).toHaveLength(1)
+    expect(received[0]).toMatchObject({ sessionID: "ses_warn1" })
+    expect(received[0]!.fields).toMatchObject({ level: "warn", "session.id": "ses_warn1", retry: 2 })
+  })
+
+  it("未注册 sink 时 logWarn 不抛异常，控制台输出形态与改动前一致", () => {
+    setErrorAuditSink(undefined)
+    expect(hasErrorAuditSink()).toBe(false)
+
+    const original = console.warn
+    const seen: unknown[][] = []
+    console.warn = (...args: unknown[]) => seen.push(args)
+    try {
+      expect(() => logWarn("gateway.weixin", "getupdates 异常响应")).not.toThrow()
+      logWarn("tui.plugin", "deprecated TUI plugin API", { api: "old" })
+    } finally {
+      console.warn = original
+    }
+    expect(seen).toHaveLength(2)
+    expect(String(seen[0]![0])).toContain("[gateway.weixin]")
+    // 无 fields 时控制台不带第二参数，与改动前一致
+    expect(seen[0]).toHaveLength(1)
+    // level 只进落库记录，不混进控制台第二参数
+    expect(seen[1]![1]).toMatchObject({ api: "old" })
+    expect(seen[1]![1]).not.toHaveProperty("level")
+  })
+
+  it("sink 自身抛错不会让 logWarn 抛出（审计失败不拖挂主流程）", async () => {
+    setErrorAuditSink(() => {
+      throw new Error("sink 挂了")
+    })
+    mutedWarn(() => {
+      expect(() => logWarn("boom", "y")).not.toThrow()
+    })
+    await flush()
+    setErrorAuditSink(undefined)
+  })
+
+  it("真实落库后 warn 与 error 两类记录可被区分开", async () => {
+    const received: ErrorAuditRecord[] = []
+    setErrorAuditSink((record) => received.push(record))
+    const originalWarn = console.warn
+    const originalError = console.error
+    console.warn = () => {}
+    console.error = () => {}
+    try {
+      logWarn("cli.run", "权限检查被跳过", { flag: "skip" })
+      logError("provider/openai", new Error("429"), { attempt: 2 })
+    } finally {
+      console.warn = originalWarn
+      console.error = originalError
+    }
+    await flush()
+    setErrorAuditSink(undefined)
+
+    // 把 sink 收到的记录回放进内存库，验证真实落库后 warn 仍能被单独筛出来
+    const { inserted } = withDb(
+      Effect.gen(function* () {
+        for (const record of received) yield* writeErrorAudit(record)
+        return { inserted: yield* rows }
+      }),
+    )
+    expect(inserted).toHaveLength(2)
+    const warnRow = inserted.find((r) => r.scope === "cli.run")!
+    const errorRow = inserted.find((r) => r.scope === "provider/openai")!
+    expect(warnRow.fields).toMatchObject({ level: "warn", flag: "skip" })
+    // logError 的落库内容与改动前一致（不带 level 键），两类不会互相误判
+    expect(errorRow.fields).toMatchObject({ attempt: 2 })
+    expect(errorRow.fields).not.toHaveProperty("level")
   })
 })
 
