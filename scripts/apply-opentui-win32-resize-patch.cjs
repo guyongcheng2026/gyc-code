@@ -27,9 +27,10 @@ const POLL_INTERVAL_MS = 500;
 
 const RESIZE_FROM = [
   "  sigwinchHandler = (() => {",
-  "    const width = this.stdout.columns || 80;",
-  "    const height = this.stdout.rows || 24;",
-  "    this.handleResize(width, height);",
+  "    const width = this.stdout.columns;",
+  "    const height = this.stdout.rows;",
+  "    if (width > 0 && height > 0)",
+  "      this.handleResize(width, height);",
   "  }).bind(this);",
 ].join("\n");
 
@@ -37,11 +38,12 @@ const RESIZE_FROM = [
 // 放前面虽然因为 setInterval 延迟执行而运行时恰好安全，但依赖时序，不稳健。
 const RESIZE_TO = [
   "  sigwinchHandler = (() => {",
-  "    const width = this.stdout.columns || 80;",
-  "    const height = this.stdout.rows || 24;",
-  "    this.handleResize(width, height);",
+  "    const width = this.stdout.columns;",
+  "    const height = this.stdout.rows;",
+  "    if (width > 0 && height > 0)",
+  "      this.handleResize(width, height);",
   "  }).bind(this);",
-  `  gycWin32ResizePoll = process.platform === "win32" && _usesProcessStdout ? setInterval(() => {`,
+  `  gycWin32ResizePoll = process.platform === "win32" && this._usesProcessStdout ? setInterval(() => {`,
   "    const c = this.stdout.columns;",
   "    const r = this.stdout.rows;",
   "    if (!c || !r) return;",
@@ -51,19 +53,23 @@ const RESIZE_TO = [
 ].join("\n");
 
 const CLEANUP_FROM = [
+  "    const processEvents = process;",
   "    if (this._usesProcessStdout) {",
-  '      process.removeListener("SIGWINCH", this.sigwinchHandler);',
+  '      processEvents.removeListener("SIGWINCH", this.sigwinchHandler);',
   "    }",
+  "    processEvents.removeListener(\"uncaughtException\", this.handleError);",
 ].join("\n");
 
 const CLEANUP_TO = [
+  "    const processEvents = process;",
   "    if (this._usesProcessStdout) {",
-  '      process.removeListener("SIGWINCH", this.sigwinchHandler);',
+  '      processEvents.removeListener("SIGWINCH", this.sigwinchHandler);',
   "    }",
   "    if (this.gycWin32ResizePoll) {",
   "      clearInterval(this.gycWin32ResizePoll);",
   "      this.gycWin32ResizePoll = null;",
   "    }",
+  "    processEvents.removeListener(\"uncaughtException\", this.handleError);",
 ].join("\n");
 
 if (!fs.existsSync(coreDir)) {

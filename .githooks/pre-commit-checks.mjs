@@ -27,37 +27,7 @@ export const MOJIBAKE_EXTS = [".ts", ".tsx", ".md", ".json", ".mjs", ".cjs"]
  * 把 git index 里的真实内容物化到临时目录，返回 原路径 -> 临时路径 的映射。
  *
  * 守卫脚本一律 readFileSync(路径)，读的是**工作区**。于是「先 git add、再改工作区」
- * 时，进入提交的是暂存区的旧内容，守卫看到的却是工作区已修好的新内容——违规内容
- * 就能带着一份干净的检查结果合进来。这里把 index 的字节落盘后再交给脚本，
- * 保证「守卫检查的」与「将要提交的」是同一份。
- */
-function snapshotIndex(cwd, files) {
-  const map = new Map()
-  if (files.length === 0) return map
-  const dir = mkdtempSync(join(tmpdir(), "gyc-precommit-"))
-  // 退出期兜底清理；临时目录删不掉不影响提交正确性，故吞掉异常。
-  process.on("exit", () => {
-    try {
-      rmSync(dir, { recursive: true, force: true })
-    } catch {
-      // 退出期清理失败无需处理
-    }
-  })
-  files.forEach((rel, i) => {
-    const r = spawnSync("git", ["show", `:${rel}`], { cwd, encoding: "buffer", maxBuffer: 64 * 1024 * 1024 })
-    if (r.status !== 0 || !r.stdout) return // 二进制或已删除：退回工作区路径
-    const dest = join(dir, `${i}-${basename(rel)}`)
-    writeFileSync(dest, r.stdout)
-    map.set(rel, dest)
-  })
-  return map
-}
-
-/**
- * 把 git index 里的真实内容物化到临时目录，返回 原路径 -> 临时路径 的映射。
- *
- * 守卫脚本一律 readFileSync(路径)，读的是**工作区**。于是「先 git add、再改工作区」
- * 时，进入提交的是暂存区的旧内容，守卫看到的却是工作区已修好的新内容——违规内容
+ * 时，进入提交的是暂存区的旧内容，守卸看到的却是工作区已修好的新内容——违规内容
  * 就能带着一份干净的检查结果合进来。这里把 index 的字节落盘后再交给脚本，
  * 保证「守卫检查的」与「将要提交的」是同一份。
  */
