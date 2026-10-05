@@ -339,9 +339,120 @@ function costLedger(sessionID: SessionID) {
   })
 }
 
+/**
+ * G-28-1：CSV 输出。
+ *
+ * JSON 适合程序回读，人要看「哪一轮最贵、哪句话最长」时 CSV 才好用。这里把
+ * 会话消息与成本流水各自压平成一行一记录，交给表格软件。
+ *
+ * 两处细节最容易写错，都在这里定死：
+ * - 转义按 RFC 4180：字段含逗号、双引号或换行时用双引号包裹，字段内双引号写两个。
+ * - 空值沿用 `gyc db query --format tsv` 的习惯（`keys.map(k => row[k]).join("\t")`
+ *   让 null / undefined 自然落成空串），不写 null、不写 undefined、也不写 "N/A"。
+ */
+
+/** 消息 info 的宽松视图：User 与 Assistant 是判别联合，导出时只取两边共有的列。 */
+type MessageInfoView = {
+  id?: string
+  sessionID?: string
+  role?: string
+  agent?: string
+  summary?: unknown
+  time?: { created?: number; completed?: number }
+  parentID?: string
+  modelID?: string
+  providerID?: string
+  mode?: string
+  finish?: string
+  error?: { name?: string }
+  cost?: number
+  tokens?: { input?: number; output?: number; reasoning?: number; cache?: { read?: number; write?: number } }
+  model?: { providerID?: string; modelID?: string }
+}
+
+/** 单个字段的 CSV 表示。null / undefined 一律写成空串。 */
+export function csvField(value: unknown): string {
+  if (value === null || value === undefined) return ""
+  const text = typeof value === "string" ? value : typeof value === "object" ? JSON.stringify(value) : String(value)
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
+/**
+ * 记录数组转 CSV 文本（不含行尾，调用方按既有习惯补 EOL）。
+ *
+ * 表头直接取自行对象的键、并按首次出现顺序并集，而不是另写一份常量 —— 后者一旦
+ * 与数据脱节就会静默错列，且很难被发现。行数不一致时缺失的列补空串。
+ */
+export function toCSV<T extends object>(rows: readonly T[]): string {
+  if (rows.length === 0) return ""
+  const columns: string[] = []
+  const seen = new Set<string>()
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (seen.has(key)) continue
+      seen.add(key)
+      columns.push(key)
+    }
+  }
+  const lines = [columns.map(csvField).join(",")]
+  for (const row of rows) {
+    const record = row as Record<string, unknown>
+    lines.push(columns.map((column) => csvField(record[column])).join(","))
+  }
+  return lines.join(EOL)
+}
+
+function partText(parts: readonly SessionV1.Part[]) {
+  let text = ""
+  for (const part of parts) {
+    if (part.type === "text" || part.type === "reasoning") text += part.text
+  }
+  return text
+}
+
+/**
+ * 会话消息压成一行一记录。列取自 SessionV1 的真实字段
+ * （`schema/v1/session.ts` 的 User / Assistant），不编造数据：用户消息没有
+ * cost / tokens，就留空，而不是填 0 冒充「没花钱」。
+ */
+export function messageRows(
+  messages: readonly { info: SessionV1.Info; parts: readonly SessionV1.Part[] }[],
+): Record<string, unknown>[] {
+  return messages.map((message) => {
+    const info = message.info as unknown as MessageInfoView
+    const created = info.time?.created
+    const completed = info.time?.completed
+    const row: Record<string, unknown> = {
+      id: info.id,
+      sessionID: info.sessionID,
+      role: info.role,
+      agent: info.agent,
+      summary: info.summary,
+      timeCreated: created === undefined ? undefined : new Date(created).toISOString(),
+      timeCompleted: completed === undefined ? undefined : new Date(completed).toISOString(),
+      parentID: info.parentID,
+      providerID: info.providerID ?? info.model?.providerID,
+      modelID: info.modelID ?? info.model?.modelID,
+      mode: info.mode,
+      finish: info.finish,
+      error: info.error?.name,
+      cost: info.cost,
+      tokensInput: info.tokens?.input,
+      tokensOutput: info.tokens?.output,
+      tokensReasoning: info.tokens?.reasoning,
+      tokensCacheRead: info.tokens?.cache?.read,
+      tokensCacheWrite: info.tokens?.cache?.write,
+      parts: message.parts.length,
+      textChars: partText(message.parts).length,
+    }
+    for (const key of Object.keys(row)) if (row[key] === undefined || row[key] === null) row[key] = ""
+    return row
+  })
+}
+
 export const ExportCommand = effectCmd({
   command: "export [sessionID]",
-  describe: "以 JSON 格式导出会话数据",
+  describe: "以 JSON 或 CSV 格式导出会话数据",
   builder: (yargs) =>
     yargs
       .positional("sessionID", {
@@ -355,6 +466,12 @@ export const ExportCommand = effectCmd({
       .option("cost", {
         describe: "导出成本账（含 task 维度、压缩成本、缓存命中率），而非会话 JSON",
         type: "boolean",
+      })
+      .option("format", {
+        describe: "输出格式：json 导出完整结构；csv 导出平铺表格，配合 --cost 时导出成本流水（cost_ledger）",
+        type: "string",
+        choices: ["json", "csv"],
+        default: "json",
       }),
   handler: Effect.fn("Cli.export")(function* (args) {
     return yield* run(args)

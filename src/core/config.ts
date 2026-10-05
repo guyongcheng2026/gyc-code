@@ -128,6 +128,26 @@ export class Info extends Schema.Class<Info>("Config.Info")({
     webhook_headers: Schema.optional(Schema.Record(Schema.String, Schema.String)).annotate({
       description: "Custom headers for cost alert webhook requests (e.g. Authorization).",
     }),
+    // G-28-4：单会话额度之外，补跨项目 / 跨时间窗口的累计额度。
+    // 口径与阈值语义沿用上方既有字段，undefined 一律表示不限。
+    project_cost_usd: Schema.optional(Schema.Finite).annotate({
+      description: "Cumulative cost budget per project across all its sessions, in USD (default: unlimited). Values <= 0 are treated as unset.",
+    }),
+    project_tokens_total: Schema.optional(NonNegativeInt).annotate({
+      description: "Cumulative token budget per project across all its sessions (input+output+reasoning+cache). Values <= 0 are treated as unset.",
+    }),
+    window_cost_usd: Schema.optional(Schema.Finite).annotate({
+      description: "Cumulative cost budget inside a time window, in USD, summed over all projects (default: unlimited). Values <= 0 are treated as unset.",
+    }),
+    window_tokens_total: Schema.optional(NonNegativeInt).annotate({
+      description: "Cumulative token budget inside a time window, summed over all projects. Values <= 0 are treated as unset.",
+    }),
+    quota_window: Schema.optional(Schema.Literals(["day", "month"])).annotate({
+      description: "Granularity of the time window used by window_cost_usd / window_tokens_total (default: month).",
+    }),
+    quota_alert_threshold: Schema.optional(Schema.Finite).annotate({
+      description: "Threshold (0-1) that triggers a cross-dimension quota alert; falls back to alert_threshold, then 0.8.",
+    }),
   })
     .pipe(Schema.optional)
     .annotate({ description: "Token budget and cost limits per session." }),

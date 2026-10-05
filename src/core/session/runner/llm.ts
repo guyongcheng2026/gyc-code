@@ -9,9 +9,11 @@ import {
   type ProviderErrorEvent,
 } from "@gyccode/llm"
 import { Cause, DateTime, Effect, FiberSet, Layer, Option, Semaphore, Stream } from "effect"
+import { eq, sql } from "drizzle-orm"
 import { AgentV2 } from "../../agent"
 import { Catalog } from "../../catalog"
 import { Config } from "../../config"
+import { quotaAlerts, quotaWindow, type QuotaAlert, type QuotaUsage } from "../../config/quota-alert"
 import { Database } from "../../database/database"
 import { EventV2 } from "../../event"
 import { Location } from "../../location"
@@ -25,12 +27,14 @@ import { SkillGuidance } from "../../skill/guidance"
 import { ReferenceGuidance } from "../../reference/guidance"
 import { ToolRegistry } from "../../tool/registry"
 import { ToolOutputStore } from "../../tool-output-store"
+import { buildExecutionReport, formatExecutionReport } from "../execution-report"
 import { SessionContextEpoch } from "../context-epoch"
 import { SessionCompaction } from "../compaction"
 import { SessionEvent } from "../event"
 import { SessionHistory } from "../history"
 import { SessionInput } from "../input"
 import { SessionSchema } from "../schema"
+import { CostLedgerTable, SessionTable } from "../sql"
 import { SessionStore } from "../store"
 import { type RunError, Service } from "./index"
 import { SessionRunnerModel } from "./model"
@@ -433,6 +437,46 @@ const layer = Layer.effect(
                   }),
                 )
               }
+              // 跨维度累计告警（G-28-4）：按项目、按时间窗口的累计额度。
+              // 聚合口径复用 cost_ledger 流水（append-only，不存在父子重复计数问题）
+              // 并 join session 取 project_id；未配置任何跨维度额度时 quotaAlerts 返回空数组，
+              // 此时既不查库也不追加 payload 字段，对既有行为零影响。
+              const quotaAlertsEnabled =
+                budgetConfig.project_cost_usd !== undefined ||
+                budgetConfig.project_tokens_total !== undefined ||
+                budgetConfig.window_cost_usd !== undefined ||
+                budgetConfig.window_tokens_total !== undefined
+              let quotaAlertsPayload: readonly QuotaAlert[] = []
+              if (quotaAlertsEnabled) {
+                const range = quotaWindow(budgetConfig.quota_window, Date.now())
+                const rows: ReadonlyArray<{
+                  project: string
+                  cost: number
+                  tokens: number
+                  windowCost: number
+                  windowTokens: number
+                }> = yield* db
+                  .select({
+                    project: SessionTable.project_id,
+                    cost: sql<number>`coalesce(sum(${CostLedgerTable.cost_usd}), 0)`.as("cost"),
+                    tokens: sql<number>`coalesce(sum(${CostLedgerTable.tokens_input} + ${CostLedgerTable.tokens_output} + ${CostLedgerTable.tokens_reasoning}), 0)`.as("tokens"),
+                    windowCost: sql<number>`coalesce(sum(case when ${CostLedgerTable.time_created} >= ${range.start} then ${CostLedgerTable.cost_usd} else 0 end), 0)`.as("windowCost"),
+                    windowTokens: sql<number>`coalesce(sum(case when ${CostLedgerTable.time_created} >= ${range.start} then ${CostLedgerTable.tokens_input} + ${CostLedgerTable.tokens_output} + ${CostLedgerTable.tokens_reasoning} else 0 end), 0)`.as("windowTokens"),
+                  })
+                  .from(SessionTable)
+                  .innerJoin(CostLedgerTable, eq(CostLedgerTable.session_id, SessionTable.id))
+                  .groupBy(SessionTable.project_id)
+                  .execute()
+                  .pipe(Effect.catch(() => Effect.succeed([] as never)))
+                const usages: ReadonlyArray<QuotaUsage> = rows.map((row) => ({
+                  project: String(row.project),
+                  cost: Number(row.cost),
+                  tokens: Number(row.tokens),
+                  windowCost: Number(row.windowCost),
+                  windowTokens: Number(row.windowTokens),
+                }))
+                quotaAlertsPayload = quotaAlerts({ budget: budgetConfig, usages })
+              }
               // Cost alert webhook: fire-and-forget HTTP POST to configured URL
               if (budgetConfig.webhook_url) {
                 const payload = JSON.stringify({
@@ -442,6 +486,7 @@ const layer = Layer.effect(
                   tokens: session.tokens,
                   model: { provider: model.provider, id: model.id },
                   timestamp: Date.now(),
+                  ...(quotaAlertsPayload.length > 0 ? { quota_alerts: quotaAlertsPayload } : {}),
                 })
                 const headers: Record<string, string> = {
                   "Content-Type": "application/json",
@@ -465,6 +510,23 @@ const layer = Layer.effect(
           if (stream._tag === "Failure") return yield* Effect.failCause(stream.cause)
           if (settled._tag === "Failure" && Cause.hasInterrupts(settled.cause))
             return yield* Effect.failCause(settled.cause)
+          // 执行报告（R-5）：纯上报，不改变本行 return 的控制流语义。
+          // 终止原因、成本与 token 均为只读汇总，缺字段由 buildExecutionReport 兜底。
+          yield* Effect.logInfo(
+            "session execution report",
+            formatExecutionReport(
+              buildExecutionReport({
+                steps: currentStep,
+                maxSteps: agent.info?.steps,
+                needsContinuation: !publisher.hasProviderError() && needsContinuation,
+                providerError: publisher.hasProviderError(),
+                usage: {
+                  cost: session.cost,
+                  tokens: session.tokens,
+                },
+              }),
+            ),
+          )
           return { needsContinuation: !publisher.hasProviderError() && needsContinuation, step: currentStep }
         }),
       )
