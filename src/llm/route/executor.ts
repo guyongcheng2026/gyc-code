@@ -25,6 +25,8 @@ import {
   UnknownProviderReason,
 } from "../schema"
 import { isContextOverflow } from "../provider-error"
+import { withRequestPermit } from "../concurrency"
+import { withFirstByteTimeout } from "./timeout"
 
 export interface Interface {
   readonly execute: (
@@ -405,12 +407,16 @@ export const layer: Layer.Layer<Service, never, HttpClient.HttpClient> = Layer.e
     const executeOnce = (request: HttpClientRequest.HttpClientRequest) =>
       Effect.gen(function* () {
         const redactedNames = yield* Headers.CurrentRedactedNames
-        return yield* http
-          .execute(request)
-          .pipe(Effect.mapError(toHttpError(redactedNames)), Effect.flatMap(statusError(request, redactedNames)))
+        return yield* withFirstByteTimeout(http.execute(request)).pipe(
+          Effect.mapError(toHttpError(redactedNames)),
+          Effect.flatMap(statusError(request, redactedNames)),
+        )
       })
     return Service.of({
-      execute: (request) => retryStatusFailures(executeOnce(request)),
+      // 整个 execute（含重试与退避等待）都持有 permit：闸限的是「在飞的 LLM 请求数」，
+      // 若只包住单次 executeOnce，退避期间会白占额度之外再放行一批新请求，
+      // 背压会漏。withPermit 在成功与失败路径上都会归还 permit。
+      execute: (request) => withRequestPermit(retryStatusFailures(executeOnce(request))),
     })
   }),
 )

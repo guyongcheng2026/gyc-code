@@ -1,4 +1,5 @@
 import { Effect, Stream } from "effect"
+import { withStreamIdleTimeout } from "../timeout"
 import { Headers, HttpClientError, HttpClientRequest } from "effect/unstable/http"
 import { Auth } from "../auth"
 import { Framing, type Framing as FramingDef } from "../framing"
@@ -136,7 +137,14 @@ export const httpJson = <Body, Frame>(input: HttpJsonInput<Body, Frame>): HttpJs
         .pipe(
           Effect.map((response) =>
             prepared.framing.frame(
-              response.stream.pipe(
+              // 流空闲超时（G-26-3）：按每次 pull 检查，流一旦产出数据就重新计时。
+              // 必须在 framing 之前套 —— framing 之后无法区分「上游没数据」与「帧解析慢」。
+              // 超时错误在此处构造为 ProviderInternal(408)，与首字节超时的语义一致。
+              withStreamIdleTimeout(response.stream, {
+                message: "LLM response stream stalled",
+                url: prepared.request.url,
+                method: prepared.request.method,
+              }).pipe(
                 Stream.mapError((error) => {
                   // 区分传输层错误（可重试）与提供商输出错误（不可重试）
                   const errorMessage = ProviderShared.errorText(error)
