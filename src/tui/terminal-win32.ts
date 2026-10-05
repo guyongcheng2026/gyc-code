@@ -95,7 +95,9 @@ export function utf8GuardMismatches(): number {
   return utf8GuardMismatchCount
 }
 
-export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
+// 2000ms：代码页被外部程序改回是低频事件（用户手动切代码页 / 调起 GBK 原生工具），
+// 2 秒响应足够；而 200ms 会在 TUI 运行期恒定做 5Hz kernel32 FFI 调用，纯属空转烧 CPU。
+export function win32InstallUtf8ConsoleGuard(intervalMs = 2000): () => void {
   if (process.platform !== "win32") return () => {}
   if (!isConsoleAttached()) return () => {}
   // 不在这里提前 load()，改为在每次回调中重试，避免句柄失效导致后续无效
@@ -108,7 +110,8 @@ export function win32InstallUtf8ConsoleGuard(intervalMs = 200): () => void {
           if (!win32EnableUtf8Console()) utf8GuardMismatchCount += 1
         }
       } catch {
-        // 静默吞掉异常，保证定时器持续运行
+        // 可忽略（纯诊断旁路）：load() 失败时下一轮会重试；这里抛出只会终止守护，
+        // 反而让乱码失去唯一的自愈来源，故刻意吞掉以保证定时器持续运行。
       }
     }, intervalMs)
     // 添加 unref()：防止定时器阻塞进程正常退出

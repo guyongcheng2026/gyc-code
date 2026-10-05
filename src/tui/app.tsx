@@ -307,6 +307,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 `timestamp=${new Date().toISOString()} level=Info run=main renderer=fallback backend=fallback source=${source} event=backend-selected\n`,
               ),
             )
+            // 可忽略（纯诊断旁路）：降级到 fallback 时的启动提示日志写失败不影响渲染器选择。
             .catch(() => {})
           const { runFallbackApp } = await import("./fallback/run-app")
           await runFallbackApp({
@@ -475,7 +476,11 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     `timestamp=${new Date().toISOString()} level=Debug run=main uncaughtException-abort message=${error.message}\n`,
                   ),
                 )
-                .catch(() => {})
+                // 崩溃处理器内部的日志写入失败不能静默：否则谷总事后完全无法排查。
+                // logError 只写 stderr + 可选 sink（log-error.ts:50），不碰文件，无递归风险。
+                .catch((writeError: unknown) => {
+                  logError("tui.app.crashlog", writeError, { stage: "uncaughtException-abort" })
+                })
               return
             }
             writeMainCrash("uncaughtException", error)
@@ -561,10 +566,13 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                       .filter((n) => n.startsWith(`tui-memory-${process.pid}-`) && n.endsWith(".heapsnapshot"))
                       .sort()
                     for (const name of mine.slice(0, Math.max(0, mine.length - 2))) {
-                      void rm(join(global.log, name), { force: true }).catch(() => {})
+                      void rm(join(global.log, name), { force: true }).catch(() => {
+                        // 可忽略：force:true 下失败只意味着文件已被清掉，正是期望结果。
+                      })
                     }
                   }),
                 )
+                // 可忽略（纯诊断旁路）：堆快照读取失败不影响主流程。
                 .catch(() => {})
             } catch {
               // 堆快照为诊断旁路：写失败不影响主流程
@@ -607,14 +615,20 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Info run=main memory-sample rss=${rssMB}MB heap=${heapUsedMB}/${heapLimitMB}MB total=${totalMB}MB free=${freeMB}MB${statsLine}\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
               }
               // 启动宽限期内只记录不退出，给 V8 堆稳定留时间
               if (startupGracePeriod) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Info run=main memory-startup-grace rss=${rssMB}MB heap=${heapUsedMB}/${heapLimitMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                 runGc()
                 return
               }
@@ -645,7 +659,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB heap=${heapUsedMB}/${heapLimitMB}MB (${(heapRatio * 100).toFixed(1)}%) offHeap=${offHeapMB}MB\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                 runGc()
                 // 落屏提示 + 退出后 stderr 可见的原因说明（2026-08-28）
                 publishMemoryAlert({ level: "severe", rssMB, totalMB, freeMB })
@@ -663,7 +680,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow streak=${fatalStreak}/${FATAL_STREAK_LIMIT} rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                 runGc()
                 // 用户可见的严重提示（60s 冷却，避免威胁期内刷屏）
                 if (shouldEmitMemoryAlert(severeLastShownAt, Date.now(), 60_000)) {
@@ -682,7 +702,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     void appendFile(
                       join(global.log, "gyccode.log"),
                       `timestamp=${new Date().toISOString()} level=Error run=main memory-fatal rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB heap=${heapUsedMB}/${heapLimitMB}MB offHeap=${offHeapMB}MB streak=${fatalStreak}\n`,
-                    ).catch(() => {})
+                    ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                     publishMemoryAlert({ level: "severe", rssMB, totalMB, freeMB, streak: fatalStreak })
                     exit.reason = new Error(
                       `gyc tui 因系统内存不足已退出（已用 ${rssMB}MB / 总内存 ${totalMB}MB，可用 ${freeMB}MB）。建议关闭与 gyc tui 无关的程序（浏览器、大型 IDE、视频播放器等）释放内存后重试。`,
@@ -697,7 +720,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     void appendFile(
                       join(global.log, "gyccode.log"),
                       `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow-sustained rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                    ).catch(() => {})
+                    ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                   }
                 }
               } else {
@@ -713,7 +739,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Warn run=main handle-budget pressure=${handlePressure} used=${globalHandleBudget.used()}/${globalHandleBudget.limit()} rss=${rssMB}MB free=${freeMB}MB\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                 // 原生内存非 GC 可回收，runGc 对其无效；此处仅在 rss 也偏高时
                 // 顺带触发一次 GC，避免无谓停顿。
                 if (rss > total * 0.4) runGc()
@@ -727,7 +756,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   void appendFile(
                     join(global.log, "gyccode.log"),
                     `timestamp=${new Date().toISOString()} level=Warn run=main memory-critical rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                  ).catch(() => {})
+                  ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                   writeTuiMemorySnapshot(rssMB)
                   if (!criticalToastShown) {
                     criticalToastShown = true
@@ -741,7 +773,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                 void appendFile(
                   join(global.log, "gyccode.log"),
                   `timestamp=${new Date().toISOString()} level=Warn run=main memory-high rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                ).catch(() => {})
+                ).catch(() => {
+                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                })
                 runGc()
               }
             } catch (meterErr) {
