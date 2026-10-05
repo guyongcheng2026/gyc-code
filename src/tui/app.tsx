@@ -11,11 +11,12 @@ import { ClipboardProvider, useClipboard } from "./context/clipboard"
 import { ExitProvider, useExit } from "./context/exit"
 import { EpilogueProvider } from "./context/epilogue"
 import * as Selection from "./util/selection"
-import { createCliRenderer, MouseButton } from "@opentui/core"
+import { CliRenderEvents, createCliRenderer, MouseButton } from "@opentui/core"
 import { backendChoice, claimFallbackOnce, isExplicitFallback, shouldUseFallback } from "./fallback/safe-mode"
 import { probeTerminal, renderBudget } from "./fallback/capability"
 import { isRecoverableRejection } from "./util/crash-classify"
 import { settled } from "./util/fire-and-forget"
+import { RenderHealthMonitor } from "./util/render-health"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
@@ -367,6 +368,25 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             destroyRenderer(renderer)
           }),
       )
+      // 渲染健康度：帧时趋势（meter 回调里顺带采样）+ 渲染错误计数。
+      // 背景：opentui 会把帧回调异常吞掉继续渲染（chunk-node-ks0581vk.js:9794-9800），
+      // 且 getStats() 不含累计错误数，渲染异常对仓库侧原本完全不可见。
+      // CliRenderEvents 是公开枚举、CliRenderer extends EventEmitter（renderer.d.ts:213），
+      // 所以可以直接订阅，不需 monkey-patch 第三方对象。
+      const renderHealth = new RenderHealthMonitor({ capacity: 64 })
+      // payload 结构已核实为 { error: Error, renderable }（chunk-node-ks0581vk.js:9871）
+      const onRenderError = (payload: { error?: unknown }) => {
+        renderHealth.noteError()
+        logError("tui.render", payload?.error ?? new Error("render:error 无 error 字段"), {
+          stage: "render",
+        })
+      }
+      renderer.on(CliRenderEvents.RENDER_ERROR, onRenderError)
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          renderer.off(CliRenderEvents.RENDER_ERROR, onRenderError)
+        }),
+      )
       const keymap = createDefaultOpenTuiKeymap(renderer)
       // keymap 绑定中 leader/输入层需要 config，注册延迟到 config 就绪 fiber；
       // 卸载仍由 scope finalizer 保证。
@@ -598,6 +618,18 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               const heapLimitMB = Math.round(heapLimit / 1024 / 1024)
               const totalMB = Math.round(total / 1024 / 1024)
               const freeMB = Math.round(free / 1024 / 1024)
+              // 帧时趋势采样：复用 meter 的既有定时器，不新增 interval。
+              // getStats 是同步查询，无副作用；失败仅放弃本次采样。
+              try {
+                const frameStats = renderer.getStats()
+                renderHealth.push({
+                  fps: frameStats.fps,
+                  frameCount: frameStats.frameCount,
+                  avgFrameMs: frameStats.averageFrameTime,
+                })
+              } catch {
+                // 渲染器统计为可选诊断：取不到就等下一轮，不影响主流程
+              }
               // 心跳采样：每 10 分钟一条 Info，供长跑内存趋势分析
               if (Date.now() - lastSample > 600_000) {
                 lastSample = Date.now()
@@ -610,6 +642,16 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                     statsLine = ` rendererStats fps=${s.fps.toFixed(1)} avgFrameMs=${s.averageFrameTime.toFixed(3)} frames=${s.frameCount}`
                   } catch {
                     // 渲染器统计为可选诊断：失败仅省略该字段
+                  }
+                  // 帧时趋势 + 渲染错误计数：opentui 自身不报错误数，
+                  // 只靠 getStats 看不到「渲染异常被吞掉」，故一并落盘。
+                  const trend = renderHealth.trend()
+                  const errs = renderHealth.errors()
+                  if (trend || errs > 0) {
+                    const trendLine = trend
+                      ? ` fpsTrend=${trend.fpsDelta.toFixed(1)} avgFrameMsTrend=${trend.avgFrameMsDelta.toFixed(3)}`
+                      : ""
+                    statsLine += ` renderHealth errors=${errs}${trendLine}`
                   }
                 }
                 void appendFile(
