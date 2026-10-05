@@ -15,6 +15,7 @@ import { createCliRenderer, MouseButton } from "@opentui/core"
 import { backendChoice, claimFallbackOnce, isExplicitFallback, shouldUseFallback } from "./fallback/safe-mode"
 import { probeTerminal, renderBudget } from "./fallback/capability"
 import { isRecoverableRejection } from "./util/crash-classify"
+import { settled } from "./util/fire-and-forget"
 import { tuiTiming } from "./util/timing"
 import { RouteProvider, useRoute } from "./context/route"
 import {
@@ -1082,13 +1083,17 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
     if (match) {
       continued = true
       if (args.fork) {
-        void sdk.client.session.fork({ sessionID: match }).then((result) => {
-          if (result.data?.id) {
-            route.navigate({ type: "session", sessionID: result.data.id })
-          } else {
-            toast.show({ message: "会话分叉失败", variant: "error" })
-          }
-        })
+        settled(
+          sdk.client.session.fork({ sessionID: match }).then((result) => {
+            if (result.data?.id) {
+              route.navigate({ type: "session", sessionID: result.data.id })
+            } else {
+              toast.show({ message: "会话分叉失败", variant: "error" })
+            }
+          }),
+          "tui.app.fork",
+          () => toast.show({ message: "会话分叉失败", variant: "error" }),
+        )
       } else {
         route.navigate({ type: "session", sessionID: match })
       }
@@ -1102,13 +1107,17 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   createEffect(() => {
     if (forked || sync.status !== "complete" || !args.sessionID || !args.fork) return
     forked = true
-    void sdk.client.session.fork({ sessionID: args.sessionID }).then((result) => {
-      if (result.data?.id) {
-        route.navigate({ type: "session", sessionID: result.data.id })
-      } else {
-        toast.show({ message: "会话分叉失败", variant: "error" })
-      }
-    })
+    settled(
+      sdk.client.session.fork({ sessionID: args.sessionID }).then((result) => {
+        if (result.data?.id) {
+          route.navigate({ type: "session", sessionID: result.data.id })
+        } else {
+          toast.show({ message: "会话分叉失败", variant: "error" })
+        }
+      }),
+      "tui.app.fork",
+      () => toast.show({ message: "会话分叉失败", variant: "error" }),
+    )
   })
 
   createEffect(

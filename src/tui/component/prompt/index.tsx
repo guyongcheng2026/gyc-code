@@ -61,6 +61,7 @@ import { usePromptWorkspace } from "./workspace"
 import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
 import { useLocation } from "../../context/location"
+import { settled } from "../../util/fire-and-forget"
 
 registerGyccodeSpinner()
 
@@ -452,9 +453,12 @@ export function Prompt(props: PromptProps) {
           }, 5000)
 
           if (store.interrupt >= 2) {
-            void sdk.client.session.abort({
-              sessionID: props.sessionID,
-            })
+            settled(
+              sdk.client.session.abort({
+                sessionID: props.sessionID,
+              }),
+              "tui.prompt",
+            )
             setStore("interrupt", 0)
           }
           dialog.clear()
@@ -1126,15 +1130,18 @@ title: "打开编辑器",
 
     if (store.mode === "shell") {
       move.startSubmit()
-      void sdk.client.session.shell({
-        sessionID,
-        agent: agent.name,
-        model: {
-          providerID: selectedModel.providerID,
-          modelID: selectedModel.modelID,
-        },
-        command: inputText,
-      })
+      settled(
+        sdk.client.session.shell({
+          sessionID,
+          agent: agent.name,
+          model: {
+            providerID: selectedModel.providerID,
+            modelID: selectedModel.modelID,
+          },
+          command: inputText,
+        }),
+        "tui.prompt",
+      )
       setStore("mode", "normal")
     } else if (
       inputText.startsWith("/") &&
@@ -1148,15 +1155,18 @@ title: "打开编辑器",
       const restOfInput = firstLineEnd === -1 ? "" : inputText.slice(firstLineEnd + 1)
       const args = firstLineArgs.join(" ") + (restOfInput ? "\n" + restOfInput : "")
 
-      void sdk.client.session.command({
-        sessionID,
-        command: command.slice(1),
-        arguments: args,
-        agent: agent.name,
-        model: `${selectedModel.providerID}/${selectedModel.modelID}`,
-        variant,
-        parts: nonTextParts.filter((x) => x.type === "file"),
-      })
+      settled(
+        sdk.client.session.command({
+          sessionID,
+          command: command.slice(1),
+          arguments: args,
+          agent: agent.name,
+          model: `${selectedModel.providerID}/${selectedModel.modelID}`,
+          variant,
+          parts: nonTextParts.filter((x) => x.type === "file"),
+        }),
+        "tui.prompt",
+      )
     } else {
       move.startSubmit()
       sdk.client.session

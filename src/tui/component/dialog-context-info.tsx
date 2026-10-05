@@ -11,6 +11,7 @@ import { useBindings } from "../keymap"
 import { Token } from "@/util/token"
 import * as Model from "../util/model"
 import type { AssistantMessage, Message, Part } from "@gyccode/protocol/v2"
+import { settled } from "../util/fire-and-forget"
 
 const money = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -117,11 +118,14 @@ export function DialogContextInfo() {
       })
       return
     }
-    void sdk.client.session.summarize({
-      sessionID: sessionID(),
-      modelID: selectedModel.modelID,
-      providerID: selectedModel.providerID,
-    })
+    settled(
+      sdk.client.session.summarize({
+        sessionID: sessionID(),
+        modelID: selectedModel.modelID,
+        providerID: selectedModel.providerID,
+      }),
+      "tui.dialog",
+    )
     dialog.clear()
   }
 

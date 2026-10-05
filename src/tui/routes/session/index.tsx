@@ -102,6 +102,7 @@ import { DialogPrompt } from "../../ui/dialog-prompt"
 import { DialogSelect } from "../../ui/dialog-select"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import * as TuiKeybind from "../../config/keybind"
+import { settled } from "../../util/fire-and-forget"
 
 addDefaultParsers(parsers.parsers)
 
@@ -644,11 +645,14 @@ export function Session() {
           })
           return
         }
-        void sdk.client.session.summarize({
-          sessionID: route.sessionID,
-          modelID: selectedModel.modelID,
-          providerID: selectedModel.providerID,
-        })
+        settled(
+          sdk.client.session.summarize({
+            sessionID: route.sessionID,
+            modelID: selectedModel.modelID,
+            providerID: selectedModel.providerID,
+          }),
+          "tui.session",
+        )
         dialog.clear()
       },
     },
@@ -689,14 +693,17 @@ export function Session() {
         if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
         const message = messagesBeforeRevert().findLast((item) => item.role === "user")
         if (!message) return
-        void sdk.client.session
-          .revert({
-            sessionID: route.sessionID,
-            messageID: message.id,
-          })
-          .then(() => {
-            toBottom()
-          })
+        settled(
+          sdk.client.session
+            .revert({
+              sessionID: route.sessionID,
+              messageID: message.id,
+            })
+            .then(() => {
+              toBottom()
+            }),
+          "tui.session",
+        )
         const parts = sync.data.part[message.id] ?? []
         prompt?.set(
           parts.reduce(
@@ -728,16 +735,22 @@ export function Session() {
           if (!messageID) return
           const message = messages().find((x) => x.role === "user" && x.id > messageID)
           if (!message) {
-            void sdk.client.session.unrevert({
-              sessionID: route.sessionID,
-            })
+            settled(
+              sdk.client.session.unrevert({
+                sessionID: route.sessionID,
+              }),
+              "tui.session",
+            )
             prompt?.set({ input: "", parts: [] })
             return
           }
-          void sdk.client.session.revert({
-            sessionID: route.sessionID,
-            messageID: message.id,
-          })
+          settled(
+            sdk.client.session.revert({
+              sessionID: route.sessionID,
+              messageID: message.id,
+            }),
+            "tui.session",
+          )
         },
       },
       {
@@ -1153,10 +1166,13 @@ export function Session() {
       hidden: true,
       enabled: foregroundTasks().length > 0,
       run: () => {
-        void sdk.client.experimental.session.background({
-          sessionID: route.sessionID,
-          workspace: project.workspace.current(),
-        })
+        settled(
+          sdk.client.experimental.session.background({
+            sessionID: route.sessionID,
+            workspace: project.workspace.current(),
+          }),
+          "tui.session",
+        )
         dialog.clear()
       },
     },

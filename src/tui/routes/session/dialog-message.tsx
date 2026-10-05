@@ -6,6 +6,7 @@ import { useRoute } from "../../context/route"
 import { useClipboard } from "../../context/clipboard"
 import type { PromptInfo } from "../../component/prompt/history"
 import { stripPromptPartIDs as strip } from "../../prompt/part"
+import { settled } from "../../util/fire-and-forget"
 
 export function DialogMessage(props: {
   messageID: string
@@ -30,10 +31,13 @@ export function DialogMessage(props: {
             const msg = message()
             if (!msg) return
 
-            void sdk.client.session.revert({
-              sessionID: props.sessionID,
-              messageID: msg.id,
-            })
+            settled(
+              sdk.client.session.revert({
+                sessionID: props.sessionID,
+                messageID: msg.id,
+              }),
+              "tui.session.dialog",
+            )
 
             if (props.setPrompt) {
               const parts = sync.data.part[msg.id] ?? []
