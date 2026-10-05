@@ -16,6 +16,7 @@ import { KeymapProvider, useKeymap, useKeymapSelector, useBindings } from "@open
 import { createMemo, type Accessor } from "solid-js"
 import { useTuiConfig } from "./config"
 import { TuiKeybind } from "./config/keybind"
+import { cachedRegex } from "./util/regex-cache"
 
 export const LEADER_TOKEN = "leader"
 export const GYCCODE_BASE_MODE = "base"
@@ -118,7 +119,10 @@ const KEY_ALIASES = {
 
 function expandKeyAliases(input: string) {
   const result = Object.entries(KEY_ALIASES).reduce(
-    (acc, [alias, key]) => acc.replace(new RegExp(`(^|[+,\\s>])${alias}(?=$|[+,\\s<])`, "gi"), `$1${key}`),
+    // 别名只有 KEY_ALIASES 里这 4 个字面量，模式集合是静态的，故走编译缓存
+    // （此前每次按键都要 new RegExp ×4）。分隔符 \u0000 由 cachedRegex 内部处理。
+    (acc, [alias, key]) =>
+      acc.replace(cachedRegex(`(^|[+,\\s>])${alias}(?=$|[+,\\s<])`, "gi"), `$1${key}`),
     input,
   )
   if (result === input) return

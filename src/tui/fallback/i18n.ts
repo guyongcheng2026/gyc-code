@@ -19,6 +19,8 @@
  *   t("exit.confirm", { name: "谷总" })  // 插值（key 需支持）
  */
 
+import { cachedRegex } from "../util/regex-cache"
+
 export type Locale = string
 
 export type TranslationKey<K extends string> = K
@@ -64,7 +66,9 @@ export function createI18n<
 			let value = lookup(map.get(current)) ?? lookup(map.get(defaultLocale)) ?? key
 			if (params) {
 				for (const [k, v] of Object.entries(params)) {
-					value = value.replace(new RegExp(`\\{${k}\\}`, "g"), String(v))
+					// 占位符键来自文案（实际只用十几个，重复率高），走编译缓存：
+					// 此前每次翻译的每个参数都要 new RegExp。
+					value = value.replace(cachedRegex(`\\{${k}\\}`, "g"), String(v))
 				}
 			}
 			return value
