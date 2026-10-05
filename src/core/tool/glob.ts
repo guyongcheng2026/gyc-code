@@ -28,9 +28,18 @@ export const Input = Schema.Struct({
 export const Output = Schema.Array(FileSystem.Entry)
 type ModelOutput = typeof Output.Encoded
 
+/**
+ * 空结果文案，与 `src/gyccode/tool/grep.ts` 的 `emptyMatchNotice` 逐字一致（修复 H-04）。
+ *
+ * 旧的空结果占位文案会被读成"目录里根本没有任何文件"，实际只是 pattern 没有匹配到；
+ * 这里把 pattern/path 一并回灌，让模型知道"搜的是什么、在哪搜的、没搜到"。
+ */
+export const emptyMatchNotice = (pattern: string, path?: string): string =>
+  `No matches found for pattern /${pattern}/${path ? ` in ${path}` : ""}. The pattern does not occur in any searched file's contents. If you expected a match: widen the pattern, pass \`include\`, or point \`path\` at a different directory. Do not conclude the symbol or file does not exist from this result alone.`
+
 /** Format raw search results into the concise line-oriented output models expect. */
-export const toModelOutput = (output: ModelOutput) => {
-  const lines = output.length === 0 ? ["No files found"] : output.map((item) => item.path)
+export const toModelOutput = (output: ModelOutput, pattern: string, directory?: string) => {
+  const lines = output.length === 0 ? [emptyMatchNotice(pattern, directory)] : output.map((item) => item.path)
   return lines.join("\n")
 }
 
@@ -49,11 +58,13 @@ const layer = Layer.effectDiscard(
             "Find files by glob pattern within the active Location. Returns concise relative file resources. Use a relative path to narrow the search and limit to bound the result count.",
           input: Input,
           output: Output,
-          toModelOutput: ({ output }) => [
+          toModelOutput: ({ input, output }) => [
             {
               type: "text",
               text: toModelOutput(
                 output.map((entry) => ({ ...entry, path: path.resolve(location.directory, entry.path) })),
+                input.pattern,
+                input.path,
               ),
             },
           ],

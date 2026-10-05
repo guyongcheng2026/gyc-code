@@ -5,6 +5,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { Ripgrep } from "@gyccode/core/ripgrep"
 import { assertExternalDirectoryEffect } from "./external-directory"
 import DESCRIPTION from "./glob.txt"
+import { emptyMatchNotice } from "./grep"
 import * as Tool from "./tool"
 
 export const Parameters = Schema.Struct({
@@ -54,7 +55,7 @@ export const GlobTool = Tool.define(
           const truncated = files.length === limit
 
           const output = []
-          if (files.length === 0) output.push("No files found")
+          if (files.length === 0) output.push(emptyMatchNotice(params.pattern, params.path))
           if (files.length > 0) {
             output.push(
               ...files.map((file) => {

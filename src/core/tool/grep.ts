@@ -47,9 +47,18 @@ export const Input = Schema.Struct({
 export const Output = Schema.Array(FileSystem.Match)
 type ModelOutput = typeof Output.Encoded
 
+/**
+ * 空结果文案，与 `src/gyccode/tool/grep.ts` 的 `emptyMatchNotice` 逐字一致（修复 H-04）。
+ *
+ * 旧的空结果占位文案会被读成“目录里根本没有任何文件”，实际只是 pattern 没有匹配到；
+ * 这里把 pattern 与搜索目录一并回灌，让模型知道“搜的是什么、在哪搜的、没搜到”。
+ */
+export const emptyMatchNotice = (pattern: string, directory?: string): string =>
+  `No matches found for pattern /${pattern}/${directory ? ` in ${directory}` : ""}. The pattern does not occur in any searched file's contents. If you expected a match: widen the pattern, pass \`include\`, or point \`path\` at a different directory. Do not conclude the symbol or file does not exist from this result alone.`
+
 /** Format raw search matches into the familiar concise model output. */
-export const toModelOutput = (output: ModelOutput) => {
-  const lines = output.length === 0 ? ["No files found"] : [`Found ${output.length} matches`]
+export const toModelOutput = (output: ModelOutput, pattern: string, directory?: string) => {
+  const lines = output.length === 0 ? [emptyMatchNotice(pattern, directory)] : [`Found ${output.length} matches`]
   let current = ""
   for (const match of output) {
     if (current !== match.entry.path) {
@@ -78,7 +87,7 @@ const layer = Layer.effectDiscard(
             "Search file contents by regular expression within the active Location or an absolute managed tool-output file. Use a path to narrow the search, include to filter files by glob, and limit to bound the match count. Returns concise file resources, line numbers, and bounded line previews.",
           input: Input,
           output: Output,
-          toModelOutput: ({ output }) => [
+          toModelOutput: ({ input, output }) => [
             {
               type: "text",
               text: toModelOutput(
@@ -86,6 +95,8 @@ const layer = Layer.effectDiscard(
                   ...match,
                   entry: { ...match.entry, path: path.resolve(location.directory, match.entry.path) },
                 })),
+                input.pattern,
+                input.path,
               ),
             },
           ],
