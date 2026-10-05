@@ -309,7 +309,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               ),
             )
             // 可忽略（纯诊断旁路）：降级到 fallback 时的启动提示日志写失败不影响渲染器选择。
-            .catch(() => {})
+            .catch(() => {
+              // 降级启动日志属诊断旁路：失败不影响渲染器选择逻辑。
+            })
           const { runFallbackApp } = await import("./fallback/run-app")
           await runFallbackApp({
             transport:
@@ -593,7 +595,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
                   }),
                 )
                 // 可忽略（纯诊断旁路）：堆快照读取失败不影响主流程。
-                .catch(() => {})
+                .catch(() => {
+                  // 堆快照读取属诊断旁路：失败不影响主流程。
+                })
             } catch {
               // 堆快照为诊断旁路：写失败不影响主流程
             }
