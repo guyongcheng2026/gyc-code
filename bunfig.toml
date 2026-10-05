@@ -3,3 +3,8 @@
 # webapp 测试由其自带的 vitest（jsdom 环境）负责，bun test 不扫（无 DOM 环境会误报失败）。
 # 运行 webapp 测试：cd src/webapp && bun run test
 exclude = ["src/webapp", "node_modules", "dist", "web-test*.log"]
+# src/tui/fallback 下的 .tsx 必须经 bun-solid-plugin 分流到 #fallback-solid 才能保住响应式。
+# 不带 preload 时 bun 原生 JSX 运行时会在转译期把 {signal()} 求值成静态值，
+# 导致 ScrollBox / Textarea / reconciler 的响应式用例假失败。
+# 这里全局注册，使 `bun test` 与 `bun run test`（脚本里已显式带 preload）行为一致。
+preload = ["./scripts/bun-solid-preload.ts"]

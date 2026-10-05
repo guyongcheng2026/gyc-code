@@ -26,8 +26,35 @@ function sessionErrorMessage(error: SessionError) {
   return "会话出错"
 }
 
+/**
+ * 任务完成推送到微信网关：fire-and-forget，绝不参与 TUI 主流程。
+ * 四重护栏——动态 import 失败、推送开关关闭、未配置微信凭证、发送失败
+ * 一律不打断交互；其中发送失败由网关侧落 logWarn，终端不刷屏。
+ */
+function pushToGateway(
+  api: TuiPluginApi,
+  sessionID: string,
+  title: string | undefined,
+  busyAt: number | undefined,
+) {
+  // 子代理会话不推送：一轮任务可派生大量子会话，全推会淹没微信
+  if (api.state.session.get(sessionID)?.parentID) return
+  const cwd = api.state.session.cwd(sessionID)
+  void import("@/gateway/notify")
+    .then((gateway) =>
+      gateway.notifyTaskComplete({
+        title: title?.trim() || "gyc 会话",
+        summary: cwd ? `工作目录：${cwd}` : "",
+        durationMs: busyAt === undefined ? undefined : Date.now() - busyAt,
+      }),
+    )
+    .catch(() => undefined)
+}
+
 const tui: TuiPlugin = async (api) => {
   const active = new Set<string>()
+  /** busy→idle 的起始时刻，用于推送里计算本轮耗时 */
+  const busySince = new Map<string, number>()
   const errored = new Set<string>()
   const questions = new Set<string>()
   const permissions = new Set<string>()
@@ -60,6 +87,7 @@ const tui: TuiPlugin = async (api) => {
     const sessionID = event.properties.sessionID
     if (event.properties.status.type === "busy" || event.properties.status.type === "retry") {
       active.add(sessionID)
+      busySince.set(sessionID, Date.now())
       errored.delete(sessionID)
       return
     }
@@ -67,6 +95,8 @@ const tui: TuiPlugin = async (api) => {
     if (event.properties.status.type !== "idle") return
     if (!active.has(sessionID)) return
     active.delete(sessionID)
+    const busyAt = busySince.get(sessionID)
+    busySince.delete(sessionID)
 
     if (errored.has(sessionID)) {
       errored.delete(sessionID)
@@ -75,6 +105,7 @@ const tui: TuiPlugin = async (api) => {
 
     const session = api.state.session.get(sessionID)
     notify(api, sessionID, "会话已完成", session?.parentID ? "subagent_done" : "done")
+    pushToGateway(api, sessionID, session?.title, busyAt)
   })
 
   api.event.on("session.error", (event) => {

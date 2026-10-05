@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test"
-import { probeTerminal, renderBudget, sessionTargetFps } from "./capability"
+import { probeTerminal, renderBudget, sessionTargetFps, LARGE_SESSION_THRESHOLD, MIN_RENDER_FPS } from "./capability"
 
 function makeEnv(overrides: Record<string, string | undefined>): Record<string, string | undefined> {
 	return { TERM: "xterm-256color", ...overrides }
@@ -61,6 +61,45 @@ describe("渲染预算", () => {
 		expect(budget.maxFps).toBe(60)
 		expect(budget.mouseEnabled).toBe(true)
 		expect(budget.kittyKeyboard).toBe(true)
+	})
+
+	test("会话规模超阈值时降档（plain 档）", () => {
+		const probe = { plain: true, colorDepth: 8 as const, opaqueBg: true, platform: "linux" as const, termProgram: undefined }
+		// 规模不超过阈值时与既有 plain 档一致
+		expect(renderBudget(probe, { scale: LARGE_SESSION_THRESHOLD }).maxFps).toBe(10)
+		// 超过阈值后降档，且不低于帧率下限
+		const large = renderBudget(probe, { scale: LARGE_SESSION_THRESHOLD * 4 })
+		expect(large.maxFps).toBeLessThan(10)
+		expect(large.maxFps).toBeGreaterThanOrEqual(MIN_RENDER_FPS)
+	})
+
+	test("会话规模降档只影响帧率，不改鼠标/kitty 开关", () => {
+		const probe = { plain: false, colorDepth: 24 as const, opaqueBg: true, platform: "linux" as const, termProgram: undefined }
+		const base = renderBudget(probe, { scale: 0 })
+		const large = renderBudget(probe, { scale: LARGE_SESSION_THRESHOLD * 4 })
+		expect(large.mouseEnabled).toBe(base.mouseEnabled)
+		expect(large.kittyKeyboard).toBe(base.kittyKeyboard)
+		expect(large.maxFps).toBeLessThan(base.maxFps)
+	})
+
+	test("非法 scale 夹到保守值，等同于不降档", () => {
+		const probe = { plain: true, colorDepth: 8 as const, opaqueBg: true, platform: "linux" as const, termProgram: undefined }
+		const base = renderBudget(probe)
+		for (const scale of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+			expect(renderBudget(probe, { scale }).maxFps).toBe(base.maxFps)
+		}
+	})
+
+	test("不传 scale 时与既有行为完全一致", () => {
+		const plain = { plain: true, colorDepth: 8 as const, opaqueBg: true, platform: "linux" as const, termProgram: undefined }
+		const rich = { plain: false, colorDepth: 24 as const, opaqueBg: true, platform: "linux" as const, termProgram: undefined }
+		expect(renderBudget(plain)).toEqual(renderBudget(plain, {}))
+		expect(renderBudget(rich)).toEqual(renderBudget(rich, {}))
+	})
+
+	test("阈值与帧率下限常量均为正", () => {
+		expect(LARGE_SESSION_THRESHOLD).toBeGreaterThan(0)
+		expect(MIN_RENDER_FPS).toBeGreaterThan(0)
 	})
 })
 

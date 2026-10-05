@@ -87,11 +87,51 @@ export interface RenderBudget {
 	kittyKeyboard: boolean
 }
 
-export function renderBudget(probe: TerminalProbe): RenderBudget {
+/**
+ * 会话规模超过该阈值后开始降档。
+ *
+ * 取「一条消息平均占用若干渲染节点」的量级：会话里渲染的节点越多，每帧要重绘的
+ * 内容就越多，帧率必须让路。低于阈值时行为与接入本维度之前完全一致。
+ */
+export const LARGE_SESSION_THRESHOLD = 200
+
+/** 降档后的帧率下限。再低就没有可读性了，宁可卡也不做成幻灯片。 */
+export const MIN_RENDER_FPS = 5
+
+/** 会话规模维度：会话内累计渲染的节点数（消息数 × 节点系数）。 */
+export interface RenderScale {
+	/**
+	 * 会话规模。不传、0、负数、NaN、Infinity 一律按「未启用」处理，
+	 * 即完全不降档 —— 保证调用方不接入本维度时行为零变化。
+	 */
+	readonly scale?: number | undefined
+}
+
+/**
+ * 按会话规模把基准帧率往下压，但不得低于 MIN_RENDER_FPS。
+ *
+ * 压法是「超阈值部分每达到阈值的一倍再降一档」，越大的会话降得越多，
+ * 但不会线性归零。非有限值与未启用一律返回原帧率。
+ */
+function scaleDownFps(maxFps: number, scale: number | undefined): number {
+	if (scale === undefined || !Number.isFinite(scale) || scale <= 0) return maxFps
+	if (scale <= LARGE_SESSION_THRESHOLD) return maxFps
+	const tiers = Math.floor(scale / LARGE_SESSION_THRESHOLD) - 1
+	return Math.max(MIN_RENDER_FPS, Math.floor(maxFps / (1 + tiers)))
+}
+
+/**
+ * 渲染预算。
+ *
+ * 两档基准沿用既有判定（plain / 非 plain），本函数只在其上叠加会话规模维度：
+ * 降档只动 `maxFps`，**不改** `mouseEnabled` 与 `kittyKeyboard` —— 后两者是终端能力，
+ * 与会话多大无关。
+ */
+export function renderBudget(probe: TerminalProbe, scale: RenderScale = {}): RenderBudget {
 	if (probe.plain) {
-		return { maxFps: 10, mouseEnabled: false, kittyKeyboard: false }
+		return { maxFps: scaleDownFps(10, scale.scale), mouseEnabled: false, kittyKeyboard: false }
 	}
-	return { maxFps: 60, mouseEnabled: true, kittyKeyboard: true }
+	return { maxFps: scaleDownFps(60, scale.scale), mouseEnabled: true, kittyKeyboard: true }
 }
 
 /**

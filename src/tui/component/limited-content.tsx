@@ -76,7 +76,16 @@ export function LimitedContent(props: {
   })
   return (
     <>
-      <Show when={affordable()} fallback={<>{props.plain(limited().text)}</>}>
+      <Show
+        when={affordable()}
+        fallback={
+          <>
+            {splitPlainRows(limited().text, props.maxLines ?? DEFAULT_MAX_CONTENT_LINES).map((row) => (
+              <text fg={props.plainColor}>{row}</text>
+            ))}
+          </>
+        }
+      >
         {props.rich(limited().text)}
       </Show>
       <Show when={limited().truncated}>
@@ -84,4 +93,50 @@ export function LimitedContent(props: {
       </Show>
     </>
   )
+}
+
+/**
+ * plain 降级分支的按行切分。
+ *
+ * 降级到 plain 后若仍把整段内容塞进单个 <text>，极端超长内容在 plain 档同样会
+ * 撑爆单个节点。这里按换行边界把内容切成多段，每段由调用方渲染成一个 <text>。
+ *
+ * 切分**不改变**总行数上限：调用方传入的上限（折叠上限）依然是硬约束，
+ * 避免把「单节点过大」的问题搬成「节点过多」。
+ *
+ * 换行符（`\n` / `\r\n` / `\r`）原样保留在段尾，因此 `rows.join("")` 可无损还原原文。
+ */
+export function splitPlainRows(
+	text: string,
+	maxRows: number = DEFAULT_MAX_CONTENT_LINES,
+): readonly string[] {
+	const limit = Number.isFinite(maxRows) && maxRows > 0 ? Math.floor(maxRows) : DEFAULT_MAX_CONTENT_LINES
+	if (text === "") return [""]
+	const rows: string[] = []
+	let start = 0
+	while (start <= text.length) {
+		if (rows.length >= limit) break
+		let end = -1
+		for (let index = start; index < text.length; index++) {
+			const char = text.charCodeAt(index)
+			if (char === 10) {
+				// \n = 10
+				end = index + 1
+				break
+			}
+			if (char === 13) {
+				// \r = 13。若紧跟 \n 则 CRLF 是一个行边界，必须整段吃掉，
+				// 否则 \n 会被当成独立的一行，把 CRLF 文件拆出多余空段。
+				end = text.charCodeAt(index + 1) === 10 ? index + 2 : index + 1
+				break
+			}
+		}
+		if (end === -1) {
+			rows.push(text.slice(start))
+			break
+		}
+		rows.push(text.slice(start, end))
+		start = end
+	}
+	return rows
 }
