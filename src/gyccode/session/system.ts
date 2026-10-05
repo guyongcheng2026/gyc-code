@@ -13,6 +13,7 @@ import PROMPT_KIMI from "./prompt/kimi.txt"
 
 import PROMPT_CODEX from "./prompt/codex.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
+import { composeVariant } from "./prompt/compose"
 import type { Provider } from "@/provider/provider"
 import type { Agent } from "@/agent/agent"
 import { Permission } from "@/permission"
@@ -33,19 +34,19 @@ import { formatUserModelForPrompt, readUserModelCached, USER_MODEL_INJECTION_BUD
 
 export function provider(model: Provider.Model) {
   if (model.api.id.includes("gpt-4") || model.api.id.includes("o1") || model.api.id.includes("o3"))
-    return [PROMPT_BEAST]
+    return [composeVariant(PROMPT_BEAST)]
   if (model.api.id.includes("gpt")) {
-    if (model.api.id.includes("gpt-6")) return [PROMPT_ASTRA]
+    if (model.api.id.includes("gpt-6")) return [composeVariant(PROMPT_ASTRA)]
     if (model.api.id.includes("codex")) {
-      return [PROMPT_CODEX]
+      return [composeVariant(PROMPT_CODEX)]
     }
-    return [PROMPT_GPT]
+    return [composeVariant(PROMPT_GPT)]
   }
-  if (model.api.id.includes("gemini-")) return [PROMPT_GEMINI]
-  if (model.api.id.includes("claude")) return [PROMPT_ANTHROPIC]
-  if (model.api.id.toLowerCase().includes("trinity")) return [PROMPT_TRINITY]
-  if (model.api.id.toLowerCase().includes("kimi")) return [PROMPT_KIMI]
-  return [PROMPT_DEFAULT]
+  if (model.api.id.includes("gemini-")) return [composeVariant(PROMPT_GEMINI)]
+  if (model.api.id.includes("claude")) return [composeVariant(PROMPT_ANTHROPIC)]
+  if (model.api.id.toLowerCase().includes("trinity")) return [composeVariant(PROMPT_TRINITY)]
+  if (model.api.id.toLowerCase().includes("kimi")) return [composeVariant(PROMPT_KIMI)]
+  return [composeVariant(PROMPT_DEFAULT)]
 }
 
 export interface Interface {

@@ -102,12 +102,8 @@ interface IlinkSendRequest {
 const configError = () =>
   new GatewayError("unknown", "请在 ~/.gyc/.env 配置 GYC_WEIXIN_TOKEN 与 GYC_WEIXIN_ACCOUNT_ID 后重试")
 
-/**
- * 凭据直读 ~/.gyc/.env 文件本体，环境变量仅作回落。
- * 根因防护：宿主 harness 会向子进程注入陈旧的环境快照（曾致新凭据被旧值遮蔽、
- * 守护持续 -14 session timeout），故文件优先级必须高于继承环境。
- */
-export function resolveWeixinConfig(): WeixinConfig {
+/** 读取 ~/.gyc/.env 文件本体；文件缺失时返回空表，交由调用方回落纯环境变量。 */
+function loadEnvFile(): Record<string, string> {
   const fileEnv: Record<string, string> = {}
   try {
     for (const line of readFileSync(join(homedir(), ".gyc", ".env"), "utf-8").split(/\r?\n/)) {
@@ -121,7 +117,23 @@ export function resolveWeixinConfig(): WeixinConfig {
   } catch {
     // 文件缺失时回落纯环境变量
   }
-  const pick = (key: string) => fileEnv[key] ?? process.env[key] ?? ""
+  return fileEnv
+}
+
+/**
+ * 单键读取网关配置：~/.gyc/.env 优先于进程环境。
+ * 根因防护：宿主 harness 会向子进程注入陈旧的环境快照（曾致新凭据被旧值遮蔽、
+ * 守护持续 -14 session timeout），故文件优先级必须高于继承环境。
+ * fileEnv 仅供单测注入以验证优先级，生产路径缺省即现场读盘。
+ */
+export function readWeixinEnv(key: string, fileEnv: Record<string, string> = loadEnvFile()): string {
+  return fileEnv[key] ?? process.env[key] ?? ""
+}
+
+/** 解析凭证与通道配置：一次读盘供全部键复用；缺 token / accountId 直接抛配置错误。 */
+export function resolveWeixinConfig(): WeixinConfig {
+  const fileEnv = loadEnvFile()
+  const pick = (key: string) => readWeixinEnv(key, fileEnv)
   const token = pick("GYC_WEIXIN_TOKEN")
   const accountId = pick("GYC_WEIXIN_ACCOUNT_ID")
   if (!token || !accountId) throw configError()

@@ -10,6 +10,7 @@ import PROMPT_KIMI from "./prompt/kimi.txt"
 import PROMPT_ASTRA from "./prompt/gpt-astra.txt"
 import PROMPT_TRINITY from "./prompt/trinity.txt"
 import { MAX_STEPS_PROMPT } from "@gyccode/core/session/runner/max-steps"
+import { composeVariant } from "./prompt/compose"
 
 /**
  * 防幻觉提示词基线守卫。
@@ -22,16 +23,23 @@ import { MAX_STEPS_PROMPT } from "@gyccode/core/session/runner/max-steps"
  * 这些都是提示词内容，退化不会报错、不会让测试变红，只会让幻觉率无声上升。
  * 因此固化为回归断言。
  */
+/**
+ * 校验对象是**渲染后**的 prompt，也就是模型实际收到的那段文本。
+ *
+ * 变体文件里的公共段已被抽到 prompt/_core.txt，文件里只留 @@GYCCODE_PROMPT_CORE@@
+ * 占位标记，所以直接断言 .txt 原文会误报。必须先经 composeVariant 还原，
+ * 才能验证「模型确实看到了 Accuracy and honesty 这段约束」。
+ */
 const SELECTED: ReadonlyArray<readonly [name: string, prompt: string]> = [
-  ["anthropic", PROMPT_ANTHROPIC],
-  ["beast", PROMPT_BEAST],
-  ["codex", PROMPT_CODEX],
-  ["default", PROMPT_DEFAULT],
-  ["gemini", PROMPT_GEMINI],
-  ["gpt", PROMPT_GPT],
-  ["gpt-astra", PROMPT_ASTRA],
-  ["kimi", PROMPT_KIMI],
-  ["trinity", PROMPT_TRINITY],
+  ["anthropic", composeVariant(PROMPT_ANTHROPIC)],
+  ["beast", composeVariant(PROMPT_BEAST)],
+  ["codex", composeVariant(PROMPT_CODEX)],
+  ["default", composeVariant(PROMPT_DEFAULT)],
+  ["gemini", composeVariant(PROMPT_GEMINI)],
+  ["gpt", composeVariant(PROMPT_GPT)],
+  ["gpt-astra", composeVariant(PROMPT_ASTRA)],
+  ["kimi", composeVariant(PROMPT_KIMI)],
+  ["trinity", composeVariant(PROMPT_TRINITY)],
 ]
 
 const LIB_EXIST = /NEVER assume (?:that )?(?:a|any) (?:given )?(?:library|libraries|framework)/i
