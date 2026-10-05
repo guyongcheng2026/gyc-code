@@ -117,9 +117,25 @@ function anthropicOmitsThinking(apiId: string) {
   return anthropicUsesModernAdaptiveThinking(apiId)
 }
 
+// 精确匹配 gemini-2.5，而不是 includes("2.5")：后者会把 gemma-2.5、
+// 任何版本号里带 "2.5" 的模型一并误判，导致 thinking 参数发错。
+const GEMINI_2_5_RE = /gemini-2[.-]5(?:[.-]|$)/i
+// 1.x / 2.x 老模型：不接受 thinkingLevel 这类新参数，只能退回 effort。
+const GEMINI_LEGACY_RE = /gemini-(?:(?:flash|pro)-)?[12](?:[.-]|$)/i
+
+export function isLegacyGemini(apiId: string) {
+  return GEMINI_LEGACY_RE.test(apiId)
+}
+
+export function isGemini25(apiId: string) {
+  return GEMINI_2_5_RE.test(apiId)
+}
+
 function googleThinkingLevelEfforts(apiId: string) {
   const id = apiId.toLowerCase()
-  if (!id.includes("gemini-3")) return ["low", "high"]
+  // Gemma 4 只开关思考："minimal" 关闭，"high" 开启。
+  if (id.includes("gemma")) return ["minimal", "high"]
+  if (isLegacyGemini(id)) return ["low", "high"]
   if (id.includes("flash-image")) return ["minimal", "high"]
   if (id.includes("pro-image")) return ["high"]
   if (id.includes("flash")) return ["minimal", "low", "medium", "high"]
@@ -128,7 +144,7 @@ function googleThinkingLevelEfforts(apiId: string) {
 
 function googleThinkingBudgetMax(apiId: string) {
   const id = apiId.toLowerCase()
-  if (id.includes("2.5") && id.includes("pro") && !id.includes("flash")) return 32_768
+  if (isGemini25(id) && id.includes("pro") && !id.includes("flash")) return 32_768
   return 24_576
 }
 
@@ -140,7 +156,7 @@ function wrapInSapModelParams(variants: Record<string, Record<string, any>>): Re
 
 function googleThinkingVariants(model: Provider.Model): Record<string, Record<string, any>> {
   const id = model.api.id.toLowerCase()
-  if (id.includes("2.5")) {
+  if (isGemini25(id)) {
     return {
       high: { thinkingConfig: { includeThoughts: true, thinkingBudget: 16000 } },
       max: {

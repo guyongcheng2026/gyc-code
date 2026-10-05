@@ -126,6 +126,10 @@ export class McpOAuthProvider implements OAuthClientProvider {
   }
 
   async redirectToAuthorization(authorizationUrl: URL): Promise<void> {
+    if (authorizationUrl.protocol !== "http:" && authorizationUrl.protocol !== "https:")
+      throw new Error(
+        `MCP 服务器 "${this.serverUrl}" 返回了 ${authorizationUrl.protocol} 协议的授权地址；只支持 http 与 https`,
+      )
     await this.callbacks.onRedirect(authorizationUrl)
   }
 

@@ -1,6 +1,7 @@
 import { mergeDeep } from "remeda"
 import type * as Provider from "./provider"
 import { INCLUDE_ENCRYPTED_REASONING, isKimiFamily, OUTPUT_TOKEN_MAX, sdkKey } from "./transform.shared"
+import { isLegacyGemini } from "./transform.variants"
 
 const GEMINI_MODELS_WITH_SAMPLING_DEFAULTS = [
   /gemini-2[.-]5(?:[.-]|$)/,
@@ -83,7 +84,7 @@ export function options(input: {
     result["usage"] = {
       include: true,
     }
-    if (input.model.api.id.includes("gemini-3")) {
+    if (input.model.api.id.toLowerCase().includes("gemini") && !isLegacyGemini(input.model.api.id)) {
       result["reasoning"] = { effort: "high" }
     }
   }

@@ -52,7 +52,7 @@
 
 - Bun workspaces：`src/{cli,codemode,core,effect-drizzle-sqlite,llm,protocol,schema,tui,ui,webapp}`；`src/gyccode/` 是主包（非 workspace 成员）
 - 入口链：`bin/gyc` → `src/gyccode/index.ts`（yargs 惰性注册）→ TUI `src/cli/cmd/tui.ts` + `src/tui/`；worker `src/cli/tui/worker.ts`
-- 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.32（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
+- 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.34（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
 - 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；禁 v4-only 不稳定 API；勿升降级
 - 运行时开关走 `GYCCODE_*` 环境变量，不要把行为开关固化进构建 define
 

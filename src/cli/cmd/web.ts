@@ -3,7 +3,7 @@ import { UI } from "../ui"
 import { effectCmd } from "../effect-cmd"
 import { withNetworkOptions, resolveNetworkOptions } from "../network"
 import { Flag } from "@gyccode/core/flag/flag"
-import open from "open"
+import { openUrl } from "@gyccode/core/open"
 import { networkInterfaces } from "os"
 
 function getNetworkIPs() {
@@ -86,14 +86,14 @@ export const WebCommand = effectCmd({
       }
 
       // Open localhost in browser（无 GUI 环境打开失败属正常，服务已启动）
-      open(localhostUrl).catch(() => {
+      openUrl(localhostUrl).catch(() => {
         // 打开浏览器失败不影响服务：终端已打印地址，谷总可自行访问
       })
     } else {
       const displayUrl = server.url.toString()
       UI.println(UI.Style.TEXT_INFO_BOLD + "  Web 界面：    ", UI.Style.TEXT_NORMAL, displayUrl)
       // 同上：无 GUI 环境打开失败不阻断
-      open(displayUrl).catch(() => {
+      openUrl(displayUrl).catch(() => {
         // 同上：地址已打印到终端，浏览器拉起失败无需中断服务
       })
     }
