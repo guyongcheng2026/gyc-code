@@ -140,11 +140,16 @@ export function renderBudget(probe: TerminalProbe, scale: RenderScale = {}): Ren
  * 此前会话页把 60/30 写死，忽略了 probe 结果：plain 终端（TERM=dumb / CI）同样
  * 跑 60fps，而这类终端既无富渲染能力又常跑在受限容器里，属纯浪费。
  *
- * 上限取 renderBudget(probe).maxFps，保证任何阶段都不超过终端能力档位；
- * 流式期取上限，空闲期减半控制 CPU。
+ * 上限取 renderBudget(probe, scale).maxFps，保证任何阶段都不超过终端能力档位；
+ * 流式期取上限，空闲期减半控制 CPU。传入 scale 后叠加会话规模维度（长会话降档），
+ * 这是 P2-2 的收口：机制早已具备（scaleDownFps），此前缺的是会话页调用方没传。
  */
-export function sessionTargetFps(probe: TerminalProbe, streaming: boolean): number {
-	const budget = renderBudget(probe)
+export function sessionTargetFps(
+	probe: TerminalProbe,
+	streaming: boolean,
+	scale: RenderScale = {},
+): number {
+	const budget = renderBudget(probe, scale)
 	// 空闲期减半控制 CPU（下限 10fps：低于此值终端本身响应会发涩）
 	if (!streaming) return Math.max(10, Math.floor(budget.maxFps / 2))
 	return budget.maxFps

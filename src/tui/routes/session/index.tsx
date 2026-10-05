@@ -387,13 +387,18 @@ export function Session() {
   // 流式输出帧率对标 pi agent（16ms/60fps）：生成期间升到上限保证
   // delta 上屏节奏；空闲回落控制 CPU。帧率按终端能力分档（capability.ts）：
   // plain 终端（TERM=dumb / CI）贴 10fps，此前无论终端能力一律 60fps 属空转。
+  // 会话规模维度（P2-2 收尾）：长会话每帧要重绘的内容更多，帧率必须让路。
+  // 口径为「消息数 × 节点系数」——单条消息往往含正文/思维链/工具输出多个节点，
+  // 故按 3 倍计，宁可早降档也不等 CPU 空转起来再降。
+  const RENDER_NODE_FACTOR = 3
+  const renderScale = createMemo(() => ({ scale: messages().length * RENDER_NODE_FACTOR }))
   createEffect(() => {
     const streaming = pending() !== undefined
     if (renderer.isDestroyed) return
-    renderer.targetFps = sessionTargetFps(probeTerminal(), streaming)
+    renderer.targetFps = sessionTargetFps(probeTerminal(), streaming, renderScale())
   })
   onCleanup(() => {
-    if (!renderer.isDestroyed) renderer.targetFps = sessionTargetFps(probeTerminal(), false)
+    if (!renderer.isDestroyed) renderer.targetFps = sessionTargetFps(probeTerminal(), false, renderScale())
   })
 
   onCleanup(

@@ -127,4 +127,48 @@ describe("会话阶段帧率", () => {
 			expect(sessionTargetFps(probe, false)).toBeLessThanOrEqual(sessionTargetFps(probe, true))
 		}
 	})
+
+	test("小会话不降档：未达阈值时与不传 scale 完全一致", () => {
+		expect(sessionTargetFps(rich, true, { scale: LARGE_SESSION_THRESHOLD })).toBe(
+			sessionTargetFps(rich, true),
+		)
+		expect(sessionTargetFps(rich, false, { scale: LARGE_SESSION_THRESHOLD })).toBe(
+			sessionTargetFps(rich, false),
+		)
+	})
+
+	test("长会话降档：流式与空闲都低于未降档值，且仍不超过 renderBudget", () => {
+		const scale = { scale: LARGE_SESSION_THRESHOLD * 4 }
+		const streaming = sessionTargetFps(rich, true, scale)
+		const idle = sessionTargetFps(rich, false, scale)
+		expect(streaming).toBeLessThan(sessionTargetFps(rich, true))
+		expect(idle).toBeLessThan(sessionTargetFps(rich, false))
+		expect(streaming).toBeLessThanOrEqual(renderBudget(rich, scale).maxFps)
+		expect(idle).toBeLessThanOrEqual(streaming)
+	})
+
+	test("会话越长帧率越低（单调不增）", () => {
+		let previous = Number.POSITIVE_INFINITY
+		for (const scale of [
+			LARGE_SESSION_THRESHOLD,
+			LARGE_SESSION_THRESHOLD * 2,
+			LARGE_SESSION_THRESHOLD * 4,
+			LARGE_SESSION_THRESHOLD * 8,
+		]) {
+			const fps = sessionTargetFps(rich, true, { scale })
+			expect(fps).toBeLessThanOrEqual(previous)
+			previous = fps
+		}
+	})
+
+	test("非有限与未启用 scale 一律不降档", () => {
+		for (const scale of [0, -1, Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
+			expect(sessionTargetFps(rich, true, { scale })).toBe(sessionTargetFps(rich, true))
+		}
+	})
+
+	test("plain 终端降档后仍不低于 MIN_RENDER_FPS", () => {
+		const fps = sessionTargetFps(plain, true, { scale: LARGE_SESSION_THRESHOLD * 100 })
+		expect(fps).toBeGreaterThanOrEqual(MIN_RENDER_FPS)
+	})
 })
