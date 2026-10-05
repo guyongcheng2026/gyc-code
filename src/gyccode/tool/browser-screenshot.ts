@@ -202,7 +202,9 @@ async function capture(
   } finally {
     child.kill();
     // 一次性 profile：留着只会在下次启动前堆积，并可能让调试端口被上一次的残留实例占住
-    await rm(profile, { recursive: true, force: true }).catch(() => {})
+    await rm(profile, { recursive: true, force: true }).catch(() => {
+      // 清理失败只留临时目录残留：浏览器已 kill，不影响本次截图结果与端口释放
+    })
   }
 }
 

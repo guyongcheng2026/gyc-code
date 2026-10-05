@@ -98,7 +98,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
             if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
               // Start syncing workspaces, it's important to do this after
               // we've started listening to events
-              await sdk.sync.start().catch(() => {})
+await sdk.sync.start().catch(() => {
+              // 工作区同步启动属后台任务：失败时静默忽略，事件流仍会建立。
+            })
             }
 
             for await (const event of events.stream) {
@@ -133,7 +135,9 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          await sdk.sync.start().catch(() => {})
+          await sdk.sync.start().catch(() => {
+            // 工作区同步启动属后台任务：失败时静默忽略，事件流仍会建立。
+          })
         }
       } else {
         startSSE()

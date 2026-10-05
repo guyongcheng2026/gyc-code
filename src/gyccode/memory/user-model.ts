@@ -80,7 +80,9 @@ async function atomicWrite(file: string, content: string): Promise<void> {
   try {
     await rename(tmp, file)
   } catch (error) {
-    await rm(tmp, { force: true }).catch(() => {})
+    await rm(tmp, { force: true }).catch(() => {
+      // rename 原始错误紧邻重抛，临时文件残留不掩盖真因
+    })
     throw error
   }
 }

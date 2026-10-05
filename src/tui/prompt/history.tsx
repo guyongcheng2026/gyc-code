@@ -66,7 +66,9 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
 
       // Rewrite valid retained entries to self-heal corruption and enforce the limit.
       if (lines.length > 0)
-        writeText(historyPath, lines.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+        writeText(historyPath, lines.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {
+          // 历史文件自愈重写属诊断旁路：失败时内存里的历史仍完整，不阻断启动。
+        })
     })
 
     const [store, setStore] = createStore({
@@ -120,10 +122,14 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
         )
 
         if (rewrite) {
-          writeText(historyPath, store.history.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+          writeText(historyPath, store.history.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {
+            // 历史文件重写属诊断旁路：失败时内存里的历史仍完整，不阻断当前操作。
+          })
           return
         }
-        appendText(historyPath, JSON.stringify(entry) + "\n").catch(() => {})
+        appendText(historyPath, JSON.stringify(entry) + "\n").catch(() => {
+          // 增量历史追加属诊断旁路：失败时内存里的历史仍完整，不阻断当前操作。
+        })
       },
       /** Remove a history entry by index (oldest-first ordering). Rewrites the backing file. */
       remove(index: number) {
@@ -136,7 +142,9 @@ export const { use: usePromptHistory, provider: PromptHistoryProvider } = create
         writeText(
           historyPath,
           store.history.length > 0 ? store.history.map((line) => JSON.stringify(line)).join("\n") + "\n" : "",
-        ).catch(() => {})
+        ).catch(() => {
+          // 删除后重写属诊断旁路：失败时内存里的历史仍完整，不阻断删除操作。
+        })
       },
     }
   },

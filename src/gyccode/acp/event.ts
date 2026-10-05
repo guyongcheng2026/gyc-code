@@ -87,7 +87,9 @@ export class Subscription {
     try {
       // Idle is queued after the turn's events, and this subscription awaits each update in order.
       // waiter 在取消/断开时会 reject，属正常信号传递，无需处理
-    void waiter.promise.catch(() => {})
+    void waiter.promise.catch(() => {
+        // 取消/断开是 waiter 的正常信号路径，真实错误由下方 await waiter.promise 抛出
+      })
       const response = await request()
       await waiter.promise
       return response
@@ -152,7 +154,9 @@ export class Subscription {
   private async run() {
     while (!this.abort.signal.aborted) {
       // consume 抛错代表事件流断开，此处吞掉后由下方 sleep 1s 触发重连，属预期重连机制
-      await this.consume().catch(() => {})
+      await this.consume().catch(() => {
+        // 重连机制吞掉断流错误：disconnected + sleep 后重新 consume，无需逐次上报
+      })
       this.disconnected()
       if (!this.abort.signal.aborted) await new Promise((resolve) => setTimeout(resolve, 1000))
     }

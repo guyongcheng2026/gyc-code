@@ -107,7 +107,9 @@ async function writeUsage(root: string | undefined, table: SkillUsageTable): Pro
     await rename(tmp, file)
   } catch (error) {
     // 清理可能残留的临时文件；清理失败不影响调用方
-    await rm(tmp, { force: true }).catch(() => {})
+    await rm(tmp, { force: true }).catch(() => {
+      // 原始写入错误紧邻重抛，临时文件残留不掩盖真因
+    })
     throw error
   }
 }

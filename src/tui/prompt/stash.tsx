@@ -38,7 +38,9 @@ export const { use: usePromptStash, provider: PromptStashProvider } = createSimp
       const lines = parsePromptStash(await readText(stashPath).catch(() => ""))
       setStore("entries", lines)
       if (lines.length > 0)
-        writeText(stashPath, lines.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+        writeText(stashPath, lines.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {
+          // 恢复草稿文件自愈重写属诊断旁路：失败时内存里的草稿仍完整，不阻断启动。
+        })
     })
 
     const [store, setStore] = createStore({ entries: [] as StashEntry[] })
@@ -61,10 +63,14 @@ export const { use: usePromptStash, provider: PromptStashProvider } = createSimp
         )
 
         if (trimmed) {
-          writeText(stashPath, store.entries.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {})
+          writeText(stashPath, store.entries.map((line) => JSON.stringify(line)).join("\n") + "\n").catch(() => {
+            // 修剪后重写属诊断旁路：失败时内存里的草稿仍完整，不阻断当前操作。
+          })
           return
         }
-        appendText(stashPath, JSON.stringify(stash) + "\n").catch(() => {})
+        appendText(stashPath, JSON.stringify(stash) + "\n").catch(() => {
+          // 增量草稿追加属诊断旁路：失败时内存里的草稿仍完整，不阻断当前操作。
+        })
       },
       pop() {
         if (store.entries.length === 0) return undefined
@@ -73,7 +79,9 @@ export const { use: usePromptStash, provider: PromptStashProvider } = createSimp
         writeText(
           stashPath,
           store.entries.length > 0 ? store.entries.map((line) => JSON.stringify(line)).join("\n") + "\n" : "",
-        ).catch(() => {})
+        ).catch(() => {
+          // 弹出后重写属诊断旁路：失败时内存里的草稿仍完整，不阻断弹出操作。
+        })
         return entry
       },
       remove(index: number) {
@@ -82,7 +90,9 @@ export const { use: usePromptStash, provider: PromptStashProvider } = createSimp
         writeText(
           stashPath,
           store.entries.length > 0 ? store.entries.map((line) => JSON.stringify(line)).join("\n") + "\n" : "",
-        ).catch(() => {})
+        ).catch(() => {
+          // 删除后重写属诊断旁路：失败时内存里的草稿仍完整，不阻断删除操作。
+        })
       },
     }
   },

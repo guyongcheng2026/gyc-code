@@ -689,7 +689,9 @@ export const Zls: Info = {
 
       if (platform !== "win32") {
         // 二进制文件可能不存在或只读，chmod 失败不阻断启动
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch(() => {
+          // 文件已可直接执行时 chmod 非必需，失败不阻断 LSP 启动
+        })
       }
     }
 
@@ -1083,12 +1085,18 @@ export const Clangd: Info = {
     }
 
     if (platform !== "win32") {
-      await fs.chmod(bin, 0o755).catch(() => {})
+      await fs.chmod(bin, 0o755).catch(() => {
+        // 文件已可直接执行时 chmod 非必需，失败不阻断 LSP 启动
+      })
     }
 
     // 旧软链可能不存在，删除失败不阻断；新建软链失败由后续启动报错暴露
-    await fs.unlink(path.join(Global.Path.bin, "clangd")).catch(() => {})
-    await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch(() => {})
+    await fs.unlink(path.join(Global.Path.bin, "clangd")).catch(() => {
+      // 首次安装本就没有旧软链，unlink 报 ENOENT 属正常路径
+    })
+    await fs.symlink(bin, path.join(Global.Path.bin, "clangd")).catch(() => {
+      // 软链缺失时 clangd 启动会自行报错，不在此处重复中断
+    })
 
     return {
       process: spawn(bin, args, {
@@ -1288,7 +1296,9 @@ export const JDTLS: Info = {
     // Remove the JDTLS data directory when the server process exits (or
     // crashes) so each launch doesn't leak hundreds of MB in the temp dir.
     const cleanupDataDir = () => {
-      fs.rm(dataDir, { recursive: true, force: true }).catch(() => {})
+      fs.rm(dataDir, { recursive: true, force: true }).catch(() => {
+        // 纯诊断旁路：进程已在退出，临时目录残留由系统 tmp 清理兜底
+      })
     }
     let serverProcess: ChildProcessWithoutNullStreams
     try {
@@ -1400,7 +1410,9 @@ export const KotlinLS: Info = {
       await fs.rm(archivePath, { force: true })
       if (process.platform !== "win32") {
         // 启动脚本可能不存在，chmod 失败不阻断
-        await fs.chmod(launcherScript, 0o755).catch(() => {})
+        await fs.chmod(launcherScript, 0o755).catch(() => {
+          // 脚本已带可执行位时 chmod 非必需，失败不阻断安装
+        })
       }
     }
     if (!(await Filesystem.exists(launcherScript))) {
@@ -1731,7 +1743,9 @@ export const TerraformLS: Info = {
 
       if (platform !== "win32") {
         // 二进制文件可能不存在或只读，chmod 失败不阻断启动
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch(() => {
+          // 文件已可直接执行时 chmod 非必需，失败不阻断 LSP 启动
+        })
       }
     }
 
@@ -1821,7 +1835,9 @@ export const TexLab: Info = {
 
       if (platform !== "win32") {
         // 二进制文件可能不存在或只读，chmod 失败不阻断启动
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch(() => {
+          // 文件已可直接执行时 chmod 非必需，失败不阻断 LSP 启动
+        })
       }
     }
 
@@ -2005,7 +2021,9 @@ export const Tinymist: Info = {
 
       if (platform !== "win32") {
         // 二进制文件可能不存在或只读，chmod 失败不阻断启动
-        await fs.chmod(bin, 0o755).catch(() => {})
+        await fs.chmod(bin, 0o755).catch(() => {
+          // 文件已可直接执行时 chmod 非必需，失败不阻断 LSP 启动
+        })
       }
     }
 

@@ -210,7 +210,9 @@ export async function rollbackEntry(root: string, id: string): Promise<void> {
   // 由深到浅清理空目录：rmdir 对非空目录会失败，正好当成保护，不会误删他人内容。
   // 不清理的话，create 回滚留下的空技能目录会让同名技能再也 create 不出来。
   for (const dir of [...emptied].sort((a, b) => b.length - a.length)) {
-    await rmdir(dir).catch(() => {})
+    await rmdir(dir).catch(() => {
+      // rmdir 对非空目录失败是刻意当保护用：残留目录不阻塞下次 create
+    })
   }
 
   // 2) before 里的每个文件：从内容寻址仓库取回正文，临时文件 + rename 原子落盘

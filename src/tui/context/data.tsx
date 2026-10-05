@@ -143,7 +143,9 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           void Promise.all([
             dataResult.location.model.refresh(event.location),
             dataResult.location.provider.refresh(event.location),
-          ]).catch(() => {})
+          ]).catch(() => {
+            // 事件驱动的后台刷新：瞬时限流/网络抖动静默忽略，绝不能让 rejection 击穿 TUI。
+          })
           break
         case "session.next.agent.switched":
           message.update(event.data.sessionID, (draft) => {
@@ -406,14 +408,18 @@ export const { use: useData, provider: DataProvider } = createSimpleContext({
           })
           break
         case "reference.updated":
-          void dataResult.location.reference.refresh().catch(() => {})
+          void dataResult.location.reference.refresh().catch(() => {
+            // reference 刷新是纯诊断旁路：失败不影响会话数据一致性。
+          })
           break
         case "integration.updated":
           void Promise.all([
             dataResult.location.integration.refresh(event.location),
             dataResult.location.model.refresh(event.location),
             dataResult.location.provider.refresh(event.location),
-          ]).catch(() => {})
+          ]).catch(() => {
+            // 批量后台刷新：瞬时限流/网络抖动静默忽略，绝不能让 rejection 击穿 TUI。
+          })
           break
       }
     }

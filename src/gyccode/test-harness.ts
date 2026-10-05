@@ -156,7 +156,9 @@ export const testUtils = {
 
   cleanupDir: async (dir: string): Promise<void> => {
     const { rm } = await import("fs/promises")
-    await rm(dir, { recursive: true, force: true }).catch(() => {})
+    await rm(dir, { recursive: true, force: true }).catch(() => {
+      // 测试夹具清理：目录删不掉不应让整轮测试失败，残留交由系统 tmp 回收
+    })
   },
 }
 

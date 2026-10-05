@@ -21,7 +21,11 @@ export type DialogRetryActionProps = {
 }
 
 function runAction(props: DialogRetryActionProps, dialog: ReturnType<typeof useDialog>) {
-  if (props.link) open(props.link).catch(() => {})
+  if (!props.link) return
+  // 打开外部链接属用户体验增强，失败不阻断主流程
+  open(props.link).catch(() => {
+    // 外部浏览器不可用时静默忽略，不阻断对话框关闭。
+  })
   props.onClose?.()
   dialog.clear()
 }

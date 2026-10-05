@@ -25,7 +25,10 @@ export function Link(props: LinkProps) {
       width={props.width}
       wrapMode={props.wrapMode}
       onMouseUp={() => {
-        open(props.href).catch(() => {})
+        // 打开外部链接属用户体验增强，失败不阻断点击流程
+        open(props.href).catch(() => {
+          // 外部浏览器不可用时静默忽略，不阻断当前操作。
+        })
       }}
     >
       {displayText}

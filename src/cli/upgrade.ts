@@ -10,7 +10,9 @@ export async function upgrade() {
   if (config.autoupdate === false || Flag.GYCCODE_DISABLE_AUTOUPDATE) return
   const method = await Installation.method()
   // 离线或 CDN 不可达时获取最新版本失败，静默跳过自动更新
-  const latest = await Installation.latest(method).catch(() => {})
+  const latest = await Installation.latest(method).catch(() => {
+    // 取版本号失败按「无更新」处理：下方 !latest 直接返回，不影响启动
+  })
   if (!latest) return
 
   if (Flag.GYCCODE_ALWAYS_NOTIFY_UPDATE) {
@@ -51,5 +53,7 @@ export async function upgrade() {
       }),
     )
     // 升级失败不影响当前会话（下次启动会再次尝试），忽略
-    .catch(() => {})
+    .catch(() => {
+      // 自动更新属尽力而为：失败时保持旧版本，下次启动自动重试
+    })
 }

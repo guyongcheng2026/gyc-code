@@ -42,13 +42,15 @@ opentui 0.5.6 原生句柄表上限 65,535（实测第 65,535 次 `createTextBuf
 - 消息条数由 `src/tui/routes/session/virtual-window.ts` 管（`VIRTUAL_WINDOW=40` / `VIRTUAL_MAX_WINDOW=600` / `VIRTUAL_COLLAPSED_SUMMARY_LIMIT=500`）；**单条内容的行数/字节由 `src/tui/component/limited-content.tsx` 管**（2000 行 / 512KB，超出折叠并显示折叠行数）。
 - 改 TUI 渲染层时，凡新增 `<markdown>` / `<diff>` / `<code>` / `<text>` 挂载点，**一律走 `LimitedContent`**，不要直送全文。
 - **原生内存不受 V8 堆上限约束**：`app.tsx` 内存守护只看 rss/heapRatio/freemem，句柄吃满物理内存时 heapRatio 仍可能正常，等 freemem 掉下去往往已晚一步（V8 C++ 层先 FatalOOM abort）。
-- 已知限制：`globalHandleBudget` 目前只被 `canRenderRich` 只读查询，`reserve/release` 未接线到节点生命周期，故 `handleBudgetPressure` 恒为 `none`。收敛靠内容硬上限，不要指望预算计数器。
+- `globalHandleBudget` 已接线到 `LimitedContent` 节点挂载/卸载生命周期（`src/tui/component/limited-content.tsx:60-79`）：挂载期 `reserve`、文本变化与卸载时 `release`，`canRenderRich` 亦复用该占用。`handleBudgetPressure` 日志维度已就位。但预算仍为估算（`estimateContentHandles` 保守），收敛仍主要靠行数/字节硬上限。
 - 完整问题清单与证据：`docs/compose/plans/2026-10-02-opentui-stability-long-session.md`
 
 ## opentui 补丁链（勿改 postinstall 串联方式）
 
-`package.json` postinstall 跑三个 patch + hooks + 校验，**必须用 `;` / `|| true` 不短路串联**：patch 在「上游升级、原文不匹配」时 `exit(1)`，短路会中断 hooks 安装并让谷总拿到未打补丁的 opentui（TUI 直接崩且无提示指向真因）。
-`node scripts/verify-opentui-patches.cjs` 是收尾校验（恒 exit 0，未生效只 WARN）。当前三项均 OK。补丁含义见 `docs/compose/plans/2026-10-02-opentui-stability-long-session.md` 第四节对照表。
+`package.json` postinstall 跑四个 patch + hooks + 校验，**必须用 `;` / `|| true` 不短路串联**：patch 在「上游升级、原文不匹配」时 `exit(1)`，短路会中断 hooks 安装并让谷总拿到未打补丁的 opentui（TUI 直接崩且无提示指向真因）。
+`node scripts/verify-opentui-patches.cjs` 是收尾校验（恒 exit 0，未生效只 WARN）。当前四项均 OK（solid 惰性 jsx / solid 孤儿空文本 / core node:ffi→koffi / core win32 尺寸轮询）。补丁含义见 `docs/compose/plans/2026-10-02-opentui-stability-long-session.md` 第四节对照表。
+
+**升级 @opentui 后必做**：patch 锚点按 chunk 内容匹配，chunk 文件名随版本变化。升级后先跑 `node scripts/verify-opentui-patches.cjs`，WARN 即表示锚点已随上游改动失配，需照新原文更新 `scripts/apply-opentui-*.cjs` 的 `*_FROM` 常量（0.5.6→0.5.14 就改了 `sigwinchHandler` 的空值兜底与 `removeListener` 变量名）。
 
 ## 排查结论沉淀位置约定
 

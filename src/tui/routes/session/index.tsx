@@ -695,7 +695,9 @@ export function Session() {
       },
       run: async () => {
         const status = sync.data.session_status?.[route.sessionID]
-        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {})
+        if (status?.type !== "idle") await sdk.client.session.abort({ sessionID: route.sessionID }).catch(() => {
+            // 撤销前的中断属最佳努力：失败不阻断撤销流程。
+          })
         const message = messagesBeforeRevert().findLast((item) => item.role === "user")
         if (!message) return
         settled(
@@ -2703,7 +2705,9 @@ function Task(props: ToolProps) {
       // gone (e.g. server-side data was cleaned up), in which case `sync`
       // rejects via `session.get({ throwOnError: true })`. Swallow that so a
       // stale Task part never surfaces an unhandled rejection.
-      void sync.session.sync(sessionID).catch(() => {})
+      void sync.session.sync(sessionID).catch(() => {
+            // 会话同步属最佳努力：子代理会话可能已清理，静默忽略避免 unhandledRejection。
+          })
     }
   })
 

@@ -110,7 +110,9 @@ export function createWorkerPool(opts: { file: URL | string; external: boolean }
             `timestamp=${new Date().toISOString()} level=Error run=main worker-exit code=${code} restart=${restarts}/${MAX_WORKER_RESTARTS} delay=${delayMs}ms\n`,
           ),
         )
-        .catch(() => {})
+        .catch(() => {
+          // 纯诊断旁路：worker 已退出，日志写失败不改变重启决策
+        })
 
       if (restarts > MAX_WORKER_RESTARTS) {
         circuitOpen = true
@@ -167,7 +169,9 @@ export function createWorkerPool(opts: { file: URL | string; external: boolean }
         void appendFile(
           path.join(Global.Path.log, "gyccode.log"),
           `timestamp=${new Date().toISOString()} level=Info run=main worker-idle-unloaded\n`,
-        ).catch(() => {})
+        ).catch(() => {
+          // 纯诊断旁路：空闲卸载已生效，记日志失败无需处理
+        })
       }, 60_000)
     : undefined
   idleTimer?.unref?.()
@@ -178,7 +182,9 @@ export function createWorkerPool(opts: { file: URL | string; external: boolean }
     if (idleTimer) clearInterval(idleTimer)
     if (currentWorker && currentClient) {
       // Graceful shutdown with timeout/fallback (process will exit anyway).
-      await withTimeout(currentClient.call("shutdown", undefined), 5000).catch(() => {})
+      await withTimeout(currentClient.call("shutdown", undefined), 5000).catch(() => {
+        // 优雅关闭超时属预期路径：下方 terminate 兜底，进程随后退出
+      })
     }
     currentWorker?.terminate()
     currentWorker = undefined

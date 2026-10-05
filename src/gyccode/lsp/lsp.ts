@@ -363,7 +363,9 @@ const layer = Layer.effect(
             })
           }),
           // 单个 LSP 客户端故障（如服务崩溃）不应影响 touchFile 主流程
-        ).catch(() => {}),
+        ).catch(() => {
+          // 通知型调用：失败时该客户端下次 touch 会重新建立连接，无需中断
+        }),
       )
     })
 

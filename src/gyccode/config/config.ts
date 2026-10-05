@@ -285,7 +285,9 @@ const layer = Layer.effect(
               await fsNode.unlink(legacy)
             })
             // legacy 配置迁移失败时保留原文件，下次启动会重试
-            .catch(() => {}),
+            .catch(() => {
+              // 迁移失败时下方 unlink 未执行，legacy 仍在，下次启动自然重试
+            }),
         )
       }
 

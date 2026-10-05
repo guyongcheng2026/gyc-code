@@ -27,7 +27,9 @@ async function atomicWriteFile(filePath: string, content: string): Promise<void>
   } catch (error) {
     // 不遗留半写的 .tmp 孤儿文件
     // 临时文件可能已被清理，删除失败不阻断
-    await rm(tmpPath, { force: true }).catch(() => {})
+    await rm(tmpPath, { force: true }).catch(() => {
+      // rename 原始错误紧邻重抛，临时文件残留不掩盖真因
+    })
     throw error
   }
 }

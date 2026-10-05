@@ -245,7 +245,9 @@ export const TuiThreadCommand = cmd({
 
       setTimeout(() => {
         // 后台检查升级失败不影响当前会话，忽略
-        ensureWorker().call("checkUpgrade", { directory: cwd }).catch(() => {})
+        ensureWorker().call("checkUpgrade", { directory: cwd }).catch(() => {
+          // 升级检查属尽力而为：失败时保持当前版本继续用，无需中断会话
+        })
       }, 1000).unref?.()
 
       try {

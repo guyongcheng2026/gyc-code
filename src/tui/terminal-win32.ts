@@ -301,7 +301,9 @@ export function watchTerminalClose(onClose: () => void, intervalMs = 2000): () =
               ),
             )
             // 写日志本身失败不能再抛，忽略
-            .catch(() => {})
+            .catch(() => {
+              // 终端关闭检测日志属诊断旁路：失败不影响关闭检测逻辑。
+            })
           onClose()
         }
       } else {

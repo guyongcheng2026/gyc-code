@@ -324,7 +324,9 @@ export const {
                 directory,
                 workspace,
               })
-              .catch(() => {})
+              .catch(() => {
+                // 用户已作选择，回复失败只影响服务端记录，不阻断本地会话。
+              })
             break
           }
           const requests = store.permission[request.sessionID]
@@ -624,7 +626,9 @@ export const {
           void sdk.client.lsp
             .status({ workspace })
             .then((x) => setStore("lsp", x.data ?? []))
-            .catch(() => {})
+            .catch(() => {
+              // LSP 状态刷新属诊断旁路：失败不阻断同步主流程。
+            })
           break
         }
 

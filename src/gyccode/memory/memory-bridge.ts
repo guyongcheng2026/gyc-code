@@ -134,7 +134,9 @@ async function atomicWriteFile(filePath: string, content: string): Promise<void>
   } catch (error) {
     // Don't leave a half-written .tmp orphan behind if the rename fails.
     // 临时文件可能已被清理，删除失败不阻断
-    await rm(tmpPath, { force: true }).catch(() => {})
+    await rm(tmpPath, { force: true }).catch(() => {
+      // rename 原始错误紧邻重抛，临时文件残留不掩盖真因
+    })
     throw error
   }
 }
@@ -148,7 +150,9 @@ export async function writeMemoryFile(
 
   await fileLock.withLock(async () => {
     // P1 修复：每次写入前确保目录存在
-    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {
+      // 目录已存在时 mkdir 报 EEXIST 属正常；真失败会由下方读写暴露
+    })
 
     const existing = await readFile(getMemoryPath(), "utf-8")
       .catch(() => readFile(getLegacyMemoryPath(), "utf-8"))
@@ -188,7 +192,9 @@ export async function syncMemories(): Promise<MemoryEntry[]> {
 
   return await fileLock.withLock(async () => {
     // P1 修复：每次写入前确保目录存在
-    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {
+      // 目录已存在时 mkdir 报 EEXIST 属正常；真失败会由下方读写暴露
+    })
     const entries = await readMemories()
     if (entries.length === 0) return entries
 
@@ -219,7 +225,9 @@ export async function enforceMemoryCap(maxEntries?: number): Promise<void> {
   const cap = maxEntries ?? MEMORY_MAX_ENTRIES
   const fileLock = createFileLock(getMemoryPath())
   await fileLock.withLock(async () => {
-    await mkdir(getMemDir(), { recursive: true }).catch(() => {})
+    await mkdir(getMemDir(), { recursive: true }).catch(() => {
+      // 目录已存在时 mkdir 报 EEXIST 属正常；真失败会由下方读写暴露
+    })
     const entries = await readMemories()
     if (entries.length <= cap) return
     const keep = entries.slice(entries.length - cap)

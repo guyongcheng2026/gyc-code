@@ -66,7 +66,9 @@ export class FileLock {
         } else if (code === "ENOENT") {
           // 锁文件父目录尚不存在（调用方普遍在锁内才 mkdir 目标目录）：
           // 先补建父目录再重试，否则会在这里空转到超时
-          await mkdir(path.dirname(this.lockPath), { recursive: true }).catch(() => {})
+          await mkdir(path.dirname(this.lockPath), { recursive: true }).catch(() => {
+            // 补建失败会继续重试并最终超时抛错，不会静默拿到锁
+          })
         }
         // 指数退避 + jitter
         const jitter = Math.random() * retryInterval * 0.5
@@ -85,7 +87,9 @@ export class FileLock {
       const { stat } = await import("fs/promises")
       const st = await stat(this.lockPath)
       if (Date.now() - st.mtimeMs > this.options.staleMs) {
-        await unlink(this.lockPath).catch(() => {})
+        await unlink(this.lockPath).catch(() => {
+          // 陈旧锁删除失败不影响加锁：后续 open 仍会走到同一分支重试
+        })
       }
     } catch {
       // stat 失败（如锁刚被删除）无需清理
@@ -94,7 +98,9 @@ export class FileLock {
 
   async release(): Promise<void> {
     if (this.acquired) {
-      await unlink(this.lockPath).catch(() => {})
+      await unlink(this.lockPath).catch(() => {
+        // 锁已随进程退出或被他人清理，删除失败不影响本次释放
+      })
       this.acquired = false
     }
   }

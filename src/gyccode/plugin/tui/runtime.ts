@@ -706,7 +706,9 @@ async function resolveExternalPlugins(list: ConfigPlugin.Origin[], wait: () => P
     kind: "tui",
     wait: async () => {
       // 等待插件就绪失败不阻断调用方，忽略
-      await wait().catch(() => {})
+      await wait().catch(() => {
+        // 就绪等待属尽力而为：失败时按未就绪处理，插件后续仍会触发重试
+      })
     },
     finish: async (loaded, origin, retry) => {
       const mod = await Promise.resolve()

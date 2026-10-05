@@ -313,7 +313,9 @@ export function createSyntaxStyleMemo(factory: () => SyntaxStyle) {
     retained.add(style)
     void renderer
       .idle()
-      .catch(() => {})
+      .catch(() => {
+        // 渲染器空闲清理属诊断旁路：失败时不阻断样式释放流程。
+      })
       .finally(() => {
         if (!retained.delete(style)) return
         style.destroy()

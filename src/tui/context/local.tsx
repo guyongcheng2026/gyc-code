@@ -189,7 +189,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
           if (typeof value.variant === "object" && value.variant !== null)
             setModelStore("variant", value.variant as Record<string, string | undefined>)
         })
-        .catch(() => {})
+        .catch(() => {
+          // 本地配置加载属诊断旁路：失败时静默回退默认值，不阻断启动。
+        })
         .finally(() => {
           setModelStore("ready", true)
           if (state.pending) save()
@@ -456,7 +458,9 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
               pinned.filter((item): item is string => typeof item === "string"),
             )
         })
-        .catch(() => {})
+        .catch(() => {
+          // 会话置顶加载属诊断旁路：失败时静默回退，不阻断会话恢复。
+        })
         .finally(() => {
           setSessionStore("ready", true)
           if (state.pending) save()

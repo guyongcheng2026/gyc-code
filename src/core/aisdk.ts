@@ -41,7 +41,9 @@ export function wrapSSE(
         pendingId = setTimeout(() => {
           const err = makeError ? makeError("SSE read timed out") : new Error("SSE read timed out")
           ctl.abort(err)
-          reader.cancel(err).catch(() => {})
+          reader.cancel(err).catch(() => {
+            // 超时后流已被 abort，cancel 再失败也无需处理：紧邻的 reject 已上报超时
+          })
           reject(err)
         }, ms)
 

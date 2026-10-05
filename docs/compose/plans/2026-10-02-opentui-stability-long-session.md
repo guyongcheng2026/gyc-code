@@ -100,9 +100,9 @@ scripts/verify-opentui-patches.cjs     补丁链只读校验
 
 ## 五、已知限制（未做）
 
-1. **`estimateContentHandles` 是保守估算**：opentui 未暴露已用句柄数读取接口，无法精确计量。`globalHandleBudget` 当前只被 `canRenderRich` **只读查询**，`reserve/release` 未接线到节点挂载/卸载生命周期，故 `handleBudgetPressure` 实际恒为 `none`，B4 的日志维度**已就位但不会触发**。真正的收敛靠 A2 的行数/字节硬上限。
-2. **`LimitedContent` 的 `plain` 分支按整段渲染单个 `<text>`**，未再按行切分；极端超长内容降级后仍是单个大节点。
-3. **`renderBudget` 仍只有 plain/非 plain 两档**，未按会话规模或节点预算降档（P2-2 未做）。
+1. **`estimateContentHandles` 是保守估算**：opentui 未暴露已用句柄数读取接口，无法精确计量。`globalHandleBudget` 现已接线到 `LimitedContent` 的挂载/卸载生命周期（`src/tui/component/limited-content.tsx:60-79`），`reserve/release` 正常工作，`handleBudgetPressure` 日志维度已就位且会触发。（文档于 `08c1b53` 之后滞后，现已校正。）
+2. ~~**`LimitedContent` 的 `plain` 分支按整段渲染单个 `<text>`**~~ —— **已收口**：`splitPlainRows`（`src/tui/component/limited-content.tsx:112`）按行切分，`:86` 逐行渲染，测试见 `limited-content-split.test.ts`（8 例）。
+3. ~~**`renderBudget` 仍只有 plain/非 plain 两档，未按会话规模或节点预算降档**~~ —— **已收口**：`sessionTargetFps`（`src/tui/fallback/capability.ts:147`）按会话规模 `renderScale()` 降档，`src/tui/routes/session/index.tsx:398/401` 在流式开始/结束时分别设 `streaming` 与静默态的 targetFps。
 4. **未做真实终端 2 小时长跑内存曲线对比** —— 无头环境下 CPU 数据不可信，`scripts/measure-memory.ts` 需真实 TTY。
 
 ---

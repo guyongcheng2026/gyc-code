@@ -49,7 +49,9 @@ export const { use: useFrecency, provider: FrecencyProvider } = createSimpleCont
         ),
       )
       if (lines.length > 0)
-        writeText(frecencyPath, lines.map((entry) => JSON.stringify(entry)).join("\n") + "\n").catch(() => {})
+        writeText(frecencyPath, lines.map((entry) => JSON.stringify(entry)).join("\n") + "\n").catch(() => {
+          // 频率数据持久化属诊断旁路：失败不影响会话内的频率统计。
+        })
     })
 
     const [store, setStore] = createStore({ data: {} as Record<string, { frequency: number; lastOpen: number }> })
@@ -58,7 +60,9 @@ export const { use: useFrecency, provider: FrecencyProvider } = createSimpleCont
       const absolutePath = path.resolve(paths.cwd, filePath)
       const newEntry = { frequency: (store.data[absolutePath]?.frequency || 0) + 1, lastOpen: Date.now() }
       setStore("data", absolutePath, newEntry)
-      appendText(frecencyPath, JSON.stringify({ path: absolutePath, ...newEntry }) + "\n").catch(() => {})
+      appendText(frecencyPath, JSON.stringify({ path: absolutePath, ...newEntry }) + "\n").catch(() => {
+          // 增量频率写入属诊断旁路：失败不影响当前会话的频率排序。
+        })
 
       if (Object.keys(store.data).length <= MAX_FRECENCY_ENTRIES) return
       const sorted = Object.entries(store.data)
@@ -68,7 +72,9 @@ export const { use: useFrecency, provider: FrecencyProvider } = createSimpleCont
       writeText(
         frecencyPath,
         sorted.map(([entryPath, entry]) => JSON.stringify({ path: entryPath, ...entry })).join("\n") + "\n",
-      ).catch(() => {})
+      ).catch(() => {
+        // 频率数据全量重写属诊断旁路：失败时内存里的排序仍生效，不阻断会话。
+      })
     }
 
     return {

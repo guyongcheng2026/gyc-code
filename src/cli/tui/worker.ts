@@ -35,7 +35,9 @@ const logWorkerCrash = (() => {
         ),
       )
       // 写日志本身失败不能再抛，否则会掩盖原始错误
-      .catch(() => {})
+      .catch(() => {
+        // 纯诊断旁路：已在崩溃处理路径上，再抛会覆盖原始错误现场
+      })
   }
 })()
 
@@ -188,7 +190,9 @@ export const rpc = {
     await ensureWarmInstance()
     const { upgrade } = await importMod<typeof import("../upgrade")>("../upgrade")
     // 后台检查升级失败不影响当前会话，忽略
-    await upgrade().catch(() => {})
+    await upgrade().catch(() => {
+      // 自动更新属尽力而为：失败时保持旧版本，下次启动自动重试
+    })
   },
   async reload() {
     const { AppRuntime } = await importMod<typeof import("@/effect/app-runtime")>("@/effect/app-runtime")
@@ -233,5 +237,7 @@ if (os.freemem() > LOW_MEM_PREWARM_CUTOFF) {
   void ensureWarmInstance()
     .then(() => tuiTiming("instance warm (APIs ready)"))
     // 预热失败不影响首次请求时再初始化，忽略
-    .catch(() => {})
+    .catch(() => {
+      // 预热属性能优化：失败时首次请求会走正常初始化路径
+    })
 }
