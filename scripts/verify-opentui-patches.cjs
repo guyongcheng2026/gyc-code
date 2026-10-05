@@ -1,6 +1,6 @@
 // opentui 补丁链完整性校验（postinstall 收尾步骤）
 //
-// 为什么需要独立校验：三个补丁脚本（apply-opentui-{patch,ffi-patch,orphan-patch}）
+// 为什么需要独立校验：补丁脚本（apply-opentui-*.cjs）
 // 在「上游版本升级、原文不匹配」时会以 exit(1) 表示失败。旧 postinstall 用 `&&`
 // 串联，任一失败即中断后续步骤——包括 git hooks 安装，用户会拿到一个**未打补丁**
 // 的 opentui：TUI 直接以「TuiStartupProvider is missing」/「Orphan text error」
@@ -103,6 +103,41 @@ const results = [];
       name: "@opentui/core node:ffi→koffi",
       ok: found,
       reason: found ? undefined : "koffi fallback 未注入，Node 运行时 TUI 无法初始化原生渲染",
+    });
+  }
+}
+
+// ── 4. @opentui/core win32 尺寸轮询 patch ─────────────────────────
+// 上游只有 POSIX SIGWINCH 一个尺寸事件源，Windows 下拖拽窗口不重排。
+// 该 patch 补一个 win32 低频轮询；未打上只是布局不跟随窗口，不致崩溃。
+{
+  let sawSigwinch = false;
+  let found = false;
+  for (const name of listFiles(coreDir)) {
+    if (!/^chunk-node-.*\.js$/.test(name)) continue;
+    try {
+      const src = fs.readFileSync(path.join(coreDir, name), "utf8");
+      if (!src.includes("sigwinchHandler = (() =>")) continue;
+      sawSigwinch = true;
+      // 轮询块与清理块必须同时存在，只有一半说明处于半应用状态
+      if (src.includes("gycWin32ResizePoll = process.platform") &&
+          src.includes("clearInterval(this.gycWin32ResizePoll)")) {
+        found = true;
+        break;
+      }
+    } catch {}
+  }
+  if (!sawSigwinch) {
+    results.push({
+      name: "@opentui/core win32 尺寸轮询",
+      ok: false,
+      reason: "未找到 sigwinchHandler 锚点（上游结构已变，或上游已自行提供尺寸事件源）",
+    });
+  } else {
+    results.push({
+      name: "@opentui/core win32 尺寸轮询",
+      ok: found,
+      reason: found ? undefined : "轮询块缺失或只有清理块，Windows 拖拽终端不会重排（不致崩溃）",
     });
   }
 }
