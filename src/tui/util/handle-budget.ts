@@ -86,6 +86,48 @@ export function estimateContentHandles(text: string, cols: number = DEFAULT_COLS
   return rows * HANDLES_PER_TEXT_ROW + blocks * HANDLES_PER_BLOCK
 }
 
+/**
+ * 带缓存的句柄估算器。
+ *
+ * 背景（2026-10-05 排查）：流式输出时 LimitedContent 的 memo 在每个 delta 都重跑
+ * estimateContentHandles，而它是两遍全文扫描（visualRows 一遍 + 找块一遍）。
+ * 长回复流式期这会变成 O(n) × delta 频率的纯浪费。
+ *
+ * 复用条件：文本长度变化不足一档、列宽未变。阈值取 512 字符——小于它的增长不会
+ * 改变折行估算的量级。文本缩短一律重算（长度差是绝对值判断）。
+ */
+const RECOMPUTE_THRESHOLD = 512
+
+export interface HandleEstimateCacheOptions {
+  /** 注入估算函数，便于测试观测调用次数 */
+  estimate?: (text: string, cols: number) => number
+  /** 长度变化阈值，默认 512 */
+  threshold?: number
+}
+
+export function createHandleEstimateCache(options: HandleEstimateCacheOptions = {}) {
+  const estimate = options.estimate ?? ((text: string, cols: number) => estimateContentHandles(text, cols))
+  const threshold = options.threshold ?? RECOMPUTE_THRESHOLD
+  let lastLen = -1
+  let lastCols: number | undefined
+  let lastValue = 0
+
+  // cols 允许 undefined（与 estimateContentHandles 的默认参数语义一致），
+  // 用 NaN 作为「尚未缓存」的哨兵，避免 undefined 与未初始化混淆。
+  return (text: string, cols?: number): number => {
+    const reusable =
+      lastLen >= 0 &&
+      Number.isFinite(cols) &&
+      cols === lastCols &&
+      Math.abs(text.length - lastLen) < threshold
+    if (reusable) return lastValue
+    lastLen = text.length
+    lastCols = cols
+    lastValue = estimate(text, cols ?? DEFAULT_COLS)
+    return lastValue
+  }
+}
+
 /** 进程内句柄占用计数器：reserve / release 成对使用，fits 仅查询。 */
 export class HandleBudget {
   #limit: number

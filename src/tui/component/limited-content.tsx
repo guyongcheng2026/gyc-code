@@ -1,7 +1,7 @@
 import { Show, createEffect, createMemo, createSignal, onCleanup, type JSX } from "solid-js"
 import type { RGBA } from "@opentui/core"
 import { limitContent, DEFAULT_MAX_CONTENT_BYTES, DEFAULT_MAX_CONTENT_LINES } from "../util/limit-content"
-import { estimateContentHandles, globalHandleBudget } from "../util/handle-budget"
+import { createHandleEstimateCache, globalHandleBudget } from "../util/handle-budget"
 
 /**
  * 受限富渲染：长会话 / 超长会话崩溃的统一闸门。
@@ -55,7 +55,10 @@ export function LimitedContent(props: {
   // 这里在挂载期间按份 reserve，文本变化或组件卸载时归还；
   // reserve 本身在越界时返回 false 且不改变占用，正好就是原先 fits 的判定语义，
   // 因此占用一旦真实维护起来，比较自然变成累计口径。
-  const handles = createMemo(() => estimateContentHandles(limited().text, props.cols))
+  // 缓存实例建在 memo 之外：建在 memo 内部会每次重算都新建缓存，等于没缓存。
+  // 每个 LimitedContent 实例一份，卸载即随组件消失，不跨会话共享。
+  const estimateCached = createHandleEstimateCache()
+  const handles = createMemo(() => estimateCached(limited().text, props.cols))
   const [affordable, setAffordable] = createSignal(false)
   let reserved = 0
   const acquire = () => {
