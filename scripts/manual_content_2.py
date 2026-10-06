@@ -84,8 +84,10 @@ def chapter5(doc):
     code(doc,
          "gyc session list                 # 列出会话\n"
          "gyc session delete 会话标识       # 删除会话\n\n"
-         "gyc export [会话标识]             # 导出会话为 JSON\n"
+         "gyc export [会话标识]             # 导出会话，默认 JSON\n"
+         "gyc export --format csv          # 改为平铺表格导出\n"
          "gyc export --cost                # 导出成本账（任务维度、压缩成本、缓存命中率）\n"
+         "gyc export --cost --format csv   # 成本账以平铺表格导出（cost_ledger 流水）\n"
          "gyc export --sanitize            # 脱敏后导出，对外分享前使用\n"
          "gyc import 文件或网址             # 导入会话\n\n"
          "gyc db path                      # 打印数据库路径\n"

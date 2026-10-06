@@ -36,7 +36,7 @@ def chapter11(doc):
               "包括任务维度、上下文压缩产生的成本、提示缓存命中率等。"
               "该账本为只追加式记录，不做改写，以保证统计结果可追溯。")
     code(doc,
-         "gyc export --cost     # 导出成本账为 JSON\n"
+         "gyc export --cost     # 导出成本账为 JSON（加 --format csv 导出成本流水表）\n"
          "gyc db cache          # 报告近期提示缓存命中率")
 
     h2(doc, "（四）降低成本的建议")

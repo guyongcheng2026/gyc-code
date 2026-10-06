@@ -135,6 +135,7 @@ def appendix_a(doc):
     cmd(doc, "场景：把会话导出备份")
     code(doc,
          "gyc export ses_f2f1989c8ffeh2TBKggykwm81c            # 导出为 JSON\n"
+         "gyc export ses_f2f1989c8ffeh2TBKggykwm81c --format csv  # 导出平铺表格\n"
          "gyc export ses_f2f1989c8ffeh2TBKggykwm81c -o 会话.json  # 指定文件名\n"
          "gyc export ses_f2f1989c8ffeh2TBKggykwm81c --sanitize  # 脱敏后导出")
     h3(doc, "导入会话")
@@ -239,7 +240,9 @@ def appendix_a(doc):
     h3(doc, "导出成本账")
     code(doc, "gyc export --cost")
     body(doc, "导出含任务维度、压缩成本、缓存命中率等明细的完整成本账，"
-              "便于自行做数据分析。")
+              "便于自行做数据分析。命令支持 --format json 与 --format csv 两种格式，"
+              "默认 json；需要导入表格工具分析时加 --format csv，"
+              "即可得到 cost_ledger 的平铺流水表。")
 
     # ------------------------------------------------------------ 智能体
     h2(doc, "四、智能体")
