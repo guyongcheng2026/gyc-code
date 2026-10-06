@@ -7,9 +7,9 @@
 - **称呼**：所有「用户」表述一律写作「谷总」，禁止“用户”一词。适用于对话回复、提交信息、代码注释、文档、计划、报告、子代理提示词。
 - **界面、会话窗口、回复、日志、提示、错误信息等显示内容一律简体中文**（TUI/CLI 主界面）。代码标识符、命令名、路径除外。
 - **任务收尾 4 步**（子任务/会话结束、commit 前自检，缺失即未完成）：① 总结 ② 归纳 ③ 学习（沉淀 docs/记忆/SKILL）④ 进化（可改进项立即落地或记待办）。
-- **编码**：新文件 UTF-8 无 BOM；既有文件保留原 BOM；GBK 存量按 GB18030 兼容读。pre-commit 跑 `scripts/check-mojibake.mjs --staged` 拦乱码，勿绕过。
+- **编码**：新文件 UTF-8 无 BOM；既有文件保留原 BOM；GBK 存量按 GB18030 兼容读。乱码防线在 pre-commit 阶段拦（检查对象是 **git index 快照**，不是工作区），勿绕过。
 - **不编造**：不得凭空断言 API、CLI 参数、包版本、文件路径、行号或验证结论。无法核实的一律写明「未核实」，不用「应该/理论上」代替证据。源码结论一律带 `file:line`。
-- **风险相称的验证**：改动后只跑与改动范围相称的验证（单文件测试 → `bunx tsc --noEmit` → `bun run test`）。无法验证时说明原因并说明未覆盖部分，**不得声称「已验证」**。禁止为让测试变绿而删断言或放宽容错。
+- **风险相称的验证**：改动后只跑与改动范围相称的验证（单文件测试 → `bun run typecheck` → `bun run test`）。无法验证时说明原因并说明未覆盖部分，**不得声称「已验证」**。禁止为让测试变绿而删断言或放宽容错。
 - **行动前确认**：跨模块、公共接口、数据库结构、依赖增删、破坏性操作先说清影响面再动手。高危操作（递归删除、清空目录、`git` 历史改写、删分支、`stash pop`）执行前列出确切路径或对象，等谷总确认。
 - **只动被授权的文件**：除任务明确点名的目标外，其余文件与目录保持原样。不做无关清理、不做猜测性重构、不顺手改格式。
 
@@ -24,16 +24,17 @@
 
 ## 错误处理
 
-- 禁止空 `catch` 块与空拒绝处理（`catch` 后直接跟空花括号）静默吞错。必须落 `logError` 并带上可定位的字段（见 `docs/AGENTS-REFERENCES.md` 的 scope/fields 规范）。自动防线：`scripts/check-bug-patterns.mjs` 于 pre-commit 拦截 TS 文件。
+- 禁止空 `catch` 块与空拒绝处理（`catch` 后直接跟空花括号）静默吞错。必须落 `logError(scope, error, fields?)` / `logWarn(scope, message, fields?)`（`src/core/observability/log-error.ts`）并带上可定位字段（会话维度用 `"session.id"`）。自动防线：`scripts/check-bug-patterns.mjs` 于 pre-commit 拦截暂存的 TS 文件。
 - 仅两类例外，且必须就近写明为何可忽略：① 纯诊断旁路（堆快照、日志自写失败）② 面向谷总的错误路径已有独立兜底。
 - 崩溃路径必须先恢复终端再退出，避免残留 ANSI 乱码。
 
 ## 命令
 
-- 开发（源码直跑）：`bun run dev`；类型检查：`bunx tsc --noEmit`（排除 src/webapp；webapp 单独 `cd src/webapp && bun run typecheck`）
+- 开发（源码直跑）：`bun run dev`；类型检查：`bun run typecheck`（= `tsc --noEmit -p tsconfig.json`，与 CI 同款；根 tsconfig 已 `exclude: src/webapp`，webapp 单独 `cd src/webapp && bun run typecheck`）
 - 测试：`bun run test`（= `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp`）；单文件同命令带路径。webapp 是 vitest：`bun run test:web`
 - 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
-- **标准验证顺序**：`bunx tsc --noEmit` → `bun run test`；对外发布再 `bun run build`。无 lint 脚本、无 CI（勿臆造）。
+- **标准验证顺序**：`bun run typecheck` → `bun run test`；对外发布再 `bun run build`。
+- 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。**CI 是有的**：`.github/workflows/ci.yml` 在 push/PR→main 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一条链再推。
 
 ## 启动器与 dist 陷阱（必读）
 
@@ -41,10 +42,11 @@
 
 ## 生成物（勿手改）
 
-- `src/gyccode/skill/compose/bundle.gen.ts` ← `node scripts/gen-compose-bundle.mjs`（build 自动跑）；源在 `.bundle/`
+- `src/gyccode/skill/compose/bundle.gen.ts` ← `node scripts/gen-compose-bundle.mjs`（build 自动跑）；源在 `src/gyccode/skill/compose/.bundle/`
 - `src/gyccode/server/generated/gyc-web-ui.gen.ts` ← `scripts/build-webapp.mjs`
 - `src/gyccode/command-registry.ts` ← `bun run scripts/generate-command-registry.ts`；**增删 `src/cli/cmd/*.ts` 后必须重生**
-- `cli-integration.test.ts` spawn 真实 CLI（`GYCCODE_PURE=1`），yargs 输出兼容中英文 locale，勿硬编码单语
+- `cli-integration.test.ts` 经 `src/gyccode/test-harness.ts` 的 `spawnCLI` 以 `GYCCODE_PURE=1` 直跑源码入口 `src/gyccode/index.ts`，yargs 输出兼容中英文 locale，勿硬编码单语
+- **node_modules/@opentui 是被打过补丁的**（postinstall 跑 `scripts/apply-opentui-*.cjs` 四个补丁）。升级 `@opentui/*` 后必跑 `node scripts/verify-opentui-patches.cjs`，WARN 即锚点已随上游失配，详见 `docs/AGENTS-REFERENCES.md`
 - **禁改清单**：一切 `*.gen.ts`、构建产物目录（`dist/`、`dist.tmp/`、`src/webapp/dist/`）、锁文件（`bun.lock`）。需要变更时改**源**并重生，不直接编辑产物。
 - **禁硬编码敏感信息**：API Key、令牌、密码、内网地址一律走环境变量（`GYCCODE_*` 约定）或配置，不入源码、不入日志、不入提交。
 
@@ -53,13 +55,15 @@
 - Bun workspaces：`src/{cli,codemode,core,effect-drizzle-sqlite,llm,protocol,schema,tui,ui,webapp}`；`src/gyccode/` 是主包（非 workspace 成员）
 - 入口链：`bin/gyc` → `src/gyccode/index.ts`（yargs 惰性注册）→ TUI `src/cli/cmd/tui.ts` + `src/tui/`；worker `src/cli/tui/worker.ts`
 - 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.34（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
+- 路径别名只在 tsconfig `paths` 里：`@/*`→`src/gyccode/`、`@core/*`→`src/core/`、`#fallback-solid`→`src/tui/fallback/solid/`（无对应 `.js` 解析不了，运行时靠 `imports`）。TUI JSX 走 `jsxImportSource: @opentui/solid`（非 React），解析依赖 `customConditions: ["browser"]`（`bun run dev` 已带 `--conditions=browser`）
+- 根 tsconfig 开 `noUncheckedIndexedAccess`：数组/字典下标取值天然是 `T | undefined`，别用 `!` 硬压
 - 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；禁 v4-only 不稳定 API；勿升降级
 - 运行时开关走 `GYCCODE_*` 环境变量，不要把行为开关固化进构建 define
 
 ## 工作流同步约定
 
-1. **提交即推送**：`.git/hooks/post-commit` 自动 push + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
-2. **pre-commit 乱码防线**：`check-mojibake.mjs --staged` 拒 GBK 双重编码（gen 产物豁免）。
+1. **提交即推送**：`.githooks/post-commit`（源文件，postinstall 由 `scripts/install-hooks.mjs` 复制进 `.git/hooks/`，改钩子改 `.githooks/`）自动经 `scripts/push-gh-proxy.mjs` 推送 + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）+ `scripts/sync-manual.mjs` 校验手册。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
+2. **pre-commit 五检**：唯一入口 `.githooks/pre-commit-checks.mjs`（乱码 / 品牌 / 缺陷模式 / 工作区垃圾 / 类型门禁），查的是 **git index 快照**（`git show :<file>` 物化到临时目录），故 `git add` 后再改工作区也拦得住；`git_commit` 工具传 `run_checks` 复用同一模块。
 3. 直连 github 超时走代理两步（fetch/push，优先 `ghfast.top`）：详见 `docs/AGENTS-REFERENCES.md`。
 4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本内中文路径用 `\uXXXX` 转义。
 5. 人工工作记录笔记放 Obsidian 同目录（前缀 `gyc-code-`），提交推送 vault。
@@ -75,7 +79,7 @@
 
 ## 操作手册同步（对外可见功能面）
 
-- 手册交付件：`docs/gyccode操作手册.docx`（GB/T 9704 公文版式，24 章含 3 附录 / 108 表）。正文与排版分离：正文在 `scripts/manual_content_1.py`～`_9.py`，版式在 `scripts/manual_docx_style.py`，入口 `scripts/gen_manual_docx.py`。
+- 手册交付件：`docs/gyccode操作手册.docx`（GB/T 9704 公文版式，正文 21 章 + 3 附录，章函数 `chapter1..chapter21`）。正文与排版分离：正文在 `scripts/manual_content_1.py`～`_9.py`，版式在 `scripts/manual_docx_style.py`，入口 `scripts/gen_manual_docx.py`。
 - **凡改动下列功能面，必须同步更新手册正文并重新生成**：命令与选项（`src/cli/cmd/`、`command-registry.ts`）、内置工具与启用规则（`src/gyccode/tool/`）、快捷键（`src/tui/config/`）、配置项（`src/gyccode/config/`、`src/core/v1/config/`）、权限规则（`src/gyccode/permission/`）、Agent/Skill/MCP。
 - 重新生成：`python scripts/gen_manual_docx.py`（需 python-docx）。改版式只动 `manual_docx_style.py`，改内容只动 `manual_content_*.py`。
 - 漏同步由 `scripts/sync-manual.mjs` 兜底：post-commit 比较「功能面最近提交」与「手册源最近提交」，落后则在 `.git/manual-sync.log` 留一行并提示，fail-soft 不阻塞提交。
