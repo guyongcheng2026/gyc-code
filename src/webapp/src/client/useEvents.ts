@@ -19,7 +19,15 @@ const buses = new Map<string | undefined, Bus>()
 
 function startStream(directory: string | undefined, bus: Bus) {
   void sdk(directory)
-    .global.event({ signal: bus.ac.signal })
+    .global.event({
+      signal: bus.ac.signal,
+      // 生成客户端在每次连接失败后会调 onSseError，随后自己退避重试，永不把错误
+      // 抛给消费者（serverSentEvents.gen.js:105-110）。不接这个回调用就等于把
+      // 「一直在失败」整个藏起来：界面只是不再更新，事后无任何线索可查。
+      onSseError: (error: unknown) => {
+        console.error("[useEvents] SSE 连接失败（客户端将自动重试）", error)
+      },
+    })
     .then(async (result) => {
       try {
         for await (const data of result.stream) {
@@ -28,12 +36,14 @@ function startStream(directory: string | undefined, bus: Bus) {
           // 扇出快照迭代：避免监听器在派发中增删导致的问题
           for (const l of [...bus.listeners]) l(global.payload)
         }
-      } catch {
-        // 流被中止或出错；SSE 客户端内部自带断线重连，这里仅停止消费。
+      } catch (e) {
+        // 流被中止（正常退订）或出错；两种情况都留痕，便于区分「页面主动关闭」
+        // 与「连接坏了」。
+        console.error("[useEvents] SSE 事件流已结束", e)
       }
     })
-    .catch(() => {
-      // 订阅初始化失败，忽略。
+    .catch((e) => {
+      console.error("[useEvents] SSE 订阅初始化失败", e)
     })
 }
 

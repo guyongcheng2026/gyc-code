@@ -252,7 +252,7 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 
 1. **P2-15 / P2-22 / P2-21** —— ✅ 已完成，见 §7.5。
 2. **P2-2 / P2-3** —— ✅ 已完成，见 §7.6。
-3. **webapp P2-16~19** —— SSE 竞态、PTY 泄漏、静默 catch、delta 无界。（**当前**）
+3. **webapp P2-16~19** —— P2-18 的 useEvents 部分 ✅ 见 §7.7；P2-16 / P2-17 / P2-19 与其余 4 处静默 catch **待做**（**当前**）。
 3. **webapp P2-16~19** —— SSE 竞态、PTY 泄漏、静默 catch、delta 无界。
 4. **P3 组** —— glob 截断误报、prompt 基数与时区、pdf 冗余、spinner 守卫、UTF-8 边界。
 5. **P1-2** —— 先答复 7.3 的三个设计问题再动手；建议连带把 `error_audit` 查询出口一起做。
@@ -280,6 +280,21 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 **P2-3 的测试判据为什么换成两个端口**：最初想用「同一端口并发两次」，但同端口会撞 EADDRINUSE，而 Windows 的 SO_REUSEADDR 语义允许重复绑定，判据会退化成平台相关（可能假通过）。改用**两个都能绑定成功的端口**后，修复前的形态是确定的：先建的那个 server 被后来者覆盖成孤儿，`stop()` 之后该端口仍被占用 —— 这条断言的失败本身就是缺陷的直接实证，不依赖时序运气。
 
 **验证（真实输出）**：`bun run typecheck` **exit=0**；`bun run test` **2103 pass / 0 fail / 246 文件 / 27.81s**（较上一批基线 +2 用例、+2 文件）。
+
+### 7.7 修复阶段四：P2-18（webapp SSE 静默失败，useEvents 部分）
+
+| 项 | 改动 | 测试 | 结果 |
+|---|---|---|---|
+| **P2-18（useEvents）** | `client/useEvents.ts:20-49`：给 `global.event` 接上 `onSseError`（生成客户端每次连接失败都会调它），两处 catch 补 `console.error` 并区分「流已结束」与「初始化失败」 | `client/useEvents.test.ts` 新增「SSE 连接失败必须留痕，不得静默」 | 先 **1 fail**（`expected 'undefined' to be 'function'`）→ 现 **4/4 pass** |
+
+**为什么这才是真凶**：生成客户端对连接失败是「回调 + 自行退避重试」，**永不把错误抛给消费者**（`serverSentEvents.gen.js:105-110`）。所以 `for await` 既不产出也不抛错，原先那两处 catch 根本不会触发 —— 界面表现为「再也不更新」而事后零线索。不接 `onSseError` 就无法观测。
+
+**本轮三处取证更正（留档）**：
+1. **webapp 不在 `bun run test` 内** —— 根 `test` 脚本带 `--path-ignore-patterns=src/webapp`，webapp 必须走 `bun run test:web`（vitest）。此前各批次的「2103 pass」**不含 webapp**；webapp 基线为 **14 文件 / 58 用例**。
+2. 我曾用 PowerShell 通配符 `src\**\*.ts*` 做 grep，它**不递归**，据此误判「`sseMaxRetryAttempts` 在非生成产物中零使用」。实际先例是 `src/tui/context/sdk.tsx:94`（传 `sseMaxRetryAttempts: 0` 并自写外层重连循环）。后续 grep 一律用 `Get-ChildItem -Recurse | Select-String` 或 grep 工具。
+3. 报告原举的合规范例 `useSessions.ts:30-33` **本身也是静默 catch**（只有注释）；真正的范例是 `useJobs.ts:34`（`console.error("[useJobs] …", e)`）。
+
+**验证（真实输出）**：`bun run test:web` **14 文件 / 59 passed / exit=0**；`bun run typecheck` **exit=0**；`bun run test` **2103 pass / 0 fail / 246 文件**。
 
 **本次提交不含**：`src/cli/cmd/tui.ts`、`src/cli/upgrade.ts`、`src/tui/context/sdk.tsx`（工作区既有未提交改动，非本任务授权范围）、`err.txt` / `err2.txt`（工作区残留）。
 
