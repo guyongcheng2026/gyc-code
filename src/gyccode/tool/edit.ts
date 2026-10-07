@@ -35,33 +35,55 @@ function convertToLineEnding(text: string, ending: "\n" | "\r\n"): string {
   return text.replaceAll("\n", "\r\n")
 }
 
-const locks = new Map<string, Semaphore.Semaphore>()
+// 锁条目带引用计数（users = 持有者 + 等待者），回收口径与
+// src/core/effect/keyed-mutex.ts 的 `users--` 归零回收一致。
+//
+// P1-1 修复：原实现按插入序（LRU）无条件驱逐最老条目，注释断言「被驱逐的锁
+// 从未在使用中」。该断言不成立 —— 持有者确实握着旧
+// 信号量引用，但被驱逐后新调用方会为同一路径**新建第二个信号量**，两者互不阻塞，
+// 同一文件的读-改-写即可交错，造成丢更新。触发条件：单会话累计编辑过 200+ 个不同
+// 文件后再编辑早期文件。
+type LockEntry = { readonly semaphore: Semaphore.Semaphore; users: number }
 
-// Bound the lock map so a long-running session cannot grow memory without
-// limit. LRU-ish: when over the bound, evict the oldest entry (Map preserves
-// insertion order). An evicted lock is never in flight - callers hold a direct
-// reference to the semaphore for the duration of their edit.
+const locks = new Map<string, LockEntry>()
+
 const MAX_LOCKS = 200
+
+/** 只回收 users === 0 的条目：在用的锁一旦被删，同一路径就会出现两把互不阻塞的锁。 */
+function evictIdleLocks(): void {
+  if (locks.size <= MAX_LOCKS) return
+  for (const [key, entry] of locks) {
+    if (entry.users > 0) continue
+    locks.delete(key)
+    if (locks.size <= MAX_LOCKS) return
+  }
+}
 
 const readCache = ReadCache()
 
-function lock(filePath: string) {
-  const resolvedFilePath = FSUtil.resolve(filePath)
-  const hit = locks.get(resolvedFilePath)
-  if (hit) {
-    // Refresh insertion order (LRU).
-    locks.delete(resolvedFilePath)
-    locks.set(resolvedFilePath, hit)
-    return hit
-  }
-
-  const next = Semaphore.makeUnsafe(1)
-  locks.set(resolvedFilePath, next)
-  if (locks.size > MAX_LOCKS) {
-    const oldest = locks.keys().next().value
-    if (oldest !== undefined) locks.delete(oldest)
-  }
-  return next
+/**
+ * 按文件路径加锁，串行化同一路径上的读-改-写。
+ *
+ * 取条目与 `users++` 都在 Effect.suspend 的同步段内完成，中间没有 await 缝隙，
+ * 因此不会出现「取到条目 → 被并发回收 → 递增到已死条目」的竞态；归还放在
+ * Effect.ensuring 里，成功、失败、中断三条路径都能覆盖。
+ */
+function lock<A, E, R>(filePath: string, effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> {
+  return Effect.suspend(() => {
+    const resolvedFilePath = FSUtil.resolve(filePath)
+    const existing = locks.get(resolvedFilePath)
+    const entry: LockEntry = existing ?? { semaphore: Semaphore.makeUnsafe(1), users: 0 }
+    if (!existing) locks.set(resolvedFilePath, entry)
+    entry.users++
+    return entry.semaphore.withPermits(1)(effect).pipe(
+      Effect.ensuring(
+        Effect.sync(() => {
+          entry.users--
+          evictIdleLocks()
+        }),
+      ),
+    )
+  })
 }
 
 export const Parameters = Schema.Struct({
@@ -105,7 +127,7 @@ export const EditTool = Tool.define(
           let diff = ""
           let contentOld = ""
           let contentNew = ""
-          yield* lock(filePath).withPermits(1)(
+          yield* lock(filePath,
             Effect.gen(function* () {
               if (params.oldString === "") {
                 const existed = yield* afs.existsSafe(filePath)

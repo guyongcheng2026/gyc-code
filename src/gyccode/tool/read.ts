@@ -263,7 +263,10 @@ export const ReadTool = Tool.define<
     ) {
       const start = opts.offset - 1
       const raw: string[] = []
-      const flags = { bytes: 0, count: 0, cut: false, more: false, done: false }
+      // countExact：count 是否等于全文件总行数。行数/字节上限命中时会提前终止上游
+      // 流（否则 read(file, limit=1) 会把整个文件读完），此时 count 只是「扫描到的位置」，
+      // 调用方不得再把它当成总行数展示，否则会给出错误总数。
+      const flags = { bytes: 0, count: 0, cut: false, more: false, done: false, countExact: true }
 
       // Note: prefer manual TextDecoder over Stream.decodeText — when the source stream
       // ends without flushing, decodeText drops the final unterminated line. We also
@@ -283,7 +286,9 @@ export const ReadTool = Tool.define<
 
             if (raw.length >= opts.limit) {
               flags.more = true
-              return
+              flags.done = true
+              flags.countExact = false
+              return yield* new ReadStop()
             }
 
             const line = text.length > MAX_LINE_LENGTH ? text.substring(0, MAX_LINE_LENGTH) + MAX_LINE_SUFFIX : text
@@ -297,13 +302,22 @@ export const ReadTool = Tool.define<
             flags.cut = true
             flags.more = true
             flags.done = true
+            flags.countExact = false
             return yield* new ReadStop()
           }),
         ),
         Effect.catchTag("ReadStop", () => Effect.void),
       )
 
-      return { raw, count: flags.count, cut: flags.cut, more: flags.more, offset: opts.offset, encoding }
+      return {
+        raw,
+        count: flags.count,
+        countExact: flags.countExact,
+        cut: flags.cut,
+        more: flags.more,
+        offset: opts.offset,
+        encoding,
+      }
     })
 
     const isBinaryFile = (filepath: string, bytes: Uint8Array) => {
@@ -561,6 +575,8 @@ export const ReadTool = Tool.define<
       // 默认折叠为「符号骨架 + 首尾样本 + 落盘指针」，模型不必再花一次工具调用翻页。
       // 模型显式给了 offset/limit 时尊重其窗口，仍走原有的 offset 提示路径。
       let compacted = false
+      // 折叠路径会整读全文，可用它给出真实总行数（file.count 在提前终止后只是扫描位置）
+      let compactionTotal: number | undefined
       if (shouldCompact({ truncated, offset: params.offset, limit: params.limit })) {
         const full = yield* fs.readFile(filepath).pipe(
           Effect.map((bytes) => createFileDecoder(file.encoding).decode(bytes)),
@@ -568,11 +584,16 @@ export const ReadTool = Tool.define<
           Effect.catch(() => Effect.succeed(file.raw.join("\n"))),
         )
         output = (yield* compact(truncate, { filepath, text: full })).content
+        // 末尾换行会让 split 多出一个空串，去掉后才是行数
+        compactionTotal = full === "" ? 0 : full.endsWith("\n") ? full.split("\n").length - 1 : full.split("\n").length
         compacted = true
       } else if (file.cut) {
         output += `\n\n(Output capped at ${MAX_BYTES_LABEL}. Showing lines ${file.offset}-${last}. Use offset=${next} to continue.)\n</content>`
       } else if (file.more) {
-        output += `\n\n(Showing lines ${file.offset}-${last} of ${file.count}. Use offset=${next} to continue.)\n</content>`
+        // countExact 为假时 count 只是扫描到的位置，展示「of N」会给出错误总数
+        output += file.countExact
+          ? `\n\n(Showing lines ${file.offset}-${last} of ${file.count}. Use offset=${next} to continue.)\n</content>`
+          : `\n\n(Showing lines ${file.offset}-${last}. Use offset=${next} to continue.)\n</content>`
       } else {
         output += `\n\n(End of file - total ${file.count} lines)\n</content>`
       }
@@ -587,7 +608,7 @@ export const ReadTool = Tool.define<
         readCache.markRead(filepath)
         // 折叠后模型看到的是骨架，display 必须与之一致，否则 TUI 展示与模型所见不符
         const displayText = compacted ? output : file.raw.join("\n")
-        const displayEnd = compacted ? file.count : last
+        const displayEnd = compacted ? Math.max(compactionTotal ?? 0, file.count) : last
         // 仅当整文件完整读入（未截断、未带 offset/limit）时才缓存内容，
         // 否则会把分页窗口缓存成"已读全文"，后续请求会拿到错误的 unchanged 占位。
         if (truncated || params.offset || params.limit) return {

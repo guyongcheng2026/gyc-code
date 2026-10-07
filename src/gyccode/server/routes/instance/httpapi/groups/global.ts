@@ -75,6 +75,8 @@ export const GlobalApi = HttpApi.make("global").add(
     .add(
       HttpApiEndpoint.get("health", GlobalPaths.health, {
         success: described(GlobalHealth, "Health information"),
+        // P1-3：与 /api/health 一致，探活失败走 503，200 才恒等于「真的健康」
+        error: HttpApiError.ServiceUnavailable,
       }).annotateMerge(
         OpenApi.annotations({
           identifier: "global.health",

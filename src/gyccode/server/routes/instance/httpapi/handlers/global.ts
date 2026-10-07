@@ -2,13 +2,15 @@ import { Config } from "@/config/config"
 import { GlobalBus, type GlobalEvent as GlobalBusEvent } from "@/bus/global"
 import { EffectBridge } from "@/effect/bridge"
 import { EventV2 } from "@gyccode/core/event"
+import { Database } from "@gyccode/core/database/database"
+import { EventSequenceTable } from "@gyccode/core/event/sql"
 import { Installation } from "@/installation"
 import { disposeAllInstancesAndEmitGlobalDisposed } from "@/server/global-lifecycle"
 import { InstallationVersion } from "@gyccode/core/installation/version"
 import { Effect, Queue, Schema } from "effect"
 import * as Stream from "effect/Stream"
 import { HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
-import { HttpApiBuilder } from "effect/unstable/httpapi"
+import { HttpApiBuilder, HttpApiError } from "effect/unstable/httpapi"
 import * as Sse from "effect/unstable/encoding/Sse"
 import { RootHttpApi } from "../api"
 import { GlobalUpgradeInput } from "../groups/global"
@@ -69,9 +71,17 @@ export const globalHandlers = HttpApiBuilder.group(RootHttpApi, "global", (handl
   Effect.gen(function* () {
     const config = yield* Config.Service
     const installation = yield* Installation.Service
+    const { db } = yield* Database.Service
     const bridge = yield* EffectBridge.make()
 
+    // P1-3：与 /api/health 一致，真实探活数据库；失败走已声明的 503，
+    // 200 恒等于「真的健康」。探针是同步查询，端点自身不会成为新的挂起源。
     const health = Effect.fn("GlobalHttpApi.health")(function* () {
+      yield* Effect.sync(() => {
+        db.select().from(EventSequenceTable).limit(1).all()
+      }).pipe(
+        Effect.catchCause(() => Effect.fail(new HttpApiError.ServiceUnavailable({}))),
+      )
       return { healthy: true as const, version: InstallationVersion }
     })
 
