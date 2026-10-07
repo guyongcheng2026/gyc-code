@@ -24,6 +24,10 @@ export function TerminalPanel({ directory }: { directory?: string }) {
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const autoStarted = useRef(false)
+  // 卸载清理要读到「当前的」ptys，但不能把它写进清理的依赖数组（见文件末尾的
+  // 卸载 effect 注释），所以用 ref 镜像一份。
+  const ptysRef = useRef<PtyEntry[]>([])
+  ptysRef.current = ptys
   const { theme } = useTheme()
 
   const addTerminal = async () => {
@@ -92,6 +96,22 @@ export function TerminalPanel({ directory }: { directory?: string }) {
     })
     ro.observe(el)
     return () => ro.disconnect()
+  }, [])
+
+  // 卸载清理：xterm 实例持有 DOM/canvas 与事件监听器，每路 PTY 的 WebSocket 更是
+  // 长连接，而 conn 存在组件 state 里 —— 组件一卸载这些引用就全丢了，谁也关不掉。
+  // 此前只有 closeActive（用户手点「关闭」）会 disconnect，切页/关标签/切工作区
+  // 全都整片漏掉。
+  //
+  // 依赖必须是 []：上面建终端的 effect 依赖 [activeID, ptys, updateSize]，清理若
+  // 挂在它上面，ptys 每次变化（例如新建终端）都会把刚建好的终端和连接拆掉。
+  useEffect(() => {
+    return () => {
+      termRef.current?.dispose()
+      termRef.current = null
+      fitRef.current = null
+      for (const p of ptysRef.current) p.conn.disconnect()
+    }
   }, [])
 
   // 主题切换时实时更新激活终端配色（无需重连）
