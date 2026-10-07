@@ -122,6 +122,9 @@ def chapter20(doc):
         ["verify-opentui-patches.cjs", "校验上述补丁是否全部生效，"
                                       "安装依赖时收尾执行，"
                                       "未生效时给出警告但不阻断安装"],
+        ["repair-opentui-platform.cjs", "终端界面原生包解包残缺时，"
+                                        "从官方压缩包自动补齐，"
+                                        "安装依赖时执行"],
         ["gen_manual_docx.py", "生成本操作手册"],
         ["manual_docx_style.py", "手册的公文版式规则"],
         ["manual_content_1.py 至 _9.py", "手册正文，按章节拆分"],

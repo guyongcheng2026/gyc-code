@@ -55,6 +55,8 @@ import { EventV2Bridge } from "@/event-v2-bridge"
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { AppNodeBuilderV1 } from "./app-node-builder-v1"
 import { SessionProjector } from "@gyccode/core/session/projector"
+import { AttachmentStore } from "@gyccode/core/attachment-store"
+import { ToolOutputStore } from "@gyccode/core/tool-output-store"
 
 // AppLayer 包含 43 个服务，冷启动时全量实例化。
 // CoreLayer: run 命令必需的基础服务子集 (~15 个)
@@ -114,6 +116,10 @@ export const HeavyLayer = AppNodeBuilderV1.build(
     Installation.node,
     ShareNext.node,
     SessionShare.node,
+    // 保留期清理必须被节点组引用才会实例化：只导出不接线等于没有清理
+    // （ToolOutputStore.cleanupNode 曾长期零引用，7 天保留期实际从未运行）。
+    ToolOutputStore.cleanupNode,
+    AttachmentStore.cleanupNode,
   ]),
 )
 
@@ -168,6 +174,8 @@ export const AppLayer = AppNodeBuilderV1.build(
     Installation.node,
     ShareNext.node,
     SessionShare.node,
+    ToolOutputStore.cleanupNode,
+    AttachmentStore.cleanupNode,
   ]),
 ).pipe(Layer.provideMerge(AppNodeBuilderV1.build(Ripgrep.node)), Layer.provideMerge(Observability.layer))
 

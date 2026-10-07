@@ -405,21 +405,27 @@ const live: Layer.Layer<
             const cfg = yield* config.get()
             // TTFT 基准点：从发起请求（含并发 permit 等待）开始计时，故放在 run 之前
             const ttftStartedAt = Date.now()
-            // P2 修复：semaphore 应在整个流生命周期内持有，使用 flatMap 将释放延迟到流完成之后
-            const result = yield* Effect.gen(function* () {
-              const start = Date.now()
-              yield* semaphore.take(1).pipe(Effect.timeout("30 seconds"))
-              const waitMs = Date.now() - start
-              if (waitMs > 200) {
-                yield* Effect.logInfo("llm stream waited for concurrency permit", {
-                  "session.id": input.sessionID,
-                  waitMs,
-                })
-              }
-              return yield* run({ ...input, abort: ctrl.signal })
-            }).pipe(
-              Effect.ensuring(semaphore.release(1)),
+            // P2 修复（2026-10-07 复审纠正）：permit 必须覆盖流的整个**消费期**。
+            // run 只做 provider 解析与请求准备，并立即返回 Stream 对象——真正的消费发生在
+            // 本函数返回之后（Stream 惰性）。原先用 Effect.ensuring 包住 run，permit 在流
+            // 开始消费前就归还，并发上限形同虚设（10 个子代理可同时开 10 条流），
+            // 与 llm-timeout.ts 自述要防的场景正相反。
+            // 改用 acquireRelease 把归还挂到本流的 scope 上：外层 Stream.scoped 的 scope
+            // 在流消费完 / 被中断时才关闭，permit 因此覆盖到消费结束——与上面
+            // AbortController 用的是同一机制，两者生命周期自此一致。
+            const start = Date.now()
+            yield* Effect.acquireRelease(
+              semaphore.take(1).pipe(Effect.timeout("30 seconds")),
+              () => semaphore.release(1),
             )
+            const waitMs = Date.now() - start
+            if (waitMs > 200) {
+              yield* Effect.logInfo("llm stream waited for concurrency permit", {
+                "session.id": input.sessionID,
+                waitMs,
+              })
+            }
+            const result = yield* run({ ...input, abort: ctrl.signal })
 
             if (result.type === "native") return result.stream
 

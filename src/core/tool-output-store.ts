@@ -179,12 +179,15 @@ const layer = Layer.effect(
       for (const entry of entries) {
         if (!entry.startsWith("tool_")) continue
         const file = path.join(directory, entry)
-        const info = yield* fs.stat(file).pipe(Effect.catch(() => Effect.void))
-        const modified = info?.mtime.pipe(
-          Option.map((date) => date.getTime()),
-          Option.getOrElse(() => 0),
-        )
-        if (modified !== undefined && modified < cutoff) yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
+        // stat 失败（文件刚被删、权限不足）→ 当作「无 mtime」跳过，不能让整轮清理崩掉。
+        // 注意不能写成 `info?.mtime.pipe(...)`：可选链只护住 info，catch 产出 undefined 时
+        // 后面的 .pipe 会在 undefined 上调用而抛 TypeError（2026-10-07 实测踩到，
+        // 此前该清理从未接线所以没暴露）。
+        const info = yield* fs.stat(file).pipe(Effect.orElseSucceed(() => undefined))
+        if (info === undefined) continue
+        const modified = Option.map(info.mtime, (date) => date.getTime()).pipe(Option.getOrElse(() => 0))
+        // mtime 未知（0）时保留，绝不误删
+        if (modified > 0 && modified < cutoff) yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
       }
     })
 

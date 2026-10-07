@@ -12,7 +12,7 @@ export * as AttachmentStore from "./attachment-store"
 
 import path from "path"
 import { createHash } from "crypto"
-import { Context, Effect, Layer, Schema } from "effect"
+import { Context, Duration, Effect, Layer, Option, Schedule, Schema } from "effect"
 import { FSUtil } from "./fs-util"
 import { Global } from "./global"
 import { makeGlobalNode } from "./effect/app-node"
@@ -169,3 +169,48 @@ const layer = Layer.effect(
 )
 
 export const node = makeGlobalNode({ service: Service, layer, deps: [FSUtil.node, Global.node] })
+
+/** 附件保留期。对齐 ToolOutputStore.RETENTION（同类落盘产物同一口径）。 */
+export const RETENTION = Duration.days(7)
+
+/**
+ * 删除超过保留期的附件文件。
+ * 目录不存在、单条 stat/remove 失败都按「跳过」处理——不让一条坏文件让整轮清理失败
+ * （与 ToolOutputStore.cleanup 同策略）。
+ * 清理不放进 `of(fs, root)`：那需要把 readDirectory/stat/remove 塞进最小 Port 契约，
+ * 会连带改三个测试适配器；清理是后台任务，直接用 FSUtil 更贴合职责。
+ */
+export const cleanup = (fs: FSUtil.Interface, directory: string): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    const entries = yield* fs.readDirectory(directory).pipe(Effect.catch(() => Effect.succeed([])))
+    const cutoff = Date.now() - Duration.toMillis(RETENTION)
+    for (const entry of entries) {
+      const file = path.join(directory, entry)
+      // stat 失败（文件刚被删、权限不足）→ 当作「无 mtime」跳过，不能让整轮清理崩掉。
+      // 注意不能写成 `info?.mtime.pipe(...)`：可选链只护住 info，catch 产出 undefined 时
+      // 后面的 .pipe 会在 undefined 上调用而抛 TypeError（实测踩到）。
+      const info = yield* fs.stat(file).pipe(Effect.orElseSucceed(() => undefined))
+      if (info === undefined) continue
+      const modified = Option.map(info.mtime, (date) => date.getTime()).pipe(Option.getOrElse(() => 0))
+      // mtime 未知（0）时保留，绝不误删——只有确认「有 mtime 且早于截止」才删
+      if (modified > 0 && modified < cutoff) yield* fs.remove(file).pipe(Effect.catch(() => Effect.void))
+    }
+  })
+
+/**
+ * 保留期扫描全进程只跑一次，故独立成 global node（与 tool-output-cleanup 同形）。
+ * 注意：节点必须被 app 的节点组引用才会实例化——只导出不接线等于没有清理
+ * （ToolOutputStore.cleanupNode 曾长期如此）。
+ */
+export const cleanupNode = makeGlobalNode({
+  name: "attachment-cleanup",
+  layer: Layer.effectDiscard(
+    Effect.gen(function* () {
+      const fs = yield* FSUtil.Service
+      const global = yield* Global.Service
+      const directory = path.join(global.data, MANAGED_DIRECTORY)
+      yield* cleanup(fs, directory).pipe(Effect.repeat(Schedule.spaced(Duration.hours(1))), Effect.forkScoped)
+    }),
+  ),
+  deps: [FSUtil.node, Global.node],
+})

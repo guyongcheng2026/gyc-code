@@ -51,6 +51,8 @@ import { Worktree } from "@/worktree"
 import { RuntimeFlags } from "@/effect/runtime-flags"
 import { MoveSession } from "@gyccode/core/control-plane/move-session"
 import { Database } from "@gyccode/core/database/database"
+import { AttachmentStore } from "@gyccode/core/attachment-store"
+import { ToolOutputStore } from "@gyccode/core/tool-output-store"
 import { AppNodeBuilderV1 } from "@/effect/app-node-builder-v1"
 import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { httpClient } from "@gyccode/core/effect/app-node-platform"
@@ -264,6 +266,8 @@ const app = LayerNode.group([
   Installation.node,
   ShareNext.node,
   SessionShare.node,
+  ToolOutputStore.cleanupNode,
+  AttachmentStore.cleanupNode,
   InstanceStore.node,
   httpClient,
   EventV2.node,

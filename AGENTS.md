@@ -46,7 +46,7 @@
 - `src/gyccode/server/generated/gyc-web-ui.gen.ts` ← `scripts/build-webapp.mjs`
 - `src/gyccode/command-registry.ts` ← `bun run scripts/generate-command-registry.ts`；**增删 `src/cli/cmd/*.ts` 后必须重生**
 - `cli-integration.test.ts` 经 `src/gyccode/test-harness.ts` 的 `spawnCLI` 以 `GYCCODE_PURE=1` 直跑源码入口 `src/gyccode/index.ts`，yargs 输出兼容中英文 locale，勿硬编码单语
-- **node_modules/@opentui 是被打过补丁的**（postinstall 跑 `scripts/apply-opentui-*.cjs` 四个补丁）。升级 `@opentui/*` 后必跑 `node scripts/verify-opentui-patches.cjs`，WARN 即锚点已随上游失配，详见 `docs/AGENTS-REFERENCES.md`
+- **node_modules/@opentui 是被打过补丁的**（postinstall 跑 `scripts/apply-opentui-*.cjs` 四个补丁）。升级 `@opentui/*` 后必跑 `node scripts/verify-opentui-patches.cjs`，WARN 即锚点已随上游失配，详见 `docs/AGENTS-REFERENCES.md`。**`@opentui/core-win32-x64` 报 `Cannot find module .../index.js` = bun 解包残缺**（2026-10-07 实测官方 14 个文件只落 4 个，删除重装同样残缺），postinstall 的 `scripts/repair-opentui-platform.cjs` 会自动从 tarball 补齐，勿盲目重装依赖
 - **禁改清单**：一切 `*.gen.ts`、构建产物目录（`dist/`、`dist.tmp/`、`src/webapp/dist/`）、锁文件（`bun.lock`）。需要变更时改**源**并重生，不直接编辑产物。
 - **禁硬编码敏感信息**：API Key、令牌、密码、内网地址一律走环境变量（`GYCCODE_*` 约定）或配置，不入源码、不入日志、不入提交。
 
@@ -57,7 +57,7 @@
 - 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.35（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
 - 路径别名只在 tsconfig `paths` 里：`@/*`→`src/gyccode/`、`@core/*`→`src/core/`、`#fallback-solid`→`src/tui/fallback/solid/`（无对应 `.js` 解析不了，运行时靠 `imports`）。TUI JSX 走 `jsxImportSource: @opentui/solid`（非 React），解析依赖 `customConditions: ["browser"]`（`bun run dev` 已带 `--conditions=browser`）
 - 根 tsconfig 开 `noUncheckedIndexedAccess`：数组/字典下标取值天然是 `T | undefined`，别用 `!` 硬压
-- 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；禁 v4-only 不稳定 API；勿升降级
+- 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；勿升降级。**升级到 effect 4.0.1 是框架迁移而非换版本**（265 个类型错误、需逐端点重做 httpapi，且与「内核与上游逐字节一致」冲突），已立项后按谷总决定回滚，配方与实测基线见 `docs/compose/specs/2026-10-07-effect-v4-acp-v1-migration-design.md`
 - 运行时开关走 `GYCCODE_*` 环境变量，不要把行为开关固化进构建 define
 
 ## 工作流同步约定

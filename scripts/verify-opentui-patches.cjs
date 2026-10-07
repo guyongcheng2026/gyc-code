@@ -147,6 +147,27 @@ for (const name of ["index.bun.js", "index.js"]) {
   }
 }
 
+// ── 5. @opentui/core-win32-x64 平台包完整性 ───────────────────────
+// bun 在 Windows 上解包该包时可能静默丢文件（实测 0.5.14 官方 14 个文件只落 4 个），
+// 缺 index.js 时 TUI 启动即报「Cannot find module .../index.js」降级安全模式。
+// 目录不存在属正常（非 win32-x64 平台不安装该包），不报；
+// postinstall 的 repair-opentui-platform.cjs 会在本校验之前自动补齐。
+{
+  const label = "@opentui/core-win32-x64 平台包完整性";
+  const platformDir = path.join(opentuiDir, "core-win32-x64");
+  if (fs.existsSync(platformDir)) {
+    const required = ["index.js", "index.bun.js", "index.d.ts", "opentui.dll", "package.json"];
+    const missing = required.filter((name) => !fs.existsSync(path.join(platformDir, name)));
+    results.push({
+      name: label,
+      ok: missing.length === 0,
+      reason: missing.length === 0
+        ? undefined
+        : `缺少 ${missing.join("、")}（bun 解包残缺）。修复：node scripts/repair-opentui-platform.cjs`,
+    });
+  }
+}
+
 const failed = results.filter((r) => !r.ok);
 
 console.log("[gyc-patch] 补丁链校验：");

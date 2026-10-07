@@ -230,9 +230,15 @@ export const {
       })
       fullSyncedSessions.delete(sessionID)
     }
+    // 当前在屏会话（sync 调用即「上屏」信号），淘汰时跳过它。
+    // 事件路径也会 markRecent（见 message.updated），若没有这个钉住项，
+    // 「在屏会话安静 + 20 个子代理会话在后台刷事件」会把正在看的会话淘汰掉。
+    let onScreenSessionID: string | undefined
     const pruneHydratedSessions = () => {
       while (hydratedOrder.length > MAX_HYDRATED_SESSIONS) {
-        const oldest = hydratedOrder.shift()
+        const index = hydratedOrder.findIndex((id) => id !== onScreenSessionID)
+        if (index < 0) break
+        const [oldest] = hydratedOrder.splice(index, 1)
         if (oldest === undefined) break
         evictSessionData(oldest)
       }
@@ -792,6 +798,7 @@ export const {
           return last.time.completed ? "idle" : "working"
         },
         async sync(sessionID: string) {
+          onScreenSessionID = sessionID
           if (fullSyncedSessions.has(sessionID)) {
             // Viewed again: refresh recency so the cap never evicts the
             // session currently on screen.
