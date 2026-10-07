@@ -1,5 +1,6 @@
 import { LayerNode } from "@gyccode/core/effect/layer-node"
-import { Effect, Layer, Context, Schema } from "effect"
+import { Cause, Effect, Layer, Context, Schema } from "effect"
+import { logError } from "@core/observability/log-error"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Snapshot } from "../snapshot"
@@ -72,7 +73,15 @@ const layer = Layer.effect(
       if (rev.snapshot) rev.diff = yield* snap.diff(rev.snapshot)
       const range = all.filter((msg) => msg.info.id >= rev.messageID)
       const diffs = yield* summary.computeDiff({ messages: range })
-      yield* storage.write(["session_diff", input.sessionID], diffs).pipe(Effect.ignore)
+      yield* storage.write(["session_diff", input.sessionID], diffs).pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() =>
+            logError("session.revert.persist-diff", Cause.squash(cause), {
+              "session.id": input.sessionID,
+            }),
+          ),
+        ),
+      )
       yield* events.publish(Session.Event.Diff, { sessionID: input.sessionID, diff: diffs })
       yield* sessions.setRevert({
         sessionID: input.sessionID,

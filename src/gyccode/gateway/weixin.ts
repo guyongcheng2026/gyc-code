@@ -9,7 +9,7 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import process from "node:process"
 import type { GatewayAdapter, GatewayMessage, GatewaySendResult } from "./adapter"
-import { logWarn } from "@core/observability/log-error"
+import { logError, logWarn } from "@core/observability/log-error"
 import { classifyIlinkResponse, GatewayError, GatewayErrorKind } from "./errors"
 
 const ILINK_BASE_URL = "https://ilinkai.weixin.qq.com"
@@ -350,12 +350,20 @@ export class WeixinAdapter implements GatewayAdapter {
       const nextBuf = String(response.get_updates_buf ?? "")
       if (nextBuf && nextBuf !== syncBuf) {
         syncBuf = nextBuf
-        await writeJson("sync-buf.json", { accountId: this.config!.accountId, buf: syncBuf }).catch(() => undefined)
+        await writeJson("sync-buf.json", { accountId: this.config!.accountId, buf: syncBuf }).catch((error) =>
+          logError("gateway.weixin.persist-sync-buf", error, { accountId: this.config!.accountId }),
+        )
       }
       for (const raw of (response.msgs as Array<Record<string, unknown>> | undefined) ?? []) {
         const senderId = String(raw.from_user_id ?? raw.sender_id ?? "")
         const ctxToken = String(raw.context_token ?? "").trim()
-        if (senderId && ctxToken) await this.saveContextToken(senderId, ctxToken).catch(() => undefined)
+        if (senderId && ctxToken)
+          await this.saveContextToken(senderId, ctxToken).catch((error) =>
+            logError("gateway.weixin.save-context-token", error, {
+              accountId: this.config!.accountId,
+              senderId,
+            }),
+          )
         const items = (raw.item_list as Array<Record<string, unknown>> | undefined) ?? []
         const text = items
           .map((item) => String((item.text_item as Record<string, unknown> | undefined)?.text ?? ""))

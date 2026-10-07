@@ -151,6 +151,11 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
                 ).pipe(
                   Effect.exit,
                   Effect.flatMap((exit) => {
+                    // 吞错仅用于 ensuring/回滚兜底：那两条路径已经有自己的失败要传播，
+                    // 这里吞掉 release 的错误是为了不覆盖原始失败（不吞会让调用方看到
+                    // release 的错误而丢掉真正的提交失败原因）。嵌套成功路径不复用它，
+                    // 见下方 finalize 的成功分支 —— 那条路径吞错会留下悬挂 savepoint
+                    // 却对外报告成功，必须让 release 失败向外传播。
                     const releaseSavepoint = this.executeTransactionStatement(
                       connection,
                       `release savepoint effect_sql_${id}`,
@@ -167,7 +172,10 @@ export class EffectSQLiteSession<TRelations extends AnyRelations> extends SQLite
                               ),
                             ),
                           )
-                        : releaseSavepoint
+                        : this.executeTransactionStatement(
+                            connection,
+                            `release savepoint effect_sql_${id}`,
+                          )
                       : id === 0
                         ? this.executeTransactionStatement(connection, "rollback").pipe(
                             Effect.ensuring(releaseSavepoint),
