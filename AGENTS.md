@@ -54,7 +54,7 @@
 
 - Bun workspaces：`src/{cli,codemode,core,effect-drizzle-sqlite,llm,protocol,schema,tui,ui,webapp}`；`src/gyccode/` 是主包（非 workspace 成员）
 - 入口链：`bin/gyc` → `src/gyccode/index.ts`（yargs 惰性注册）→ TUI `src/cli/cmd/tui.ts` + `src/tui/`；worker `src/cli/tui/worker.ts`
-- 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.34（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
+- 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.35（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
 - 路径别名只在 tsconfig `paths` 里：`@/*`→`src/gyccode/`、`@core/*`→`src/core/`、`#fallback-solid`→`src/tui/fallback/solid/`（无对应 `.js` 解析不了，运行时靠 `imports`）。TUI JSX 走 `jsxImportSource: @opentui/solid`（非 React），解析依赖 `customConditions: ["browser"]`（`bun run dev` 已带 `--conditions=browser`）
 - 根 tsconfig 开 `noUncheckedIndexedAccess`：数组/字典下标取值天然是 `T | undefined`，别用 `!` 硬压
 - 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；禁 v4-only 不稳定 API；勿升降级

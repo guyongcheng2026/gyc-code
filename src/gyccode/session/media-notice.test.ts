@@ -32,6 +32,31 @@ describe("modelAcceptsMedia", () => {
   })
 })
 
+/**
+ * 内核 1.18.35 上游修复：xAI 收到 PNG/JPEG/WebP 之外的图片（如 GIF）会报
+ * invalid_image 并让整个请求失败，而不是只丢该附件。
+ */
+describe("modelAcceptsMedia · xAI 图片格式白名单", () => {
+  const xai = { npm: "@ai-sdk/xai", id: "grok-4" }
+
+  it("放行 xAI 接受的三种格式", () => {
+    expect(modelAcceptsMedia(xai, "image/png")).toBe(true)
+    expect(modelAcceptsMedia(xai, "image/jpeg")).toBe(true)
+    expect(modelAcceptsMedia(xai, "image/webp")).toBe(true)
+  })
+
+  it("拒绝其余图片格式，避免整个请求失败", () => {
+    expect(modelAcceptsMedia(xai, "image/gif")).toBe(false)
+    expect(modelAcceptsMedia(xai, "image/bmp")).toBe(false)
+    expect(modelAcceptsMedia(xai, "image/svg+xml")).toBe(false)
+  })
+
+  it("不影响其他 provider 的同格式图片", () => {
+    expect(modelAcceptsMedia(anthropic, "image/gif")).toBe(true)
+    expect(modelAcceptsMedia(google, "image/gif")).toBe(true)
+  })
+})
+
 describe("buildMediaNotice", () => {
   const media = [{ mime: "image/png", filename: "shot.png" }, { mime: "application/pdf", filename: "spec.pdf" }]
 

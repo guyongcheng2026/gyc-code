@@ -114,7 +114,7 @@ src/
 
 ## 出身与许可（开源合规声明）
 
-gyc-code 基于 **opencode 1.18.32（MIT）** 派生：
+gyc-code 基于 **opencode 1.18.35（MIT）** 派生：
 
 - **承继内核**：`src/core`、`src/tui`、`src/llm`、`src/schema`、`src/protocol`、`src/server`、`src/codemode` 等目录来自 opencode，版权归 opencode（2025），许可见 **LICENSE**（MIT，依法保留不得删除）。
 - **自研层**：`src/gyccode/` 及 gyc-code 贡献者新增代码为 gyc-code 原创，版权归 gyc-code（2026），许可见 **LICENSE-gyc**（MIT）。

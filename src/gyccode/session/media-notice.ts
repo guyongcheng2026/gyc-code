@@ -12,6 +12,12 @@
 const TEXT_ONLY_MODEL =
   /(gpt-3\.5-turbo|gpt-4o-mini|o1-mini|deepseek-r1-distill|qwen2\.5-[0-3](?:\.5)?b|llama-?3\.2|phi-?[34]\b)/
 
+/**
+ * xAI 唯一接受的图片格式。上游 opencode 1.18.35 起按同一名单过滤：xAI 收到
+ * 其他格式（如 GIF）会报 invalid_image 并让整个请求失败，而非只丢该附件。
+ */
+const XAI_IMAGE_MIME = new Set(["image/png", "image/jpeg", "image/webp"])
+
 export interface ModelApiLike {
   npm: string
   id: string
@@ -32,7 +38,10 @@ export function modelAcceptsMedia(api: ModelApiLike, mime: string): boolean {
     return false
   }
 
-  if (mime.startsWith("image/")) return !TEXT_ONLY_MODEL.test(id)
+  if (mime.startsWith("image/")) {
+    if (npm === "@ai-sdk/xai") return XAI_IMAGE_MIME.has(mime)
+    return !TEXT_ONLY_MODEL.test(id)
+  }
   return true
 }
 
