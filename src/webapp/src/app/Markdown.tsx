@@ -1,7 +1,7 @@
 import { memo, useEffect, useState, type ReactNode } from "react"
 // 数据安全：LLM 产出的 markdown 经 KaTeX/shiki 生成 HTML 后必须净化再注入 DOM（防 XSS）
 import DOMPurify from "dompurify"
-const sanitizeHtml = (dirty: string) => DOMPurify.sanitize(dirty, { USE_PROFILES: { html: true, svg: true, mathml: true } })
+const sanitizeHtml = (dirty: string) => DOMPurify.sanitize(dirty, { USE_PROFILES: { html: true, svg: true, mathMl: true } })
 import { highlightCode, supportedLang } from "./highlight"
 import "katex/dist/katex.min.css"
 
