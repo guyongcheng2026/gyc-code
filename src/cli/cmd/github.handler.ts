@@ -7,7 +7,8 @@ import { Octokit } from "@octokit/rest"
 import { graphql } from "@octokit/graphql"
 import * as core from "@actions/core"
 import * as github from "@actions/github"
-import type { Context } from "@actions/github/lib/context"
+// 从值推导类型：@actions/github v9 起不再从深层路径导出 Context 类型
+type Context = typeof github.context
 import type {
   IssueCommentEvent,
   IssuesEvent,
