@@ -239,23 +239,47 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 | 项 | 状态 | 已取得的关键取证（可直接开工） |
 |---|---|---|
 | **P1-2 错误审计真空** | **未修** | 需先做三个设计决策：① 是否在 Logger 层把 `Effect.logError/Warning`（83+102 处）桥接进 `error_audit` —— `logError()` 走 `console.error`、与 Effect Logger 是两条通道，不会重复计；② scope 命名从哪来（Effect 调用点没有 scope 参数）；③ 查询出口走新 CLI 命令（会触发 `command-registry.ts` 重生）还是扩 `gyc stats`。**当前 `error_audit` 无任何消费方，只接写入端价值有限** |
-| P2-15 微信网关静默丢游标 | 未修 | `gateway/weixin.ts:151,251,353,358`；`:353` 写 sync-buf 游标、`:358` 存 context token 均 `.catch(() => undefined)` 完全静默 → 改调自研 `logError(scope, error, fields)`（同步 void，直接调用），`:353` 用 error 级并带 accountId |
-| P2-2 OAuth refcount | 未修 | `plugin/openai/codex.ts:140-145,226-233,236-244`；错误路径置 `oauthServer=undefined` 但 `oauthServerRefs` 不递减 |
-| P2-3 MCP 回调 TOCTOU | 未修 | `mcp/oauth-callback.ts:9-10,18,105-131`；`isPortInUse` 与 `listen` 之间无原子性，需模块级串行化 |
-| P2-21 嵌套事务 savepoint | 未修 | `effect-drizzle-sqlite/effect-sqlite/session.ts:157,170,183`；外层 commit 失败路径（`:161-169`）**是对的，不要动**；`:170` 成功路径只跑 `releaseSavepoint`，其失败被 `:157` 吞掉 |
-| P2-22 revert diff 持久化静默 | 未修 | `session/revert.ts:75-77`；diff 仍经 `:76` 事件与 `:77` 内存暴露，只需把 `Effect.ignore` 换成带 `logError` |
+| P2-15 微信网关静默丢游标 | **已修** `5ea49e8` | `gateway/weixin.ts:353,358` 已改调自研 `logError(scope, error, fields)`（同步 void，直接调用）：`:353` 游标写盘带 `accountId`，`:358` context token 带 `accountId`+`senderId`。`:151`（读 state 文件，ENOENT 属正常）与 `:251`（mkdir；失败后 `:353` 必然失败并已被记录）按计划未改 |
+| P2-2 OAuth 引用泄漏 | **已修**（根因修正） | **原假设不是真凶**：`:227` 错误路径清 `oauthServer` 不清 `oauthServerRefs`，逐条推演后计数仍与持有者平衡（死服务器的持有者各自 stop 会把自己的引用还掉），无法构造泄漏。真凶在调用侧 —— `:459-470` 的 `stopOAuthServer()` 写在 `const tokens = await callbackPromise` **之后**，而 `callback` 是急切调用的（`provider/auth.ts:202`），回调超时/被 `/cancel` 取消/供应商回传 `error` 时 `await` 直接抛出 → 引用永不归还 → 计数长期 >0 → 监听器永不关闭。同仓 `digitalocean.ts:306-310`、`snowflake-cortex.ts:477-491` 都已是 try/finally 形态，codex.ts 是唯一例外 |
+| P2-3 MCP 回调 TOCTOU | **已修** | `oauth-callback.ts:105-131`：`isPortInUse` 与 `createServer` 之间是 await 间隙，并发调用双双判定「端口未占用」→ 各自建服务器 → 后者赋值把先建的覆盖成孤儿（已 listen 成功却无人引用，`stop()` 关不到）→ 端口与监听器泄漏。改用模块级 promise 链串行化 |
+| P2-21 嵌套事务 savepoint | **已修** `5ea49e8` | `session.ts:170` 改用不吞错的 release，release 失败向外传播；`:157` 的吞错保留给 ensuring/回滚兜底（不吞会覆盖原始失败），已就近注释说明。外层 commit 失败路径 `:161-169` 未动 |
+| P2-22 revert diff 持久化静默 | **已修** `5ea49e8` | `revert.ts:75` 的 `Effect.ignore` 换成 `Effect.catchCause` + `logError("session.revert.persist-diff", Cause.squash(cause), { session.id })`；diff 仍经事件与内存暴露，未改成本失败语义 |
 | P2-16~19 webapp 4 项 | 未修 | 取证已全：`useEvents.ts:19,36-43` 只比引用相等、无代数校验；`TerminalPanel.tsx:61-80` 激活 effect 无 cleanup（需同时给 `usePty.ts` 暴露 close）；5 处静默 catch（合规范例 `useSessions.ts:30-32`、`useJobs.ts:32-35`）；`chatReducer.ts:82-113` 状态层无界；`sseMaxRetryAttempts` 可在 webapp 侧 `.sse(options)` 直接传（先例 `src/tui/context/sdk.tsx:95`），**不必改 gen 产物** |
 | P2-20 webapp 依赖声明 | 未改 | 极可能动到 `bun.lock`（禁改清单），倾向判为「需人工决策」 |
 | P3 组 7 项 | 未修 | `prompt.ts:976-996` 已确认 `start` 是 **1 基**、LSP `r.start.line` 是 **0 基** → **确为错位，应改代码**；`prompt.ts:1790` 照抄 `quota-alert.ts:81-95` 的本地时区写法；`pdf.ts` 7 处 `Number(x ?? 0) \|\| 0` **需先写测试实证**（`operands` 含 name 对象/TJ 数组，`Number()` 可能得 NaN，此时 `\|\| 0` 有意义，不能盲删）；`openapi/runtime.ts:325` 初判**无截断路径，可能不该改** |
 
 ### 7.4 更新后的修复优先序
 
-1. **P2-15 / P2-22 / P2-21** —— 三个可观测性小修，各 1–3 行 + 源码断言测试，成本最低，直接消除静默失败。
-2. **P2-2 / P2-3** —— 真实监听器泄漏与 TOCTOU。
+1. **P2-15 / P2-22 / P2-21** —— ✅ 已完成，见 §7.5。
+2. **P2-2 / P2-3** —— ✅ 已完成，见 §7.6。
+3. **webapp P2-16~19** —— SSE 竞态、PTY 泄漏、静默 catch、delta 无界。（**当前**）
 3. **webapp P2-16~19** —— SSE 竞态、PTY 泄漏、静默 catch、delta 无界。
 4. **P3 组** —— glob 截断误报、prompt 基数与时区、pdf 冗余、spinner 守卫、UTF-8 边界。
 5. **P1-2** —— 先答复 7.3 的三个设计问题再动手；建议连带把 `error_audit` 查询出口一起做。
 6. **P2-6 测试真空区**（server handlers / plugin / migration）与 **P2-12 大单元拆分** —— 改动面大，单独立项。
+
+### 7.5 修复阶段二：P2-15 / P2-21 / P2-22（`5ea49e8`）
+
+| 项 | 改动 | 测试 | 结果 |
+|---|---|---|---|
+| **P2-22** revert diff 持久化静默 | `session/revert.ts:76-83`：`Effect.ignore` → `Effect.catchCause` + `logError("session.revert.persist-diff", Cause.squash(cause), { "session.id" })` | `session/revert-diff-persist.test.ts`（1 用例） | 先 **1 fail** → 现 **1 pass** |
+| **P2-15** 微信网关写盘静默 | `gateway/weixin.ts:12,353-355,359-364`：补 `logError` 导入；两处 `.catch(() => undefined)` 改带 scope 与字段 | `gateway/weixin-write-observability.test.ts`（2 用例） | 先 **1 fail + 1 error** → 现 **2 pass** |
+| **P2-21** 嵌套事务 release 被吞 | `effect-sqlite/session.ts:154-158,175-178`：成功分支改用不吞错的 release；吞错处就近注释原因 | `effect-sqlite/session-release.test.ts`（2 用例） | 先 **1 fail + 1 pass** → 现 **2 pass** |
+
+**验证（真实输出）**：`bun run typecheck` **exit=0**；`bun run test` **2101 pass / 0 fail / 5222 expect / 244 文件 / 90.59s**（较修前基线 2096 pass +5 用例、+3 文件）。
+
+**测试口径（如实说明）**：这三项是**源码断言测试，不是行为测试** —— 三处分别埋在需要 6 个依赖的 Layer 服务、长轮询适配器与跨包事务内，搭行为级夹具的成本远高于收益，故按 §7.4 预先声明的「源码断言测试」执行。它防的是「日志被再次删掉」这类回归，**不防逻辑写错**；若后续要做行为级覆盖，P2-21 应优先（可用嵌套事务 + 断言 release 语句执行次数）。
+
+### 7.6 修复阶段三：P2-2 / P2-3（真实泄漏与竞态）
+
+| 项 | 改动 | 测试 | 结果 |
+|---|---|---|---|
+| **P2-2** OAuth 引用泄漏 | `plugin/openai/codex.ts:459-478`：`stopOAuthServer()` 移入 `finally`，对齐同仓 `digitalocean.ts:306-310` 与 `snowflake-cortex.ts:477-491` 的既有写法。`provider/auth.ts:202` 证明 `callback()` 是急切调用，所以 finally 能覆盖超时 / 取消 / 供应商回传 error 三条失败出路 | `plugin/openai/codex-oauth-refs.test.ts`（1 用例，源码断言） | 先 **1 fail** → 现 **1 pass** |
+| **P2-3** MCP 回调 TOCTOU | `mcp/oauth-callback.ts:105-136`：新增模块级 promise 链，`ensureRunning` 只负责串行调度、原实现改名为 `ensureRunningSerial`；链上不传播失败（否则一次授权失败会把链变成 rejected，毒化后续全部调用） | `mcp/oauth-callback-race.test.ts`（1 用例，**行为测试**） | 先 **1 fail**（`stop()` 后 `isPortInUse(PORT_A)` 仍为 true，孤儿监听器实证）→ 现 **1 pass** |
+
+**P2-3 的测试判据为什么换成两个端口**：最初想用「同一端口并发两次」，但同端口会撞 EADDRINUSE，而 Windows 的 SO_REUSEADDR 语义允许重复绑定，判据会退化成平台相关（可能假通过）。改用**两个都能绑定成功的端口**后，修复前的形态是确定的：先建的那个 server 被后来者覆盖成孤儿，`stop()` 之后该端口仍被占用 —— 这条断言的失败本身就是缺陷的直接实证，不依赖时序运气。
+
+**验证（真实输出）**：`bun run typecheck` **exit=0**；`bun run test` **2103 pass / 0 fail / 246 文件 / 27.81s**（较上一批基线 +2 用例、+2 文件）。
 
 **本次提交不含**：`src/cli/cmd/tui.ts`、`src/cli/upgrade.ts`、`src/tui/context/sdk.tsx`（工作区既有未提交改动，非本任务授权范围）、`err.txt` / `err2.txt`（工作区残留）。
 

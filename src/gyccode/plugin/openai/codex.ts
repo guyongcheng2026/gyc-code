@@ -457,15 +457,24 @@ export async function CodexAuthPlugin(input: PluginInput, options: CodexAuthPlug
               instructions: "Complete authorization in your browser. This window will close automatically.",
               method: "auto" as const,
               callback: async () => {
-                const tokens = await callbackPromise
-                stopOAuthServer()
-                const accountId = extractAccountId(tokens)
-                return {
-                  type: "success" as const,
-                  refresh: tokens.refresh_token,
-                  access: tokens.access_token,
-                  expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
-                  accountId,
+                // 与 digitalocean.ts:306-310、snowflake-cortex.ts:477-491 同形：引用必须在
+                // 所有出路归还。callback 是急切调用的（provider/auth.ts:202 对非 code 方法
+                // 直接 match.callback()），原先 stopOAuthServer() 只写在成功路径上，
+                // 一旦回调超时、被 /cancel 取消或供应商回传 error，await 直接抛出，
+                // 这次 startOAuthServer() 取的引用永不归还 → oauthServerRefs 长期 > 0
+                // → 回调端口上的 HTTP 监听器再也不会关闭（进程内端口泄漏）。
+                try {
+                  const tokens = await callbackPromise
+                  const accountId = extractAccountId(tokens)
+                  return {
+                    type: "success" as const,
+                    refresh: tokens.refresh_token,
+                    access: tokens.access_token,
+                    expires: Date.now() + (tokens.expires_in ?? 3600) * 1000,
+                    accountId,
+                  }
+                } finally {
+                  stopOAuthServer()
                 }
               },
             }

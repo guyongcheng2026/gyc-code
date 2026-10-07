@@ -102,7 +102,32 @@ function handleRequest(req: import("http").IncomingMessage, res: import("http").
   stopIfIdle()
 }
 
+/**
+ * 串行化闸门（P2-3）。
+ *
+ * 下面 `ensureRunningSerial` 里 `await isPortInUse(port)` 与
+ * `server = createServer(...)` 之间是 await 间隙：两个并发调用会双双判定
+ * 「端口未占用」，于是各自建服务器。后来者的赋值把先建的那个覆盖成孤儿 ——
+ * 它已经 listen 成功却再无人引用，`stop()` 关不到它，端口与监听器一起泄漏
+ * 到进程结束。
+ *
+ * 用一条 promise 链把调用串起来即可：后一个调用进来时前一个已跑完，
+ * `if (server)` 与 `isPortInUse` 的判定才落在真实状态上。
+ */
+let ensureRunningChain: Promise<void> = Promise.resolve()
+
 export async function ensureRunning(redirectUri?: string): Promise<void> {
+  const run = ensureRunningChain.then(() => ensureRunningSerial(redirectUri))
+  // 链上只保留「上一次已结束」这个事实，不传播失败：否则一次授权失败会把链
+  // 变成 rejected，之后每个调用都直接失败。
+  ensureRunningChain = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+async function ensureRunningSerial(redirectUri?: string): Promise<void> {
   // Parse the redirect URI to get port and path (uses defaults if not provided)
   const { port, path } = parseRedirectUri(redirectUri)
 
