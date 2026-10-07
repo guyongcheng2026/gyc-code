@@ -33,8 +33,11 @@ export function useCommands(directory?: string) {
         v2(directory)
           .v2.command.list()
           .then((res) => apply(res.data))
-          // 命令列表拉取失败时保持已有命令，不阻断界面渲染
-          .catch(() => {}),
+          // 命令列表拉取失败时保持已有命令，不阻断界面渲染 —— 但必须留痕：
+          // 斜杠菜单长期空着而无人知道原因，此前就是这么静默掉的。
+          .catch((e) => {
+            console.error("[useCommands] v2 兜底拉取斜杠命令失败", e)
+          }),
       )
     return () => {
       cancelled = true

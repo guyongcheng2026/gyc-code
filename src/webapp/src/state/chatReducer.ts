@@ -25,6 +25,18 @@ export type ChatPart = {
   description?: string
 }
 
+// 单个 part 的文本上限。流式 delta 是「累加」的（见 message.part.updated 分支），
+// 而状态层此前没有任何上界：渲染层只在 ToolBlocks 里按行数截断，文本 part 的
+// 整段内容会一直堆在内存里，超长回复或模型重复输出时可以把标签页拖垮。
+// 封顶后保留**尾部** —— 与终端语义一致：用户要看的是最新输出，该丢的是开头。
+const MAX_PART_TEXT = 200_000
+
+/** 累加 delta 并在超过上限时保留尾部。 */
+function appendDelta(current: string, delta: string): string {
+  const next = current + delta
+  return next.length > MAX_PART_TEXT ? next.slice(next.length - MAX_PART_TEXT) : next
+}
+
 export type ChatMessage = {
   id: string
   role: "user" | "assistant"
@@ -100,11 +112,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           description: part.description,
         }
         const nextPart: ChatPart = existing
-          ? { ...existing, ...meta, text: part.type === "text" ? (existing.text ?? "") + delta : part.text }
+          ? { ...existing, ...meta, text: part.type === "text" ? appendDelta(existing.text ?? "", delta) : part.text }
           : {
               id: part.id,
               type: part.type,
-              text: part.type === "text" ? (part.text ?? "") + delta : part.text,
+              text: part.type === "text" ? appendDelta(part.text ?? "", delta) : part.text,
               ...meta,
             }
         const parts = existing ? m.parts.map((p) => (p.id === part.id ? nextPart : p)) : [...m.parts, nextPart]

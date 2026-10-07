@@ -260,7 +260,10 @@ export function App() {
                   setSelected(null)
                   window.location.hash = ""
                 }
-                remove(id).catch(() => {})
+                remove(id).catch((e) => {
+                  // 删会话失败必须留痕：列表随后不刷新，用户只会觉得「点了没反应」。
+                  console.error("[App] 删除会话失败", e)
+                })
               }}
             />
           </div>

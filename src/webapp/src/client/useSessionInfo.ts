@@ -41,11 +41,22 @@ export function useSessionInfo(sessionID: string | null, directory?: string) {
     const [detailRes, statusRes, todoRes] = await Promise.all([
       sdk(directory)
         .session.get({ path: { id: sessionID } })
-        .catch(() => ({ data: undefined })),
-      sdk(directory).session.status().catch(() => ({ data: undefined })),
+        .catch((e) => {
+          console.error("[useSessionInfo] 读取会话详情失败", e)
+          return { data: undefined }
+        }),
+      sdk(directory)
+        .session.status()
+        .catch((e) => {
+          console.error("[useSessionInfo] 读取会话状态失败", e)
+          return { data: undefined }
+        }),
       sdk(directory)
         .session.todo({ path: { id: sessionID } })
-        .catch(() => ({ data: [] })),
+        .catch((e) => {
+          console.error("[useSessionInfo] 读取会话待办失败", e)
+          return { data: [] }
+        }),
     ])
     const detail = detailRes.data as SessionGetData | undefined
     const status = (statusRes.data as SessionStatusMap | undefined)?.[sessionID]

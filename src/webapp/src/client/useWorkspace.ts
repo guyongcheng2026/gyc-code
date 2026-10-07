@@ -53,7 +53,12 @@ export function useWorkspace() {
     void v2(directory)
       .v2.location.get()
       .then((res) => setLocation((res.data as LocationInfo | undefined) ?? null))
-      .catch(() => setLocation(null))
+      // 原先的 catch 只 setLocation(null)，把「请求失败」与「服务端确实没有
+      // location」合并成同一种表现 —— 界面看不出差别，排查时也没有线索。
+      .catch((e) => {
+        console.error("[useWorkspace] 拉取当前 location 失败", e)
+        setLocation(null)
+      })
   }, [directory])
 
   const select = useCallback((dir: string | undefined) => {
