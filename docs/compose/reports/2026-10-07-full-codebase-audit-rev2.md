@@ -244,7 +244,7 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 | P2-3 MCP 回调 TOCTOU | **已修** | `oauth-callback.ts:105-131`：`isPortInUse` 与 `createServer` 之间是 await 间隙，并发调用双双判定「端口未占用」→ 各自建服务器 → 后者赋值把先建的覆盖成孤儿（已 listen 成功却无人引用，`stop()` 关不到）→ 端口与监听器泄漏。改用模块级 promise 链串行化 |
 | P2-21 嵌套事务 savepoint | **已修** `5ea49e8` | `session.ts:170` 改用不吞错的 release，release 失败向外传播；`:157` 的吞错保留给 ensuring/回滚兜底（不吞会覆盖原始失败），已就近注释说明。外层 commit 失败路径 `:161-169` 未动 |
 | P2-22 revert diff 持久化静默 | **已修** `5ea49e8` | `revert.ts:75` 的 `Effect.ignore` 换成 `Effect.catchCause` + `logError("session.revert.persist-diff", Cause.squash(cause), { session.id })`；diff 仍经事件与内存暴露，未改成本失败语义 |
-| P2-16~19 webapp 4 项 | 未修 | 取证已全：`useEvents.ts:19,36-43` 只比引用相等、无代数校验；`TerminalPanel.tsx:61-80` 激活 effect 无 cleanup（需同时给 `usePty.ts` 暴露 close）；5 处静默 catch（合规范例 `useSessions.ts:30-32`、`useJobs.ts:32-35`）；`chatReducer.ts:82-113` 状态层无界；`sseMaxRetryAttempts` 可在 webapp 侧 `.sse(options)` 直接传（先例 `src/tui/context/sdk.tsx:95`），**不必改 gen 产物** |
+| P2-16~19 webapp 4 项 | **P2-17/18/19 已修；P2-16 前提不成立** | 见 §7.7 / §7.8。P2-16 的「StrictMode 双挂载会 abort 刚建立的新流」**未能复现**：cleanup 用 `current !== bus` 早退，恰好挡住误杀新流的路径（卸载时 `buses.delete` 已把旧 bus 移出映射，再挂载建的是新 bus，旧清理早退）。按不误报原则降级为观察项，未改代码 |
 | P2-20 webapp 依赖声明 | 未改 | 极可能动到 `bun.lock`（禁改清单），倾向判为「需人工决策」 |
 | P3 组 7 项 | 未修 | `prompt.ts:976-996` 已确认 `start` 是 **1 基**、LSP `r.start.line` 是 **0 基** → **确为错位，应改代码**；`prompt.ts:1790` 照抄 `quota-alert.ts:81-95` 的本地时区写法；`pdf.ts` 7 处 `Number(x ?? 0) \|\| 0` **需先写测试实证**（`operands` 含 name 对象/TJ 数组，`Number()` 可能得 NaN，此时 `\|\| 0` 有意义，不能盲删）；`openapi/runtime.ts:325` 初判**无截断路径，可能不该改** |
 
@@ -252,8 +252,7 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 
 1. **P2-15 / P2-22 / P2-21** —— ✅ 已完成，见 §7.5。
 2. **P2-2 / P2-3** —— ✅ 已完成，见 §7.6。
-3. **webapp P2-16~19** —— P2-18 的 useEvents 部分 ✅ 见 §7.7；P2-16 / P2-17 / P2-19 与其余 4 处静默 catch **待做**（**当前**）。
-3. **webapp P2-16~19** —— SSE 竞态、PTY 泄漏、静默 catch、delta 无界。
+3. **webapp P2-16~19** —— ✅ 已完成（P2-16 经复核前提不成立），见 §7.7 / §7.8。
 4. **P3 组** —— glob 截断误报、prompt 基数与时区、pdf 冗余、spinner 守卫、UTF-8 边界。
 5. **P1-2** —— 先答复 7.3 的三个设计问题再动手；建议连带把 `error_audit` 查询出口一起做。
 6. **P2-6 测试真空区**（server handlers / plugin / migration）与 **P2-12 大单元拆分** —— 改动面大，单独立项。
@@ -294,7 +293,24 @@ handlers.handle("health.get", () => Effect.succeed({ healthy: true as const }))
 2. 我曾用 PowerShell 通配符 `src\**\*.ts*` 做 grep，它**不递归**，据此误判「`sseMaxRetryAttempts` 在非生成产物中零使用」。实际先例是 `src/tui/context/sdk.tsx:94`（传 `sseMaxRetryAttempts: 0` 并自写外层重连循环）。后续 grep 一律用 `Get-ChildItem -Recurse | Select-String` 或 grep 工具。
 3. 报告原举的合规范例 `useSessions.ts:30-33` **本身也是静默 catch**（只有注释）；真正的范例是 `useJobs.ts:34`（`console.error("[useJobs] …", e)`）。
 
-**验证（真实输出）**：`bun run test:web` **14 文件 / 59 passed / exit=0**；`bun run typecheck` **exit=0**；`bun run test` **2103 pass / 0 fail / 246 文件**。
+### 7.8 修复阶段五：webapp 批次收口（P2-16 ~ P2-19）
+
+| 项 | 改动 | 测试 | 结果 |
+|---|---|---|---|
+| **P2-18（其余 4 处）** | `useCommands.ts:37`、`useWorkspace.ts:56`（原先把「请求失败」与「服务端确实没有 location」合并成同一种表现）、`useSessionInfo.ts:44-48` 三处、`App.tsx:263` 删除会话失败 —— 一律照本目录既有范例 `useJobs.ts:34` 用 `console.error("[useXxx] …", e)` | 既有套件 | 测试输出中可直接看到新日志生效 |
+| **P2-19** | `state/chatReducer.ts` 新增 `MAX_PART_TEXT = 200_000` 与 `appendDelta()`，超限保留**尾部** | `state/chatReducer.test.ts` 新增 1 用例 | 先 **1 fail**（`expected 500000 to be less than or equal to 200000`，无界累加的直接实证）→ 通过 |
+| **P2-17** | `app/TerminalPanel.tsx` 新增 `[]` 依赖的卸载清理：`termRef.current?.dispose()` + 逐路 `conn.disconnect()` + `void remove(p.id)` 回收服务端 PTY；配 `ptysRef` 镜像以免把 `ptys` 写进依赖 | `app/TerminalPanel.cleanup.test.ts`（3 用例，源码断言） | 先 **2 failed** → 通过 |
+
+**P2-17 的两个关键取舍（留档）**：
+1. 清理**不能**挂在建终端的 effect 上 —— 那个 effect 依赖 `[activeID, ptys, updateSize]`，而它自身在 `:78` 会 `setPtys` 触发重跑；清理挂在它上面会在新建终端时把刚建好的终端与连接拆掉。故独立成 `[]` 依赖 + `ptysRef` 镜像。
+2. 是否连带 `pty.remove` 取决于 StrictMode —— 已核实 webapp **未启用**（`src/webapp/src/main.tsx:7` 直接 `createRoot(...).render(<App />)`），无双挂载误杀，故卸载时连服务端 PTY 一起回收；只断 WS 会把服务端 shell 进程留在那儿。
+
+**P2-16 复核结论：前提不成立（未改代码）**
+报告称「`useEvents.ts:19,36-43` 只比引用相等、无代数校验，React 18 StrictMode 双挂载会 abort 刚建立的新流」。逐条推演后**无法复现**：`subscribe` 的清理先取 `buses.get(directory)`，只有 `current === bus` 才继续；StrictMode 的「挂载→卸载→挂载」序列中，卸载时 `buses.delete(directory)` 已把旧 bus 移出映射，再次挂载建的是**新** bus，旧清理因 `current !== bus` **早退**，根本碰不到新 bus 的新流。旧 bus 的 `abort()` 只作用于它自己那条已废弃连接，属正确行为。按本项目一贯的「不误报」原则，此项**降级为观察项**，保留 §7.3 的原始记录备查。
+
+**验证（真实输出）**：`bun run test:web` **15 文件 / 63 passed / exit=0**（批次起点 14 文件 / 58 用例）；`bun run typecheck` **exit=0**；`bun run test` **2103 pass / 0 fail / 246 文件**。
+**手册**：`scripts/manual_content_2.py` 的「浏览器界面构成」补三条用户可见行为（终端生命周期、输出上限、异常留痕）并重新生成 docx；`node scripts/sync-manual.mjs` 输出为空（通过）。
+**知识库**：`.git/worklog-sync.log` 显示每个提交均 `entry appended` → `vault commit ok` → `vault push ok`（Obsidian vault 由 post-commit 自动同步，无需手工写入）。
 
 **本次提交不含**：`src/cli/cmd/tui.ts`、`src/cli/upgrade.ts`、`src/tui/context/sdk.tsx`（工作区既有未提交改动，非本任务授权范围）、`err.txt` / `err2.txt`（工作区残留）。
 
