@@ -3,7 +3,7 @@ import { Effect } from "effect"
 import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import * as path from "node:path"
-import { backup, list, rollback } from "./file-backup"
+import { backup, DEFAULT_MAX_BYTES, list, pruneGlobal, rollback } from "./file-backup"
 
 /** 每个测试用独立的备份根目录，避免互相污染 */
 const makeRoot = async () => {
@@ -132,4 +132,55 @@ test("同一毫秒内连续备份不会互相覆盖", async () => {
   const names = await readdir(path.dirname(a!))
   expect(names.length).toBeGreaterThanOrEqual(2)
   await rm(dir, { recursive: true, force: true })
+})
+
+test("全局容量上限未触及时不删除任何备份", async () => {
+  const { dir, root, file } = await setup("0123456789")
+  await writeFile(file, "x".repeat(20))
+  await Effect.runPromise(backup(file, { root }))
+  const result = await Effect.runPromise(pruneGlobal({ root, maxBytes: DEFAULT_MAX_BYTES }))
+  expect(result.removed).toBe(0)
+  expect((await Effect.runPromise(list(file, { root }))).length).toBe(1)
+  await rm(dir, { recursive: true, force: true })
+})
+
+test("超过全局容量上限时从最旧的备份开始淘汰", async () => {
+  const { dir, root, file } = await setup("0123456789")
+  await writeFile(file, "x".repeat(20))
+  await Effect.runPromise(backup(file, { root }))
+  await writeFile(file, "y".repeat(30))
+  await Effect.runPromise(backup(file, { root }))
+  // 存 50 字节，上限 45 → 必须删掉最旧那份（20 字节），删一份后正好 30 ≤ 45
+  const result = await Effect.runPromise(pruneGlobal({ root, maxBytes: 45 }))
+  expect(result.removed).toBe(1)
+  expect(result.freedBytes).toBe(20)
+  const entries = await Effect.runPromise(list(file, { root }))
+  expect(entries.length).toBe(1)
+  expect(await readFile(entries[0]!.path, "utf8")).toBe("y".repeat(30))
+  await rm(dir, { recursive: true, force: true })
+})
+
+test("全局容量上限跨文件统一按时间淘汰，不按单文件保份数", async () => {
+  const ctx = await makeRoot()
+  const other = path.join(ctx.dir, "work", "b.ts")
+  await writeFile(ctx.file, "a".repeat(30))
+  await writeFile(other, "b".repeat(30))
+  await Effect.runPromise(backup(ctx.file, { root: ctx.root }))
+  await writeFile(other, "c".repeat(30))
+  await Effect.runPromise(backup(other, { root: ctx.root }))
+
+  // 两个文件各 1 份、合计 60 字节；上限 35 → 删掉更旧的那份
+  const result = await Effect.runPromise(pruneGlobal({ root: ctx.root, maxBytes: 35 }))
+  expect(result.removed).toBe(1)
+  expect((await Effect.runPromise(list(ctx.file, { root: ctx.root }))).length).toBe(0)
+  expect((await Effect.runPromise(list(other, { root: ctx.root }))).length).toBe(1)
+  await rm(ctx.dir, { recursive: true, force: true })
+})
+
+test("备份库为空时全局清理不报错", async () => {
+  const ctx = await makeRoot()
+  const result = await Effect.runPromise(pruneGlobal({ root: path.join(ctx.dir, "missing") }))
+  expect(result.removed).toBe(0)
+  expect(result.freedBytes).toBe(0)
+  await rm(ctx.dir, { recursive: true, force: true })
 })

@@ -1,4 +1,4 @@
-﻿import { LayerNode } from "@gyccode/core/effect/layer-node"
+import { LayerNode } from "@gyccode/core/effect/layer-node"
 import { SessionV1 } from "@gyccode/core/v1/session"
 import { ConfigV1 } from "@gyccode/core/v1/config/config"
 import { Session } from "./session"
@@ -237,6 +237,19 @@ export function cleanMemoryValue(value: string): string {
 }
 
 /**
+ * 掐断摘要的递归嵌套。
+ *
+ * 旧摘要本身已经带着它上一轮的「Previous context:」段，整体再拼进来只会让
+ * 体积单调膨胀（实测库中出现过单条 424KB 的摘要，内部套了 10 层以上）。
+ * 取最内层那一段：既不再加深嵌套，被嵌套的记忆条目也不会丢。
+ */
+const stripNestedPrevious = (summary: string) => {
+  const marker = "Previous context:"
+  const index = summary.lastIndexOf(marker)
+  return index === -1 ? summary : summary.slice(index + marker.length).trim()
+}
+
+/**
  * 会话记忆快速压缩路径（对齐 reference agent trySessionMemoryCompaction）。
  *
  * 用后台已维护的 memory 记忆直接拼装摘要，免去一次完整 LLM 摘要调用。
@@ -251,7 +264,7 @@ export function buildMemorySummary(
   if (cleaned.length === 0) return undefined
   const memoryLines = cleaned.map((line) => `- ${line}`).join("\n")
   const parts: string[] = []
-  if (previousSummary) parts.push(`Previous context:\n${previousSummary}`)
+  if (previousSummary) parts.push(`Previous context:\n${stripNestedPrevious(previousSummary)}`)
   parts.push(`Key facts and decisions captured so far:\n${memoryLines}`)
   return `<summary>\n${parts.join("\n\n")}\n</summary>`
 }

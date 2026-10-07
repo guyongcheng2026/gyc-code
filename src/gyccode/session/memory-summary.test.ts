@@ -51,3 +51,20 @@ test("buildMemorySummary strips #memory_ prefixes from entries", () => {
   expect(result).toContain("- real fact")
   expect(result).not.toContain("#memory_x")
 })
+
+const countPrevious = (value: string) => value.split("Previous context:").length - 1
+
+test("buildMemorySummary 不把旧摘要里已有的 Previous context 再次套娃", () => {
+  const nested = "Previous context:\nPrevious context:\nKey facts and decisions captured so far:\n- old fact"
+  const result = buildMemorySummary([entry("new fact")], nested)!
+  expect(countPrevious(result)).toBe(1)
+  // 被掐断的嵌套内容不能丢：取最内层，记忆条目仍需保留
+  expect(result).toContain("old fact")
+  expect(result).toContain("- new fact")
+})
+
+test("buildMemorySummary 连续多轮压缩后 Previous context 不会层层叠加", () => {
+  let previous: string | undefined
+  for (let i = 0; i < 5; i++) previous = buildMemorySummary([entry(`fact ${i}`)], previous)
+  expect(countPrevious(previous!)).toBe(1)
+})

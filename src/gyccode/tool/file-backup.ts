@@ -104,6 +104,108 @@ const listDir = (dir: string) =>
   )
 
 /**
+ * 备份库全局容量上限（字节）。
+ *
+ * `keep` 只约束单文件份数，约束不住总量：文件一旦不再被编辑，它留下的
+ * DEFAULT_KEEP 份备份就永久驻留（实测本机 backup/ 已积累 1306 个文件 /
+ * 14.1MB，且随编辑量线性增长、无任何清理入口）。
+ */
+export const DEFAULT_MAX_BYTES = 200 * 1024 * 1024
+
+export interface GlobalOptions {
+  /** 备份根目录，默认为 Global.Path.data/backup */
+  readonly root?: string
+  /** 全局容量上限，默认为 DEFAULT_MAX_BYTES */
+  readonly maxBytes?: number
+}
+
+export interface GlobalPruneResult {
+  /** 删除的备份条数 */
+  readonly removed: number
+  /** 释放的字节数 */
+  readonly freedBytes: number
+}
+
+const statOf = (file: string) =>
+  io(() => NFS.stat(file)).pipe(Effect.catch(() => Effect.succeed(undefined)))
+
+interface BackupFile {
+  readonly path: string
+  readonly time: number
+  readonly size: number
+}
+
+/** 递归遍历备份库，把每个 .bak / .absent 条目记进 entries（就地累积） */
+const walkBackups = (dir: string, entries: BackupFile[]): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    for (const name of yield* readNames(dir)) {
+      const full = path.join(dir, name)
+      const stat = yield* statOf(full)
+      if (stat?.isDirectory()) {
+        yield* walkBackups(full, entries)
+        continue
+      }
+      if (!name.endsWith(".bak") && !name.endsWith(".absent")) continue
+      entries.push({ path: full, time: Number(name.split("-")[0] ?? "") || 0, size: stat?.size ?? 0 })
+    }
+  })
+
+/**
+ * 收集备份库内全部备份条目，按时间升序。
+ *
+ * 递归遍历而非按 `root/<project>/<worktree>/files/<hash>` 逐层下钻：`backup()`
+ * 允许直接传自定义 root（此时少了 project/worktree 两层），递归对两种布局
+ * 都成立。时间戳取自文件名前缀（见 entryName）。
+ */
+const collectAll = (root: string) =>
+  Effect.gen(function* () {
+    const entries: BackupFile[] = []
+    yield* walkBackups(root, entries)
+    return entries.sort((a, b) => a.time - b.time)
+  })
+
+/**
+ * 全局容量清理：从最旧的备份开始删除，直到备份库总字节落回上限内。
+ *
+ * 与 `prune` 的单文件语义并存：先按份数裁剪（保证单个文件的历史完整），
+ * 再由本函数兜住总量上限。删除失败的条目计入 removed 不影响继续处理。
+ */
+export const pruneGlobal = (options?: GlobalOptions): Effect.Effect<GlobalPruneResult> =>
+  Effect.gen(function* () {
+    const maxBytes = options?.maxBytes ?? DEFAULT_MAX_BYTES
+    const entries = yield* collectAll(options?.root ?? DEFAULT_ROOT)
+    let total = entries.reduce((sum, entry) => sum + entry.size, 0)
+    let removed = 0
+    let freedBytes = 0
+    if (total <= maxBytes) return { removed, freedBytes }
+    for (const entry of entries) {
+      if (total <= maxBytes) break
+      yield* io(() => NFS.rm(entry.path, { force: true })).pipe(Effect.catch(() => Effect.void))
+      removed += 1
+      freedBytes += entry.size
+      total -= entry.size
+    }
+    yield* Effect.logWarning("备份库超过全局容量上限，已淘汰最旧的备份", {
+      removed,
+      freedBytes,
+      capBytes: maxBytes,
+    })
+    return { removed, freedBytes }
+  }).pipe(Effect.catch(() => Effect.succeed({ removed: 0, freedBytes: 0 })))
+
+// 收集要遍历整个备份库（实测已累积上千文件），落在每次编辑的热路径上会明显
+// 拖慢写操作，故按间隔节流，且不阻塞 backup 返回。
+let lastGlobalSweep = 0
+const GLOBAL_SWEEP_INTERVAL_MS = 10 * 60 * 1000
+
+const sweepGlobalInBackground = (root: string) =>
+  Effect.gen(function* () {
+    if (Date.now() - lastGlobalSweep < GLOBAL_SWEEP_INTERVAL_MS) return
+    lastGlobalSweep = Date.now()
+    yield* pruneGlobal({ root }).pipe(Effect.asVoid, Effect.forkDetach)
+  })
+
+/**
  * 写前备份：把目标文件当前字节复制到备份库。
  *
  * 文件不存在时记录一条 absent 标记——这样「本次写入创建了新文件」也能回滚
@@ -141,6 +243,7 @@ export const backup = (file: string, options?: Options): Effect.Effect<string | 
       yield* io(() => NFS.writeFile(target, "")).pipe(Effect.catch(() => Effect.void))
     }
     yield* prune(dir, options?.keep ?? DEFAULT_KEEP)
+    yield* sweepGlobalInBackground(root)
     return target
   }).pipe(Effect.catch(() => Effect.succeed(undefined)))
 

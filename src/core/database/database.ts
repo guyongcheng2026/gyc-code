@@ -9,6 +9,7 @@ import { Flag } from "../flag/flag"
 import { isAbsolute, join } from "path"
 import { readFileSync, writeFileSync } from "node:fs"
 import { DatabaseMigration } from "./migration"
+import { selectPruneTargetCount } from "./prune-targets"
 import { InstallationChannel } from "../installation/version"
 import { makeGlobalNode } from "../effect/app-node"
 
@@ -68,7 +69,11 @@ const reclaimFreePages = Effect.fn("Database.reclaimFreePages")(function* (db: D
 // while keeping the whole DB well under 100MB even on always-active machines.
 const EVENT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days
 const EVENT_LOG_MAX_BYTES = 32 * 1024 * 1024 // 32MB hard cap on the event log
-const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: DatabaseShape) {
+export const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (
+  db: DatabaseShape,
+  // capBytes 只为测试可注入；生产路径一律走 EVENT_LOG_MAX_BYTES。
+  capBytes = EVENT_LOG_MAX_BYTES,
+) {
   const tableExists = yield* db
     .get<{ name: string }>(sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'session'`)
     .pipe(
@@ -93,46 +98,75 @@ const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function* (db: D
       )
     )
 
-  // Size cap: drop whole sessions' events, oldest activity first, until the
-  // event log is under the cap. Same semantics as time pruning above.
+  // Size cap: drop the oldest sessions' events in ONE batch, oldest activity
+  // first, until the event log is under the cap. Same semantics as time
+  // pruning above. 旧实现是 while 循环里一次只删一个会话，且每轮重跑一次
+  // SUM(LENGTH(data)) 全表统计：实测单次启动删 79 个会话、耗时 36.7 秒，全部
+  // 同步阻塞在 Database layer 构造期（即冷启动路径）。现在先把「要删几个」
+  // 一次算清（selectPruneTargetCount），再用带 LIMIT 的单条 DELETE 落地。
   while (true) {
     const total = yield* db.get<{ b: number | null }>(sql`SELECT SUM(LENGTH(data)) AS b FROM event`).pipe(
       Effect.catch((e) =>
         Effect.logError("Failed to get event log size", { error: e })
       )
     )
-    if ((total?.b ?? 0) <= EVENT_LOG_MAX_BYTES) return
-    const victim = yield* db
-      .get<{ id: string; b: number }>(sql`
-        SELECT e.aggregate_id AS id, SUM(LENGTH(e.data)) AS b
+    const over = (total?.b ?? 0) - capBytes
+    if (over <= 0) return
+    const sessions = yield* db
+      .all<{ id: string; bytes: number }>(sql`
+        SELECT e.aggregate_id AS id, SUM(LENGTH(e.data)) AS bytes
         FROM event e
         JOIN session s ON s.id = e.aggregate_id
         GROUP BY e.aggregate_id
         ORDER BY MIN(s.time_updated) ASC
-        LIMIT 1
       `)
       .pipe(
         Effect.catch((e) =>
-          Effect.logError("Failed to find victim session for size pruning", { error: e })
+          Effect.logError("Failed to group event bytes by session", { error: e })
         )
       )
-    if (!victim) return
+    const limit = selectPruneTargetCount(sessions ?? [], over)
+    // 没有可裁剪的会话（全部是孤儿 aggregate_id）：再循环也不会变小，直接退出。
+    if (limit === 0) return
     yield* Effect.logWarning("event log over size cap, pruning oldest session events", {
-      sessionID: victim.id,
-      bytes: victim.b,
-      cap: EVENT_LOG_MAX_BYTES,
+      sessions: limit,
+      overBytes: over,
+      cap: capBytes,
     })
     // P1 修复：删除全部事件时同时删除序列号，防止孤立序列号导致 sync 从不存在的序列号恢复
-    yield* db.run(sql`DELETE FROM event WHERE aggregate_id = ${victim.id}`).pipe(
-      Effect.catch((e) =>
-        Effect.logError("Failed to delete victim session events", { error: e })
+    // 两条语句用同一个子查询（都从 event 表派生 victim），所以顺序不可交换：
+    // 先删 event_sequence 再删 event。反过来写的话，第二条的子查询会因 event
+    // 已清空而匹配不到任何行，序列号一条都删不掉（集成测试守这条）。
+    yield* db
+      .run(sql`
+        DELETE FROM event_sequence WHERE aggregate_id IN (
+          SELECT e.aggregate_id FROM event e
+          JOIN session s ON s.id = e.aggregate_id
+          GROUP BY e.aggregate_id
+          ORDER BY MIN(s.time_updated) ASC
+          LIMIT ${limit}
+        )
+      `)
+      .pipe(
+        Effect.catch((e) =>
+          Effect.logError("Failed to delete victim session sequence", { error: e })
+        )
       )
-    )
-    yield* db.run(sql`DELETE FROM event_sequence WHERE aggregate_id = ${victim.id}`).pipe(
-      Effect.catch((e) =>
-        Effect.logError("Failed to delete victim session sequence", { error: e })
+    yield* db
+      .run(sql`
+        DELETE FROM event WHERE aggregate_id IN (
+          SELECT e.aggregate_id FROM event e
+          JOIN session s ON s.id = e.aggregate_id
+          GROUP BY e.aggregate_id
+          ORDER BY MIN(s.time_updated) ASC
+          LIMIT ${limit}
+        )
+      `)
+      .pipe(
+        Effect.catch((e) =>
+          Effect.logError("Failed to delete victim session events", { error: e })
+        )
       )
-    )
   }
 })
 
