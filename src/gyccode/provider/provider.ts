@@ -14,7 +14,7 @@ import { Npm } from "@gyccode/core/npm"
 import { Hash } from "@gyccode/core/util/hash"
 import { Plugin } from "../plugin"
 import { serviceUse } from "@gyccode/core/effect/service-use"
-import { type LanguageModelV3 } from "@ai-sdk/provider"
+import { type LanguageModelV3, type LanguageModelV4 } from "@ai-sdk/provider"
 import { ModelsDev } from "@gyccode/core/models-dev"
 import { Auth } from "../auth"
 import { Env } from "../env"
@@ -120,16 +120,25 @@ function googleVertexAnthropicBaseURL(project: string | undefined, location: str
   return `https://aiplatform.${location}.rep.googleapis.com/v1/projects/${project}/locations/${location}/publishers/anthropic/models`
 }
 
+/**
+ * AI SDK v4 的 provider 工厂产出 LanguageModelV4，而 ai 包的 LanguageModel 形参
+ * 同时接受 V2/V3/V4 并自行做版本适配，故此处放宽为并集即可。
+ *
+ * 已核实全仓不直接调用模型底层方法（doGenerate / doStream / specificationVersion
+ * 零命中），模型只作为对象交给 ai 包，故该放宽在类型与运行时都安全。
+ */
+type AnyLanguageModel = LanguageModelV3 | LanguageModelV4
+
 type BundledSDK = {
-  languageModel(modelId: string): LanguageModelV3
-  chat?: (modelId: string) => LanguageModelV3
-  responses?: (modelId: string) => LanguageModelV3
-  messages?: (modelId: string) => LanguageModelV3
+  languageModel(modelId: string): AnyLanguageModel
+  chat?: (modelId: string) => AnyLanguageModel
+  responses?: (modelId: string) => AnyLanguageModel
+  messages?: (modelId: string) => AnyLanguageModel
   // GitHub Copilot 专用扩展
-  workflowChat?: (modelId: string, opts: Record<string, unknown>) => LanguageModelV3 & {
+  workflowChat?: (modelId: string, opts: Record<string, unknown>) => AnyLanguageModel & {
     selectedModelRef?: string
   }
-  agenticChat?: (modelId: string, opts: Record<string, unknown>) => LanguageModelV3
+  agenticChat?: (modelId: string, opts: Record<string, unknown>) => AnyLanguageModel
 }
 
 // 各 provider 工厂（createAnthropic/createOpenAI/...）的选项类型互不相同且由第三方 SDK 定义，
@@ -158,7 +167,7 @@ type CustomModelLoader = (
   modelID: string,
   options?: Record<string, unknown>,
   model?: Model,
-) => Promise<LanguageModelV3>
+) => Promise<AnyLanguageModel>
 type CustomVarsLoader = (options: Record<string, unknown>) => Record<string, string>
 type CustomDiscoverModels = () => Promise<Record<string, Model>>
 type CustomLoader = (provider: Info) => Effect.Effect<{
@@ -1285,7 +1294,7 @@ export interface Interface {
   readonly list: () => Effect.Effect<Record<ProviderV2.ID, Info>>
   readonly getProvider: (providerID: ProviderV2.ID) => Effect.Effect<Info | undefined>
   readonly getModel: (providerID: ProviderV2.ID, modelID: ModelV2.ID) => Effect.Effect<Model, ModelNotFoundError>
-  readonly getLanguage: (model: Model) => Effect.Effect<LanguageModelV3, ModelNotFoundError>
+  readonly getLanguage: (model: Model) => Effect.Effect<AnyLanguageModel, ModelNotFoundError>
   readonly closest: (
     providerID: ProviderV2.ID,
     query: string[],
@@ -2087,7 +2096,11 @@ const layer = Layer.effect(
                 model,
               )
             : sdk.languageModel(wireID)
-          s.models.set(key, language)
+          // AI SDK v4 的 provider 实际产出 LanguageModelV4，而内核 aisdk.ts 的模型缓存
+          // 仍按 LanguageModelV3 声明。此处在唯一的写入点收窄，而非改内核：已核实全仓
+          // 不直接调用模型底层方法，模型只作为对象交给 ai 包（其形参接受 V2/V3/V4），
+          // 故该收窄在运行时无影响，同时保住承继内核与上游逐字节一致、降低日后内核升级成本。
+          s.models.set(key, language as LanguageModelV3)
           return language
         },
         (cause) =>
