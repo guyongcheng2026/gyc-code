@@ -16,7 +16,7 @@ function terminalColors() {
 }
 
 export function TerminalPanel({ directory }: { directory?: string }) {
-  const { create, updateSize } = usePty(directory)
+  const { create, updateSize, remove } = usePty(directory)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [ptys, setPtys] = useState<PtyEntry[]>([])
   const [activeID, setActiveID] = useState<string | null>(null)
@@ -110,9 +110,15 @@ export function TerminalPanel({ directory }: { directory?: string }) {
       termRef.current?.dispose()
       termRef.current = null
       fitRef.current = null
-      for (const p of ptysRef.current) p.conn.disconnect()
+      for (const p of ptysRef.current) {
+        p.conn.disconnect()
+        // 只断 WebSocket 会把服务端的 shell 进程留在那儿。webapp 没有启用
+        // StrictMode（main.tsx 直接渲染 <App />），不存在双挂载误杀，
+        // 因此卸载时连服务端 PTY 一起回收。
+        void remove(p.id)
+      }
     }
-  }, [])
+  }, [remove])
 
   // 主题切换时实时更新激活终端配色（无需重连）
   useEffect(() => {

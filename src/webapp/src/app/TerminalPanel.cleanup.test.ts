@@ -20,4 +20,10 @@ describe("TerminalPanel 卸载清理", () => {
   it("清理中断开全部 PTY 连接", () => {
     expect(source).toContain("p.conn.disconnect()")
   })
+
+  it("清理中回收服务端 PTY，不只断 WebSocket", () => {
+    // 只断 WS 会留下服务端的 shell 进程。webapp 未启用 StrictMode（main.tsx 直接
+    // 渲染 <App />），不存在双挂载误杀，所以卸载时可以安全地连服务端一起收掉。
+    expect(source).toContain("void remove(p.id)")
+  })
 })
