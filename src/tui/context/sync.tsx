@@ -294,7 +294,7 @@ export const {
         .then((x) => (x.data ?? []).toSorted((a, b) => a.id.localeCompare(b.id)))
     }
 
-    event.subscribe((event, { directory, workspace }) => {
+    const unsubEvent = event.subscribe((event, { directory, workspace }) => {
       switch (event.type) {
         case "server.instance.disposed":
           void bootstrap()
@@ -642,6 +642,9 @@ export const {
         }
       }
     })
+    // 事件订阅此前丢弃了退订句柄：SDKProvider 每次重建都会再叠一份 handler，
+    // 且这些 handler 持续写 store。退订后组件卸载即失效。
+    onCleanup(unsubEvent)
 
     const exit = useExit()
     const args = useArgs()

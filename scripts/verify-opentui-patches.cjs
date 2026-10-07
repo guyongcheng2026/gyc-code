@@ -61,18 +61,23 @@ const results = [];
 }
 
 // ── 2. @opentui/solid 孤儿空文本 patch ────────────────────────────
-{
-  const src = readFirst([path.join(solidDir, "index.bun.js"), path.join(solidDir, "index.js")]);
+// 两个条件分支必须分别校验。早先用 readFirst([index.bun.js, index.js]) 只读
+// 第一个命中的文件，而 exports 的 "bun" → index.bun.js、"node"/"import" → index.js：
+// 只打 index.bun.js 时校验照样报 OK，发布产物（Node 目标 dist）实际无防护，
+// 这个盲区正是补丁对线上失效却没人发现的原因。
+for (const name of ["index.bun.js", "index.js"]) {
+  const src = readFirst([path.join(solidDir, name)]);
+  const label = `@opentui/solid 孤儿空文本（${name}）`;
   if (src === null) {
-    results.push({ name: "@opentui/solid 孤儿空文本", ok: false, reason: "找不到 index.bun.js / index.js" });
-  } else {
-    const ok = src.includes('join("") === ""');
-    results.push({
-      name: "@opentui/solid 孤儿空文本",
-      ok,
-      reason: ok ? undefined : "空字符串仍会被文本化，条件渲染可抛 Orphan text error",
-    });
+    results.push({ name: label, ok: false, reason: `找不到 ${name}` });
+    continue;
   }
+  const ok = src.includes('join("") === ""');
+  results.push({
+    name: label,
+    ok,
+    reason: ok ? undefined : "空字符串仍会被文本化，条件渲染可抛 Orphan text error",
+  });
 }
 
 // ── 3. @opentui/core node:ffi→koffi patch ─────────────────────────

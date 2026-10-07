@@ -1,4 +1,4 @@
-import { batch } from "solid-js"
+import { batch, onCleanup } from "solid-js"
 import type { Path, Workspace } from "@gyccode/protocol/v2"
 import { createStore, reconcile } from "solid-js/store"
 import { createSimpleContext } from "./helper"
@@ -67,11 +67,13 @@ export const { use: useProject, provider: ProjectProvider } = createSimpleContex
       })
     }
 
-    sdk.event.on("event", (event) => {
+    const unsubWorkspaceStatus = sdk.event.on("event", (event) => {
       if (event.payload.type === "workspace.status") {
         setStore("workspace", "status", event.payload.properties.workspaceID, event.payload.properties.status)
       }
     })
+    // 此前丢弃了退订句柄：ProjectProvider 重建会再叠一份 handler。
+    onCleanup(unsubWorkspaceStatus)
 
     return {
       data: store,

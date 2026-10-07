@@ -7,6 +7,7 @@ import { appendFile, mkdir } from "node:fs/promises"
 import path from "node:path"
 import os from "node:os"
 import { tuiTiming } from "@gyccode/tui/util/timing"
+import { shouldExitOnUnhandledRejection } from "@gyccode/tui/util/crash-classify"
 import { GlobalBus } from "@/bus/global"
 import type { Listener } from "@/server/server"
 
@@ -42,6 +43,18 @@ const logWorkerCrash = (() => {
 })()
 
 const onUnhandledRejection = (error: unknown) => {
+  // 可恢复的瞬时错误（限流 429 / SSE 超时 / 网络抖动 / 原子写竞争）：
+  // 记日志后继续运行，不退出。与主进程 app.tsx:511-521 同一口径。
+  //
+  // 为什么 worker 侧同样需要分级：本文件下方 server = await Server.listen(input)
+  // 说明 HTTP server 由 worker 托管，worker 一死服务端即消失，TUI 的每个
+  // HTTP 调用都会失败——用户看到的是「发送提示词失败」
+  // （src/tui/component/prompt/index.tsx:1192）。此前这里对任何 rejection
+  // 一律 exit(1)，一次网络抖动就能掐断整个会话通道。
+  if (!shouldExitOnUnhandledRejection(error)) {
+    logWorkerCrash("unhandledRejection-recoverable", error)
+    return
+  }
   logWorkerCrash("unhandledRejection", error)
   // Exit the worker so the pool can restart it with a fresh heap.
   // This prevents silent failure accumulation that could leave the worker

@@ -1,6 +1,6 @@
 import { createStore } from "solid-js/store"
 import { createSimpleContext } from "./helper"
-import { batch, createEffect, createMemo } from "solid-js"
+import { batch, createEffect, createMemo, onCleanup } from "solid-js"
 import { useSync } from "./sync"
 import { useEvent } from "./event"
 import path from "path"
@@ -483,9 +483,11 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
         })
       }
 
-      event.on("session.deleted", (evt) => {
+      const unsubSessionDeleted = event.on("session.deleted", (evt) => {
         prune(evt.properties.info.id)
       })
+      // 此前丢弃了退订句柄：LocalProvider 重建会再叠一份 prune handler。
+      onCleanup(unsubSessionDeleted)
 
       return {
         get ready() {

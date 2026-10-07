@@ -371,16 +371,39 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           }),
       )
       // 渲染健康度：帧时趋势（meter 回调里顺带采样）+ 渲染错误计数。
-      // 背景：opentui 会把帧回调异常吞掉继续渲染（chunk-node-ks0581vk.js:9794-9800），
-      // 且 getStats() 不含累计错误数，渲染异常对仓库侧原本完全不可见。
+      // 背景（0.5.6 时）：opentui 把帧回调异常吞掉继续渲染
+      // （chunk-node-ks0581vk.js:9794-9800），且 getStats() 无累计错误数，
+      // 渲染异常对仓库侧完全不可见。
+      // 0.5.14 起行为已变：渲染循环改为 emit render:error 并按帧重试
+      // （chunk-node-wp7ct2m6.js:10160-10174），所以本监听器不再只是「观测」——
+      // 它是渲染异常的唯一入口，必须限频落库并对突发情况熔断（见 onRenderError）。
+      // 注意：一旦本监听器注册，emit 即返回 handled，opentui 自己的 handleError
+      // （同文件 :7340，仅 console.error）不再执行，故落库不可省。
       // CliRenderEvents 是公开枚举、CliRenderer extends EventEmitter（renderer.d.ts:213），
       // 所以可以直接订阅，不需 monkey-patch 第三方对象。
       const renderHealth = new RenderHealthMonitor({ capacity: 64 })
-      // payload 结构已核实为 { error: Error, renderable }（chunk-node-ks0581vk.js:9871）
+      // 运行中崩溃的降级入口在此先声明：RENDER_ERROR 监听器注册在下方
+      // acquireRelease 之前，但回调是异步触发的（最早也要等第一次抛错），
+      // 那时 degradeToSafeModeAndExit 早已赋值。用 let + 可选调用避免时序假设。
+      let degradeToSafeModeAndExit: ((error: unknown, code: number) => Promise<void>) | undefined
+      // payload 结构已核实为 { error: Error, renderable }（chunk-node-wp7ct2m6.js:10163）
       const onRenderError = (payload: { error?: unknown }) => {
+        const error = payload?.error ?? new Error("render:error 无 error 字段")
         renderHealth.noteError()
-        logError("tui.render", payload?.error ?? new Error("render:error 无 error 字段"), {
+        // 突发熔断：opentui 渲染循环抛错后会按帧重试
+        //（chunk-node-wp7ct2m6.js:10171-10174），流式期 60fps 即 60 次/秒。
+        // 界面此时已不可用，继续苟活只会空烧 CPU，降级到安全模式给出可读摘要。
+        if (renderHealth.exceedsBurstThreshold()) {
+          void degradeToSafeModeAndExit?.(error, 1)
+          return
+        }
+        // 限频落库：同一错误键每分钟只写一条，否则一小时可写 20 万行
+        //（message 存完整 stack，见 log-error.ts:15-16）。
+        const key = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+        if (!renderHealth.shouldLogError(key)) return
+        logError("tui.render", error, {
           stage: "render",
+          suppressed: renderHealth.suppressedErrors(),
         })
       }
       renderer.on(CliRenderEvents.RENDER_ERROR, onRenderError)
@@ -454,7 +477,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           // 用户退出后再按原 exit code 退出。claimFallbackOnce 一次性护栏：
           // 安全模式内再崩直接退，杜绝降级循环。GYC_TUI_BACKEND=opentui 禁用。
           let degrading = false
-          const degradeToSafeModeAndExit = async (error: unknown, code: number) => {
+          const degrade = async (error: unknown, code: number) => {
             if (!shouldUseFallback(config()?.renderer) || degrading || !claimFallbackOnce()) {
               restoreTerminalAndExit(code)
               return
@@ -483,6 +506,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
             }
             process.exit(code)
           }
+          // 暴露给上方 RENDER_ERROR 监听器（突发熔断时调用）；块内其余路径用
+          // 局部 const degrade，避免对外的可选类型渗进本块。
+          degradeToSafeModeAndExit = degrade
           const onUncaughtException = (error: Error) => {
             // AbortError / "Aborted" 是 Effect 正常取消流程（如用户中断、会话切换），
             // 不应触发崩溃退出。仅记录 debug 日志，不恢复终端、不退出进程。
@@ -506,7 +532,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               return
             }
             writeMainCrash("uncaughtException", error)
-            void degradeToSafeModeAndExit(error, 1)
+            void degrade(error, 1)
           }
           const onUnhandledRejection = (reason: unknown) => {
             // 可恢复的瞬时错误（限流 429 / SSE 超时 / 网络抖动 / 原子写竞争）：
@@ -517,7 +543,7 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               return
             }
             writeMainCrash("unhandledRejection", reason)
-            void degradeToSafeModeAndExit(reason, 1)
+            void degrade(reason, 1)
           }
           process.on("uncaughtException", onUncaughtException)
           process.on("unhandledRejection", onUnhandledRejection)

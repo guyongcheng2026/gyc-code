@@ -28,3 +28,18 @@ export function isRecoverableRejection(reason: unknown): boolean {
   const message = reason instanceof Error ? `${reason.name ?? ""} ${reason.message}` : String(reason)
   return RECOVERABLE_PATTERNS.some((pattern) => pattern.test(message))
 }
+
+/**
+ * unhandledRejection 是否应当终止进程。
+ *
+ * 为什么不让各处直接 `if (isRecoverableRejection(...))`：TUI 主进程
+ * （src/tui/app.tsx:511-521）与 worker（src/cli/tui/worker.ts:44-50）都持有
+ * 生命周期敏感的资源，其中 worker 还直接托管 HTTP server
+ * （src/cli/tui/worker.ts:186）。一旦因可恢复错误退出，服务端随之消失，
+ * TUI 的每个 HTTP 调用都会失败，表现为「发送提示词失败」
+ * （src/tui/component/prompt/index.tsx:1192）。把判定收敛成一处并配测试，
+ * 防止任一侧悄悄退回「一律退出」。
+ */
+export function shouldExitOnUnhandledRejection(reason: unknown): boolean {
+  return !isRecoverableRejection(reason)
+}

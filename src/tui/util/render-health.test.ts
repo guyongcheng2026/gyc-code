@@ -64,3 +64,88 @@ describe("RenderHealthMonitor", () => {
     expect(m.history().length).toBe(32)
   })
 })
+
+describe("RenderHealthMonitor 渲染错误限频", () => {
+  it("只放行窗口内第一条同类错误，其余计入 suppressed", () => {
+    let t = 0
+    const m = new RenderHealthMonitor({ now: () => t, errorLogWindowMs: 60_000 })
+    expect(m.shouldLogError("boom")).toBe(true)
+    expect(m.shouldLogError("boom")).toBe(false)
+    expect(m.shouldLogError("boom")).toBe(false)
+    expect(m.suppressedErrors()).toBe(2)
+  })
+
+  it("不同错误键互不影响，各自放行一条", () => {
+    const m = new RenderHealthMonitor({ now: () => 0, errorLogWindowMs: 60_000 })
+    expect(m.shouldLogError("boom")).toBe(true)
+    expect(m.shouldLogError("other")).toBe(true)
+    expect(m.shouldLogError("boom")).toBe(false)
+  })
+
+  it("窗口滑过后重新放行，计数仍是上次落库以来累计的抑制数", () => {
+    let t = 0
+    const m = new RenderHealthMonitor({ now: () => t, errorLogWindowMs: 1_000 })
+    expect(m.shouldLogError("boom")).toBe(true)
+    expect(m.shouldLogError("boom")).toBe(false)
+    expect(m.suppressedErrors()).toBe(1)
+    t = 1_001
+    // 放行这一刻读到的计数，就是日志行里 suppressed=N 要写的值。
+    expect(m.shouldLogError("boom")).toBe(true)
+    expect(m.suppressedErrors()).toBe(1)
+    m.shouldLogError("boom")
+    m.shouldLogError("boom")
+    expect(m.shouldLogError("boom")).toBe(false)
+    t = 2_002
+    expect(m.shouldLogError("boom")).toBe(true)
+    // 累计 4 条：上一次放行后的 1 条 + 本轮 3 条（两次显式调用 + 上面那次断言）
+    expect(m.suppressedErrors()).toBe(4)
+  })
+
+  it("限频表有界，长跑不会无限增长", () => {
+    const m = new RenderHealthMonitor({ now: () => 0, errorLogWindowMs: 60_000, errorKeyLimit: 8 })
+    for (let i = 0; i < 500; i++) m.shouldLogError(`boom-${i}`)
+    expect(m.trackedErrorKeys()).toBe(8)
+  })
+})
+
+describe("RenderHealthMonitor 渲染错误突发熔断", () => {
+  it("窗口内错误未达阈值时不熔断", () => {
+    let t = 0
+    const m = new RenderHealthMonitor({ now: () => t, errorBurstThreshold: 30, errorBurstWindowMs: 60_000 })
+    for (let i = 0; i < 29; i++) {
+      m.noteError()
+      t += 10
+    }
+    expect(m.exceedsBurstThreshold()).toBe(false)
+  })
+
+  it("持续错误达到阈值即熔断（60fps 下约半秒）", () => {
+    let t = 0
+    const m = new RenderHealthMonitor({ now: () => t, errorBurstThreshold: 30, errorBurstWindowMs: 60_000 })
+    for (let i = 0; i < 30; i++) {
+      m.noteError()
+      t += 16
+    }
+    expect(m.exceedsBurstThreshold()).toBe(true)
+  })
+
+  it("零星错误随时间滑出窗口后不再熔断", () => {
+    let t = 0
+    const m = new RenderHealthMonitor({ now: () => t, errorBurstThreshold: 30, errorBurstWindowMs: 60_000 })
+    for (let i = 0; i < 29; i++) {
+      m.noteError()
+      t += 1_000
+    }
+    expect(m.exceedsBurstThreshold()).toBe(false)
+  })
+
+  it("reset 同时清空突发窗口与限频表", () => {
+    const m = new RenderHealthMonitor({ now: () => 0, errorBurstThreshold: 2, errorBurstWindowMs: 60_000 })
+    m.noteError()
+    m.noteError()
+    expect(m.exceedsBurstThreshold()).toBe(true)
+    m.reset()
+    expect(m.exceedsBurstThreshold()).toBe(false)
+    expect(m.trackedErrorKeys()).toBe(0)
+  })
+})

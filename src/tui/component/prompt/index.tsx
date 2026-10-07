@@ -62,6 +62,7 @@ import { usePromptMove } from "./move"
 import { readLocalAttachment } from "./local-attachment"
 import { useLocation } from "../../context/location"
 import { settled } from "../../util/fire-and-forget"
+import { logError } from "@core/observability/log-error"
 
 registerGyccodeSpinner()
 
@@ -1188,7 +1189,10 @@ title: "打开编辑器",
           },
           { throwOnError: true },
         )
-        .catch((error) => {
+        .catch((error: unknown) => {
+          // toast 一闪即逝，事后无从归因（2026-10-07 排查「发送提示词失败」
+          // 时只能靠猜）。落 logError 并带 session 维度，与其他调用点一致。
+          logError("tui.prompt", error, { op: "session.prompt", "session.id": sessionID })
           toast.show({
             title: "发送提示词失败",
             message: errorMessage(error),

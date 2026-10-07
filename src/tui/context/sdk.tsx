@@ -127,15 +127,35 @@ await sdk.sync.start().catch(() => {
       })()
     }
 
-    onMount(async () => {
+    onMount(() => {
       if (props.events) {
-        const unsub = await props.events.subscribe(handleEvent)
-        onCleanup(unsub)
+        // 不能写成 `onMount(async () => { const unsub = await ...; onCleanup(unsub) })`：
+        // await 之后 Solid 的 Owner 已丢失，onCleanup 在 Owner===null 时是静默空操作
+        // （node_modules/solid-js/dist/solid.cjs），退订永远不会执行。
+        // 故先同步注册清理，再在 promise 兑现后挂上 unsub；若期间已卸载则立即退订。
+        let unsub: (() => void) | undefined
+        let disposed = false
+        onCleanup(() => {
+          disposed = true
+          unsub?.()
+        })
+        void props.events
+          .subscribe(handleEvent)
+          .then((off) => {
+            if (disposed) {
+              off()
+              return
+            }
+            unsub = off
+          })
+          .catch((error: unknown) => {
+            logError("tui.sdk", error, { op: "events.subscribe" })
+          })
 
         if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          await sdk.sync.start().catch(() => {
+          void sdk.sync.start().catch(() => {
             // 工作区同步启动属后台任务：失败时静默忽略，事件流仍会建立。
           })
         }
