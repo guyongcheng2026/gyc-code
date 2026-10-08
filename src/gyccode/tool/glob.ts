@@ -51,14 +51,18 @@ export const GlobTool = Tool.define(
           })
 
           const limit = 100
-          const files = yield* ripgrep.glob({ cwd: search, pattern: params.pattern, limit })
-          const truncated = files.length === limit
+          // 向 ripgrep 多要 1 条，只用于判断「是否还有更多」：若按 files.length === limit
+          // 判等，恰好 100 个匹配时会误报「已截断」，把模型引向无意义地收窄 pattern。
+          // 多要 1 条的代价仍是 O(limit)，没有变成 O(全部)。
+          const files = yield* ripgrep.glob({ cwd: search, pattern: params.pattern, limit: limit + 1 })
+          const truncated = files.length > limit
+          const shown = truncated ? files.slice(0, limit) : files
 
           const output = []
-          if (files.length === 0) output.push(emptyMatchNotice(params.pattern, params.path))
-          if (files.length > 0) {
+          if (shown.length === 0) output.push(emptyMatchNotice(params.pattern, params.path))
+          if (shown.length > 0) {
             output.push(
-              ...files.map((file) => {
+              ...shown.map((file) => {
                 const abs = path.resolve(search, file.path)
                 const rel = path.relative(ins.worktree, abs)
                 return rel && !rel.startsWith("..") ? rel : abs
@@ -75,7 +79,7 @@ export const GlobTool = Tool.define(
           return {
             title: path.relative(ins.worktree, search),
             metadata: {
-              count: files.length,
+              count: shown.length,
               truncated,
             },
             output: output.join("\n"),

@@ -98,9 +98,11 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
             if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
               // Start syncing workspaces, it's important to do this after
               // we've started listening to events
-await sdk.sync.start().catch(() => {
-              // 工作区同步启动属后台任务：失败时静默忽略，事件流仍会建立。
-            })
+              await sdk.sync.start().catch((error: unknown) => {
+                // 同步失败不致命（事件流仍会建立），但必须留痕：此前静默吞掉，
+                // 工作区同步长期不工作时没有任何线索可查。
+                logError("tui.sdk", error, { op: "sync.start" })
+              })
             }
 
             for await (const event of events.stream) {
@@ -155,8 +157,9 @@ await sdk.sync.start().catch(() => {
         if (Flag.GYCCODE_EXPERIMENTAL_WORKSPACES) {
           // Start syncing workspaces, it's important to do this after
           // we've started listening to events
-          void sdk.sync.start().catch(() => {
-            // 工作区同步启动属后台任务：失败时静默忽略，事件流仍会建立。
+          void sdk.sync.start().catch((error: unknown) => {
+            // 同 startSSE：失败不致命，但必须留痕，否则同步长期不工作时无从排查。
+            logError("tui.sdk", error, { op: "sync.start" })
           })
         }
       } else {

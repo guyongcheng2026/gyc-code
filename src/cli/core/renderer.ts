@@ -175,8 +175,19 @@ export function createSpinner(message: string): { start: () => void; stop: () =>
   }
 
   return {
-    start: () => { interval = setInterval(render, 80); render() },
-    stop: () => { if (interval) clearInterval(interval); process.stdout.write("\r\x1b[K") },
+    start: () => {
+      // 重入守卫：二次 start 会覆盖 interval 引用，第一次起的定时器就再也 clear
+      // 不掉了 —— spinner 已经 stop，输出却还在动。
+      if (interval) return
+      interval = setInterval(render, 80)
+      render()
+    },
+    stop: () => {
+      if (interval) clearInterval(interval)
+      // 必须置空，否则 stop 之后再 start 会被上面的守卫挡住。
+      interval = undefined
+      process.stdout.write("\r\x1b[K")
+    },
     update: (msg: string) => { currentMsg = msg },
   }
 }

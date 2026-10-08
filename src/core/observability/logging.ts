@@ -38,6 +38,15 @@ export function rotateIfNeeded(file: string): void {
 }
 
 // 周期守护：即使 fileLogger 完全无写入，也保证超限日志在秒级内被轮转。
+//
+// 这里刻意不提供 clear 路径，理由（可复核）：
+// 1. 进程级单例 —— 模块作用域只有一个 interval，且入口有 `if (rotationGuard) return`
+//    守卫，重复调用不会堆积；
+// 2. 已 unref() —— 不持有事件循环，进程退出既不需要清、也不会被它拖住；
+// 3. 不存在「该清理的时机」—— 轮转要求「进程活着就一直生效」，唯一能停的时刻就是
+//    进程退出，而那一刻本就是进程级回收。
+// 若将来这个守护需要按实例或按测试启停，必须先补 stopRotationGuard()，
+// 否则它才会变成真正的泄漏。
 let rotationGuard: NodeJS.Timeout | undefined
 function startRotationGuard(file: string): void {
   if (rotationGuard) return

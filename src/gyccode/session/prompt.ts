@@ -975,17 +975,23 @@ const layer = Layer.effect(
                 const range = { start: url.searchParams.get("start"), end: url.searchParams.get("end") }
                 if (range.start != null) {
                   const filePathURI = part.url.split("?")[0] ?? part.url
-                  let start = parseInt(range.start)
-                  let end = range.end ? parseInt(range.end) : undefined
+                  // 一律按十进制解析：parseInt 无 radix 时 "0x1f" 会被当成十六进制。
+                  const rawStart = Number.parseInt(range.start, 10)
+                  const rawEnd = range.end ? Number.parseInt(range.end, 10) : undefined
+                  // NaN 不能流进 read 工具的 offset —— read 不会因此报错，只会读到错误位置。
+                  let start = Number.isNaN(rawStart) ? 1 : rawStart
+                  let end = rawEnd !== undefined && !Number.isNaN(rawEnd) ? rawEnd : undefined
                   if (start === end) {
                     const symbols = yield* lsp.documentSymbol(filePathURI).pipe(Effect.catch(() => Effect.succeed([])))
                     for (const symbol of symbols) {
                       let r: LSP.Range | undefined
                       if ("range" in symbol) r = symbol.range
                       else if ("location" in symbol) r = symbol.location.range
-                      if (r?.start?.line !== undefined && r?.start?.line === start) {
-                        start = r.start.line
-                        end = r?.end?.line ?? start
+                      // URL 里的 start 是 read 工具的 1 基行号，LSP 的 line 是 0 基：
+                      // 比较与回写都必须换算，否则「跳到符号」永远差一行。
+                      if (r?.start?.line !== undefined && r.start.line === start - 1) {
+                        start = r.start.line + 1
+                        end = (r.end?.line ?? r.start.line) + 1
                         break
                       }
                     }
@@ -1787,7 +1793,10 @@ const layer = Layer.effect(
             // 前缀缓存（实测断点集中在 162K-175K，即 tools+system+首条 user 处）。
             // date 不永久冻结：跨天单独滚动更新（跨天折断一次是原设计已接受的代价，
             // 见下方注入位注释），memories/owner 永久冻结。
-            const freshDate = `Today's date: ${new Date().toISOString().slice(0, 10)}\n`
+            // 用本地时区而非 UTC（同 core/config/quota-alert.ts 的理由）：UTC 在东八区
+            // 早 8 小时，当地 08:00 之前会把「今天」报成昨天，与用户看到的日历不一致。
+            const today = new Date()
+            const freshDate = `Today's date: ${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}\n`
             // 双读防 TOCTOU：取数窗口内快照若被 LRU 淘汰，本轮已跳过记忆重取、
             // compute 只能拿到空记忆——不持久化该快照，下轮按首轮重新定型。
             const staleFrozen = injectFrozen && !injectSnapshots.has(sessionID)
