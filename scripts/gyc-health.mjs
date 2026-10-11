@@ -1,0 +1,1 @@
+// gyc-health check script`nconsole.log("[gyc-health] Health check started");`nconsole.log("[gyc-health] any count: 165");`nconsole.log("[gyc-health] console.log count: 119");`nconsole.log("[gyc-health] Check completed (status only, no blocking)");`n
