@@ -22,10 +22,15 @@ import TRINITY from "./trinity.txt"
  *
  * 硬约束：抽取前后 13 个变体的最终渲染文本必须**逐字节一致**。
  *
- * 基线取自本次抽取之前的 HEAD 版本，用 base64 常量固化 —— 不把中文直接写进
- * `.ts`，避免终端/编码环节毁掉中文（见
+ * 基线取自本次抽取之前的 HEAD 版本，固化在 `__baseline__/<name>.txt`（不把中文
+ * 直接写进 `.ts`，避免终端/编码环节毁掉中文 —— 见
  * `docs/compose/plans/2026-10-02-opentui-stability-long-session.md:123` 记录的
  * 那次 PowerShell 改写事故）。
+ *
+ * 行尾：仓库这些 .txt 实测是 LF（`git ls-files --eol` 全报 i/lf w/lf），因此本文件
+ * 的断言与 compose.ts 的拼接一律用 "\n"。曾有一版按 CRLF 实现，导致此处 11 个用例
+ * 长期失败 —— 核对行尾要落到字节（`git cat-file blob <rev>:<path>` 取 Buffer），
+ * 不能靠注释或终端观感。
  */
 
 const BASELINE_DIR = join(import.meta.dir, "__baseline__")
@@ -73,7 +78,7 @@ describe("prompt 公共段抽取：逐字节一致性", () => {
 
 describe("公共段本身", () => {
   test("公共段正文是 Accuracy and honesty 五行", () => {
-    expect(SHARED_CORE_BODY.split("\r\n")).toHaveLength(5)
+    expect(SHARED_CORE_BODY.split("\n")).toHaveLength(5)
     expect(SHARED_CORE_BODY.startsWith("# Accuracy and honesty")).toBe(true)
   })
 
@@ -98,7 +103,7 @@ describe("公共段本身", () => {
   test("拼接结果含公共段的全部 5 行", () => {
     for (const [name, variant] of Object.entries(MODEL_VARIANTS)) {
       const rendered = composeVariant(variant)
-      for (const line of SHARED_CORE_BODY.split("\r\n")) {
+      for (const line of SHARED_CORE_BODY.split("\n")) {
         expect(rendered).toContain(line)
       }
     }
@@ -115,9 +120,9 @@ describe("公共段本身", () => {
     }
   })
 
-  test("拼接结果不含裸 LF（全部保持 CRLF）", () => {
+  test("拼接结果不含 CR（全部保持 LF）", () => {
     for (const variant of Object.values(MODEL_VARIANTS)) {
-      expect(composeVariant(variant).replace(/\r\n/g, "")).not.toContain("\n")
+      expect(composeVariant(variant)).not.toContain("\r")
     }
   })
 })
