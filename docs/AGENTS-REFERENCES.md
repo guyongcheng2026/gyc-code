@@ -5,6 +5,7 @@
 ## 构建须知（build.mjs）
 
 - 构建前自动再生：compose 技能 bundle（`.bundle/` → bundle.gen.ts）+ webapp 清单（→ opencode-web-ui.gen.ts）
+- **改 `src/` 或 `node_modules` 补丁后必须 `bun run build` 才会在 `gyc` 中生效**：`bin/gyc` 优先跑预构建的 dist（Node 目标），源码与 `node_modules/@opentui` 的补丁都不会自动进入产物。2026-10-11 排查 TUI 缺陷时正栽在这里——源码与补丁都改完、测试全绿，却没重建 dist，用户连续两轮验证「修复后毫无变化」，实际跑的一直是三天前的旧产物。判断是否踩坑先看 `dist/index.js` 的 mtime，`git status` 干净不代表用户看到的是新代码。
 - **splitting 默认必须关闭**（`GYCCODE_BUILD_SPLITTING=1` 才开）：开启改变模块初始化顺序，曾致 LayerNode 循环引用解析崩溃、dist 下 CLI/TUI 全链路瘫痪（dev 源码模式正常，仅 dist 复现）
 - 产物布局固定 `dist/index.js` + `dist/worker.js`：bin/gyc、install.sh、多个脚本均按此定位，勿改入口命名
 - 可用内存 <1.2GB 时 Bun 打包器可能 OOM panic（exit 3/9），build.mjs 父进程会自动以低内存模式重试一次；`GYCCODE_BUILD_LOW_MEM=1` 强制
