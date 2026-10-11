@@ -211,7 +211,13 @@ for (const [from, to] of [
   }
 }
 
-if (applied === 0) {
+// 3 处注入点必须全中才写入。只注入 1~2 处会留下「半打补丁」的 FFI fallback——
+// 表现为偶发、难归因的渲染崩溃，比完全不打更难排查（2026-10-11 稳定性审查）。
+// 此处失败即 exit(1) 且不写回文件，由 verify-opentui-patches.cjs --strict 在构建前拦住。
+if (applied !== 3) {
+  console.error(
+    `[gyc-patch] @opentui/core FFI 补丁仅注入 ${applied}/3 处：不完整，放弃写入（文件保持原样）`,
+  );
   process.exit(1);
 }
 fs.writeFileSync(chunkFile, src, "utf8");

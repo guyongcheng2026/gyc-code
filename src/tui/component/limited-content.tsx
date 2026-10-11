@@ -2,6 +2,8 @@ import { Show, createEffect, createMemo, createSignal, onCleanup, type JSX } fro
 import type { RGBA } from "@opentui/core"
 import { limitContent, DEFAULT_MAX_CONTENT_BYTES, DEFAULT_MAX_CONTENT_LINES } from "../util/limit-content"
 import { createHandleEstimateCache, globalHandleBudget } from "../util/handle-budget"
+import { handleBudgetPressure } from "../util/handle-pressure"
+import { logWarn } from "@core/observability/log-error"
 
 /**
  * 受限富渲染：长会话 / 超长会话崩溃的统一闸门。
@@ -61,14 +63,32 @@ export function LimitedContent(props: {
   const handles = createMemo(() => estimateCached(limited().text, props.cols))
   const [affordable, setAffordable] = createSignal(false)
   let reserved = 0
+  // 降级可观测性：reserve 失败 == 内容预算被吃满、本段降级为纯文本。
+  // 此前 handleBudgetPressure 只有定义与单测、没有生产调用点（死代码），
+  // 「预算耗尽」在运行期完全不可见（2026-10-11 稳定性审查）。
+  // 每个实例只报一次：流式期间同一节点会反复重算，逐次上报会淹掉日志。
+  let reportedPressure = false
   const acquire = () => {
     if (reserved > 0) {
       globalHandleBudget.release(reserved)
       reserved = 0
     }
     const amount = handles()
-    reserved = globalHandleBudget.reserve(amount) ? amount : 0
+    const ok = globalHandleBudget.reserve(amount)
+    reserved = ok ? amount : 0
     setAffordable(reserved > 0)
+    if (!ok && !reportedPressure) {
+      reportedPressure = true
+      const used = globalHandleBudget.used()
+      const limit = globalHandleBudget.limit()
+      logWarn("tui.handle-budget", "内容句柄预算不足，该段内容降级为纯文本", {
+        used,
+        limit,
+        amount,
+        pressure: handleBudgetPressure(used, limit),
+        cols: props.cols,
+      })
+    }
   }
   // 首次渲染前先占用，Show 首次求值时 affordable 才是准的
   acquire()

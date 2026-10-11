@@ -14,6 +14,9 @@
 const fs = require("fs");
 const path = require("path");
 
+// --strict：构建前置校验（build.mjs 调用）。补丁未生效时以非 0 退出，阻止产出无防护产物。
+const strict = process.argv.includes("--strict");
+
 const root = path.join(__dirname, "..");
 const opentuiDir = path.join(root, "node_modules", "@opentui");
 const coreDir = path.join(opentuiDir, "core");
@@ -193,6 +196,15 @@ if (failed.length > 0) {
   console.warn("[gyc-patch] 以下补丁未生效（TUI 可能不稳定，但不影响其余功能）：");
   for (const r of failed) console.warn(`  - ${r.name}：${r.reason}`);
   console.warn("[gyc-patch] 常见原因：@opentui 升级后原文不匹配。修复：node scripts/apply-opentui-patch.cjs（--force 可重注入）");
+}
+
+// postinstall 阶段补丁是可选增强，不阻断安装流程（exit 0）。
+// 但**构建**阶段必须严格：dist 会把 node_modules 里已打的补丁烘进产物，补丁未生效时
+// 打出来的 bundle 会静默失去稳定性防护 —— 2026-10-08 的 dist 就缺 orphan 空文本守卫，
+// 表现为线上没有防护却毫无提示、排查时也看不出产物有问题。故 build.mjs 以 --strict 调用。
+if (strict && failed.length > 0) {
+  console.error(`[gyc-patch] --strict：${failed.length} 项补丁未生效，拒绝继续 —— 补丁缺失的产物会静默失去防护`);
+  process.exit(1);
 }
 
 // 补丁是可选增强，不阻断安装流程

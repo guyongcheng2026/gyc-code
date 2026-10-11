@@ -14,6 +14,19 @@ const runtime = process.env.GYC_RUNTIME ?? "node"
 
 // 预处理仅父进程执行一次（子进程跳过，避免重复生成）。
 if (process.env.GYCCODE_BUILD_CHILD !== "1") {
+  // 构建前严格校验 opentui 补丁链。dist 会把 node_modules 里已打的补丁烘进产物，
+  // 补丁未生效时打出来的 bundle 会静默失去稳定性防护 —— 2026-10-08 的 dist 就缺
+  // orphan 空文本守卫（线上没有防护却毫无提示，排查时也看不出产物有问题）。
+  // 这里以非 0 退出，把「静默产出无防护产物」变成「构建失败」。
+  const patches = spawnSync(process.execPath, ["scripts/verify-opentui-patches.cjs", "--strict"], {
+    stdio: "inherit",
+    windowsHide: true,
+  })
+  if (patches.status !== 0) {
+    console.error("[build] opentui 补丁链校验未通过：产物会失去稳定性防护，拒绝构建")
+    process.exit(patches.status ?? 1)
+  }
+
   // 构建前重新生成 compose 技能 bundle，保证运行产物与 .bundle 目录一致。
   const gen = spawnSync(process.execPath, ["scripts/gen-compose-bundle.mjs"], {
     stdio: "inherit",
