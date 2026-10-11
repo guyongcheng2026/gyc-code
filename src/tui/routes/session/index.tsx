@@ -84,6 +84,7 @@ import { useTuiConfig } from "../../config"
 import { useClipboard } from "../../context/clipboard"
 import { nextThinkingMode, reasoningSummary, useThinkingMode, type ThinkingMode } from "../../context/thinking"
 import { getScrollAcceleration } from "../../util/scroll"
+import { createFpsController } from "../../util/target-fps"
 import { collapseToolOutput } from "../../util/collapse-tool-output"
 import { LimitedContent } from "../../component/limited-content"
 import { probeTerminal, sessionTargetFps } from "../../fallback/capability"
@@ -390,14 +391,23 @@ export function Session() {
   // 会话规模维度（P2-2 收尾）：长会话每帧要重绘的内容更多，帧率必须让路。
   // 口径为「消息数 × 节点系数」——单条消息往往含正文/思维链/工具输出多个节点，
   // 故按 3 倍计，宁可早降档也不等 CPU 空转起来再降。
+  //
+  // 去抖（2026-10-11 抖动排查）：升档立即、降档延后（见 util/target-fps.ts）。
+  // 直接写 targetFps 会随 pending() 在工具步骤边界翻转而 60↔30 横跳
+  // （core/session/message-updater.ts:192-217 每步先将上一条 assistant 标记
+  // completed 再建新消息），用户感知为「结果反馈时画面上下跳」。
   const RENDER_NODE_FACTOR = 3
   const renderScale = createMemo(() => ({ scale: messages().length * RENDER_NODE_FACTOR }))
+  const fpsController = createFpsController((fps) => {
+    if (!renderer.isDestroyed) renderer.targetFps = fps
+  })
   createEffect(() => {
     const streaming = pending() !== undefined
     if (renderer.isDestroyed) return
-    renderer.targetFps = sessionTargetFps(probeTerminal(), streaming, renderScale())
+    fpsController.request(sessionTargetFps(probeTerminal(), streaming, renderScale()), streaming)
   })
   onCleanup(() => {
+    fpsController.dispose()
     if (!renderer.isDestroyed) renderer.targetFps = sessionTargetFps(probeTerminal(), false, renderScale())
   })
 
