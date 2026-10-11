@@ -98,12 +98,12 @@ export function Sidebar(props: { sessionID: string; overlay?: boolean }) {
                         />
                       )}
                     </Show>
-                    <Show when={workspaceSummary().tokens > 0 || workspaceSummary().cost > 0}>
-                      <text fg={theme.textMuted}>
-                        Workspace Context: {workspaceSummary().tokens.toLocaleString()} tokens · {workspaceSummary().active} sessions · Cost {money.format(workspaceSummary().cost)}
-                      </text>
-                    </Show>
                   </text>
+                  <Show when={workspaceSummary().tokens > 0 || workspaceSummary().cost > 0}>
+                    <text fg={theme.textMuted}>
+                      Workspace Context: {workspaceSummary().tokens.toLocaleString()} tokens · {workspaceSummary().active} sessions · Cost {money.format(workspaceSummary().cost)}
+                    </text>
+                  </Show>
                 </Show>
                 <Show when={session()!.share?.url}>
                   <text fg={theme.textMuted}>{session()!.share!.url}</text>
