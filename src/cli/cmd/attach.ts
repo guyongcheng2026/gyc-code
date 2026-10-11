@@ -2,6 +2,7 @@ import { cmd } from "./cmd"
 import { UI } from "../ui"
 import { errorMessage } from "@gyccode/tui/util/error"
 import { validateSession } from "../tui/validate-session"
+import { installTuiErrorAuditSink } from "@gyccode/tui/util/error-audit-sink"
 import { ServerAuth } from "@/server/auth"
 
 export const AttachCommand = cmd({
@@ -43,6 +44,11 @@ export const AttachCommand = cmd({
         describe: "Basic 认证用户名（默认取 GYCCODE_SERVER_USERNAME 或 'gyccode'）",
       }),
   handler: async (args) => {
+    // attach 与 cmd/tui 是两条独立的 TUI 渲染链，同属 TUI 进程且都没有
+    // Database.Service —— 不在这里补 sink，attach 链路的渲染/运行期错误
+    // 在表与日志里都不留痕迹（与 cmd/tui.ts 保持同一注册时机：任何 early
+    // return 之前，确保后续所有分支都被覆盖）。
+    installTuiErrorAuditSink()
     const directory = (() => {
       if (!args.dir) return undefined
       try {
