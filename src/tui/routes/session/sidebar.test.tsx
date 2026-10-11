@@ -3,13 +3,14 @@ import path from "node:path"
 import { RGBA } from "@opentui/core"
 import { testRender } from "@opentui/solid"
 
-// 侧栏「Workspace Context」信息条渲染回归。
+// 侧栏端到端回归：真实 Sidebar + 真实 pluginRuntime（Slot 不 mock）。
 //
-// 立项（2026-10-11 稳定性排查）：sidebar.tsx 曾把 <text fg={...}>Workspace Context…</text>
-// 嵌套在外层 <text> 内。opentui 0.5.14 的 TextNode renderable 只接受字符串 /
-// TextNodeRenderable / StyledText（TextNode.ts:120），<text> 嵌 <text> 在插入时抛
-// `TextNodeRenderable only accepts strings, TextNodeRenderable instances, or StyledText instances`，
-// 该行渲染异常表现为侧栏工作区信息条反白。修复后内层 text 移出为 box 的直接子节点。
+// 覆盖两类历史缺陷：
+//   1) sidebar.tsx 把 <text> 嵌在外层 <text> 内 —— opentui 的 TextNode 只接受
+//      string/TextNodeRenderable/StyledText，插入即抛错（反白/异常）。
+//   2) plugin slots 的 Slot 用裸 signal 读取（untrack 内不订阅）—— setup() 后
+//      永不重渲染，侧栏标题 / Workspace Context / footer / 插件内容整体空白。
+// 断言的是「侧栏各区块确实出现在画面上」，而非内部结构，故对两种缺陷都敏感。
 
 const here = import.meta.dir
 const p = (rel: string) => path.resolve(here, rel)
@@ -23,13 +24,10 @@ const theme = {
   border: c("#45475a"), borderActive: c("#89b4fa"), borderSubtle: c("#313244"),
 }
 
-// 先取真身 exports，mock 只覆盖 sidebar 用到的入口；afterAll 恢复注册表，
-// 避免污染同进程其他测试文件（bun test 单进程共享模块注册表）。
 const realTheme = await import("../../context/theme")
 const realProject = await import("../../context/project")
 const realSync = await import("../../context/sync")
 const realConfig = await import("../../config")
-const realRuntime = await import("../../plugin/runtime")
 
 const overrides: [string, () => Record<string, unknown>][] = [
   [p("../../context/theme.tsx"), () => ({ ...realTheme, useTheme: () => ({ theme }) })],
@@ -60,14 +58,11 @@ const overrides: [string, () => Record<string, unknown>][] = [
     }),
   })],
   [p("../../config/index.tsx"), () => ({ ...realConfig, useTuiConfig: () => ({}) })],
-  [p("../../plugin/runtime.tsx"), () => ({
-    ...realRuntime,
-    usePluginRuntime: () => ({ Slot: (props: { children?: unknown }) => props.children as never }),
-  })],
 ]
 for (const [target, factory] of overrides) mock.module(target, factory)
 
 const { Sidebar } = await import("./sidebar")
+const { createPluginRuntime, PluginRuntimeProvider } = await import("../../plugin/runtime")
 
 afterAll(() => {
   const reals: Record<string, Record<string, unknown>> = {
@@ -75,25 +70,55 @@ afterAll(() => {
     [p("../../context/project.tsx")]: realProject,
     [p("../../context/sync.tsx")]: realSync,
     [p("../../config/index.tsx")]: realConfig,
-    [p("../../plugin/runtime.tsx")]: realRuntime,
   }
   for (const [target] of overrides) mock.module(target, () => reals[target])
 })
 
-describe("侧栏工作区信息条", () => {
-  it("挂载不抛错且渲染 Workspace Context 行", async () => {
-    const setup = await testRender(() => <Sidebar sessionID="s1" />, { width: 80, height: 30 })
+describe("侧栏端到端渲染", () => {
+  it("setup 后标题 / Workspace Context / footer 均可见", async () => {
+    const runtime = createPluginRuntime()
+    const setup = await testRender(
+      () => (
+        <PluginRuntimeProvider value={runtime}>
+          <Sidebar sessionID="s1" />
+        </PluginRuntimeProvider>
+      ),
+      { width: 80, height: 30 },
+    )
     await setup.flush()
+
+    // 插件宿主启动（真实链路里的 setupSlots）之前，Slot 下内容不可见
+    runtime.setupSlots({ renderer: setup.renderer, theme } as never)
+    await setup.flush()
+
     const frame = setup.captureCharFrame()
-    expect(frame).toContain("Workspace Context")
+    expect(frame).toContain("会话标题")
     expect(frame).toContain("my-workspace")
+    expect(frame).toContain("Workspace Context")
+    expect(frame).toContain("GYC")
   }, 30_000)
 
-  it("tokens 更新不抛错（流式期间每步重算的路径）", async () => {
-    const setup = await testRender(() => <Sidebar sessionID="s1" />, { width: 80, height: 30 })
+  it("插件注册到 sidebar_content 的内容可见（工作目录/LSP 通路）", async () => {
+    const runtime = createPluginRuntime()
+    const setup = await testRender(
+      () => (
+        <PluginRuntimeProvider value={runtime}>
+          <Sidebar sessionID="s1" />
+        </PluginRuntimeProvider>
+      ),
+      { width: 80, height: 30 },
+    )
     await setup.flush()
-    expect(() => setup.renderOnce()).not.toThrow()
+
+    const slots = runtime.setupSlots({ renderer: setup.renderer, theme } as never)
+    slots.register({
+      id: "test-plugin",
+      slots: {
+        sidebar_content: () => <text>PLUGIN-CONTENT-MARKER</text>,
+      },
+    } as never)
     await setup.flush()
-    expect(setup.captureCharFrame()).toContain("Workspace Context")
+
+    expect(setup.captureCharFrame()).toContain("PLUGIN-CONTENT-MARKER")
   }, 30_000)
 })

@@ -26,7 +26,11 @@ function isHostSlotPlugin(value: unknown): value is HostSlotPlugin<Record<string
 export function createSlots() {
   const empty: SlotView = () => null
   const [view, setView] = createSignal<SlotView>(empty)
-  const Slot: SlotView = (props) => view()(props)
+  // 必须写成 JSX 表达式：solid 的 createComponent 用 untrack 包裹组件体，
+  // 裸写 `return view()(props)` 只在组件体执行时求值一次、不建立订阅，
+  // 于是 setup() 里的 setView 永远不会触发重渲染（表现为侧栏整体空白）。
+  // 放进 JSX 后编译成 render effect，signal 读取进追踪域，setView 即重渲染。
+  const Slot: SlotView = (props) => <>{view()(props)}</>
 
   return {
     Slot,

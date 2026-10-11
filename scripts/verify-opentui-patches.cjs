@@ -72,11 +72,25 @@ for (const name of ["index.bun.js", "index.js"]) {
     results.push({ name: label, ok: false, reason: `找不到 ${name}` });
     continue;
   }
-  const ok = src.includes('join("") === ""');
+  // 判据必须是**新版**结构特征（空串守卫在 orphan 分支内部）。早先用
+  // src.includes('join("") === ""')，新旧版本都含该串——旧版（守卫在父级检查
+  // 之前）会把 <b>/<span> 这类「先插空壳、后挂内容」的内联元素整块跳过，
+  // 会话标题 / footer / 侧栏插件标题全部不显示，却仍被判 OK（2026-10-11 排查）。
+  const APPLIED = `    if (!(parent instanceof TextRenderable2) && !isTextNodeRenderable(parent)) {
+      if (node.toChunks().map((c) => c.text).join("") === "") {`;
+  const LEGACY = `  if (isTextNodeRenderable(node)) {
+    if (node.toChunks().map((c) => c.text).join("") === "") {
+      return;
+    }`;
+  const ok = src.includes(APPLIED);
   results.push({
     name: label,
     ok,
-    reason: ok ? undefined : "空字符串仍会被文本化，条件渲染可抛 Orphan text error",
+    reason: ok
+      ? undefined
+      : src.includes(LEGACY)
+        ? "仍是旧版守卫（空文本在父级检查之前被跳过）——<b>/<span> 等内联元素插入时判空，标题类内容整块丢失"
+        : "空字符串仍会被文本化，条件渲染可抛 Orphan text error",
   });
 }
 
