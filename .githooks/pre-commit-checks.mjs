@@ -65,6 +65,13 @@ const SRC_TS_RE = /^src[/\\].*\.tsx?$/i
  * 超时后 Node 会 SIGTERM 子进程，足够回收；这里不需要更重的信号处理。
  */
 export const SUBPROCESS_TIMEOUT_MS = 120_000
+/**
+ * 类型门禁单独放宽的上限。全仓 tsc --noEmit 实测冷启动约 4 分钟，沿用 120s
+ * 默认值会让该检查在正常工程上必然超时——门禁退化成随机拦截，比不设更糟
+ * （实测：一次提交因它超时被拒，而单独跑 tsc 是 EXIT=0）。
+ * 仍保留有限上限（而非无限）以维持上面「挂死即终止」的保护。
+ */
+export const TSC_SUBPROCESS_TIMEOUT_MS = 420_000
 /** 子进程输出上限，防止 tsc 的海量报错把上下文撑爆（保留尾部，最有信息量的部分）。 */
 const MAX_CAPTURE = 64 * 1024
 
@@ -120,9 +127,15 @@ function runNodeScript(cwd, scriptPath, args) {
 export function runTypecheck(root, project = "tsconfig.json") {
   const local = join(root, "node_modules", "typescript", "bin", "tsc")
   if (existsSync(local)) {
-    return spawnCapped(process.execPath, [local, "--noEmit", "-p", project], { cwd: root })
+    return spawnCapped(process.execPath, [local, "--noEmit", "-p", project], {
+      cwd: root,
+      timeout: TSC_SUBPROCESS_TIMEOUT_MS,
+    })
   }
-  return spawnCapped("bun", ["x", "tsc", "--noEmit", "-p", project], { cwd: root })
+  return spawnCapped("bun", ["x", "tsc", "--noEmit", "-p", project], {
+    cwd: root,
+    timeout: TSC_SUBPROCESS_TIMEOUT_MS,
+  })
 }
 
 const pass = (id, title, files = []) => ({ id, title, status: "pass", files, output: "" })
