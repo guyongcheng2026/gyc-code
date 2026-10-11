@@ -14,6 +14,7 @@ import type { EventSource } from "@gyccode/tui/context/sdk"
 import { writeHeapSnapshot } from "v8"
 import { win32InstallCtrlCGuard } from "@gyccode/tui/terminal-win32"
 import { tuiTiming } from "@gyccode/tui/util/timing"
+import { installTuiErrorAuditSink } from "@gyccode/tui/util/error-audit-sink"
 import { createWorkerPool } from "../tui/worker-pool"
 
 declare global {
@@ -130,6 +131,9 @@ export const TuiThreadCommand = cmd({
       }),
   handler: async (args) => {
     tuiTiming("cmd.tui handler enter")
+    // TUI 进程没有 Database.Service，error_audit 的落库 sink 在 app-runtime 那条
+    // 链上注入、这里拿不到 —— 不补这一步，渲染/运行期错误在表与日志里都不留痕迹。
+    installTuiErrorAuditSink()
     const unguard = win32InstallCtrlCGuard()
     try {
       if (args.fork && !args.continue && !args.session) {

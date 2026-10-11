@@ -92,10 +92,14 @@ export function BgPulse() {
 
   onCleanup(() => {
     if (!active) return
-    // 仅当当前值仍是本组件压低的 12（即未被 session 路由接管）时才恢复原值；
-    // 否则保留路由的新值（如流式 60fps），避免空转或降帧。
+    // targetFps：仅当当前值仍是本组件压低的 12（即未被 session 路由接管）时才恢复原值；
+    // 否则保留路由的新值（如流式 60fps），避免把 60 打回 12 的竞态（P2-1）。
     if (originalFps !== undefined && renderer.targetFps === 12) renderer.targetFps = originalFps
-    if (originalMaxFps !== undefined && renderer.maxFps === 12) renderer.maxFps = originalMaxFps
+    // maxFps：必须无条件恢复。session 路由只接管 targetFps、从不写 maxFps，
+    // 若这里也套用「仍为 12 才恢复」的条件，本组件一旦与路由生命周期交叠（卸载时
+    // maxFps 仍为 12、而 targetFps 已被改成 60），上限就会永久钉在 12 ——
+    // 之后所有流式输出被静默限帧到 12fps，且没有任何显式报错可查。
+    if (originalMaxFps !== undefined) renderer.maxFps = originalMaxFps
   })
 
   if (!kv.get("animations_enabled", false)) return null

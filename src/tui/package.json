@@ -33,6 +33,7 @@
     "./plugin/command-shim": "./plugin/command-shim.ts",
     "./parsers-config": "./parsers-config.ts",
     "./util/error": "./util/error.ts",
+    "./util/error-audit-sink": "./util/error-audit-sink.ts",
     "./util/crash-classify": "./util/crash-classify.ts",
     "./util/timing": "./util/timing.ts",
     "./util/locale": "./util/locale.ts",
