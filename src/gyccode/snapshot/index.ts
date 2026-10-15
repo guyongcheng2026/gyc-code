@@ -308,7 +308,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
           // Remove newly-ignored files from snapshot index to prevent re-adding
           if (ignored.size > 0) {
             const ignoredFiles = Array.from(ignored)
-            yield* Effect.logInfo("removing gitignored files from snapshot", { count: ignoredFiles.length })
+            yield* Effect.logDebug("removing gitignored files from snapshot", { count: ignoredFiles.length })
             yield* drop(ignoredFiles)
           }
 
@@ -360,7 +360,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 })
                 return
               }
-              yield* Effect.logInfo("cleanup", { prune })
+              yield* Effect.logDebug("cleanup", { prune })
             }),
           )
         })
@@ -385,19 +385,19 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 yield* git(["--git-dir", state.gitdir, "config", "index.threads", "true"])
                 yield* git(["--git-dir", state.gitdir, "config", "core.untrackedCache", "true"])
                 yield* seed()
-                yield* Effect.logInfo("initialized")
+                yield* Effect.logDebug("initialized")
               }
               const changed = yield* add()
               // 无变更且索引未被 restore/revert 外部改写时，复用上次 write-tree 结果，
               // 避免每个 step-finish 都重复启动 git write-tree 进程（磁盘 I/O 热点）。
               if (!changed && lastTreeHash) {
-                yield* Effect.logInfo("tracking (unchanged)", { hash: lastTreeHash })
+                yield* Effect.logDebug("tracking (unchanged)", { hash: lastTreeHash })
                 return lastTreeHash
               }
               const result = yield* git(args(["write-tree"]), { cwd: state.directory })
               const hash = result.text.trim()
               lastTreeHash = hash
-              yield* Effect.logInfo("tracking", { hash, cwd: state.directory, git: state.gitdir })
+              yield* Effect.logDebug("tracking", { hash, cwd: state.directory, git: state.gitdir })
               return hash
             }),
           )
@@ -487,7 +487,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
               }
 
               const single = Effect.fnUntraced(function* (op: (typeof ops)[number]) {
-                yield* Effect.logInfo("reverting", { file: op.file, hash: op.hash })
+                yield* Effect.logDebug("reverting", { file: op.file, hash: op.hash })
                 const result = yield* git([...core, ...args(["checkout", op.hash, "--", op.file])], {
                   cwd: state.worktree,
                 })
@@ -496,13 +496,13 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                   cwd: state.worktree,
                 })
                 if (tree.code === 0 && tree.text.trim()) {
-                  yield* Effect.logInfo("file existed in snapshot but checkout failed, keeping", {
+                  yield* Effect.logWarning("file existed in snapshot but checkout failed, keeping", {
                     file: op.file,
                     hash: op.hash,
                   })
                   return
                 }
-                yield* Effect.logInfo("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
+                yield* Effect.logDebug("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
                 yield* remove(op.file)
               })
 
@@ -535,7 +535,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 )
 
                 if (tree.code !== 0) {
-                  yield* Effect.logInfo("batched ls-tree failed, falling back to single-file revert", {
+                  yield* Effect.logDebug("batched ls-tree failed, falling back to single-file revert", {
                     hash: first.hash,
                     files: run.length,
                   })
@@ -555,7 +555,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 )
                 const list = run.filter((item) => have.has(item.rel))
                 if (list.length) {
-                  yield* Effect.logInfo("reverting", { hash: first.hash, files: list.length })
+                  yield* Effect.logDebug("reverting", { hash: first.hash, files: list.length })
                   const result = yield* git(
                     [...core, ...args(["checkout", first.hash, "--", ...list.map((item) => item.file)])],
                     {
@@ -563,7 +563,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                     },
                   )
                   if (result.code !== 0) {
-                    yield* Effect.logInfo("batched checkout failed, falling back to single-file revert", {
+                    yield* Effect.logDebug("batched checkout failed, falling back to single-file revert", {
                       hash: first.hash,
                       files: list.length,
                     })
@@ -577,7 +577,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
 
                 for (const op of run) {
                   if (have.has(op.rel)) continue
-                  yield* Effect.logInfo("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
+                  yield* Effect.logDebug("file did not exist in snapshot, deleting", { file: op.file, hash: op.hash })
                   yield* remove(op.file)
                 }
 
@@ -625,7 +625,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
               }
               const changed = yield* add()
               if (!changed) {
-                yield* Effect.logInfo("commit skipped (no changes)")
+                yield* Effect.logDebug("commit skipped (no changes)")
                 return undefined
               }
               const tree = yield* git(args(["write-tree"]), { cwd: state.worktree })
@@ -703,7 +703,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
               }
               const changed = yield* add()
               if (!changed) {
-                yield* Effect.logInfo("无需回退（工作区无改动）")
+                yield* Effect.logDebug("无需回退（工作区无改动）")
                 return
               }
               // 只改工作区与索引，不动 HEAD、不动任何分支指针
@@ -781,7 +781,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                     { stdin: refs.map((item) => item.ref).join("\n") + "\n" },
                   )
                   if (batch.exitCode !== 0) {
-                    yield* Effect.logInfo(
+                    yield* Effect.logWarning(
                       "git cat-file --batch failed during snapshot diff, falling back to per-file git show",
                       {
                         stderr: batch.stderr.toString("utf8"),

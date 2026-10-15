@@ -22,7 +22,9 @@
     "test:web": "npx vitest run --config src/webapp/vitest.config.ts src/webapp",
     "webapp:build": "node scripts/build-webapp.mjs",
     "prepack": "bun run webapp:build && bun run build",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "health": "node scripts/gyc-health.mjs",
+    "health:full": "node scripts/gyc-health.mjs --tests"
   },
   "dependencies": {
     "@actions/core": "3.0.1",

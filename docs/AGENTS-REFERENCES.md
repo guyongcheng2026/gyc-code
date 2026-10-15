@@ -53,6 +53,17 @@ opentui 0.5.6 原生句柄表上限 65,535（实测第 65,535 次 `createTextBuf
 
 **升级 @opentui 后必做**：patch 锚点按 chunk 内容匹配，chunk 文件名随版本变化。升级后先跑 `node scripts/verify-opentui-patches.cjs`，WARN 即表示锚点已随上游改动失配，需照新原文更新 `scripts/apply-opentui-*.cjs` 的 `*_FROM` 常量（0.5.6→0.5.14 就改了 `sigwinchHandler` 的空值兜底与 `removeListener` 变量名）。
 
+## 数据库结构变更四处同步（漏一处即类型/运行期双错）
+
+给既有表加列/加索引时，**必须同时改四处**，否则要么 `bun run typecheck` 报错、要么运行期建表与迁移产出不一致：
+
+1. DDL 常量文件（如 `src/core/observability/error-audit-table.ts` 的 `*_TABLE_STATEMENT` / `*_INDEXES`）——增量迁移与 `schema.gen.ts` 共用同一份字符串，避免两处手写漂移。
+2. Drizzle 表定义（`src/core/session/sql.ts`）——漏改会在 `.insert(Table).values({...})` 处报「对象字面量含未知属性」的类型错误（2026-10-15 给 error_audit 加 `level` 列时即以 `error-audit.ts(59,9)` 报错暴露）。
+3. 新增增量迁移文件 `src/core/database/migration/<时间戳>_<名>.ts`，并**注册进** `src/core/database/migration.gen.ts` 的 import 列表（漏注册 = 老库永不迁移）。
+4. 若改动回填历史数据，迁移里用 `json_extract` 之类就地搬运，别指望调用方补写。
+
+`schema.gen.ts` 只在**全新建库**时执行；老库靠 `applyOnly` 逐条跑增量迁移（`src/core/database/migration.ts:24,43`）。两者路径都要覆盖到。
+
 ## 排查结论沉淀位置约定
 
 长期排查/审计类只读结论落 `docs/compose/reports/`（含 `file:line` 证据与证据级别标注）；带修复动作的落 `docs/compose/plans/`。两者均只增不删——历史结论不因后续修复而改写，只在新增文档里声明已被推翻。
