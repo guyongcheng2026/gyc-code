@@ -1,7 +1,10 @@
 // GitHub 推送代理：URL 拼装与凭据解析（纯函数，供脚本与单测共用）
 //
-// 背景（2026-10-02 实测）：本机 NO_PROXY 含 github.com，直连被出口策略拒；
+// 背景（2026-10-02 实测，2026-10-15 复核更正）：早前记载「本机 NO_PROXY 含
+// github.com，直连被出口策略拒」已过时——当前 NO_PROXY/HTTP(S)_PROXY 均为空，
+// 直连与代理两条通道都**间歇**可用（各自都会偶发 Connection was reset）。
 // 两个 URL-prefix 型代理中 ghfast.top 读写皆通，gh-proxy.com 仅 fetch 可用。
+// 调用方 scripts/push-gh-proxy.mjs 已在代理失败时回落直连，两条通道互为备份。
 // 唯一实测可用的推送方式是「凭据 URL 内嵌」——GIT_ASKPASS 与 http.extraHeader
 // 对嵌套 URL 不生效，git 会退化为匿名请求（No anonymous write access）。
 //

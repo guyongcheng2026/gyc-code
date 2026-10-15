@@ -74,7 +74,7 @@
 
 - **含中文的文件一律用 Edit/Write 工具改，禁用 `Get-Content`+`Set-Content` 批量改写**：PowerShell 会按 GBK 误解码中文并吞行尾字节，实测在 `src/tui/routes/session/index.tsx` 上产生数十个 `TS1002`，需 `git checkout --` 回滚重做。
 - 终端回显中文乱码通常是控制台码页问题，**不代表文件损坏**；判断依据是 `git diff` 能否正常解析。
-- 本机设了 `NO_PROXY=github.com,*.github.com`，curl 直连 GitHub 会被出口拒（403 而非超时）；**这是环境问题，不能据此判定凭据失效**——git 走代理通道时认证正常。
+- **GitHub 直连与代理两条通道都间歇可用**（2026-10-15 复核：此前「设了 `NO_PROXY=github.com,*.github.com`、直连被拒」的说法已过时，现两级 `NO_PROXY` 均为空）：各自都会偶发 `Connection was reset` / `Failed to connect ... 21s`。**这是环境问题，不能据此判定凭据失效**。推送已由 `scripts/push-gh-proxy.mjs` 做通道回落（代理失败自动改走直连），无需人工干预。
 - 每次 shell 调用是独立进程，环境变量不跨调用；设了 `$env:X` 后必须**在同一条命令内**用掉。
 
 ## 操作手册同步（对外可见功能面）

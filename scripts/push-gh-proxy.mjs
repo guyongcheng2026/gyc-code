@@ -98,7 +98,23 @@ try {
 }
 try {
   git(["-c", "credential.helper=", "push", remote, `HEAD:${currentBranch}`])
+  // 经「裸 URL」（非具名 remote）推送不会更新本地 refs/remotes/origin/<branch> 追踪引用
+  // （2026-10-15 本地裸仓库实测确认），git status 会误报 ahead ——即便远端其实已经收到。
+  // 同步一次追踪引用，让「本地=远程」可由 git status / rev-parse origin/<branch> 直接观察。
+  try {
+    git(["update-ref", `refs/remotes/origin/${currentBranch}`, "HEAD"])
+  } catch {
+    // 追踪引用同步失败不影响推送结果本身，忽略
+  }
   process.stderr.write(`[push-proxy] 经 ${proxy} 推送 ${currentBranch} 成功\n`)
 } catch (e) {
-  fail(`经 ${proxy} 推送失败`, e.stderr || e.message)
+  // 代理通道偶发「Recv failure: Connection was reset」（2026-10-15 实测）；本机直连
+  // github.com 现已可用（旧文档「直连被 403 拒」已过时）。代理失败时回落一次直连：
+  // 走具名 remote origin，既完成推送也顺带更新追踪引用。两条通道互为备份。
+  try {
+    git(["push", "--quiet", "origin", `HEAD:${currentBranch}`])
+    process.stderr.write(`[push-proxy] 经 ${proxy} 失败，已回落直连推送 ${currentBranch} 成功\n`)
+  } catch (e2) {
+    fail(`经 ${proxy} 与直连均推送失败`, e2.stderr || e2.message || e.stderr || e.message)
+  }
 }

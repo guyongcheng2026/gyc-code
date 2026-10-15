@@ -12,9 +12,11 @@
 
 ## 直连 github.com 超时的代理两步走（fetch / push 均适用）
 
-本机 `NO_PROXY` 含 `github.com,*.github.com`，curl 直连 api.github.com 会被出口策略拒（**403 而非超时**）——这是网络环境问题，**不要据此判定凭据失效**。git 走代理通道时认证头转发正常。
+**2026-10-15 复核更正**：早前「本机 `NO_PROXY` 含 `github.com,*.github.com`、直连被出口策略拒」的记载**已过时**——当前 `NO_PROXY` 在 User/Machine 两级均为空，`HTTP(S)_PROXY` 也未设。实测直连 github.com **间歇可用**（`ls-remote` 一次 3.8s 成功，紧接着多次 `Connection was reset` / `Failed to connect ... 21s` 失败），代理通道 `ghfast.top` 同样间歇失败。**两条通道都不可靠**，不要把任何一条当作必然可用；失败多为网络环境问题，**不要据此判定凭据失效**。
 
 **两个代理的实测可用性（2026-10-02）**：`ghfast.top` fetch/push 均通；`gh-proxy.com` fetch 通但 push 报 `No anonymous write access`。**优先用 `ghfast.top`**（即本机 `GH_PROXY` 环境变量指向的那个），`gh-proxy.com` 仅作 fetch 备选。
+
+- **推送已带通道回落**（`scripts/push-gh-proxy.mjs`）：代理推送失败时自动回落一次 `git push origin HEAD:<branch>`（具名 remote，顺带更新追踪引用）；两条都失败才报错。另：经**裸 URL** 推送**不会**更新本地 `refs/remotes/origin/<branch>` 追踪引用（2026-10-15 本地裸仓库实测确认），脚本已在推送成功后 `update-ref` 同步，故 `git status` 的 `[ahead N]` 现在可信。
 
 - 拉取：`git fetch https://ghfast.top/https://github.com/guyongcheng2026/gyc-code.git main:refs/remotes/origin/main` 后 `git merge --ff-only origin`（带镜像 URL 直接 pull 会报 Cannot fast-forward to multiple branches）。
 - 推送：**凭据 URL 内嵌是最省事且实测可用的一条**——`git credential fill`（host=github.com）取出 user/token，各自 `EscapeDataString` 后拼进代理 URL，加 `-c credential.helper=` 清空默认辅助器（2026-10-02 实测 `284f704..a20f0b1` 一次成功）。口令只在本条命令的进程内出现，不落盘；回显前务必过滤。
