@@ -530,9 +530,16 @@ const layer = Layer.effect(
         GYCCODE_AUTH_CONTENT: JSON.stringify(yield* auth.all()),
         GYCCODE_WORKSPACE_ID: config.id,
         GYCCODE_EXPERIMENTAL_WORKSPACES: "true",
-        OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS,
-        OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
-        OTEL_RESOURCE_ATTRIBUTES: process.env.OTEL_RESOURCE_ATTRIBUTES,
+        // 仅显式允许的环境变量透传给子进程，防止敏感信息泄露
+        ...(process.env.OTEL_EXPORTER_OTLP_HEADERS
+          ? { OTEL_EXPORTER_OTLP_HEADERS: process.env.OTEL_EXPORTER_OTLP_HEADERS }
+          : {}),
+        ...(process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+          ? { OTEL_EXPORTER_OTLP_ENDPOINT: process.env.OTEL_EXPORTER_OTLP_ENDPOINT }
+          : {}),
+        ...(process.env.OTEL_RESOURCE_ATTRIBUTES
+          ? { OTEL_RESOURCE_ATTRIBUTES: process.env.OTEL_RESOURCE_ATTRIBUTES }
+          : {}),
       }
 
       yield* WorkspaceAdapterRuntime.create(adapter, config, env)

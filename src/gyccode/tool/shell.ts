@@ -625,6 +625,54 @@ export const ShellTool = Tool.define(
       return scan
     })
 
+    // 敏感环境变量黑名单：禁止透传给子进程
+    const SENSITIVE_ENV_KEYS = new Set([
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SESSION_TOKEN",
+      "GITHUB_TOKEN",
+      "GH_TOKEN",
+      "NPM_TOKEN",
+      "NPM_AUTH_TOKEN",
+      "DOCKER_AUTH_CONFIG",
+      "KUBECONFIG",
+      "SSH_AUTH_SOCK",
+      "SSH_AGENT_PID",
+      "GPG_AGENT_INFO",
+      "PASSWORD",
+      "SECRET",
+      "TOKEN",
+      "API_KEY",
+      "API_SECRET",
+      "PRIVATE_KEY",
+      "AUTH_TOKEN",
+      "ACCESS_TOKEN",
+      "REFRESH_TOKEN",
+      "JWT_SECRET",
+      "ENCRYPTION_KEY",
+      "DATABASE_URL",
+      "REDIS_URL",
+      "MONGODB_URI",
+    ])
+
+    const filterEnv = (env: NodeJS.ProcessEnv): NodeJS.ProcessEnv => {
+      const out: NodeJS.ProcessEnv = {}
+      for (const [key, value] of Object.entries(env)) {
+        if (value === undefined) continue
+        const upper = key.toUpperCase()
+        if (SENSITIVE_ENV_KEYS.has(upper)) continue
+        if (
+          upper.includes("SECRET") ||
+          upper.includes("TOKEN") ||
+          upper.includes("PASSWORD") ||
+          upper.includes("API_KEY")
+        )
+          continue
+        out[key] = value
+      }
+      return out
+    }
+
     const shellEnv = Effect.fn("ShellTool.shellEnv")(function* (ctx: Tool.Context, cwd: string) {
       const extra = yield* plugin.trigger(
         "shell.env",
@@ -632,7 +680,7 @@ export const ShellTool = Tool.define(
         { env: {} },
       )
       return {
-        ...process.env,
+        ...filterEnv(process.env),
         ...extra.env,
       }
     })
@@ -786,7 +834,20 @@ export const ShellTool = Tool.define(
             )
             // 等待进程真正退出：scoped 释放后就没有人再等它了，若 3 秒宽限内
             // 没死，detached 的子进程（及其孙进程）会变成孤儿继续读写工作区。
-            yield* handle.exitCode.pipe(Effect.timeout("5 seconds"), Effect.ignore)
+            // 5 秒仍未退出时记录错误并做最后一次强制清理，避免静默丢句柄。
+            const exited = yield* handle.exitCode.pipe(
+              Effect.timeout("5 seconds"),
+              Effect.as(true),
+              Effect.catchCause(() => Effect.succeed(false)),
+            )
+            if (!exited) {
+              yield* Effect.logError("shell process did not exit after kill, attempting force cleanup", {
+                command: input.command,
+                shell: input.shell,
+              })
+              yield* handle.kill({ forceKillAfter: "0 seconds" }).pipe(Effect.ignore)
+              yield* handle.exitCode.pipe(Effect.timeout("2 seconds"), Effect.ignore)
+            }
           }
 
           return exit.kind === "exit" ? exit.code : null
@@ -937,6 +998,7 @@ export const ShellTool = Tool.define(
                 }
               }
 
+              // 捕获所有错误，确保 execute 的 E 通道为 never
               const result = yield* run(
                 {
                   shell,
