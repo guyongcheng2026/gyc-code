@@ -16,19 +16,10 @@ const format = (error: unknown): string =>
   error instanceof Error ? (error.stack ?? error.message) : String(error)
 
 /**
- * 级别标记的字段名。
+ * 级别标记的字段名（保留常量用于兼容性）。
  *
- * 为什么寄生在 fields 里：`error_audit` 表只有 id / session_id / scope / message /
- * fields / time_created，没有 severity/level 列。加一列要同时动
- * error-audit-table.ts 的 DDL、增量迁移与 schema.gen.ts，还要回填历史数据，超出本轮
- * 范围。`fields` 是已有的 JSON 列，拿它承载级别是零 schema 改动的唯一干净做法。
- *
- * 取值约定：`logError` 不写这个键（落库内容与改动前逐字节一致），`logWarn` 恒定写
- * `level: "warn"`。于是「查全部告警」= `fields.level = 'warn'`，
- * 「`fields.level IS NULL`」= 改动前的错误记录，两类都不漏、也不会互相误判。
- *
- * 将来若要按级别做高频筛选或独立索引，应新建一列 `level` 并补一次增量迁移
- * （把现有 fields.level 回填进去），而不是继续在 JSON 里挖。
+ * error_audit 表现在已有专用 `level` 列（'error' | 'warn' | 'info'），
+ * 不再需要寄生在 fields 里。保留此常量供旧代码引用。
  */
 const LEVEL_FIELD = "level"
 
@@ -51,11 +42,11 @@ export function logError(scope: string, error: unknown, fields?: Record<string, 
   if (fields && Object.keys(fields).length > 0) {
     console.error(`[${scope}] ${format(error)}`, fields)
     // 控制台输出照旧；落库是可选增强，未注入 sink 时这里什么都不做。
-    dispatchErrorAudit({ scope, message: format(error), sessionID: extractSessionID(fields), fields })
+    dispatchErrorAudit({ scope, message: format(error), sessionID: extractSessionID(fields), fields, level: "error" })
     return
   }
   console.error(`[${scope}] ${format(error)}`)
-  dispatchErrorAudit({ scope, message: format(error) })
+  dispatchErrorAudit({ scope, message: format(error), level: "error" })
 }
 
 /**
@@ -79,11 +70,12 @@ export function logWarn(scope: string, message: string, fields?: Record<string, 
     console.warn(`[${scope}] ${message}`)
   }
   // 复制一份而不是就地改调用方传进来的 fields：同一对象可能还被别处复用。
-  // level 放在展开之后，保证调用点自己传的 level 不会盖掉真实级别。
+  // level 作为单独字段传递，不再寄生在 fields 里。
   dispatchErrorAudit({
     scope,
     message,
     sessionID: extractSessionID(fields),
-    fields: { ...fields, [LEVEL_FIELD]: "warn" },
+    fields,
+    level: "warn",
   })
 }

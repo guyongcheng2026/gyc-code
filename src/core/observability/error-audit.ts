@@ -22,6 +22,8 @@ export interface ErrorAuditRecord {
   message: string
   /** 可空：进程级错误（CLI 启动、配置加载）没有会话。 */
   sessionID?: SessionSchema.ID | undefined
+  /** 错误级别：'error' | 'warn' | 'info' */
+  level?: "error" | "warn" | "info" | undefined
   fields?: Record<string, unknown> | undefined
 }
 
@@ -58,6 +60,7 @@ export const writeErrorAudit = (record: ErrorAuditRecord) =>
         session_id: record.sessionID ?? null,
         scope: record.scope,
         message: record.message,
+        level: record.level ?? "error",
         fields: encodeFields(record.fields) ?? null,
       })
       .run()

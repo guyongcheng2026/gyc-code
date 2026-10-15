@@ -255,12 +255,14 @@ export const ErrorAuditTable = sqliteTable(
     session_id: text().$type<SessionSchema.ID>(),
     scope: text().notNull(),
     message: text().notNull(),
+    level: text().notNull().$default(() => "error"),
     fields: text({ mode: "json" }).$type<Record<string, unknown>>(),
     time_created: integer().notNull().$default(() => Date.now()),
   },
   (table) => [
     index("idx_error_audit_scope_time").on(table.scope, table.time_created),
     index("idx_error_audit_session_time").on(table.session_id, table.time_created),
+    index("idx_error_audit_level_time").on(table.level, table.time_created),
   ],
 )
 

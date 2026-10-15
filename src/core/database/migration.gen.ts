@@ -47,5 +47,6 @@ export const migrations = (
     import("./migration/20261001000002_task_start_cost"),
     import("./migration/20261001000003_permission_denials"),
     import("./migration/20261001000004_error_audit"),
+    import("./migration/20261013000000_error_audit_add_level"),
   ])
 ).map((module) => module.default) satisfies DatabaseMigration.Migration[]

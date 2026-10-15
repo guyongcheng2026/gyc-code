@@ -44,6 +44,8 @@ describe("error_audit · 落库映射", () => {
     expect(inserted[0]!.session_id as string).toBe("ses_test123")
     expect(inserted[0]!.fields).toMatchObject({ attempt: 3, model: "space-bunny-free" })
     expect(inserted[0]!.time_created).toBeGreaterThan(0)
+    // 未显式传 level 时默认落 'error'
+    expect(inserted[0]!.level).toBe("error")
   })
 
   it("没有会话的进程级错误照常写入，session_id 落 NULL", () => {
@@ -166,8 +168,7 @@ describe("error_audit · logError 接线", () => {
 /**
  * R-4：logWarn 此前只 console.warn、完全不落库，进程一关就没法回答「昨晚那批降级/重试
  * 到底发生在哪些 scope」。这里锁定它与 logError 一样投递 error_audit，并且靠
- * `fields.level` 区分级别——error_audit 表没有 severity 列，加列要动 DDL + 增量迁移
- * + schema.gen.ts，超出本轮范围。
+ * 专用 `level` 列区分级别（error_audit 表已新增 level 列 + 增量迁移 + 索引）。
  */
 describe("error_audit · logWarn 接线（R-4）", () => {
   /** dispatch 走 queueMicrotask，等一拍让它落地 */
@@ -193,9 +194,10 @@ describe("error_audit · logWarn 接线（R-4）", () => {
     setErrorAuditSink(undefined)
 
     expect(received).toHaveLength(1)
-    expect(received[0]).toMatchObject({ scope: "cli.db.cache", message: "检测到前缀部分漂移" })
-    // error_audit 无 severity 列，级别只能落在 fields.level
-    expect(received[0]!.fields).toMatchObject({ level: "warn", prefix: "ses" })
+    expect(received[0]).toMatchObject({ scope: "cli.db.cache", message: "检测到前缀部分漂移", level: "warn" })
+    // level 现在落在专用列，不再寄生在 fields 里
+    expect(received[0]!.fields).toMatchObject({ prefix: "ses" })
+    expect(received[0]!.fields).not.toHaveProperty("level")
   })
 
   it("不带 fields 的 logWarn 同样落库，不丢记录（级别标记仍要带上）", async () => {
@@ -207,9 +209,9 @@ describe("error_audit · logWarn 接线（R-4）", () => {
     setErrorAuditSink(undefined)
 
     expect(received).toHaveLength(1)
-    expect(received[0]).toMatchObject({ scope: "cli.tui", message: "警告：已禁用所有权限检查" })
-    // 无 fields 时也必须带级别标记，否则这条记录无法与 error 区分开
-    expect(received[0]!.fields).toMatchObject({ level: "warn" })
+    expect(received[0]).toMatchObject({ scope: "cli.tui", message: "警告：已禁用所有权限检查", level: "warn" })
+    // 无 fields 时也带级别标记（在专用 level 列），否则这条记录无法与 error 区分开
+    expect(received[0]!.fields).toBeUndefined()
     expect(received[0]!.sessionID).toBeUndefined()
   })
 
@@ -224,8 +226,9 @@ describe("error_audit · logWarn 接线（R-4）", () => {
     setErrorAuditSink(undefined)
 
     expect(received).toHaveLength(1)
-    expect(received[0]).toMatchObject({ sessionID: "ses_warn1" })
-    expect(received[0]!.fields).toMatchObject({ level: "warn", "session.id": "ses_warn1", retry: 2 })
+    expect(received[0]).toMatchObject({ sessionID: "ses_warn1", level: "warn" })
+    expect(received[0]!.fields).toMatchObject({ "session.id": "ses_warn1", retry: 2 })
+    expect(received[0]!.fields).not.toHaveProperty("level")
   })
 
   it("未注册 sink 时 logWarn 不抛异常，控制台输出形态与改动前一致", () => {
@@ -288,8 +291,10 @@ describe("error_audit · logWarn 接线（R-4）", () => {
     expect(inserted).toHaveLength(2)
     const warnRow = inserted.find((r) => r.scope === "cli.run")!
     const errorRow = inserted.find((r) => r.scope === "provider/openai")!
-    expect(warnRow.fields).toMatchObject({ level: "warn", flag: "skip" })
-    // logError 的落库内容与改动前一致（不带 level 键），两类不会互相误判
+    // 两类记录靠专用 level 列区分，无需再解析 fields
+    expect(warnRow.level).toBe("warn")
+    expect(warnRow.fields).toMatchObject({ flag: "skip" })
+    expect(errorRow.level).toBe("error")
     expect(errorRow.fields).toMatchObject({ attempt: 2 })
     expect(errorRow.fields).not.toHaveProperty("level")
   })
@@ -299,6 +304,15 @@ describe("error_audit · 表结构与索引", () => {
   it("迁移在内存库上可完整执行（建表 + 索引）", () => {
     const migration = require("../database/migration/20261001000004_error_audit").default
     expect(migration.id).toBe("20261001000004_error_audit")
+  })
+
+  it("level 列增量迁移已注册且与 DDL 一致", async () => {
+    const migration = require("../database/migration/20261013000000_error_audit_add_level").default
+    expect(migration.id).toBe("20261013000000_error_audit_add_level")
+    const table = await import("./error-audit-table")
+    // 新库 DDL 直接含 level 列 + level 索引
+    expect(table.ERROR_AUDIT_TABLE_STATEMENT).toContain("`level` text NOT NULL DEFAULT 'error'")
+    expect(table.ERROR_AUDIT_INDEXES.some((i) => i.includes("idx_error_audit_level_time"))).toBe(true)
   })
 
   it("新库 schema 与增量迁移产出同一张表", async () => {

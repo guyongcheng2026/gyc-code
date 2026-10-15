@@ -14,6 +14,7 @@ export const ERROR_AUDIT_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS \`error_a
   \`session_id\` text,
   \`scope\` text NOT NULL,
   \`message\` text NOT NULL,
+  \`level\` text NOT NULL DEFAULT 'error',
   \`fields\` text,
   \`time_created\` integer NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
 )`
@@ -21,4 +22,5 @@ export const ERROR_AUDIT_TABLE_STATEMENT = `CREATE TABLE IF NOT EXISTS \`error_a
 export const ERROR_AUDIT_INDEXES = [
   "CREATE INDEX IF NOT EXISTS `idx_error_audit_scope_time` ON `error_audit` (`scope`, `time_created`)",
   "CREATE INDEX IF NOT EXISTS `idx_error_audit_session_time` ON `error_audit` (`session_id`, `time_created`)",
+  "CREATE INDEX IF NOT EXISTS `idx_error_audit_level_time` ON `error_audit` (`level`, `time_created`)",
 ]
