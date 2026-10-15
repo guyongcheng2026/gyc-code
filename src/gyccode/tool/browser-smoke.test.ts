@@ -1,11 +1,15 @@
 // 真实渲染冒烟：拉起本机浏览器走 CDP 截一张图。
 // 只有在浏览器存在时才跑；不存在则跳过，不把「没装浏览器」记成失败。
-import { test, expect } from "bun:test";
+import { test, expect, setDefaultTimeout } from "bun:test";
 import { mkdtempSync } from "fs";
 import os from "os";
 import { spawn } from "child_process";
 import path from "path";
 import { Browser } from "./browser";
+
+// 真实 CDP 截图：本机实测约 20s（冷启动浏览器 + 渲染 + 落盘），远超 bun 默认 5s。
+// 显式放宽，否则「渲染慢」会被误记成「渲染错」。
+setDefaultTimeout(60_000);
 
 // locate 返回 string | undefined；skipIf 只跳过、不收窄类型，这里显式兜一层非空断言
 const executable = Browser.locate(undefined, Browser.candidates())!;

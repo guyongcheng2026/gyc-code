@@ -1,8 +1,26 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, test, setDefaultTimeout } from "bun:test"
 import { mkdtemp, mkdir, writeFile, readFile, rm, copyFile } from "node:fs/promises"
 import { existsSync, readFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import path from "node:path"
+
+// 真跑 git 的用例在冷启动/并发读写下会超过 bun 默认 5s；显式放宽，避免把「慢」记成「错」。
+setDefaultTimeout(30_000)
+
+/**
+ * git 可用性探测：本机 Git 安装损坏时（例如 libexec 缺失导致加载期
+ * 0xC0000135 / 0xC0000005），这些真跑 git 的用例会以「断言失败」的形态误报。
+ * 与 browser-smoke 同一策略：依赖不可用即跳过，不把环境故障记成产品缺陷。
+ * 代价：同 describe 下不依赖 git 的接线回归用例也会一并跳过（宁可少跑，不可误报）。
+ */
+const gitWorks = (() => {
+  try {
+    return spawnSync("git", ["--version"], { windowsHide: true }).status === 0
+  } catch {
+    return false
+  }
+})()
 
 /**
  * 本测试在 mkdtemp 临时目录里真跑 git，完整复刻 src/gyccode/snapshot/index.ts 中
@@ -169,7 +187,7 @@ async function createShadowRepo() {
   return { root, worktree, gitdir, alternatesFile, track, commit, history, revertToCommit, cleanup }
 }
 
-describe("snapshot 任务结束自动快照（真跑 git）", () => {
+describe.skipIf(!gitWorks)("snapshot 任务结束自动快照（真跑 git）", () => {
   test("写入并 track 后 commit 返回真实 hash，history 能列出该 hash 与 message", async () => {
     const repo = await createShadowRepo()
     try {

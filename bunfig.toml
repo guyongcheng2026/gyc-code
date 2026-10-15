@@ -2,6 +2,12 @@
 [test]
 # webapp 测试由其自带的 vitest（jsdom 环境）负责，bun test 不扫（无 DOM 环境会误报失败）。
 # 运行 webapp 测试：cd src/webapp && bun run test
+# 注意：本节的 exclude 实测对「自动发现」不生效 —— bun 1.3.14 下裸 `bun test` 仍会
+# 扫入 src/webapp/src/app/*.test.tsx，因缺 jsdom 报出 18 个假失败（document is not
+# defined / vi.hoisted is not a function）。改成 "src/webapp/**" 同样无效。
+# 真正生效的是 package.json 里 test 脚本的 --path-ignore-patterns=src/webapp。
+# 结论：裸 `bun test` 属非标准调用，跑全仓请用 `bun run test`；webapp 用例用
+# `bun run test:web`（vitest + jsdom）。此处保留原值仅供语义参考。
 exclude = ["src/webapp", "node_modules", "dist", "web-test*.log"]
 # src/tui/fallback 下的 .tsx 必须经 bun-solid-plugin 分流到 #fallback-solid 才能保住响应式。
 # 不带 preload 时 bun 原生 JSX 运行时会在转译期把 {signal()} 求值成静态值，
