@@ -231,20 +231,20 @@ cd C:\gyc-code ; git add src/core/observability/audit-logger.test.ts src/core/ob
 | compaction.ts:539/552/616/656/790/984 | 压缩会话级事件 ×6 | 保留 | 压缩本身低频 |
 | config/config.ts:251 | loading | → logDebug | 启动成功类，照 snapshot initialized 先例 |
 
-- [ ] **Step 1: 按决策表逐处修改**（仅改 `Effect.logInfo` → `Effect.logDebug` / `Effect.logWarning`，消息与字段不动，纯级别改动）
-- [ ] **Step 2: grep 验证计数**
+- [x] **Step 1: 按决策表逐处修改**（仅改 `Effect.logInfo` → `Effect.logDebug` / `Effect.logWarning`，消息与字段不动，纯级别改动）
+- [x] **Step 2: grep 验证计数**
 
 ```powershell
 cd C:\gyc-code ; rg -c "Effect\.logInfo" src/gyccode/session/prompt.ts src/gyccode/session/compaction.ts src/gyccode/config/config.ts
 ```
 Expected: prompt.ts 10、compaction.ts 6、config.ts 0（14-4、9-3、1-1）。
 
-- [ ] **Step 3: typecheck + 定向测试**
+- [x] **Step 3: typecheck + 定向测试**
 
 Run: `bun run typecheck ; bun test src/gyccode/session src/gyccode/config`
 Expected: 0 error；session/config 测试 pass（纯级别改动不应破坏任何断言；若有测试断言日志级别，按新级别修正测试）。
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add src/gyccode/session/prompt.ts src/gyccode/session/compaction.ts src/gyccode/config/config.ts ; git commit -m "chore(logs): 热路径 INFO 降噪收尾（prompt/compaction/config，共 24 处）"

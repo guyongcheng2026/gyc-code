@@ -248,7 +248,7 @@ const layer = Layer.effect(
     })
 
     const loadFile = Effect.fnUntraced(function* (filepath: string, env?: Record<string, string>) {
-      yield* Effect.logInfo("loading", { path: filepath })
+      yield* Effect.logDebug("loading", { path: filepath })
       const text = yield* readConfigFile(filepath)
       if (!text) return {} as Info
       return yield* loadConfig(text, { path: filepath }, env)

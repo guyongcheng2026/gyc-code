@@ -670,7 +670,7 @@ const layer = Layer.effect(
     const prune = Effect.fn("SessionCompaction.prune")(function* (input: { sessionID: SessionID }) {
       const cfg = yield* config.get()
       if (!cfg.compaction?.prune) return
-      yield* Effect.logInfo("pruning")
+      yield* Effect.logDebug("pruning")
 
       const msgs = yield* session
         .messages({ sessionID: input.sessionID })
@@ -703,7 +703,7 @@ const layer = Layer.effect(
         }
       }
 
-      yield* Effect.logInfo("found", { pruned, total })
+      yield* Effect.logDebug("found", { pruned, total })
       if (pruned > PRUNE_MINIMUM) {
         for (const part of toPrune) {
           if (part.state.status === "completed") {
@@ -711,7 +711,7 @@ const layer = Layer.effect(
             yield* session.updatePart(part)
           }
         }
-        yield* Effect.logInfo("pruned", { count: toPrune.length })
+        yield* Effect.logDebug("pruned", { count: toPrune.length })
       }
     })
 

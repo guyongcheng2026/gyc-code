@@ -844,7 +844,7 @@ const layer = Layer.effect(
         if (part.type === "file") {
           if (part.source?.type === "resource") {
             const { clientName, uri } = part.source
-            yield* Effect.logInfo("mcp resource", { clientName, uri, mime: part.mime })
+            yield* Effect.logDebug("mcp resource", { clientName, uri, mime: part.mime })
             const pieces: Draft<SessionV1.Part>[] = [
               {
                 messageID: info.id,
@@ -948,7 +948,7 @@ const layer = Layer.effect(
               }
               break
             case "file:": {
-              yield* Effect.logInfo("file", { mime: part.mime })
+              yield* Effect.logDebug("file", { mime: part.mime })
               const filepath = fileURLToPath(part.url)
               const mime = (yield* fsys.isDir(filepath)) ? "application/x-directory" : part.mime
 
@@ -1256,7 +1256,7 @@ const layer = Layer.effect(
 
         while (true) {
           yield* status.set(sessionID, { type: "busy" })
-          yield* Effect.logInfo("loop", { "session.id": sessionID, step })
+          yield* Effect.logDebug("loop", { "session.id": sessionID, step })
 
           let msgs = yield* MessageV2.filterCompactedEffect(sessionID).pipe(
             Effect.provideService(Database.Service, database),
@@ -1303,7 +1303,7 @@ const layer = Layer.effect(
                 escalateModel ?? { limit: { output: Number.POSITIVE_INFINITY } },
                 cfgInfo.llm?.escalate_output_token_max,
               )
-              yield* Effect.logInfo("output token limit hit, escalating output cap", {
+              yield* Effect.logWarning("output token limit hit, escalating output cap", {
                 "session.id": sessionID,
                 messageID: lastAssistant.id,
                 cap: escalatedOutputMax,
@@ -1311,7 +1311,7 @@ const layer = Layer.effect(
               continue
             }
             resumes += 1
-            yield* Effect.logInfo("output token limit hit, resuming", {
+            yield* Effect.logWarning("output token limit hit, resuming", {
               "session.id": sessionID,
               messageID: lastAssistant.id,
               resume: resumes,
