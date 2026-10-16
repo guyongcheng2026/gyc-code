@@ -1,8 +1,10 @@
-import { Formatter, Logger, type LogLevel } from "effect"
+import { Cause, Formatter, Logger, type LogLevel } from "effect"
 import path from "path"
 import { appendFile, rename, stat } from "fs/promises"
 import { Global } from "../global"
 import { runID } from "./shared"
+import { dispatchErrorAudit, type ErrorAuditRecord } from "./error-audit"
+import { extractSessionID } from "./log-error"
 
 // Cap the on-disk log so a long-running (24h+) session cannot grow it without
 // bound. The newest log is always "gyccode.log"; when it exceeds the cap it is
@@ -178,6 +180,51 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
 
 const stderrLogger = Logger.make((options) => process.stderr.write(formatter().log(options) + "\n"))
 
+// auditLogger：把 Effect 通道（Effect.logError/logWarning）的 Error/Warning 映射进
+// error_audit 落库旁路。此前只有 logError/logWarn 帮助函数（log-error.ts）落库，
+// Effect 框架通道 32 文件 85 处调用点是观测盲区。
+// 只映射 Error/Warning 两级：writeErrorAudit 失败走 logDebug（error-audit.ts:71），
+// Debug 不进本 logger，故无递归；Info 热路径日志同样被此过滤挡在库外。
+//
+// effect 4.0 的 `Effect.logError("msg", { field })` 第二参数是 message 数组的后续
+// 元素（见 Logger.formatStructured 的 Array.ensure(message)），Fiber 级 CurrentLogAnnotations
+// 在 Logger.make 的 Options 里拿不到——所以附加字段从 message 数组提取。
+export function toAuditRecord(options: {
+  logLevel: string
+  message: unknown
+  cause: unknown
+}): ErrorAuditRecord | undefined {
+  if (options.logLevel !== "Error" && options.logLevel !== "Warning") return undefined
+  const parts = Array.isArray(options.message) ? options.message : [options.message]
+  const [head, ...rest] = parts
+  let message = typeof head === "string" ? head : JSON.stringify(head)
+  // 空 Cause（reasons 空）不拼接；照 Logger.formatStructured 的判断（dist/Logger.js:523）。
+  if (options.cause !== undefined && (options.cause as { reasons?: unknown[] }).reasons?.length) {
+    message += ` :: ${Cause.pretty(options.cause as Cause.Cause<unknown>)}`
+  }
+  const restObjects = rest.filter(
+    (part): part is Record<string, unknown> => typeof part === "object" && part !== null,
+  )
+  const fields = restObjects.length > 0 ? Object.assign({}, ...restObjects) : {}
+  return {
+    scope: "effect.log",
+    message,
+    level: options.logLevel === "Error" ? "error" : "warn",
+    sessionID: extractSessionID(fields),
+    fields,
+  }
+}
+
+export const auditLogger = Logger.make((options) => {
+  const record = toAuditRecord({
+    logLevel: options.logLevel,
+    message: options.message,
+    cause: options.cause,
+  })
+  if (!record) return
+  dispatchErrorAudit(record)
+})
+
 export function minimumLogLevel() {
   const value = process.env.GYCCODE_LOG_LEVEL?.toUpperCase()
   const levels = {
@@ -190,7 +237,8 @@ export function minimumLogLevel() {
 }
 
 export function loggers() {
-  return process.env.GYCCODE_PRINT_LOGS === "1" ? [fileLogger(), stderrLogger] : [fileLogger()]
+  const base = [fileLogger(), auditLogger]
+  return process.env.GYCCODE_PRINT_LOGS === "1" ? [...base, stderrLogger] : base
 }
 
 export * as Logging from "./logging"

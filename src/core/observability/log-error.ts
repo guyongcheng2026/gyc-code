@@ -28,7 +28,7 @@ const LEVEL_FIELD = "level"
  * 会话上下文，所以这里是可选提取而不是新增必填参数——不想改 140 个调用点。
  * 新增调用点请带 `"session.id"`（与 Effect 日志的字段约定一致）。
  */
-function extractSessionID(fields: Record<string, unknown> | undefined): SessionID | undefined {
+export function extractSessionID(fields: Record<string, unknown> | undefined): SessionID | undefined {
   if (!fields) return undefined
   const value = fields["session.id"] ?? fields.sessionID ?? fields.session_id
   if (typeof value !== "string" || value.length === 0) return undefined
