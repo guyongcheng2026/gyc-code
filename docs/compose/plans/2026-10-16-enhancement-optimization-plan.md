@@ -258,7 +258,7 @@ git add src/gyccode/session/prompt.ts src/gyccode/session/compaction.ts src/gycc
 
 **根因：** `gitWorks`（task-auto-commit.test.ts:17-23）只测 `git --version`（快）；真跑用例每用例 createShadowRepo() 重建影子仓库（git init ×2 + config ×N），本机 git init 1.5s/次 → 30s 必超。探测语义应与 :11-15 注释一致：**慢也算不可用**。
 
-- [ ] **Step 1: 修改探测（task-auto-commit.test.ts:17-23）**
+- [x] **Step 1: 修改探测（task-auto-commit.test.ts:17-23）**
 
 ```typescript
 const gitWorks = (() => {
@@ -277,14 +277,14 @@ const gitWorks = (() => {
 
 import 区补 `mkdtempSync, rmSync`（from "node:fs"），`setDefaultTimeout` 保持 30_000。
 
-- [ ] **Step 2: 单跑验证**
+- [x] **Step 2: 单跑验证**
 
 Run: `bun test src/gyccode/snapshot/task-auto-commit.test.ts`
 Expected: 1 pass（接线回归用例 :262 不依赖 git）/ 4 skip / 0 fail。本机 I/O 快于阈值时可能真跑——只要 0 fail 即通过。
 
 ### 3b browser-smoke：retry 治理 flaky（预期 fail -1）
 
-- [ ] **Step 1: 定位 CDP 用例并加 retry**
+- [x] **Step 1: 定位 CDP 用例并加 retry**
 
 Run: `rg -n "test\(" src/gyccode/tool/browser-smoke.test.ts` 找到真跑浏览器用例行号 N。
 
@@ -294,17 +294,17 @@ Run: `rg -n "test\(" src/gyccode/tool/browser-smoke.test.ts` 找到真跑浏览�
 test.retry(2)("...", async () => {...})
 ```
 
-- [ ] **Step 2: 单跑验证**
+- [x] **Step 2: 单跑验证**
 
 Run: `bun test src/gyccode/tool/browser-smoke.test.ts` — Expected: 0 fail。
 
 ### 3c background：waitFor 默认超时放宽（预期 fail -3）
 
-- [ ] **Step 1: 修改默认值（background.test.ts:9-13 附近）**
+- [x] **Step 1: 修改默认值（background.test.ts:9-13 附近）**
 
 `waitFor` 函数签名中 `timeout = 10000` → `timeout = 30000`。全量并发下 PowerShell 后台进程调度慢，10s 不足；放宽只影响失败路径等待时长。
 
-- [ ] **Step 2: 单跑验证** Run: `bun test src/gyccode/tool/shell/background.test.ts` — Expected: 0 fail。
+- [x] **Step 2: 单跑验证** Run: `bun test src/gyccode/tool/shell/background.test.ts` — Expected: 0 fail。
 
 ### 3d 全量清零验证
 

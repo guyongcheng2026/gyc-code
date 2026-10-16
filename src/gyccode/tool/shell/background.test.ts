@@ -8,7 +8,9 @@ const env = { ...process.env }
 
 async function waitFor(
   fn: () => boolean,
-  timeout = 10000,
+  // 全量并发下 PowerShell 后台进程调度慢，10s 不足会把「慢」记成「错」；
+  // 放宽到 30s 只影响失败路径的等待时长，成功路径命中即返回。
+  timeout = 30000,
 ) {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {

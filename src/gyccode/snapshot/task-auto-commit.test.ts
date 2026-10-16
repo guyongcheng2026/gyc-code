@@ -1,6 +1,6 @@
 import { describe, expect, test, setDefaultTimeout } from "bun:test"
 import { mkdtemp, mkdir, writeFile, readFile, rm, copyFile } from "node:fs/promises"
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync, readFileSync, mkdtempSync, rmSync } from "node:fs"
 import { spawnSync } from "node:child_process"
 import { tmpdir } from "node:os"
 import path from "node:path"
@@ -16,7 +16,14 @@ setDefaultTimeout(30_000)
  */
 const gitWorks = (() => {
   try {
-    return spawnSync("git", ["--version"], { windowsHide: true }).status === 0
+    const dir = mkdtempSync(path.join(tmpdir(), "gyc-git-probe-"))
+    const t0 = Date.now()
+    const r = spawnSync("git", ["init"], { cwd: dir, windowsHide: true })
+    rmSync(dir, { recursive: true, force: true })
+    // 本机实测（2026-10-16）：git init 1785ms + config×2 3425ms → 单个影子仓库 >10s，
+    // 4 个真跑用例单跑即 3 fail/123s、全量并发更差。正常 SSD 上 init <200ms，
+    // 1500ms 阈值留 7 倍余量：慢于它说明 I/O 已到必然让 30s 真跑用例超时的程度，按不可用跳过。
+    return r.status === 0 && Date.now() - t0 < 1500
   } catch {
     return false
   }
