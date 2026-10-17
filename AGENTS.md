@@ -1,6 +1,6 @@
 # gyc-code
 
-自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `D:\00MyAI\gyc-code`（不是 C:\gyc-code）；主开发环境 Windows / PowerShell 5.1。
+自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `C:\gyc-code`；主开发环境 Windows / PowerShell 5.1。
 
 ## 铁律（永久，优先于默认行为）
 

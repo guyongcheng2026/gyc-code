@@ -159,7 +159,18 @@ def chapter5(doc):
          "gyc account                       # 账号登录与管理\n\n"
          "# 任何命令均可附加以下参数进行排错\n"
          "gyc --log-level DEBUG --print-logs <命令>   # 输出详细日志\n"
-         "gyc --pure <命令>                            # 排除插件干扰")
+         "gyc --pure <命令>                            # 排除插件干扰\n\n"
+         "# 调试与故障排查工具组（gyc debug）\n"
+         "gyc debug config           # 显示解析后的配置（已脱敏）\n"
+         "gyc debug info             # 显示版本、系统、终端、插件调试信息\n"
+         "gyc debug paths            # 显示全局路径（数据、配置、缓存、状态）\n"
+         "gyc debug startup          # 打印启动耗时（冷启动排障）\n"
+         "gyc debug skill            # 列出所有可用技能\n"
+         "gyc debug agent 名称        # 显示智能体配置详情\n"
+         "gyc debug lsp diagnostics 文件   # 获取文件的 LSP 诊断信息\n"
+         "gyc debug rg files|search  # ripgrep 检索调试\n"
+         "gyc debug snapshot track|patch|diff   # 快照调试\n"
+         "gyc debug v2               # 调试 v2 目录与内置插件")
 
 
 def chapter6(doc):

@@ -4,7 +4,7 @@ scripts/manual-content-1.py
 《gyccode 操作手册》正文 —— 第一至第五章。
 被 gen-manual-docx.py 调用, 拆分仅为控制单文件体积。
 
-事实基准: D:\\00MyAI\\gyc-code 源码 + `gyc --help` 实测输出。
+事实基准: C:\\gyc-code 源码 + `gyc --help` 实测输出。
 编写日期: 2026-10-02
 """
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -30,7 +30,7 @@ def front_matter(doc):
         ["适用对象", "第一次接触 AI 编程助手的开发者与业务人员"],
         ["适用范围", "gyc-code 自研编码智能体 CLI（全部界面与功能）"],
         ["事实基准", "仓库源码及 gyc --help 实测输出"],
-        ["存放位置", "D:\\00MyAI\\gyc-code\\docs\\gyccode操作手册.docx"],
+        ["存放位置", "C:\\gyc-code\\docs\\gyccode操作手册.docx"],
     ], widths=[3.2, 11.8])
 
     plain(doc, "")
