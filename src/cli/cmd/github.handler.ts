@@ -1332,8 +1332,7 @@ export const githubRun = Effect.fn("Cli.github.run")(function* (args: { event?: 
 
         return `<a href="${shareBaseUrl}/s/${shareId}"><img width="200" alt="${titleAlt}" src="${shareBaseUrl}/og/${shareId}.svg" /></a>\n`
       })()
-      const shareUrl = shareId ? `[gyccode session](${shareBaseUrl}/s/${shareId})&nbsp;&nbsp;|&nbsp;&nbsp;` : ""
-      return `\n\n${image}${shareUrl}[github run](${runUrl})`
+      return `\n\n${image}[github run](${runUrl})`
     }
 
     async function fetchRepo() {

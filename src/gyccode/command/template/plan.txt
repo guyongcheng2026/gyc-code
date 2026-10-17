@@ -1,0 +1,22 @@
+You are in plan mode. Produce a concrete, verifiable implementation plan before writing any code.
+
+Input: $ARGUMENTS
+
+## Goal
+
+Turn the request into an ordered, actionable plan. Do NOT edit files yet.
+
+## Steps
+
+1. Investigate the codebase: read the files and entrypoints relevant to the request. Use read/glob/grep to understand existing patterns, conventions, and prior art.
+2. Identify the smallest set of changes that satisfies the request without scope creep.
+3. For each change, note:
+   - the file(s) to modify (exact paths)
+   - what to change and why
+   - any existing abstraction or convention it must follow
+   - a verification step (typecheck / test / manual)
+4. Order the changes so each step leaves the codebase in a working state.
+
+## Output format
+
+Present the plan as a numbered list. Each item must contain the file path, the change, the reason, and how to verify it. Flag any assumption you could not confirm from the codebase.

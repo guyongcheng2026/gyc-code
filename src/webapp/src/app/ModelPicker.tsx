@@ -88,7 +88,7 @@ export function ModelPicker({
                           fontSize: 11,
                           padding: "2px 8px",
                           borderColor: active ? "var(--border)" : "var(--border-subtle)",
-                          color: active ? "var(--fg)" : "var(--inactive)",
+                          color: active ? "var(--text)" : "var(--inactive)",
                           background: active ? "var(--selection-bg)" : "transparent",
                           fontWeight: active ? 600 : 400,
                         }}

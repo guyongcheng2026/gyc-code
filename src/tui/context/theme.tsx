@@ -14,6 +14,7 @@ import {
   setCustomThemes,
   setSystemTheme,
   subscribeThemes,
+  terminalMode,
   tint,
   upsertTheme,
   type ThemeJson,
@@ -142,7 +143,23 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
     }
 
     onMount(() => {
-      void Promise.allSettled([resolveSystemTheme(store.mode), syncCustomThemes()]).finally(() => {
+      // 首帧由 app.tsx 固定 dark 防闪烁；挂载后探测终端真实明暗并校正
+      // （theme_mode_lock 存在时始终以锁定值为准）。
+      void Promise.allSettled([
+        renderer
+          .waitForThemeMode(300)
+          .then((detected) => {
+            if (!detected || store.lock) return
+            if (store.mode !== detected) setStore("mode", detected)
+            // 强制刷新系统主题，确保浅色模式下 token 正确回退
+            void resolveSystemTheme(detected)
+          })
+          .catch(() => {
+            // 终端不支持主题查询时静默降级为当前模式
+          }),
+        resolveSystemTheme(store.mode),
+        syncCustomThemes(),
+      ]).finally(() => {
         setStore("ready", true)
       })
     })
@@ -160,7 +177,8 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
             if (store.active === "system") setStore("active", "gyccode")
             return
           }
-          const next = store.lock ?? mode
+          // 终端调色板实测明暗优先于传入 mode（启动时硬编码 dark 不能永久生效）
+          const next = store.lock ?? terminalMode(colors) ?? mode
           if (store.mode !== next) setStore("mode", next)
           const signature = JSON.stringify(colors)
           hasResolvedSystemTheme = true

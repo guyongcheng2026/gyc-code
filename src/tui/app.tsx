@@ -1108,6 +1108,7 @@ function App(props: { onSnapshot?: () => Promise<string[]>; pluginHost: TuiPlugi
   onCleanup(() => {
     offSelectionKeys()
     attention.dispose()
+    api.dispose()
   })
 
   // Wire up console copy-to-clipboard via opentui's onCopySelection callback

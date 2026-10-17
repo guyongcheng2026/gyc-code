@@ -191,10 +191,14 @@ export function allThemes() {
   return listThemes()
 }
 
+// 关键 token 最小集：缺失时主题无法正常呈现正文/侧栏/列表，拒绝加载
+const REQUIRED_THEME_TOKENS = ["text", "background", "primary", "markdownText"] as const
+
 export function isTheme(theme: unknown): theme is ThemeJson {
   if (typeof theme !== "object" || theme === null || Array.isArray(theme)) return false
   const value = Reflect.get(theme, "theme")
-  return typeof value === "object" && value !== null && !Array.isArray(value)
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false
+  return REQUIRED_THEME_TOKENS.every((token) => Reflect.get(value, token) !== undefined)
 }
 
 export function subscribeThemes(listener: (themes: Record<string, ThemeJson>) => void) {
@@ -253,7 +257,14 @@ export function resolveTheme(theme: ThemeJson, mode: "dark" | "light") {
 
       const next = defs[c] ?? theme.theme[c as ThemeColor]
       if (next === undefined) {
-        throw new Error(`在 defs 或主题中找不到颜色引用 "${c}"`)
+        // Fallback to built-in gyccode theme when custom theme lacks token
+        // This prevents crashes and ensures consistent appearance
+        const builtin = DEFAULT_THEMES.gyccode?.theme[c as ThemeColor]
+        if (builtin !== undefined) {
+          return resolveColor(builtin, [...chain, c])
+        }
+        // Last resort: use neutral gray
+        return RGBA.fromHex("#cccccc")
       }
       return resolveColor(next, [...chain, c])
     }

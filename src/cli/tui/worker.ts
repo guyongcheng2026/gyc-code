@@ -12,9 +12,8 @@ import { GlobalBus } from "@/bus/global"
 import type { Listener } from "@/server/server"
 
 // 尽早关闭 ai-sdk 警告（原 Server 模块顶层设置，改为懒加载后此处前置兜底，
-// 避免加载前 ai-sdk 向 stdout 打日志污染 TUI 渲染）。
-// @ts-ignore This global is needed to prevent ai-sdk from logging warnings to stdout
-globalThis.AI_SDK_LOG_WARNINGS = false
+// 避免加载前 ai-sdk 向 stdout 打日志污染 TUI 渲染）。统一下沉到共享模块。
+import "@core/observability/silence-ai-sdk"
 
 Heap.start()
 

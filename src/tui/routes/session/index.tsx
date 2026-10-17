@@ -49,7 +49,7 @@ import type {
 import { useLocal } from "../../context/local"
 import { Locale } from "../../util/locale"
 import { webSearchProviderLabel } from "../../util/tool-display"
-import { Dynamic, useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
+import { useRenderer, useTerminalDimensions, type JSX } from "@opentui/solid"
 import { useSDK } from "../../context/sdk"
 import { useEditorContext } from "../../context/editor"
 import { openEditor } from "../../editor"
@@ -136,12 +136,10 @@ function goUpsellKeys(action: RetryAction) {
 }
 
 const sessionBindingCommands = [
-  "session.share",
   "session.rename",
   "session.timeline",
   "session.fork",
   "session.compact",
-  "session.unshare",
   "session.undo",
   "session.redo",
   "session.cost",
@@ -475,20 +473,20 @@ export function Session() {
     }
 
     ensureVisible(targetID)
-    // 展开触发重渲染/重布局，延时一帧再取 child 坐标
+    // 展开触发重渲染/重布局，延时一帧再取 child 坐标；避免同帧双重 scrollBy 导致抖动
     setTimeout(() => {
       if (!scroll || scroll.isDestroyed) return
       const child = scroll.getChildren().find((c) => c.id === targetID)
-      if (child) scroll.scrollBy(child.y - scroll.y - 1)
+      if (child) scroll.scrollTo(child.y)
       dialog.clear()
-    }, 60)
+    }, 1)
   }
 
   function toBottom() {
     setTimeout(() => {
       if (!scroll || scroll.isDestroyed) return
       scroll.scrollTo(scroll.scrollHeight)
-    }, 50)
+    }, 1)
   }
 
   const local = useLocal()
@@ -536,47 +534,6 @@ export function Session() {
 
   const sessionCommandList = createMemo(() => [
     {
-      title: session()?.share?.url ? "复制分享链接" : "分享会话",
-      value: "session.share",
-      suggested: route.type === "session",
-      category: "会话",
-      enabled: sync.data.config.share !== "disabled",
-      slash: {
-        name: "分享",
-        aliases: ["share"],
-      },
-      run: async () => {
-        const copy = (url: string) =>
-          clipboard
-            .write?.(url)
-            .then(() => toast.show({ message: "分享 URL 已复制到剪贴板！", variant: "success" }))
-            .catch(() => toast.show({ message: "复制 URL 到剪贴板失败", variant: "error" }))
-        const url = session()?.share?.url
-        if (url) {
-          await copy(url)
-          dialog.clear()
-          return
-        }
-        if (!kv.get("share_consent", false)) {
-          const ok = await DialogConfirm.show(dialog, "分享会话", "确定要分享吗？")
-          if (ok !== true) return
-          kv.set("share_consent", true)
-        }
-        await sdk.client.session
-          .share({
-            sessionID: route.sessionID,
-          })
-          .then((res) => copy(res.data!.share!.url))
-          .catch((error) => {
-            toast.show({
-              message: error instanceof Error ? error.message : "分享会话失败",
-              variant: "error",
-            })
-          })
-        dialog.clear()
-      },
-    },
-    {
       title: "重命名会话",
       value: "session.rename",
       category: "会话",
@@ -606,8 +563,8 @@ export function Session() {
                 const child = scroll.getChildren().find((child) => {
                   return child.id === messageID
                 })
-                if (child) scroll.scrollBy(child.y - scroll.y - 1)
-              }, 60)
+                if (child) scroll.scrollTo(child.y)
+              }, 1)
             }}
             sessionID={route.sessionID}
             setPrompt={(promptInfo) => prompt?.set(promptInfo)}
@@ -634,8 +591,8 @@ export function Session() {
                 const child = scroll.getChildren().find((child) => {
                   return child.id === messageID
                 })
-                if (child) scroll.scrollBy(child.y - scroll.y - 1)
-              }, 60)
+                if (child) scroll.scrollTo(child.y)
+              }, 1)
             }}
             sessionID={route.sessionID}
           />
@@ -668,30 +625,6 @@ export function Session() {
           }),
           "tui.session",
         )
-        dialog.clear()
-      },
-    },
-    {
-      title: "取消分享会话",
-      value: "session.unshare",
-      category: "会话",
-      enabled: !!session()?.share?.url,
-      slash: {
-        name: "取消分享",
-        aliases: ["unshare"],
-      },
-      run: async () => {
-        await sdk.client.session
-          .unshare({
-            sessionID: route.sessionID,
-          })
-          .then(() => toast.show({ message: "会话取消共享成功", variant: "success" }))
-          .catch((error) => {
-            toast.show({
-              message: error instanceof Error ? error.message : "取消分享会话失败",
-              variant: "error",
-            })
-          })
         dialog.clear()
       },
     },
@@ -1008,8 +941,8 @@ export function Session() {
               const child = scroll.getChildren().find((child) => {
                 return child.id === message.id
               })
-              if (child) scroll.scrollBy(child.y - scroll.y - 1)
-            }, 60)
+              if (child) scroll.scrollTo(child.y)
+            }, 1)
             break
           }
         }
@@ -1932,17 +1865,20 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
     <>
       <For each={props.parts}>
         {(part, index) => {
-          const component = createMemo(() => PART_MAPPING[part.type as keyof typeof PART_MAPPING])
-          return (
-            <Show when={component()}>
-              <Dynamic
-                last={index() === props.parts.length - 1}
-                component={component()}
-                part={part as any}
-                message={props.message}
-              />
-            </Show>
-          )
+          const last = () => index() === props.parts.length - 1
+          // 显式按判别字段收窄，替代 Dynamic + `part as any`：每个分支内
+          // part 被 TypeScript 收窄为具体类型，拼错分支或访问错误字段会在编译期暴露。
+          if (part.type === "text") {
+            return <TextPart last={last()} part={part} message={props.message} />
+          }
+          if (part.type === "tool") {
+            return <ToolPart last={last()} part={part} message={props.message} />
+          }
+          if (part.type === "reasoning") {
+            return <ReasoningPart last={last()} part={part} message={props.message} />
+          }
+          // 其余 part 类型（file/subtask/snapshot 等）原由 PART_MAPPING 查不到而跳过
+          return null
         }}
       </For>
       <Show when={props.parts.some((x) => x.type === "tool" && x.tool === "task")}>
@@ -2012,12 +1948,6 @@ function AssistantMessage(props: { message: AssistantMessage; parts: Part[]; las
       </Switch>
     </>
   )
-}
-
-const PART_MAPPING = {
-  text: TextPart,
-  tool: ToolPart,
-  reasoning: ReasoningPart,
 }
 
 const INLINE_TOOL_ICON_WIDTH = 2

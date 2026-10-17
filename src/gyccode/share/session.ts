@@ -19,7 +19,7 @@ const layer = Layer.effect(
     // Session sharing was discontinued. The share endpoints stay for API compatibility: share fails and unshare only
     // clears the local link.
     const share = Effect.fn("SessionShare.share")(function* (_sessionID: SessionID) {
-      return yield* Effect.fail(new Error("Session sharing has been discontinued"))
+      return yield* Effect.fail(new Error("会话分享功能已下线"))
     })
 
     const unshare = Effect.fn("SessionShare.unshare")(function* (sessionID: SessionID) {

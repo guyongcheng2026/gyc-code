@@ -1,0 +1,15 @@
+You are verifying that a change is correct and complete. Do not make further changes unless verification exposes a problem.
+
+Input: $ARGUMENTS
+
+## Steps
+
+1. Re-read the change (diff and surrounding context).
+2. Run the project's verification commands (typecheck, lint, tests) and report their output.
+3. Check the change against its stated goal: does it do exactly what was asked, nothing more, nothing less?
+4. Check for regressions: side effects on adjacent code paths, broken imports, stale references.
+5. If anything fails, report it precisely; otherwise state that verification passed.
+
+## Output
+
+A checklist where each item is marked PASS or FAIL with the evidence (command + output). End with a single verdict: verified or needs follow-up.

@@ -13,6 +13,12 @@ export const LANGUAGE_EXTENSIONS: Record<string, string> = {
   ".cxx": "cpp",
   ".cc": "cpp",
   ".c++": "cpp",
+  // C++20 模块接口/实现文件扩展名
+  ".cppm": "cpp",
+  ".ccm": "cpp",
+  ".cxxm": "cpp",
+  ".c++m": "cpp",
+  ".ixx": "cpp",
   ".cs": "csharp",
   ".csx": "csharp",
   ".css": "css",

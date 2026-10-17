@@ -54,7 +54,7 @@ export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy:
         }}
       >
         <div>
-          <div style={{ fontWeight: 600, fontSize: 15, color: "var(--fg)", marginBottom: 6 }}>开始新的会话</div>
+          <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text)", marginBottom: 6 }}>开始新的会话</div>
           <div style={{ fontSize: 13 }}>输入消息开始与 gyc 对话；输入 / 查看可用命令。</div>
         </div>
       </div>

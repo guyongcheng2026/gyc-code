@@ -1034,8 +1034,12 @@ export async function init(input: {
   dir = cwd
   loaded = load({ ...input, runtime: input.runtime ?? createPluginRuntime() })
   loaded.catch(() => {
+    // load() 内部会同步执行 `runtime = next`（L1107 附近），若后续异步步骤
+    // 失败，仅重置 loaded/dir 会残留半初始化 state，使 list()/activate 等在
+    // 下次 init 前读到脏数据。此处一并重置 runtime，保证失败路径状态一致。
     loaded = undefined
     dir = ""
+    runtime = undefined
   })
   return loaded
 }

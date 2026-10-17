@@ -1,0 +1,22 @@
+You are debugging. Follow a hypothesis-driven loop instead of guessing.
+
+Input: $ARGUMENTS
+
+## Loop
+
+1. Reproduce: capture the exact symptom, inputs, and environment that trigger the failure.
+2. Hypothesis: state a single falsifiable explanation for the root cause.
+3. Verify: gather evidence to confirm or refute the hypothesis (logs, stack traces, reading the relevant code path, adding a temporary probe only if needed).
+4. Fix: apply the smallest change that addresses the confirmed root cause.
+5. Prevent: add or update a test that would have caught the bug.
+
+## Rules
+
+- State your current hypothesis before acting on it.
+- Prefer evidence (logs, stack traces, reading code) over intuition.
+- Do not apply speculative fixes; if a hypothesis is refuted, state so and form the next one.
+- Never swallow the root cause: report it and its evidence even if the fix is trivial.
+
+## Output
+
+Report: the symptom, the confirmed root cause with evidence, the fix, and the regression test added.

@@ -230,6 +230,55 @@ export function registerGyccodeKeymap(keymap: OpenTuiKeymap, renderer: CliRender
     : () => {}
   const offEscape = registerEscapeClearsPendingSequence(keymap)
   const offBackspace = registerBackspacePopsPendingSequence(keymap)
+  // 大写字母绑定（如 diff 的 "E"）：上游 normalizeKeyName 统一小写会丢掉大小写语义，
+  // 导致按大写 E 不命中、按小写 e 反而误触发。此处前置解析为 shift+小写，显示仍用原字面量。
+  const offUppercaseParser = keymap.prependBindingParser((ctx) => {
+    const rest = ctx.input.slice(ctx.index)
+    const match = /^((?:ctrl|control|shift|alt|option|meta|super|hyper)\+)*([A-Z])(?=$|[^A-Za-z0-9])/.exec(rest)
+    const letter = match?.[2]
+    if (!match || !letter) return
+    let ctrl = false
+    let shift = false
+    let meta = false
+    let superKey = false
+    let hyper = false
+    for (const modifier of (match[1] ?? "").split("+").filter(Boolean)) {
+      if (modifier === "ctrl" || modifier === "control") ctrl = true
+      else if (modifier === "shift") shift = true
+      else if (modifier === "alt" || modifier === "option" || modifier === "meta") meta = true
+      else if (modifier === "super") superKey = true
+      else if (modifier === "hyper") hyper = true
+    }
+    return {
+      parts: [
+        ctx.parseObjectKey(
+          { name: letter.toLowerCase(), ctrl, shift: true, meta, super: superKey, hyper: hyper || undefined },
+          { display: match[0] },
+        ),
+      ],
+      nextIndex: ctx.index + match[0].length,
+    }
+  })
+  // leader 等待后续键期间，宽容处理修饰残留：用户按住 ctrl+x 后可能未松 ctrl，
+  // 或按大写 M（shift+m）。此时归一化出无 ctrl/shift 的候选键，保证 <leader>m 命中；
+  // 无 pending leader 时不贡献候选，全局按键行为不变。
+  const offLeaderFlex = leader
+    ? keymap.prependEventMatchResolver((event, ctx) => {
+        if (keymap.getPendingSequence()[0]?.tokenName !== LEADER_TOKEN) return
+        // 仅当残留修饰键可能导致命中失败时才介入；纯字母键走正常绑定解析
+        if (!event.shift && !event.ctrl && !event.meta && !event.super && !event.hyper) return
+        return [
+          ctx.resolveKey({
+            name: event.name,
+            ctrl: false,
+            shift: false,
+            meta: event.meta,
+            super: event.super ?? false,
+            hyper: event.hyper,
+          }),
+        ]
+      })
+    : () => {}
   const offInputBindings = registerManagedTextareaLayer(keymap, renderer, {
     enabled: () => hasManagedTextareaFocus(renderer),
     bindings: config.keybinds.gather("input", inputCommands),
@@ -237,6 +286,8 @@ export function registerGyccodeKeymap(keymap: OpenTuiKeymap, renderer: CliRender
 
   return () => {
     offInputBindings()
+    offLeaderFlex()
+    offUppercaseParser()
     offBackspace()
     offEscape()
     offLeader()

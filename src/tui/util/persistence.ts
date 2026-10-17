@@ -48,7 +48,7 @@ export async function writeJsonAtomic(filePath: string, value: unknown) {
       await rename(temporary, filePath)
       return
     } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code ?? ""
+      const code = (error as NodeJS.ErrnoException | undefined)?.code ?? ""
       if (attempt >= 2 || !TRANSIENT_RENAME_ERRORS.has(code)) {
         await rm(temporary, { force: true }).catch(() => undefined)
         throw error

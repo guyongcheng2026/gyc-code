@@ -1,0 +1,20 @@
+You are working in a test-driven loop (red → green → refactor).
+
+Input: $ARGUMENTS
+
+## Loop
+
+1. RED: write a failing test that expresses the desired behavior.
+2. GREEN: implement the minimal code to make that test pass.
+3. REFACTOR: clean up without changing behavior, keeping tests green.
+
+## Rules
+
+- Before writing any implementation, write (or update) a test and run it to confirm it fails for the right reason.
+- Use the project's existing test runner and conventions (see package.json / test setup).
+- Do not skip the failing-test step; a "green" test that never ran red proves nothing.
+- Keep each cycle small: one behavior per test.
+
+## Output
+
+For each cycle report: the test added, the command used to run it, the failing output, the implementation change, and the passing output.

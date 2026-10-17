@@ -62,7 +62,6 @@ export function fromRow(row: SessionRow): Info {
           diffs: row.summary_diffs ?? undefined,
         }
       : undefined
-  const share = row.share_url ? { url: row.share_url } : undefined
   const revert = row.revert
     ? {
         messageID: MessageID.make(row.revert.messageID),
@@ -100,7 +99,6 @@ export function fromRow(row: SessionRow): Info {
         write: row.tokens_cache_write,
       },
     },
-    share,
     metadata: row.metadata ?? undefined,
     revert,
     permission: row.permission ? [...row.permission] : undefined,
@@ -126,7 +124,6 @@ export function toRow(info: Info) {
     agent: info.agent,
     model: info.model,
     version: info.version,
-    share_url: info.share?.url,
     summary_additions: info.summary?.additions,
     summary_deletions: info.summary?.deletions,
     summary_files: info.summary?.files,

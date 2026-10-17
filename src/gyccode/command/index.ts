@@ -10,6 +10,10 @@ import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_SKILL_CREATE from "./template/skill-create.txt"
+import PROMPT_PLAN from "./template/plan.txt"
+import PROMPT_TDD from "./template/tdd.txt"
+import PROMPT_DEBUG from "./template/debug.txt"
+import PROMPT_VERIFY from "./template/verify.txt"
 import { LegacyEvent } from "@gyccode/schema/legacy-event"
 
 type State = {
@@ -48,6 +52,10 @@ export const Default = {
   INIT: "init",
   REVIEW: "review",
   SKILL_CREATE: "skill-create",
+  PLAN: "plan",
+  TDD: "tdd",
+  DEBUG: "debug",
+  VERIFY: "verify",
 } as const
 
 export interface Interface {
@@ -97,6 +105,46 @@ const layer = Layer.effect(
           return PROMPT_SKILL_CREATE
         },
         hints: hints(PROMPT_SKILL_CREATE),
+      }
+
+      commands[Default.PLAN] = {
+        name: Default.PLAN,
+        description: "先制定可验证的实施计划，再动手改代码",
+        source: "command",
+        get template() {
+          return PROMPT_PLAN
+        },
+        hints: hints(PROMPT_PLAN),
+      }
+
+      commands[Default.TDD] = {
+        name: Default.TDD,
+        description: "测试驱动循环：红 → 绿 → 重构",
+        source: "command",
+        get template() {
+          return PROMPT_TDD
+        },
+        hints: hints(PROMPT_TDD),
+      }
+
+      commands[Default.DEBUG] = {
+        name: Default.DEBUG,
+        description: "假设驱动的调试循环：复现 → 假设 → 验证 → 修复 → 防回归",
+        source: "command",
+        get template() {
+          return PROMPT_DEBUG
+        },
+        hints: hints(PROMPT_DEBUG),
+      }
+
+      commands[Default.VERIFY] = {
+        name: Default.VERIFY,
+        description: "验证改动正确且完整：typecheck / lint / 测试逐项通过",
+        source: "command",
+        get template() {
+          return PROMPT_VERIFY
+        },
+        hints: hints(PROMPT_VERIFY),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

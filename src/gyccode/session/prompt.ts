@@ -76,8 +76,7 @@ import { thinkingKeywordTarget, resolveThinkingVariant } from "./thinking-keywor
 import { isStalledToolOnlyStep, toolSignatures } from "./tool-stall"
 import { freezeInject, injectSnapshots } from "./inject-freeze"
 
-// @ts-ignore
-globalThis.AI_SDK_LOG_WARNINGS = false
+import "@core/observability/silence-ai-sdk"
 
 // 记忆提取失败冷却：当 small model 未授权/不可用（如 gyccode 上的 gemini-3.6-flash 返回
 // Unauthorized）时，避免每个 loop 周期重复发起注定失败的 LLM 调用并刷 ERROR 日志。

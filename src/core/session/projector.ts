@@ -76,7 +76,6 @@ function sessionRow(info: SessionV1.SessionInfo): typeof SessionTable.$inferInse
     agent: info.agent,
     model: info.model,
     version: info.version,
-    share_url: info.share?.url,
     summary_additions: info.summary?.additions,
     summary_deletions: info.summary?.deletions,
     summary_files: info.summary?.files,
@@ -350,7 +349,6 @@ function sessionInfo(row: typeof SessionTable.$inferSelect) {
       reasoning: row.tokens_reasoning,
       cache: { read: row.tokens_cache_read, write: row.tokens_cache_write },
     },
-    share: row.share_url ? { url: row.share_url } : undefined,
     metadata: row.metadata ?? undefined,
     revert: row.revert
       ? {

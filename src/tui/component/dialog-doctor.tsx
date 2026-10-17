@@ -1,4 +1,5 @@
 import { TextAttributes } from "@opentui/core"
+import { useRenderer } from "@opentui/solid"
 import { InstallationChannel, InstallationVersion } from "@gyccode/core/installation/version"
 import { createMemo, createResource, For, Show } from "solid-js"
 import { useTheme } from "../context/theme"
@@ -36,7 +37,8 @@ async function checkCommand(cmd: string): Promise<string | null> {
 }
 
 export function DialogDoctor() {
-  const { theme } = useTheme()
+  const { theme, mode, locked } = useTheme()
+  const renderer = useRenderer()
   const dialog = useDialog()
   const sync = useSync()
   const local = useLocal()
@@ -82,6 +84,13 @@ export function DialogDoctor() {
     results.push({
       label: "终端",
       value: describeTerminal(),
+      status: "ok",
+    })
+
+    // 主题模式：终端探测值 → 生效值（锁定时以锁定为准）
+    results.push({
+      label: "主题模式",
+      value: `${renderer.themeMode ?? "未探测"} → ${mode()}${locked() ? "（已锁定）" : ""}`,
       status: "ok",
     })
 

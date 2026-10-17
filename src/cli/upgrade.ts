@@ -22,51 +22,13 @@ export async function upgrade() {
     })
   })
   if (!latest) return
-
-  if (Flag.GYCCODE_ALWAYS_NOTIFY_UPDATE) {
-    GlobalBus.emit("event", {
-      directory: "global",
-      payload: {
-        type: Installation.Event.UpdateAvailable.type,
-        properties: { version: latest },
-      },
-    })
-    return
-  }
-
   if (InstallationVersion === latest) return
-
-  const kind = Installation.getReleaseType(InstallationVersion, latest)
-
-  if (config.autoupdate === "notify" || kind !== "patch") {
-    GlobalBus.emit("event", {
-      directory: "global",
-      payload: {
-        type: Installation.Event.UpdateAvailable.type,
-        properties: { version: latest },
-      },
-    })
-    return
-  }
-
-  if (method === "unknown") return
-  await Installation.upgrade(method, latest)
-    .then(() =>
-      GlobalBus.emit("event", {
-        directory: "global",
-        payload: {
-          type: Installation.Event.Updated.type,
-          properties: { version: latest },
-        },
-      }),
-    )
-    // 升级失败不影响当前会话（下次启动会再次尝试），但必须留痕
-    .catch((error: unknown) => {
-      logWarn("cli.upgrade", "自动升级失败，保持当前版本", {
-        op: "installation.upgrade",
-        method,
-        target: latest,
-        error: errorMessage(error),
-      })
-    })
+  // 上游 v1.19.3 语义：永不自动安装，只提示 /update。autoupdate: true ≡ "notify"。
+  GlobalBus.emit("event", {
+    directory: "global",
+    payload: {
+      type: Installation.Event.UpdateAvailable.type,
+      properties: { version: latest },
+    },
+  })
 }
