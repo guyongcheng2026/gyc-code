@@ -1,9 +1,12 @@
 import { afterAll, describe, expect, test } from "bun:test"
 import { ensureRunning, isPortInUse, stop } from "./oauth-callback"
 
-// 挑一个不常见的端口段，降低与机器上其他进程冲突的概率。
-const PORT_A = 48124
-const PORT_B = 48125
+// 端口按进程 PID 派生，而不是写死常量（2026-10-16 压力测试实测）：
+// 固定端口在「多份测试并发跑」时会被另一份进程抢占，ensureRunning 绑定失败
+// 变成 rejected，断言以 toEqual 不符的形态误报。按 PID 派生后各份进程端口不重叠。
+const PORT_BASE = 40000 + ((process.pid * 2) % 20000)
+const PORT_A = PORT_BASE
+const PORT_B = PORT_BASE + 1
 const uri = (port: number) => `http://127.0.0.1:${port}/mcp/oauth/callback`
 
 /**

@@ -1,8 +1,12 @@
-import { beforeEach, describe, expect, test } from "bun:test"
+import { beforeEach, describe, expect, setDefaultTimeout, test } from "bun:test"
 import { existsSync, mkdirSync, mkdtempSync, unlinkSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { releaseLock, recoverStaleLock, tryAcquireLock } from "./gateway"
+
+// 真起子进程（锁与守护进程语义）。2026-10-16 压力测试：并发负载下此类用例
+// 多次触及 bun 默认 5s 上限而误报，统一放宽用例预算（不改断言）。
+setDefaultTimeout(30_000)
 
 const lockFile = () => join(homedir(), ".gyc", "data", "weixin", "gateway.lock")
 const heartbeatFile = () => join(homedir(), ".gyc", "data", "weixin", "heartbeat.json")

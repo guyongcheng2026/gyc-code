@@ -1,6 +1,10 @@
-﻿import { afterAll, beforeAll, describe, expect, it } from "bun:test"
+﻿import { afterAll, beforeAll, describe, expect, it, setDefaultTimeout } from "bun:test"
 import { NodeFileSystem, NodePath } from "@effect/platform-node"
 import { Effect, Layer, Ref, Result } from "effect"
+
+// 真起子进程验证并发上限与句柄释放。2026-10-16 压力测试实测：并发负载下本文件
+// 多个用例触及 bun 默认 5s 上限而误报（实测 5031ms / SIGTERM 连锁），统一放宽预算。
+setDefaultTimeout(30_000)
 import { ChildProcess } from "effect/unstable/process"
 import { ChildProcessSpawner, ExitCode } from "effect/unstable/process/ChildProcessSpawner"
 import { CrossSpawnSpawner } from "./cross-spawn-spawner"

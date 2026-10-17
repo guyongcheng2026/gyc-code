@@ -1,7 +1,12 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import { readFile } from "node:fs/promises"
 import * as Background from "./background"
 import { resolve } from "./command"
+
+// 本文件真起 shell 子进程并等待其调度。2026-10-16 压力测试实测：并发负载下
+// PowerShell 子进程调度慢，4 个用例触及 bun 默认 5s 上限误报（实测 5001~5056ms）——
+// 仅放宽用例预算，不改变断言本身。
+setDefaultTimeout(30_000)
 
 const shell = process.platform === "win32" ? "powershell" : "/bin/bash"
 const env = { ...process.env }

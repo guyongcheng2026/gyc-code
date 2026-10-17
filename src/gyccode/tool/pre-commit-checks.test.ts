@@ -1,7 +1,11 @@
-import { describe, expect, it } from "bun:test"
+import { describe, expect, it, setDefaultTimeout } from "bun:test"
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
+
+// 本文件真跑检查脚本（含 tsc/守卫子进程）。2026-10-16 压力测试实测：并发负载下
+// 多个用例耗时 9.3~10.4s 并触及 bun 默认 5s 上限误报，故显式放宽。
+setDefaultTimeout(30_000)
 
 // W-2（对标指标 18 · 代码审查）：四检此前只存在于 .githooks/pre-commit 这段
 // shell 里，模型提交时完全看不见——tsc 不过它也不知道。这里锁定抽取出来的检查模块。

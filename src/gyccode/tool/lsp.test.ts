@@ -7,8 +7,9 @@ import { spawnSync } from "node:child_process"
 import { filterGitIgnoredLocations } from "./lsp_gitignore"
 
 // Windows git.exe cold starts are slow; allow generous time so the test is
-// robust under parallel test-file load.
-const GIT_TIMEOUT = 20_000
+// robust under parallel test-file load. 产品侧 check-ignore 超时已放宽到 20s
+// （lsp_gitignore.ts），用例预算必须大于它，避免两者同值时先超时误报。
+const GIT_TIMEOUT = 60_000
 
 /**
  * git 可用性探测：本机 Git 安装损坏时（加载期 0xC0000135 / 0xC0000005），

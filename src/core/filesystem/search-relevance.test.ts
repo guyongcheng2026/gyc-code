@@ -236,21 +236,27 @@ describe("性能守卫", () => {
         `const userName${index % 7} = call(userName, user_name, "${"y".repeat(40)}")`,
       ),
     )
-    const started = performance.now()
+    const cpu0 = process.cpuUsage()
     const ranked = rankMatches(many, "userName")
-    const elapsed = performance.now() - started
+    const cpu = process.cpuUsage(cpu0)
+    const elapsedMs = (cpu.user + cpu.system) / 1000
     expect(ranked).toHaveLength(5000)
-    expect(elapsed).toBeLessThan(500)
+    // 用 CPU 时间而非墙钟：2026-10-16 压力测试实测，多路并发 + CPU 争抢会把墙钟
+    // 从毫秒级放大到 612ms 触发误报；CPU 时间不含等待，对争抢不敏感，仍能抓住
+    // O(n^2) 退化（5000 条平方级 = 数秒 CPU 时间）。
+    expect(elapsedMs).toBeLessThan(500)
   })
 
   it("5000 条路径打分保持毫秒级", () => {
     const many = Array.from({ length: 5000 }, (_, index) => ({
       path: `src/core/mod${index % 60}/search_${index}.ts`,
     }))
-    const started = performance.now()
+    const cpu0 = process.cpuUsage()
     const ranked = rankPaths(many, "searchFile")
-    const elapsed = performance.now() - started
+    const cpu = process.cpuUsage(cpu0)
+    const elapsedMs = (cpu.user + cpu.system) / 1000
     expect(ranked).toHaveLength(5000)
-    expect(elapsed).toBeLessThan(500)
+    // 同上：CPU 时间度量，抗并行负载争抢。
+    expect(elapsedMs).toBeLessThan(500)
   })
 })

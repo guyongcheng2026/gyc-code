@@ -1,7 +1,11 @@
-import { describe, expect, it, beforeAll, afterAll } from "bun:test"
+import { describe, expect, it, beforeAll, afterAll, setDefaultTimeout } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import path from "node:path"
+
+// 真跑 git 与文件系统操作。2026-10-16 压力测试：并发负载下多次触及 bun 默认 5s
+// 上限而误报（本机 git init 单次实测 1785ms），统一放宽用例预算。
+setDefaultTimeout(30_000)
 
 /**
  * snap-sim：快照子系统压测资产（BUG-REVIEW-2026-08-14-round3 两轮待办闭环）。

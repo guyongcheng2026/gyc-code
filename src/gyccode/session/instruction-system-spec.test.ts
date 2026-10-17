@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from "bun:test"
+import { afterEach, describe, expect, it, setDefaultTimeout } from "bun:test"
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "fs"
 import { tmpdir } from "os"
 import { join } from "path"
 import { Effect, Layer } from "effect"
 import { Instruction } from "./instruction"
+
+// 真跑文件系统与 Effect 装配，并发负载下易触及 bun 默认 5s 上限，统一放宽预算。
+setDefaultTimeout(30_000)
 import { Global } from "@gyccode/core/global"
 import { Config } from "@/config/config"
 import { EventV2Bridge } from "@/event-v2-bridge"

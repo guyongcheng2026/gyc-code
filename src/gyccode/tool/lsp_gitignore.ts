@@ -3,8 +3,12 @@ import path from "node:path"
 import { fileURLToPath } from "node:url"
 
 const BATCH_SIZE = 50
-// 超时上限：git check-ignore 正常 <100ms，挂起时（NFS/git lock）快速失败
-const CHECK_IGNORE_TIMEOUT_MS = 5_000
+// 超时上限：git check-ignore 空闲时 <100ms，但 Windows 上 git 冷启动本身就要 1~2s
+// （2026-10-16 实测 git init 1785ms、两次 config 3425ms），并发负载下更慢——
+// 5s 上限会把「慢」误判为「挂起」，静默放弃过滤并让调用方拿到未过滤结果
+// （压力测试实测：lsp 的 check-ignore 用例因此断言失败）。放宽到 20s，既保留
+// 对真正挂起（NFS / git lock）的保护，又覆盖冷启动 + 负载的最坏情况。
+const CHECK_IGNORE_TIMEOUT_MS = 20_000
 
 function extractFilePath(loc: unknown): string | null {
   if (!loc || typeof loc !== "object") return null

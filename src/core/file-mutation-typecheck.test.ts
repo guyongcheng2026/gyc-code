@@ -1,8 +1,12 @@
-import { describe, expect, test } from "bun:test"
+import { describe, expect, setDefaultTimeout, test } from "bun:test"
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { AUTOCHECK_MAX_LATENCY_MS, typecheckDiagnostics, typecheckNotice } from "./file-mutation"
+
+// 本文件真跑 tsc 子进程（冷启动数秒）。2026-10-16 压力测试实测：多路并发 + CPU 争抢
+// 下多次触及 bun 默认 5s 上限而误报失败（实测 5024~5061ms），故显式放宽。
+setDefaultTimeout(30_000)
 
 /** 仓库内自带的 tsc 入口，测试里用它避免依赖 npx 联网下载 */
 const TSC_BIN = join(import.meta.dir, "..", "..", "node_modules", "typescript", "bin", "tsc")
