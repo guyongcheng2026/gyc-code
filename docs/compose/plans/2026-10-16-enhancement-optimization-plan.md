@@ -308,12 +308,13 @@ Run: `bun test src/gyccode/tool/browser-smoke.test.ts` — Expected: 0 fail。
 
 ### 3d 全量清零验证
 
-- [ ] **连续 3 次全量**
+- [x] **连续 3 次全量**
 
 Run: `bun test --path-ignore-patterns=src/webapp` ×3
 Expected: 每次 0 fail / 0 errors（skip 数允许 ±5 浮动）；单次 ≤330s。
+**2026-10-16 实测：3 次全 0 fail（2157 pass / 14 skip / 2171 tests / 257 files，耗时 148.6s / 160.8s / 152.9s）。**
 
-- [ ] **Commit**
+- [x] **Commit**
 
 ```powershell
 git add src/gyccode/snapshot/task-auto-commit.test.ts src/gyccode/tool/browser-smoke.test.ts src/gyccode/tool/shell/background.test.ts ; git commit -m "test: 环境依赖用例探测升级与超时放宽，全量清零 8 fail"
@@ -327,7 +328,7 @@ git add src/gyccode/snapshot/task-auto-commit.test.ts src/gyccode/tool/browser-s
 
 **Files:** Modify: `src/gyccode/benchmark/benchmark.test.ts`、`scripts/gyc-health.mjs`
 
-- [ ] **Step 1: 环境变量门控（benchmark.test.ts）**
+- [x] **Step 1: 环境变量门控（benchmark.test.ts）**
 
 ```typescript
 // 头部新增
@@ -335,7 +336,7 @@ const SMOKE = process.env.GYC_BENCHMARK_SMOKE === "1"
 // 3 个集成用例：test.skip("01: ...") → (SMOKE ? test : test.skip)("01: ...")
 ```
 
-- [ ] **Step 2: health:full 接线（gyc-health.mjs --tests 分支）**
+- [x] **Step 2: health:full 接线（gyc-health.mjs --tests 分支）**
 
 在既有测试执行序列后追加（spawn 传 env，Windows 友好）：
 
@@ -346,15 +347,18 @@ spawnSync("bun", ["test", "src/gyccode/benchmark/benchmark.test.ts"], {
 })
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 Run: `bun run health:full` — Expected: 输出含 3 个冒烟用例结果（CLI 启动/模型列表/Provider 加载）；`bun test src/gyccode/benchmark`（无 env）仍 3 skip。
+**2026-10-16 实测：health:full 输出 `tests: 2157 pass, 0 fail` 与 `benchmark smoke: 20 pass, 0 fail, 0 skip`；无 env 单跑 17 pass / 3 skip。**
+（附带修复两处口径缺陷：① --tests 裸 `bun test` 会带进 src/webapp 组件测试致 20 fail → 内联官方排除参数；② 经 cmd.exe 的 execSync 链路下 bun test 只回显版本头 28 字节（pass 行丢失，解析 `?`）→ 改 spawnSync 直连，实测 2157 pass 可解析；③ 冒烟无 skip 行时解析 `?` → `0`。）
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```powershell
 git add src/gyccode/benchmark/benchmark.test.ts scripts/gyc-health.mjs ; git commit -m "test(benchmark): 集成冒烟环境变量门控，接入 health:full 通道"
 ```
+（实际提交另含 command-registry.ts debug 接线——冒烟 03 失败根因修复。）
 
 ---
 
@@ -362,13 +366,17 @@ git add src/gyccode/benchmark/benchmark.test.ts scripts/gyc-health.mjs ; git com
 
 **Covers:** 热态 2.6~3.6s vs 历史最优 2.1s。不预设结论，按测量结果定位。
 
-- [ ] **Step 1: 建立基线（5 次取中位）**
+- [x] **Step 1: 建立基线（5 次取中位）**
 
 ```powershell
 cd C:\gyc-code ; $bun="C:\Program Files\nodejs\node_modules\bun\bin\bun.exe" ; 1..5 | ForEach-Object { (Measure-Command { & $bun dist/index.js --version 2>&1 | Out-Null }).TotalMilliseconds }
 ```
 
-- [ ] **Step 2: 采集 cpuprofile**
+> **2026-10-16 实测**：两轮各 5 次 → 中位 **1582ms**（1538~1686）与 **1650ms**（1545~1856）。
+> 计划所据「热态 2.6~3.6s」不复存在（可能为环境负载期测量），稳定热态约 1.6s。
+
+- [x] **Step 2: 采集 cpuprofile** — **免执行**：Step 1 基线已两轮稳定 ≤1650ms（优于 2500ms 目标
+  34%），「先测量后动手」→ 测得健康，不采集、不优化，避免无目标改动。
 
 ```powershell
 $bun --cpu-prof --cpu-prof-dir=prof dist/index.js --version
@@ -376,17 +384,17 @@ $bun --cpu-prof --cpu-prof-dir=prof dist/index.js --version
 
 用 Edge DevTools（Performance 导入 .cpuprofile）或 speedscope 分析热点；对照 `bin/gyc` 启动脚本与 build.mjs 产物结构，列出耗时 Top5 模块。
 
-- [ ] **Step 3: 按热点逐项优化**（候选方向：bin/gyc 包装层、模块导入图、启动期同步守卫脚本；每项独立 commit、独立验证）
-- [ ] **Step 4: 验证达标** — Expected: 中位数 ≤2500ms；全量测试仍 0 fail。
-- [ ] **Step 5: 交付 profile 结论**（热点与修复对照表写入 commit message 并回填本计划勾注）
+- [x] **Step 3: 按热点逐项优化**（候选方向：bin/gyc 包装层、模块导入图、启动期同步守卫脚本；每项独立 commit、独立验证）— **免执行**：基线达标，无热点可优化。
+- [x] **Step 4: 验证达标** — Expected: 中位数 ≤2500ms；全量测试仍 0 fail。**已验证：1582/1650ms ≤ 2500，连续 3 次全量 0 fail。**
+- [x] **Step 5: 交付 profile 结论**（热点与修复对照表写入 commit message 并回填本计划勾注）— 结论：**无回归**，冷启动已优于历史最优 2.1s（当前热态 ~1.6s），无需 profile。
 
 ---
 
 ## 任务 6：AGENTS.md:3 路径残留修正（P1，一行）
 
-- [ ] **Step 1:** `AGENTS.md:3` 「仓库在 `D:\00MyAI\gyc-code`（不是 `C:\gyc-code`）」→ 「仓库在 `C:\gyc-code`」（本机无 D 盘，谷总多轮会话实际工作目录）
-- [ ] **Step 2:** `rg -n "D:.00MyAI" AGENTS.md` — Expected: 0 处
-- [ ] **Step 3:** `git add AGENTS.md ; git commit -m "docs: 修正 AGENTS.md 仓库路径跨机残留"`
+- [x] **Step 1:** `AGENTS.md:3` 「仓库在 `D:\00MyAI\gyc-code`（不是 `C:\gyc-code`）」→ 「仓库在 `C:\gyc-code`」（本机无 D 盘，谷总多轮会话实际工作目录）
+- [x] **Step 2:** `rg -n "D:.00MyAI" AGENTS.md` — Expected: 0 处
+- [x] **Step 3:** `git add AGENTS.md ; git commit -m "docs: 修正 AGENTS.md 仓库路径跨机残留"`
 
 ---
 
@@ -394,14 +402,14 @@ $bun --cpu-prof --cpu-prof-dir=prof dist/index.js --version
 
 **Files:** Create: `docs/compose/reports/2026-10-16-26dim-benchmark-corrections.md`（只读结论落 reports/，遵 2026-10-15 计划尾注约定）
 
-- [ ] **Step 1: 写入五处失真修正**（每条附 file:line）：
+- [x] **Step 1: 写入五处失真修正**（每条附 file:line）：
   1. A1「20+ provider」→ models-mirror/api.json 实为 **217 个 provider** + 12 个 @ai-sdk SDK 包（package.json:33-129）
   2. D1「20/20 基准」→ 20 用例 = 17 常跑 + 3 集成冒烟默认 skip（benchmark.test.ts:7-35）
   3. errors 2 → **3**（2026-10-16 全量实测）
   4. 测试文件 271 → bun test 实际收集 **256**
   5. 标题时间戳 2026-10-11 与内容（含 10-15 修复 ed8a5a19cc）矛盾 → 基准应为 10-15 之后
-- [ ] **Step 2: 补记两处遗漏**：Effect.logError 盲区（任务 1 闭环前数据）；热路径 INFO 残留清单（任务 2 闭环前数据）
-- [ ] **Step 3:** `git add docs/compose/reports/ ; git commit -m "docs: 26 维对标口径修正报告（2026-10-16 实测）"`
+- [x] **Step 2: 补记两处遗漏**：Effect.logError 盲区（任务 1 闭环前数据）；热路径 INFO 残留清单（任务 2 闭环前数据）
+- [x] **Step 3:** `git add docs/compose/reports/ ; git commit -m "docs: 26 维对标口径修正报告（2026-10-16 实测）"`
 
 ---
 
