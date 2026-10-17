@@ -1,7 +1,8 @@
 import { describe, expect, it } from "bun:test"
 import { readFileSync } from "node:fs"
+import os from "node:os"
 import path from "node:path"
-import { Effect, Layer } from "effect"
+import { Effect, Exit, Fiber, Layer } from "effect"
 import { Service, layer, recordDenialRow } from "./index"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { SessionID } from "@/session/schema"
@@ -52,6 +53,29 @@ async function askPending(input: PermissionV1.AskInput, mode: PermissionMode) {
   )
 }
 
+/**
+ * 跑一次 ask 并区分「放行 / 拒绝 / 挂起」三态：
+ * 挂起分支不 await（会永久阻塞），只有未挂起时才取 Exit——用来断言
+ * 围栏是「拒绝」而不是「静默放行」。
+ */
+async function askSettle(input: PermissionV1.AskInput, mode: PermissionMode) {
+  return withService(
+    Effect.gen(function* () {
+      const service = yield* Service
+      yield* service.setMode(mode)
+      const fiber = yield* Effect.forkScoped(service.ask(input))
+      yield* Effect.sleep("10 millis")
+      const pending = (yield* service.list()).length
+      if (pending > 0) return { pending, exit: undefined as Exit.Exit<void, unknown> | undefined }
+      return { pending, exit: (yield* Fiber.await(fiber)) as Exit.Exit<void, unknown> }
+    }) as Effect.Effect<
+      { pending: number; exit: Exit.Exit<void, unknown> | undefined },
+      unknown,
+      Service
+    >,
+  )
+}
+
 describe("A-3 dontAsk 模式", () => {
   it("未命中 allow 的请求直接拒绝，不挂起询问", async () => {
     expect(await askPending(askInput(), "dontAsk")).toBe(0)
@@ -92,6 +116,30 @@ describe("A-4 工作目录围栏", () => {
   it("bash 不受路径围栏影响：命令不是路径，不能被误拒", async () => {
     const command = askInput({ permission: "bash", patterns: ["git status"] })
     expect(await askPending(command, "default")).toBe(1)
+  })
+
+  // 2026-10-16：外部目录白名单。围栏从「绝对硬拒」放宽为「可由 external_directory
+  // allow 显式授权，默认仍拒绝」——知识库等跨盘目录由此变为可达。
+  it("外部路径命中 external_directory allow 时不再被围栏硬拒（放行）", async () => {
+    const outsideDir = path.join(os.tmpdir(), "gyc-external-allow-test")
+    const target = path.join(outsideDir, "notes.md")
+    const ruleset = [
+      { permission: "external_directory", pattern: path.join(outsideDir, "**"), action: "allow" as const },
+      { permission: "edit", pattern: path.join(outsideDir, "**"), action: "allow" as const },
+    ]
+    const { pending, exit } = await askSettle(askInput({ permission: "edit", patterns: [target], ruleset }), "default")
+    expect(pending).toBe(0)
+    expect(exit !== undefined && Exit.isSuccess(exit)).toBe(true)
+  })
+
+  it("外部路径未命中白名单时仍被围栏拒绝（默认拒绝语义不变）", async () => {
+    const target = path.join(os.tmpdir(), "gyc-external-deny-test", "notes.md")
+    const { pending, exit } = await askSettle(
+      askInput({ permission: "edit", patterns: [target], ruleset: [] }),
+      "default",
+    )
+    expect(pending).toBe(0)
+    expect(exit !== undefined && Exit.isFailure(exit)).toBe(true)
   })
 })
 

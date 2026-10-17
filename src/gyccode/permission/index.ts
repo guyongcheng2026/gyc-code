@@ -194,9 +194,15 @@ export const layer = Layer.effect(
 
       for (const pattern of request.patterns) {
         if (instance && !containsPath(pattern, instance)) {
-          return yield* deny("out_of_worktree", [
-            { permission: request.permission, pattern, action: "deny" as const },
-          ])
+          // 外部目录白名单（2026-10-16）：显式 `external_directory` allow 规则可放行
+          // 工作目录之外的路径（如知识库目录），未配置时保持原有硬拒语义——
+          // 默认拒绝不变，只是把「绝对不可达」放宽为「可由用户显式授权」。
+          const external = evaluate("external_directory", pattern, ruleset, approved)
+          if (external.action !== "allow") {
+            return yield* deny("out_of_worktree", [
+              { permission: request.permission, pattern, action: "deny" as const },
+            ])
+          }
         }
         const rule = evaluate(request.permission, pattern, ruleset, approved)
         yield* Effect.logDebug("evaluated", { permission: request.permission, pattern, action: rule })
