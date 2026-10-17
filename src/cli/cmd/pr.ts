@@ -43,13 +43,11 @@ export const PrCommand = effectCmd({
           "view",
           `${prNumber}`,
           "--json",
-          "headRepository,headRepositoryOwner,isCrossRepository,headRefName,body",
+          "headRepository,headRepositoryOwner,isCrossRepository,headRefName",
         ],
         { nothrow: true },
       ),
     )
-
-    let sessionId: string | undefined
 
     if (prInfoResult.code === 0 && prInfoResult.text.trim()) {
       const prInfo = JSON.parse(prInfoResult.text)
@@ -71,26 +69,6 @@ export const PrCommand = effectCmd({
           cwd: worktree,
         })
       }
-
-      if (prInfo?.body) {
-        const sessionMatch = prInfo.body.match(/https:\/\/opncd\.ai\/s\/([a-zA-Z0-9_-]+)/)
-        if (sessionMatch) {
-          const sessionUrl = sessionMatch[0]
-          UI.println(`找到 gyccode 会话：${sessionUrl}`)
-          UI.println(`正在导入会话……`)
-
-          const importResult = yield* Effect.promise(() =>
-            Process.text(["gyccode", "import", sessionUrl], { nothrow: true }),
-          )
-          if (importResult.code === 0) {
-            const sessionIdMatch = importResult.text.trim().match(/Imported session: ([a-zA-Z0-9_-]+)/)
-            if (sessionIdMatch) {
-              sessionId = sessionIdMatch[1]
-              UI.println(`已导入会话：${sessionId}`)
-            }
-          }
-        }
-      }
     }
 
     UI.println(`已成功将 PR #${prNumber} 检出为分支 '${localBranchName}'`)
@@ -98,10 +76,9 @@ export const PrCommand = effectCmd({
     UI.println("正在启动 gyccode……")
     UI.println()
 
-    const gyccodeArgs = sessionId ? ["-s", sessionId] : []
     const code = yield* Effect.promise(
       () =>
-        Process.spawn(["gyccode", ...gyccodeArgs], {
+        Process.spawn(["gyccode"], {
           stdin: "inherit",
           stdout: "inherit",
           stderr: "inherit",

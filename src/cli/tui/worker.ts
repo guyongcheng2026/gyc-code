@@ -202,10 +202,8 @@ export const rpc = {
   async checkUpgrade(input: { directory: string }) {
     await ensureWarmInstance()
     const { upgrade } = await importMod<typeof import("../upgrade")>("../upgrade")
-    // 后台检查升级失败不影响当前会话，忽略
-    await upgrade().catch(() => {
-      // 自动更新属尽力而为：失败时保持旧版本，下次启动自动重试
-    })
+    // 后台检查升级失败不影响当前会话，忽略（v1.19.3：改为返回结果，调用方可观测）
+    return upgrade().catch(() => undefined)
   },
   async reload() {
     const { AppRuntime } = await importMod<typeof import("@/effect/app-runtime")>("@/effect/app-runtime")

@@ -574,7 +574,10 @@ export function variants(model: Provider.Model): Record<string, Record<string, a
   return {}
 }
 
-export function reasoningVariants(model: ModelsDev.Model, target: Provider.Model): Provider.Model["variants"] {
+export function reasoningVariants(
+  model: Pick<ModelsDev.Model, "reasoning_options">,
+  target: Provider.Model,
+): Provider.Model["variants"] {
   const options = model.reasoning_options
   if (options === undefined) return
   if (options.length === 0) return {}
