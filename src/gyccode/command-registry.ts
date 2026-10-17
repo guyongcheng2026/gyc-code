@@ -12,6 +12,7 @@ const AgentCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd
 const AttachCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/attach"), name: "AttachCommand" }
 const CliCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/cli"), name: "CliCommand" }
 const DbCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/db"), name: "DbCommand" }
+const DebugCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/debug"), name: "DebugCommand" }
 const ExportCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/export"), name: "ExportCommand" }
 const GatewayCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/gateway"), name: "GatewayCommand" }
 const GenerateCommandLoader: CommandLoader = { load: () => import("@gyccode/cli/cmd/generate"), name: "GenerateCommand" }
@@ -44,6 +45,7 @@ export const COMMANDS: Record<string, CommandLoader> = {
   attach: AttachCommandLoader,
   cli: CliCommandLoader,
   db: DbCommandLoader,
+  debug: DebugCommandLoader,
   export: ExportCommandLoader,
   gateway: GatewayCommandLoader,
   generate: GenerateCommandLoader,
