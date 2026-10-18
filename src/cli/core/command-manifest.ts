@@ -32,7 +32,6 @@ export const commandManifest: CommandManifest = {
       "name": "add-dir",
       "description": "添加工作目录",
       "category": "workspace",
-      "tuiOnly": true,
       "executor": "builtin"
     },
     {
@@ -612,7 +611,6 @@ export const commandManifest: CommandManifest = {
       "name": "add-dir",
       "description": "添加工作目录",
       "category": "workspace",
-      "tuiOnly": true,
       "executor": "builtin"
     },
     "advisor": {

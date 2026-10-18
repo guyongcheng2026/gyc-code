@@ -6,7 +6,6 @@
       "name": "add-dir",
       "description": "添加工作目录",
       "category": "workspace",
-      "tuiOnly": true,
       "executor": "builtin"
     },
     {
@@ -586,7 +585,6 @@
       "name": "add-dir",
       "description": "添加工作目录",
       "category": "workspace",
-      "tuiOnly": true,
       "executor": "builtin"
     },
     "advisor": {

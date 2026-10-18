@@ -462,6 +462,21 @@ registerBuiltinCommand("permissions", async (ctx) => {
   return "continue"
 }, ["perms"])
 
+// /add-dir - 将目录加入会话工作范围（TUI 同名命令的 CLI 等价实现）
+registerBuiltinCommand("add-dir", async (ctx, args) => {
+  let directory = args.trim()
+  if (!directory) {
+    directory = (await readLine("输入要加入会话工作范围的目录绝对路径: ")).trim()
+  }
+  if (!directory) {
+    console.log("已取消")
+    return "continue"
+  }
+  const resolved = path.isAbsolute(directory) ? path.normalize(directory) : path.resolve(ctx.directory, directory)
+  await executeTurn(ctx, `请将目录 ${resolved} 加入本会话的工作范围：后续任务可读写其中的文件。若目录不存在请告知。`)
+  return "continue"
+}, ["add_dir"])
+
 // /editor
 registerBuiltinCommand("editor", async (ctx) => {
   try {
