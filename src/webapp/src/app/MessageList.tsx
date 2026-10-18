@@ -17,9 +17,15 @@ function errorText(error: unknown): string {
 
 /**
  * 轮次操作行（对齐 DSH 已定稿内容的 IconActions）：
- * assistant 消息尾部 hover 显示复制操作。
+ * 消息 hover 显示「回退到此」；assistant 有文本时额外显示「复制」。
  */
-const MessageActions = memo(function MessageActions({ text }: { text: string }) {
+const MessageActions = memo(function MessageActions({
+  text,
+  onRevert,
+}: {
+  text: string
+  onRevert?: () => void
+}) {
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(text)
@@ -29,14 +35,33 @@ const MessageActions = memo(function MessageActions({ text }: { text: string }) 
   }
   return (
     <div className="msg-actions">
-      <button className="btn btn-ghost msg-action-btn" title="复制全文" onClick={copy}>
-        复制
-      </button>
+      {onRevert ? (
+        <button
+          className="btn btn-ghost msg-action-btn"
+          title="回退到此消息（截断其后所有消息与改动）"
+          onClick={onRevert}
+        >
+          ⏪ 回退到此
+        </button>
+      ) : null}
+      {text ? (
+        <button className="btn btn-ghost msg-action-btn" title="复制全文" onClick={copy}>
+          复制
+        </button>
+      ) : null}
     </div>
   )
 })
 
-export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
+export function MessageList({
+  messages,
+  busy,
+  onRevert,
+}: {
+  messages: ChatMessage[]
+  busy: boolean
+  onRevert?: (messageID: string) => void
+}) {
   // 空态引导：新会话 / 标签页切回时避免整块空白（对齐 gyc TUI 空会话提示）
   if (messages.length === 0 && !busy) {
     return (
@@ -97,7 +122,12 @@ export function MessageList({ messages, busy }: { messages: ChatMessage[]; busy:
               )) ?? ""}
             </div>
             {m.error ? <div style={{ color: "var(--error)", marginTop: 4 }}>错误: {errorText(m.error)}</div> : null}
-            {m.role === "assistant" && assistantText && !isTail ? <MessageActions text={assistantText} /> : null}
+            {!isTail && (onRevert || (m.role === "assistant" && assistantText)) ? (
+              <MessageActions
+                text={assistantText}
+                onRevert={onRevert ? () => onRevert(m.id) : undefined}
+              />
+            ) : null}
           </div>
         )
       }}

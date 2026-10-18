@@ -52,7 +52,8 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   const { send, deliver } = useSendPrompt(sessionID, directory)
   const { queue, resolve } = usePermissions(sessionID, directory)
   const { requests, reply, reject } = useQuestions(sessionID, directory)
-  const { command, abort, fork, summarize, compact, switchAgent, switchModel, background } = useSessionActions(directory)
+  const { command, abort, fork, summarize, compact, switchAgent, switchModel, background, revert } =
+    useSessionActions(directory)
   const { commands } = useCommands(directory)
   const { info, refresh: refreshInfo } = useSessionInfo(sessionID, directory)
   const { models, loading: modelsLoading } = useModels()
@@ -96,6 +97,14 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
   }
 
   const setMode = (mode: ModeID) => switchAgent(sessionID, mode).then(() => refreshInfo()).catch(err)
+
+  // checkpoint/rewind：回退到指定消息（截断其后所有消息与改动）
+  const onRevert = (messageID: string) => {
+    if (!window.confirm("回退到此消息？其后的所有消息与文件改动将被截断（可用 /unrevert 恢复）。")) return
+    revert(sessionID, messageID)
+      .then(() => showNotice("已回退到该消息。"))
+      .catch(err)
+  }
 
   // TAB / Shift+TAB 循环模式（复刻 TUI agent.cycle）
   const cycleMode = (delta: number) => {
@@ -324,7 +333,7 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
         {runningSubagent ? (
           <button
             className="btn btn-ghost"
-            onClick={() => background(sessionID).catch(() => {})}
+            onClick={() => background(sessionID).catch(() => showNotice("后台化失败"))}
             title="将阻塞子代理转为后台运行"
           >
             ↻ 后台化
@@ -334,7 +343,7 @@ export function ChatPanel({ sessionID, files, directory }: { sessionID: string; 
 
       {/* 消息区（Virtuoso 自行滚动，保证 followOutput 生效） */}
       <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "12px 24px" }}>
-        <MessageList messages={messages} busy={busy} />
+        <MessageList messages={messages} busy={busy} onRevert={onRevert} />
       </div>
       {sendError ? <div style={{ padding: "0 24px", color: "var(--error)", fontSize: 13 }}>{sendError}</div> : null}
       {notice ? (
