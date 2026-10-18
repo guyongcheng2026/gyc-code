@@ -1,5 +1,5 @@
 // gyc pair：微信 iLink bot 扫码配对，凭据自动写入 ~/.gyc/.env
-import { exec } from "node:child_process"
+import { spawn } from "node:child_process"
 import { readFileSync, rmSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
@@ -53,7 +53,7 @@ async function openQrInBrowser(scanData: string): Promise<void> {
     "</body>"
   const file = join(homedir(), ".gyc", "data", "weixin", "pair-qr.html")
   writeFileSync(file, html, "utf-8")
-  exec(`start "" "${file}"`, { shell: "cmd.exe" }, () => undefined)
+  spawn("cmd", ["/c", `start "" "${file}"`], { stdio: "ignore" }).unref()
   process.stdout.write("二维码已在浏览器打开；文件位置：" + file + EOL)
 }
 
