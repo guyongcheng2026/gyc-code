@@ -22,7 +22,9 @@ describe("TerminalPanel 卸载清理", () => {
   })
 
   it("清理中断开全部 PTY 连接", () => {
-    expect(source).toMatch(/\.disconnect\(\)/)
+    // 锚定 conn.disconnect()（PTY 专属）：裸 .disconnect() 会误匹配
+    // ResizeObserver 的 ro.disconnect()，使本断言恒真。
+    expect(source).toMatch(/conn\.disconnect\(\)/)
   })
 
   it("清理中回收服务端 PTY，不只断 WebSocket", () => {
