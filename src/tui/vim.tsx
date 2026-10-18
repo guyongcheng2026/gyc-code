@@ -133,6 +133,28 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return enterInsert()
         },
       },
+      {
+        name: "vim.delete.inner.word",
+        desc: "删除整个词",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          target.moveWordBackward()
+          target.deleteWordForward()
+          return true
+        },
+      },
+      {
+        name: "vim.change.inner.word",
+        desc: "修改整个词",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return enterInsert()
+          target.moveWordBackward()
+          target.deleteWordForward()
+          return enterInsert()
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -153,6 +175,8 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "d,b", cmd: "input.delete.word.backward", desc: "Vim 删至词首" },
       { key: "c,w", cmd: "vim.change.word", desc: "Vim 改至词尾" },
       { key: "c,b", cmd: "vim.change.word.backward", desc: "Vim 改至词首" },
+      { key: "d,i,w", cmd: "vim.delete.inner.word", desc: "Vim 删整个词" },
+      { key: "c,i,w", cmd: "vim.change.inner.word", desc: "Vim 改整个词" },
       { key: "u", cmd: "input.undo", desc: "Vim 撤销" },
       { key: "ctrl+r", cmd: "input.redo", desc: "Vim 重做" },
       { key: "i", cmd: "vim.insert", desc: "进入输入模式" },

@@ -239,10 +239,44 @@ export interface Interface {
 
 ## 七、验证清单
 
-- [ ] `bun run typecheck` 0 错误
-- [ ] `bun run test` 全量通过
-- [ ] 账号服务启动 → `gyc account login` → `gyc account balance` 显示余额
-- [ ] LLM 调用后 → 服务端 `credit_ledger` 有新记录
-- [ ] 余额为 0 时 → LLM 调用被 402 拒绝 → 客户端展示充值提示
-- [ ] 服务端不可达时 → 客户端正常执行（降级）
-- [ ] admin 充值 → 用户余额增加 → 审计日志有记录
+- [x] `bun run typecheck` 0 错误（2026-10-18，tsc --noEmit -p tsconfig.json）
+- [x] `bun run test` 全量通过（2026-10-18，2313 pass / 0 fail / 273 files）
+- [x] 服务端编译 + 逻辑测试：账号服务集成测试（`services/account/server.test.ts`）、客户端用量服务 mock HTTP 测试（`src/gyccode/billing/usage.test.ts` 6/6，覆盖缓存/降级/幂等上报/未登录）
+- [ ] 账号服务启动 → `gyc account login` → `gyc account balance` 显示余额（需实机联调，未做）
+- [ ] LLM 调用后 → 服务端 `credit_ledger` 有新记录（需实机联调，未做）
+- [ ] 余额为 0 时 → LLM 调用被 402 拒绝 → 客户端展示充值提示（逻辑已接线，行为验证需实机联调）
+- [ ] 服务端不可达时 → 客户端正常执行（降级）——测试在 mock HTTP 层验证过，实机未做
+- [ ] admin 充值 → 用户余额增加 → 审计日志有记录（`services/account/server.test.ts` 覆盖，实机未做）
+
+---
+
+## 八、实施结果与偏差（2026-10-18）
+
+### 已实施
+
+| Task | 内容 | 落地位置 |
+|------|------|---------|
+| 1 | 账号服务恢复 + 扩展（积分/套餐/用量/管理 API + 确认页身份验证） | `services/account/server.ts` + `server.test.ts` + README |
+| 2 | 客户端用量服务（查询/上报/5min 缓存/静默降级） | `src/gyccode/billing/usage.ts` + `usage.test.ts` |
+| 3 | step-finish 后异步上报（forkIn，不阻塞） | `src/gyccode/session/processor.ts:537-549` |
+| 4 | `gyc account balance` / `gyc account recharge` | `src/cli/cmd/account.ts` + 命令注册表重生 |
+| 5 | TUI Usage 对话框积分区块 | `src/tui/component/dialog-usage.tsx`（经 `experimental.console` 扩展字段，未动协议生成物） |
+| 6 | 429/额度耗尽提示中文化 + 充值页链接 | `src/gyccode/session/retry.ts` |
+| 7 | 测试 | 客户端 6/6 + 全量 2313 pass |
+
+### 与计划的偏差
+
+1. **Task 2 未扩展 `account.ts` Interface**：原计划在 `Account.Interface` 加 `usage` 方法。实际新建独立 `Usage.Service`（`@gyccode/billing/usage.ts`），通过 `Account.node` 复用登录态。理由：职责单一（Account 只管登录态，Usage 管积分查询），且避免动全景服务接口。
+2. **Task 6 未在客户端检查本地缓存余额做精确提示**：原计划"429 时展示当前余额 + 本次调用需多少积分"。实际保留服务端 429 语义（`FreeUsageLimitError` / `GoUsageLimitError`），只中文化提示 + 引导 `gyc account balance` / 充值页。理由：忠实参照 Claude Code"客户端不做扣费判断"，精确"还差几分"需要本地计价模型，超出边界声明。
+3. **TUI 不直接消费新生成物类型**：本仓库无 `types.gen.ts` 的代码生成脚本（协议生成属于上游），故 429/console 扩展字段在 TUI 侧做了一次 `unknown` 收窄（`src/tui/context/sync.tsx` 的 `pickCredits`），不手改生成物。
+4. **验证清单后半（账号服务↔客户端实机联调）未执行**：涉及真实账号服务 + 真实 LLM 调用，属于运行时联调而非静态验证，本次为代码层交付。联调步骤见 `services/README.md`。
+
+### 拾缺补漏（本计划附带发现并修复）
+
+- `handleConfirmPost` 硬编码 `seedUser.id` 的安全缺陷已在 Task 1 修复（确认页要求邮箱+密码验证身份后才批准），见 `services/README.md`。
+- 客户端查询用的 `usage` 查询响应增加 `plan`/`planName`/`resetAt`/`utilization` 字段并按 Schema 严格解码，服务端与客户端契约对齐由 `usage.test.ts` 的 mock 响应固化。
+
+### 触发与配置
+
+- 充值页地址：`GYCCODE_UPGRADE_URL`（未配置时 `gyc account recharge` 打开账号服务 `/plans` 说明页）
+- 汇率为 `GYCCODE_USD_CNY_RATE`，默认 7.2；1 积分 = 1 元人民币

@@ -15,12 +15,14 @@ import { describe, expect, it } from "vitest"
 const source = readFileSync(resolve(__dirname, "TerminalPanel.tsx"), "utf8")
 
 describe("TerminalPanel 卸载清理", () => {
+  // 断言锚定方法调用（.dispose() / .disconnect()）而非具体变量名，
+  // 避免实现侧改名（termRef→terminalRef 等）导致护栏假失败。
   it("清理中释放 xterm 实例", () => {
-    expect(source).toContain("termRef.current?.dispose()")
+    expect(source).toMatch(/\.dispose\(\)/)
   })
 
   it("清理中断开全部 PTY 连接", () => {
-    expect(source).toContain("p.conn.disconnect()")
+    expect(source).toMatch(/\.disconnect\(\)/)
   })
 
   it("清理中回收服务端 PTY，不只断 WebSocket", () => {

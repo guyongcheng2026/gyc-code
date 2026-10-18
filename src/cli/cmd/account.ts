@@ -298,7 +298,11 @@ export const RechargeCommand = effectCmd({
 })
 
 export const ConsoleCommand = cmd({
-  command: "console",
+  // 父命令串必须与 command-registry 的键一致（入口按首个参数查表注册，
+  // 见 index.ts 的 COMMANDS[first]）：此前写成 "console"，导致
+  // `gyc account ...` 查表命中但 yargs 无此命令（exit 1），
+  // `gyc console ...` 查表又落 TUI 默认入口。对照 agent.ts 的 command: "agent"。
+  command: "account",
   describe: false,
   builder: (yargs) =>
     yargs

@@ -158,6 +158,9 @@ def chapter5(doc):
     code(doc,
          "gyc account                       # 账号登录与管理\n"
          "gyc account login [服务器]         # 设备码登录\n"
+         "gyc account logout [邮箱]          # 登出指定账户\n"
+         "gyc account switch                # 切换活跃组织\n"
+         "gyc account orgs                  # 列出组织\n"
          "gyc account balance               # 查看积分余额、套餐与本月用量\n"
          "gyc account recharge              # 打开套餐与充值说明页\n\n"
          "# 任何命令均可附加以下参数进行排错\n"
