@@ -3,7 +3,7 @@
 // Run: bun run scripts/generate-command-registry.ts
 
 import { join } from "path"
-import { readdirSync, statSync, writeFileSync } from "fs"
+import { existsSync, readdirSync, statSync, writeFileSync } from "fs"
 
 const CMD_DIR = join(__dirname, "..", "src", "cli", "cmd")
 
@@ -53,9 +53,13 @@ const COMMAND_EXPORTS: Record<string, string> = {
 }
 
 function generateRegistry(): string {
+  // 顶层 .ts 文件与含 index.ts 的目录（如 debug/）都是命令；辅助目录（run/）不算。
   const files = readdirSync(CMD_DIR)
-    .filter(f => f.endsWith(".ts") && !f.endsWith(".test.ts") && !f.endsWith(".shared.ts"))
+    .filter(f => statSync(join(CMD_DIR, f)).isDirectory()
+      ? existsSync(join(CMD_DIR, f, "index.ts"))
+      : f.endsWith(".ts") && !f.endsWith(".test.ts") && !f.endsWith(".shared.ts"))
     .map(f => f.replace(/\.ts$/, ""))
+    .sort()
 
   const commands: string[] = []
   const loaderLines: string[] = []
