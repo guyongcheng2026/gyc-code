@@ -53,8 +53,21 @@ export function isPreferenceEntry(text: string): boolean {
   return PREFERENCE_SIGNALS.some((signal) => lowered.includes(signal.toLowerCase()))
 }
 
-/** 抽取结果的分流判据：偏好进画像层，其余进记忆层。默认归记忆层（保守）。 */
+/**
+ * 任务指令特征：含文件路径、工具名、测试编号、验证命令等，属一次性任务约束
+ * 而非稳定偏好。此前「必须复用 Git.Service」这类任务指令因含「必须」被
+ * isPreferenceEntry 误判进画像层，导致每次会话经 <about-owner> 注入任务清单
+ * 污染新会话（模型被带偏去执行历史任务）。
+ */
+function isTaskDirective(text: string): boolean {
+  return /(?:\\|\/|\.ts\b|\.md\b|git_|Git\.|H-\d|S-\d|\bTDD\b|bun test|tsc|git commit|Tool\.|snapshot|D:)/i.test(
+    text,
+  )
+}
+
+/** 抽取结果的分流判据：任务指令优先归记忆层；偏好进画像层；其余归记忆层（保守）。 */
 export function classifyMemoryTarget(text: string): "user" | "memory" {
+  if (isTaskDirective(text)) return "memory"
   return isPreferenceEntry(text) ? "user" : "memory"
 }
 

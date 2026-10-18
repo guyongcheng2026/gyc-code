@@ -59,6 +59,13 @@ describe("isPreferenceEntry / classifyMemoryTarget", () => {
     expect(classifyMemoryTarget("回复一律用简体中文")).toBe("user")
     expect(classifyMemoryTarget("bun test 跑了 929 个用例")).toBe("memory")
   })
+
+  it("任务指令优先归记忆层，不污染画像", () => {
+    // 含「必须」的任务指令不能因偏好信号词误判进画像层
+    expect(classifyMemoryTarget("所有 Git 操作必须复用现有 Git.Service")).toBe("memory")
+    expect(classifyMemoryTarget("我需要在 D:/00MyAI/gyc-code 为模型新增 git_status 工具")).toBe("memory")
+    expect(classifyMemoryTarget("实现必须遵循 TDD，测试放在 src/gyccode/tool/*.test.ts")).toBe("memory")
+  })
 })
 
 describe("enforceLimit", () => {
