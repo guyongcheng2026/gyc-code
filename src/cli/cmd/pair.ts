@@ -53,7 +53,13 @@ async function openQrInBrowser(scanData: string): Promise<void> {
     "</body>"
   const file = join(homedir(), ".gyc", "data", "weixin", "pair-qr.html")
   writeFileSync(file, html, "utf-8")
-  exec(`start "" "${file}"`, { shell: "cmd.exe" }, () => undefined)
+  const openCmd =
+    process.platform === "darwin"
+      ? `open "${file}"`
+      : process.platform === "win32"
+        ? `start "" "${file}"`
+        : `xdg-open "${file}"`
+  exec(openCmd, () => undefined)
   process.stdout.write("二维码已在浏览器打开；文件位置：" + file + EOL)
 }
 

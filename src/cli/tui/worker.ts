@@ -167,9 +167,13 @@ export const rpc = {
       tuiTiming("worker first fetch (instance cold path)")
     }
     // 低内存机器顶层跳过预热，首次请求在此补载 instance；正常机器此处幂等快速返回。
-    await ensureWarmInstance()
-    const { Server } = await importMod<typeof import("@/server/server")>("@/server/server")
-    const { ServerAuth } = await importMod<typeof import("@/server/auth")>("@/server/auth")
+    const [, serverMod, authMod] = await Promise.all([
+      ensureWarmInstance(),
+      importMod<typeof import("@/server/server")>("@/server/server"),
+      importMod<typeof import("@/server/auth")>("@/server/auth"),
+    ])
+    const { Server } = serverMod
+    const { ServerAuth } = authMod
     const headers = { ...input.headers }
     const auth = ServerAuth.header()
     if (auth && !headers["authorization"] && !headers["Authorization"]) {

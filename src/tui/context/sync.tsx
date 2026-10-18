@@ -660,6 +660,8 @@ export const {
       tuiTiming("bootstrap start (blocking APIs issued)")
       const workspace = project.workspace.current()
       const projectPromise = project.sync()
+      // 会话列表查询依赖 project.sync 填充 instance.path.worktree/directory
+      // （sessionListQuery 据此决定目录过滤口径），不能提前到 sync 之前。
       const sessionListPromise = projectPromise.then(() => listSessions())
 
       // blocking - include session.list when continuing a session
@@ -678,7 +680,6 @@ export const {
       await Promise.all([
         providersPromise,
         providerListPromise,
-        capabilitiesPromise,
         agentsPromise,
         configPromise,
         projectPromise,
@@ -687,8 +688,6 @@ export const {
         .then(async () => {
           const providersResponse = providersPromise.then((x) => x.data!)
           const providerListResponse = providerListPromise.then((x) => x.data!)
-          const capabilitiesResponse = capabilitiesPromise
-          const consoleStateResponse = consoleStatePromise
           const agentsResponse = agentsPromise.then((x) => x.data ?? [])
           const configResponse = configPromise.then((x) => x.data!)
           const sessionListResponse = args.continue ? sessionListPromise : undefined
@@ -696,26 +695,20 @@ export const {
           return Promise.all([
             providersResponse,
             providerListResponse,
-            capabilitiesResponse,
-            consoleStateResponse,
             agentsResponse,
             configResponse,
             ...(sessionListResponse ? [sessionListResponse] : []),
           ]).then((responses) => {
             const providers = responses[0]
             const providerList = responses[1]
-            const capabilities = responses[2]
-            const consoleState = responses[3]
-            const agents = responses[4]
-            const config = responses[5]
-            const sessions = responses[6]
+            const agents = responses[2]
+            const config = responses[3]
+            const sessions = responses[4]
 
             batch(() => {
               setStore("provider", reconcile(providers.providers))
               setStore("provider_default", reconcile(providers.default))
               setStore("provider_next", reconcile(providerList))
-              setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
-              setStore("console_state", reconcile(consoleState))
               setStore("agent", reconcile(agents))
               setStore("config", reconcile(config))
               if (sessions !== undefined) setStore("session", reconcile(sessions))
@@ -725,10 +718,13 @@ export const {
         .then(() => {
           tuiTiming("bootstrap blocking phase done (mode bar can render)")
           if (store.status !== "complete") setStore("status", "partial")
-          // non-blocking
+          // non-blocking：capabilities/console 与状态类查询并行，不阻塞首帧
           void Promise.all([
             ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
             consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
+            capabilitiesPromise.then((capabilities) =>
+              setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true),
+            ),
             sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
             sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
             sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
@@ -744,6 +740,7 @@ export const {
             project.workspace.sync(),
           ]).then(() => {
             setStore("status", "complete")
+            tuiTiming("bootstrap non-blocking phase done (status=complete)")
           })
         })
         .catch(async (e) => {

@@ -258,9 +258,15 @@ export const TuiThreadCommand = cmd({
       }, 1000).unref?.()
 
       try {
-        const { Effect } = await import("effect")
-        const { run } = await import("../tui/layer")
-        const { createLegacyTuiPluginHost } = await import("@/plugin/tui/runtime")
+        // 并行加载：此前串行 await 逐个等模块图求值，叠加了后两者的加载耗时
+        const [effectMod, layerMod, pluginHostMod] = await Promise.all([
+          import("effect"),
+          import("../tui/layer"),
+          import("@/plugin/tui/runtime"),
+        ])
+        const { Effect } = effectMod
+        const { run } = layerMod
+        const { createLegacyTuiPluginHost } = pluginHostMod
         tuiTiming("effect/layer/plugin-host imported")
         await Effect.runPromise(
           run({
