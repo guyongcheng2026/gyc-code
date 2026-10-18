@@ -44,9 +44,10 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
   })
 
   // f/t/F/T 查找：注册单字符捕获 pattern，binding 里用 {findChar} 引用
+  // 数字前缀（如 3j）：注册 {count} pattern 累积 1-9 数字
   createEffect(() => {
     if (kv.get(VIM_MODE_KEY, false) !== true) return
-    const off = keymap.registerSequencePattern({
+    const offFind = keymap.registerSequencePattern({
       name: "findChar",
       min: 1,
       max: 1,
@@ -57,7 +58,24 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
         return { value: name, display: name }
       },
     })
-    onCleanup(off)
+    const offCount = keymap.registerSequencePattern({
+      name: "count",
+      min: 1,
+      max: Number.MAX_SAFE_INTEGER,
+      match(event) {
+        const name = event.name
+        if (!/^[1-9]$/.test(name)) return undefined
+        if (event.ctrl || event.meta) return undefined
+        return { value: name, display: name }
+      },
+      finalize(values) {
+        return Number(values.join(""))
+      },
+    })
+    onCleanup(() => {
+      offFind()
+      offCount()
+    })
   })
 
   const inNormal = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "normal" && textareaFocused()
@@ -76,6 +94,12 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
     const target = renderer.currentFocusedEditor
     if (target && !target.isDestroyed && isManagedTextarea(target)) return target
     return undefined
+  }
+
+  // 按 {count} payload 重复执行 motion：无数字前缀时执行 1 次
+  const repeatMove = (fn: () => void, payload: unknown) => {
+    const n = typeof payload === "number" && payload > 0 ? payload : 1
+    for (let i = 0; i < n; i++) fn()
   }
 
   const enterInsert = () => {
@@ -277,6 +301,46 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return true
         },
       },
+      {
+        name: "vim.move.down",
+        desc: "下移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorDown(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.up",
+        desc: "上移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorUp(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.left",
+        desc: "左移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorLeft(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.right",
+        desc: "右移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorRight(), ctx.payload)
+          return true
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -315,6 +379,10 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "T,{findChar}", cmd: "vim.find.till.backward", desc: "Vim 跳到上一个字符后" },
       { key: "y,y", cmd: "vim.yank.line", desc: "Vim 复制当前行" },
       { key: "p", cmd: "vim.paste", desc: "Vim 粘贴" },
+      { key: "{count}j", cmd: "vim.move.down", desc: "Vim 下移 N 行" },
+      { key: "{count}k", cmd: "vim.move.up", desc: "Vim 上移 N 行" },
+      { key: "{count}h", cmd: "vim.move.left", desc: "Vim 左移 N 列" },
+      { key: "{count}l", cmd: "vim.move.right", desc: "Vim 右移 N 列" },
       { key: "escape", cmd: "vim.cancel", desc: "取消挂起操作" },
     ],
   }))
