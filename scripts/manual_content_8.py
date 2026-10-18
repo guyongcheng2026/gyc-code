@@ -257,8 +257,9 @@ def appendix_a(doc):
               "general (subagent)\n"
               "plan (primary)\n"
               "summary (primary)\n"
-              "title (primary)")
-    body(doc, "说明：系统实际提供八个智能体，"
+              "title (primary)\n"
+              "verification (subagent)")
+    body(doc, "说明：系统实际提供九个智能体，"
               "其中标注 primary 的为主智能体，"
               "标注 subagent 的仅可由模型派发，不可直接选用。"
               "每个条目之后还会输出该智能体的权限规则，"
@@ -273,9 +274,12 @@ def appendix_a(doc):
         ["title", "主", "会话标题生成专用"],
         ["general", "子", "通用研究型，可并行处理多件事"],
         ["explore", "子", "代码库探索型，只读不改"],
+        ["verification", "子", "对抗式验证：运行 build/test/lint/typecheck 等真实检查并做对抗性探测，"
+                             "给出 PASS/FAIL/PARTIAL 结论，用于改动后独立核验"],
     ], widths=[3.0, 1.4, 10.6])
     note(doc, "说明：compaction、summary、title 三个为主智能体，"
               "系系统内部流程调用，一般无需手动指定。"
+              "verification 为子智能体，通常由模型在代码改动后自行派发做独立核验。"
               "面向日常使用的主要是 build、plan、compose 三个。")
 
     cmd(doc, "场景：创建一个只做代码审查的智能体")

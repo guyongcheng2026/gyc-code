@@ -1,5 +1,5 @@
 import type { CellStyle } from "./screen"
-import type { StyledSpan } from "./solid/paint"
+import { textDisplayWidth, type StyledSpan } from "./solid/paint"
 import { highlightCodeLine } from "./highlight"
 
 /**
@@ -24,13 +24,55 @@ export const MD_STYLES = {
 
 export type MarkdownLine = StyledSpan[]
 
+/** 表格分隔行：`| --- | :--: |` */
+function isTableSeparator(line: string): boolean {
+	return /^\s*\|[\s:|-]+\|\s*$/.test(line) && line.includes("-")
+}
+
+/** 表格数据行：`| a | b |` */
+function isTableRow(line: string): boolean {
+	return /^\s*\|.*\|\s*$/.test(line)
+}
+
+function splitTableRow(line: string): string[] {
+	const body = line.trim().replace(/^\|/, "").replace(/\|$/, "")
+	return body.split("|").map((cell) => cell.trim())
+}
+
+/**
+ * 渲染 GFM 表格为网格（对齐产线 `<markdown tableOptions={{ style: "grid" }}>`）。
+ * 列宽取该列最大显示宽，宽字符安全。
+ */
+function renderTable(header: string[], rows: string[][]): MarkdownLine[] {
+	const cols = Math.max(header.length, ...rows.map((row) => row.length), 1)
+	const widths: number[] = []
+	for (let i = 0; i < cols; i++) {
+		let width = textDisplayWidth(header[i] ?? "")
+		for (const row of rows) width = Math.max(width, textDisplayWidth(row[i] ?? ""))
+		widths[i] = width
+	}
+	const pad = (text: string, width: number) => text + " ".repeat(Math.max(0, width - textDisplayWidth(text)))
+	const cells = (row: string[]) => "│ " + widths.map((w, i) => pad(row[i] ?? "", w)).join(" │ ") + " │"
+	const rule = (left: string, mid: string, right: string) =>
+		left + widths.map((w) => "─".repeat(w + 2)).join(mid) + right
+
+	return [
+		[{ text: rule("┌", "┬", "┐"), style: MD_STYLES.quote }],
+		[{ text: cells(header), style: MD_STYLES.heading }],
+		[{ text: rule("├", "┼", "┤"), style: MD_STYLES.quote }],
+		...rows.map((row) => [{ text: cells(row), style: MD_STYLES.list }]),
+		[{ text: rule("└", "┴", "┘"), style: MD_STYLES.quote }],
+	]
+}
+
 export function parseMarkdown(source: string): MarkdownLine[] {
 	const lines = source.split("\n")
 	const out: MarkdownLine[] = []
 	let inFence = false
 	let fenceLang = ""
 
-	for (const raw of lines) {
+	for (let index = 0; index < lines.length; index++) {
+		const raw = lines[index]!
 		// 代码块 fence 切换
 		if (raw.trimStart().startsWith("```")) {
 			if (!inFence) {
@@ -47,6 +89,20 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 			// 代码块体：通用语法高亮（零原生依赖，见 highlight.ts）
 			const highlighted = highlightCodeLine(raw, fenceLang)
 			out.push([{ text: "│ ", style: MD_STYLES.quote }, ...highlighted])
+			continue
+		}
+
+		// 表格：当前行是数据行且下一行是分隔行
+		if (isTableRow(raw) && index + 1 < lines.length && isTableSeparator(lines[index + 1]!)) {
+			const header = splitTableRow(raw)
+			const rows: string[][] = []
+			let cursor = index + 2
+			while (cursor < lines.length && isTableRow(lines[cursor]!)) {
+				rows.push(splitTableRow(lines[cursor]!))
+				cursor += 1
+			}
+			out.push(...renderTable(header, rows))
+			index = cursor - 1
 			continue
 		}
 
@@ -67,16 +123,26 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 			out.push(parseInline(heading[2]!, MD_STYLES.heading))
 			continue
 		}
-		// 无序列表
-		const bullet = /^[-*+]\s+(.*)$/.exec(trimmed)
-		if (bullet) {
-			out.push([{ text: "  • ", style: MD_STYLES.list }, ...parseInline(bullet[1]!, {})])
+		// 任务列表（GFM）：- [ ] / - [x]
+		const task = /^[-*+]\s+\[([ xX])\]\s+(.*)$/.exec(trimmed)
+		if (task) {
+			const checked = task[1] !== " "
+			out.push([
+				{ text: checked ? "  ☑ " : "  ☐ ", style: MD_STYLES.list },
+				...parseInline(task[2]!, checked ? { dim: true } : {}),
+			])
 			continue
 		}
-		// 有序列表
-		const ordered = /^(\d+)[.)]\s+(.*)$/.exec(trimmed)
-		if (ordered) {
-			out.push([{ text: `  ${ordered[1]}. `, style: MD_STYLES.list }, ...parseInline(ordered[2]!, {})])
+		// 列表：按缩进层级加前缀（2 空格一级，最多 4 级）
+		const listMatch = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(raw)
+		if (listMatch) {
+			const level = Math.min(4, Math.floor((listMatch[1]?.length ?? 0) / 2))
+			const ordered = /^\d/.test(listMatch[2]!)
+			const marker = ordered ? `${listMatch[2]!.replace(/[.)]$/, "")}. ` : "• "
+			out.push([
+				{ text: "  ".repeat(level + 1) + marker, style: MD_STYLES.list },
+				...parseInline(listMatch[3]!, {}),
+			])
 			continue
 		}
 		// 引用
@@ -93,11 +159,11 @@ export function parseMarkdown(source: string): MarkdownLine[] {
 	return out
 }
 
-/** 行内标记解析：**粗体** / *斜体* / `代码` / ~~删除线~~。 */
+/** 行内标记解析：**粗体** / *斜体* / `代码` / ~~删除线~~ / [链接](url)。 */
 export function parseInline(line: string, base: CellStyle): StyledSpan[] {
 	if (line.length === 0) return [{ text: "", style: base }]
 	const spans: StyledSpan[] = []
-	const re = /\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|~~(.+?)~~/g
+	const re = /\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`|~~(.+?)~~|\[([^\]]+)\]\(([^)]+)\)/g
 	let lastIndex = 0
 	let m: RegExpExecArray | null
 	while ((m = re.exec(line)) !== null) {
@@ -106,6 +172,10 @@ export function parseInline(line: string, base: CellStyle): StyledSpan[] {
 		else if (m[2] !== undefined) spans.push({ text: m[2], style: { ...base, italic: true } })
 		else if (m[3] !== undefined) spans.push({ text: m[3], style: { ...base, ...MD_STYLES.code } })
 		else if (m[4] !== undefined) spans.push({ text: m[4], style: { ...base, strikethrough: true } })
+		else if (m[5] !== undefined) {
+			// 链接：终端无跳转能力，按"文本 + 下划线"呈现（对齐 opentui <a>）
+			spans.push({ text: m[5], style: { ...base, underline: true } })
+		}
 		lastIndex = re.lastIndex
 	}
 	if (lastIndex < line.length) spans.push({ text: line.slice(lastIndex), style: base })

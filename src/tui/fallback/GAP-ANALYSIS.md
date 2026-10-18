@@ -48,10 +48,13 @@ V8 OOM 是高频闪退的根因，fallback 完全规避此风险。
 | ⚠️ 需补充  | 终端能力探测（DA1）、Kitty 键盘协议、拖动选区、布局引擎（Yoga 替代）    |
 | ❌ 不可替代| Kitty 图像协议 / 音频 / 资产加载 / extmarks（编辑器扩展）              |
 
-**最终建议**：
-- **P2 阶段**：保留 opentui 与 fallback 双 backend，在 ctrl+P 设置中可切换（默认 fallback，因更稳）。
-- **P3 阶段**：CLI 主入口默认走 fallback，opentui 保留为可选 plugin。
-- **不删除** opentui 包，但**移除** `@opentui/core-win32-x64` 原生绑定（V8 OOM 根因），改用纯 JS `@opentui/core` 兜底。
+**最终建议（2026-10-18 已被谷总决策取代，保留本文作为历史评估）**：
+- ~~P2 阶段：保留双 backend，默认 fallback~~ → **决策：默认 `auto` = opentui 完整 UI，可显式切 fallback**
+- ~~P3 阶段：主入口默认走 fallback~~ → **决策：M0–M8 立项，按《2026-10-18-opentui-full-replacement-plan.md》推进全量替代**
+- 不删除 opentui 包，但**移除** `@opentui/core-win32-x64` 原生绑定（V8 OOM 根因），改用纯 JS `@opentui/core` 兜底。
+
+> 现行计划与验收口径以 `docs/compose/plans/2026-10-18-opentui-full-replacement-plan.md` 为准；
+> 本文第 1 节的 80% 覆盖结论只针对"核心对话流"，不适用于产线完整 UI（见新文档第 2–4 章）。
 
 ## 4. 风险评估
 

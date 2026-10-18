@@ -47,13 +47,27 @@ export const SkillTool = Tool.define(
           // 技能被加载进上下文即计入用量账本；记账失败不能影响技能加载。
           yield* Effect.promise(() => bumpView(gycSkillsHome(), info.name)).pipe(Effect.ignore)
 
+          // 变量替换：把技能内容里的占位符换成运行时值（对齐 Claude Code 的
+          // ${CLAUDE_SKILL_DIR} / ${CLAUDE_SESSION_ID}）。未匹配的占位符保持原样。
+          const content = info.content
+            .replace(/\$\{CLAUDE_SKILL_DIR\}/g, base)
+            .replace(/\$\{CLAUDE_SESSION_ID\}/g, ctx.sessionID)
+          const allowedToolsBlock = info.allowedTools
+            ? [
+                "",
+                "<allowed_tools>",
+                `This skill declares the following allowed tools: ${info.allowedTools.join(", ")}.`,
+                "</allowed_tools>",
+              ]
+            : []
           return {
             title: `Loaded skill: ${info.name}`,
             output: [
               `<skill_content name="${info.name}">`,
               `# Skill: ${info.name}`,
               "",
-              info.content.trim(),
+              content.trim(),
+              ...allowedToolsBlock,
               "",
               `Base directory for this skill: ${base}`,
               "Relative paths in this skill (e.g., scripts/, reference/) are relative to this base directory.",
@@ -67,6 +81,8 @@ export const SkillTool = Tool.define(
             metadata: {
               name: info.name,
               dir,
+              ...(info.model ? { model: info.model } : {}),
+              ...(info.effort ? { effort: info.effort } : {}),
             },
           }
         }).pipe(Effect.orDie),

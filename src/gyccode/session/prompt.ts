@@ -60,6 +60,7 @@ import { SessionTable } from "@gyccode/core/session/sql"
 import { SessionReminders } from "./reminders"
 import { CronSchedulerService, CronScheduler } from "@/tool/cron"
 import { SessionTools } from "./tools"
+import { Hook } from "../hook/service"
 import { parseTokenBudgetNL, checkTokenBudget, budgetContinuationMessage, type BudgetState } from "./token-budget"
 import { readMemories, writeMemoryFile, syncMemories } from "../memory/memory-bridge"
 import { formatExtractionPrompt, parseExtractionResult } from "../memory/extract"
@@ -233,6 +234,7 @@ const layer = Layer.effect(
     const llm = yield* LLM.Service
     const events = yield* EventV2Bridge.Service
     const flags = yield* RuntimeFlags.Service
+    const hook = yield* Hook.Service
     const database = yield* Database.Service
     const { db } = database
     const snapshot = yield* Snapshot.Service
@@ -1753,6 +1755,7 @@ const layer = Layer.effect(
               Effect.provideService(MCP.Service, mcp),
               Effect.provideService(Truncate.Service, truncate),
               Effect.provideService(RuntimeFlags.Service, flags),
+              Effect.provideService(Hook.Service, hook),
             )
 
             if (lastUser.format?.type === "json_schema") {
@@ -2340,6 +2343,7 @@ export const node = LayerNode.make({
     Command.node,
     Config.node,
     Permission.node,
+    Hook.node,
     FSUtil.node,
     MCP.node,
     LSP.node,

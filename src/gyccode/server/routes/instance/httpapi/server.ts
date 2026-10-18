@@ -7,6 +7,7 @@ import * as Observability from "@gyccode/core/observability"
 import { Account } from "@/account/account"
 import { Agent } from "@/agent/agent"
 import { Auth } from "@/auth"
+import { Usage } from "@/billing/usage"
 import { BackgroundJob } from "@/background/job"
 import { Command } from "@/command"
 import { Config } from "@/config/config"
@@ -221,6 +222,7 @@ const app = LayerNode.group([
   Database.node,
   Auth.node,
   Account.node,
+  Usage.node,
   Config.node,
   Env.node,
   Git.node,

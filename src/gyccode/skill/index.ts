@@ -44,6 +44,12 @@ export const Info = Schema.Struct({
   location: Schema.String,
   content: Schema.String,
   hidden: Schema.optional(Schema.Boolean),
+  // skill frontmatter 的 allowed-tools / model / effort：声明该技能期望的工具集
+  // 与运行参数。allowed-tools 由 SkillTool 加载时回灌给模型（提示可用工具），
+  // model / effort 作为元数据承载，供后续接入模型/effort 覆盖。
+  allowedTools: Schema.optional(Schema.Array(Schema.String)),
+  model: Schema.optional(Schema.String),
+  effort: Schema.optional(Schema.String),
 })
 export type Info = Schema.Schema.Type<typeof Info>
 
@@ -61,6 +67,26 @@ function isSkillFrontmatter(data: unknown): data is { name: string; description?
     typeof data.name === "string" &&
     (data.description === undefined || typeof data.description === "string")
   )
+}
+
+/** 解析 frontmatter 的 allowed-tools：支持 YAML 数组或逗号分隔字符串。 */
+function parseAllowedTools(data: Record<string, unknown>): string[] | undefined {
+  const raw = data["allowed-tools"]
+  if (raw === undefined) return undefined
+  if (Array.isArray(raw)) {
+    const tools = raw.filter((x): x is string => typeof x === "string")
+    return tools.length > 0 ? tools : undefined
+  }
+  if (typeof raw === "string") {
+    const tools = raw.split(",").map((s) => s.trim()).filter(Boolean)
+    return tools.length > 0 ? tools : undefined
+  }
+  return undefined
+}
+
+function optionalString(data: Record<string, unknown>, key: string): string | undefined {
+  const raw = data[key]
+  return typeof raw === "string" && raw.length > 0 ? raw : undefined
 }
 
 export class InvalidError extends Schema.TaggedErrorClass<InvalidError>()("SkillInvalidError", {
@@ -144,12 +170,19 @@ const add = Effect.fnUntraced(function* (
   }
 
   state.dirs.add(path.dirname(match))
+  const data = isRecord(md.data) ? md.data : {}
+  const allowedTools = parseAllowedTools(data)
+  const model = optionalString(data, "model")
+  const effort = optionalString(data, "effort")
   state.skills[md.data.name] = {
     name: md.data.name,
     description: md.data.description,
     location: match,
     content: md.content,
     ...(hidden ? { hidden: true } : {}),
+    ...(allowedTools ? { allowedTools } : {}),
+    ...(model ? { model } : {}),
+    ...(effort ? { effort } : {}),
   }
 })
 

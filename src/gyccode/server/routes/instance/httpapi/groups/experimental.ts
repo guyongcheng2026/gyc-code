@@ -24,6 +24,12 @@ const ConsoleStateResponse = Schema.Struct({
   consoleManagedProviders: Schema.mutable(Schema.Array(Schema.String)),
   activeOrgName: Schema.optionalKey(Schema.String),
   switchableOrgCount: NonNegativeInt,
+  // 积分/套餐：未登录或账号服务不可达时整组缺省（客户端降级为不显示）
+  planName: Schema.optionalKey(Schema.String),
+  balance: Schema.optionalKey(Schema.Number),
+  monthlyQuota: Schema.optionalKey(Schema.Number),
+  monthlyUsed: Schema.optionalKey(Schema.Number),
+  creditsResetAt: Schema.optionalKey(Schema.Number),
 }).annotate({ identifier: "ConsoleState" })
 
 const CapabilitiesResponse = Schema.Struct({

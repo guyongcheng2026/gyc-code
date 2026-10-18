@@ -8,9 +8,11 @@ import { describe, expect, it } from "vitest"
 //
 // 这里用源码断言而非渲染测试：组件级行为测试需要 mock @xterm/xterm 与
 // WebSocket，成本高于这条回归护栏能挡住的收益。
-// 路径走 cwd：vitest 的 import.meta.url 不是 file 协议（会报
-// "The URL must be of scheme file"）。
-const source = readFileSync(resolve(process.cwd(), "src/webapp/src/app/TerminalPanel.tsx"), "utf8")
+// 路径锚定本测试文件所在目录（__dirname 由 vite 注入为真实文件路径），
+// 不依赖进程 cwd：此前用 process.cwd() 拼 "src/webapp/..."，从仓库根以外
+// 目录跑 vitest 会 ENOENT；import.meta.url 在 jsdom 下不是 file 协议，
+// fileURLToPath 会抛 "The URL must be of scheme file"。
+const source = readFileSync(resolve(__dirname, "TerminalPanel.tsx"), "utf8")
 
 describe("TerminalPanel 卸载清理", () => {
   it("清理中释放 xterm 实例", () => {

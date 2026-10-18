@@ -8,6 +8,7 @@ import { MCP } from "@/mcp"
 import { Project } from "@/project/project"
 import { Session } from "@/session/session"
 import type { SessionID } from "@/session/schema"
+import { Usage } from "@/billing/usage"
 import { ToolJsonSchema } from "@/tool/json-schema"
 import { ToolRegistry } from "@/tool/registry"
 import { Worktree } from "@/worktree"
@@ -35,16 +36,18 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
     const sessions = yield* Session.Service
     const background = yield* BackgroundJob.Service
     const flags = yield* RuntimeFlags.Service
+    const usage = yield* Usage.Service
 
     const capabilities = Effect.fn("ExperimentalHttpApi.capabilities")(function* () {
       return { backgroundSubagents: flags.experimentalBackgroundSubagents }
     })
 
     const getConsole = Effect.fn("ExperimentalHttpApi.console")(function* () {
-      const [state, groups] = yield* Effect.all(
+      const [state, groups, usageInfo] = yield* Effect.all(
         [
           config.getConsoleState(),
           account.orgsByAccount().pipe(Effect.catch(() => Effect.fail(new HttpApiError.InternalServerError({})))),
+          usage.query(),
         ],
         {
           concurrency: "unbounded",
@@ -54,6 +57,15 @@ export const experimentalHandlers = HttpApiBuilder.group(InstanceHttpApi, "exper
         consoleManagedProviders: state.consoleManagedProviders,
         ...(state.activeOrgName ? { activeOrgName: state.activeOrgName } : {}),
         switchableOrgCount: groups.reduce((count, group) => count + group.orgs.length, 0),
+        ...(Option.isSome(usageInfo)
+          ? {
+              planName: usageInfo.value.planName,
+              balance: usageInfo.value.balance,
+              monthlyQuota: usageInfo.value.monthlyQuota,
+              monthlyUsed: usageInfo.value.monthlyUsed,
+              creditsResetAt: usageInfo.value.resetAt,
+            }
+          : {}),
       }
     })
 

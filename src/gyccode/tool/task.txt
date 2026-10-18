@@ -1,4 +1,4 @@
-Launch a new agent to handle complex, multistep tasks autonomously. You must specify a subagent_type to select which agent type to use.
+Launch a new agent to handle complex, multistep tasks autonomously. Specify a subagent_type to select which agent type to use; omit subagent_type to fork the current agent (inheriting the current agent's tools and permissions).
 
 When NOT to use the Task tool:
 - One specific file path → use Read or Glob; a class definition or a specific file set of 2-3 files → use Grep/Read directly.

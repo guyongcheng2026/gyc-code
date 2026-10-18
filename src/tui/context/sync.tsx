@@ -43,6 +43,36 @@ const emptyConsoleState: ConsoleState = {
   switchableOrgCount: 0,
 }
 
+/**
+ * 积分/套餐状态。
+ *
+ * 服务端 /experimental/console 已返回这些字段，但协议类型是生成物
+ * （src/protocol/v2/gen/types.gen.ts），本仓库不含其代码生成脚本，故在此
+ * 声明本地类型并做一次 unknown 收窄，避免手改生成物。
+ */
+export type CreditsState = {
+  planName?: string
+  balance?: number
+  monthlyQuota?: number
+  monthlyUsed?: number
+  creditsResetAt?: number
+}
+
+const emptyCredits: CreditsState = {}
+
+const pickCredits = (state: ConsoleState): CreditsState => {
+  const raw = state as unknown as Record<string, unknown>
+  const num = (key: string) => (typeof raw[key] === "number" ? (raw[key] as number) : undefined)
+  const str = (key: string) => (typeof raw[key] === "string" ? (raw[key] as string) : undefined)
+  return {
+    planName: str("planName"),
+    balance: num("balance"),
+    monthlyQuota: num("monthlyQuota"),
+    monthlyUsed: num("monthlyUsed"),
+    creditsResetAt: num("creditsResetAt"),
+  }
+}
+
 function search<T>(items: T[], target: string, key: (item: T) => string) {
   let left = 0
   let right = items.length - 1
@@ -82,6 +112,7 @@ export const {
       provider_default: Record<string, string>
       provider_next: ProviderListResponse
       console_state: ConsoleState
+      credits: CreditsState
       capabilities: {
         experimentalBackgroundSubagents: boolean
       }
@@ -153,6 +184,7 @@ export const {
         connected: [],
       },
       console_state: emptyConsoleState,
+      credits: emptyCredits,
       capabilities: {
         experimentalBackgroundSubagents: false,
       },
@@ -716,6 +748,7 @@ export const {
               setStore("provider_next", reconcile(providerList))
               setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
               setStore("console_state", reconcile(consoleState))
+              setStore("credits", reconcile(pickCredits(consoleState)))
               setStore("agent", reconcile(agents))
               setStore("config", reconcile(config))
               if (sessions !== undefined) setStore("session", reconcile(sessions))
@@ -728,7 +761,10 @@ export const {
           // non-blocking
           void Promise.all([
             ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
-            consoleStatePromise.then((consoleState) => setStore("console_state", reconcile(consoleState))),
+            consoleStatePromise.then((consoleState) => {
+              setStore("console_state", reconcile(consoleState))
+              setStore("credits", reconcile(pickCredits(consoleState)))
+            }),
             sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
             sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
             sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),

@@ -10,6 +10,8 @@ import { Skill } from "../skill"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_SKILL_CREATE from "./template/skill-create.txt"
+import PROMPT_PLAN from "./template/plan.txt"
+import PROMPT_STATUS from "./template/status.txt"
 import { LegacyEvent } from "@gyccode/schema/legacy-event"
 
 type State = {
@@ -48,6 +50,8 @@ export const Default = {
   INIT: "init",
   REVIEW: "review",
   SKILL_CREATE: "skill-create",
+  PLAN: "plan",
+  STATUS: "status",
 } as const
 
 export interface Interface {
@@ -97,6 +101,26 @@ const layer = Layer.effect(
           return PROMPT_SKILL_CREATE
         },
         hints: hints(PROMPT_SKILL_CREATE),
+      }
+
+      commands[Default.PLAN] = {
+        name: Default.PLAN,
+        description: "计划模式：先探索并输出实现计划，不编辑文件",
+        source: "command",
+        get template() {
+          return PROMPT_PLAN
+        },
+        hints: hints(PROMPT_PLAN),
+      }
+
+      commands[Default.STATUS] = {
+        name: Default.STATUS,
+        description: "查看项目状态：git 状态、后台任务、进行中的 todo",
+        source: "command",
+        get template() {
+          return PROMPT_STATUS
+        },
+        hints: hints(PROMPT_STATUS),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {

@@ -30,7 +30,7 @@ gyc account login
 |------|------|------|
 | POST | `/auth/device/code` | 设备码申请（RFC 8628） |
 | POST | `/auth/device/token` | 设备码轮询 / refresh_token 换发 |
-| GET | `/device/confirm?user_code=xxx` | 浏览器确认页（批准/拒绝） |
+| GET | `/device/confirm?user_code=xxx` | 浏览器确认页（**需邮箱+密码验证身份**后批准/拒绝） |
 | GET | `/api/user` | 当前用户（Bearer） |
 | GET | `/api/orgs` | 用户组织列表（Bearer） |
 | GET | `/api/config` | 组织 provider 配置（Bearer + x-org-id） |
@@ -38,6 +38,14 @@ gyc account login
 | POST | `/api/login` | 登录（签发 access/refresh token） |
 | POST | `/api/logout` | 登出（吊销 access token） |
 | GET | `/api/audit` | 审计日志（仅 admin，最近 100 条） |
+| GET | `/api/usage` | 积分余额 / 套餐 / 本月用量（Bearer） |
+| POST | `/api/usage/report` | 用量上报并扣减积分（Bearer，幂等） |
+| GET | `/api/plans` | 套餐列表（公开 JSON） |
+| GET | `/plans` | 套餐与充值说明页（HTML） |
+| POST | `/api/admin/recharge` | 充值积分（admin） |
+| POST | `/api/admin/plan` | 变更用户套餐（admin） |
+| GET | `/api/admin/credits` | 所有用户积分账户（admin） |
+| GET | `/api/admin/ledger` | 积分流水（admin，可按 `user_id` 过滤） |
 | GET | `/health` | 健康检查 |
 
 **说明**：
@@ -47,6 +55,40 @@ gyc account login
 - 审计（等保安全审计）：注册/登录/登录失败/登出/设备码签发与确认/refresh 换发均留痕 `audit_logs`；查询接口仅 admin 角色可访问（权限最小化）
 - 新注册用户默认加入本地组织（最小授权），角色 `user`
 - `/api/config` 默认返回空 provider 配置：模型数据源由客户端 models-dev 提供，模型供应商由用户自行配置；如需统一网关，可按组织返回 provider 映射
+- 设备授权确认页必须验证操作者身份（邮箱+密码）后才批准；此前实现把任何确认直接批准为种子管理员，属越权缺陷，已修复
+
+## 一·五、积分体系与收费机制
+
+**设计原则**（忠实参照 Claude Code：客户端只读、服务端记账）：
+
+- 客户端**不做扣费判断**，只查询余额 + 异步上报用量；服务端是唯一记账方
+- 客户端上报失败静默降级，不影响会话（自主性）
+- 服务端不可达时 `gyc account balance` 提示"积分信息暂不可用"，本地功能不受影响
+
+**计量口径**：
+
+- 1 积分 = 1 元人民币；模型成本以 USD 记账，按 `GYCCODE_USD_CNY_RATE`（默认 7.2）换算
+- 扣减顺序：先消耗套餐月度额度（`monthly_quota`），再消耗积分余额（`balance`，允许透支为负）
+- 月度额度跨月懒重置（查询时判断 `monthly_reset_at`），无定时任务
+
+**套餐**（种子数据，可用 SQL 调整）：
+
+| 套餐 | 月度额度 | 月费 |
+|------|---------|------|
+| 基础版 `free` | 0 积分 | 免费 |
+| 专业版 `pro` | 500 积分 | ¥99 |
+| 旗舰版 `max` | 2000 积分 | ¥399 |
+
+**幂等**：`usage_reports` 以 `(user_id, session_id, step_id)` 唯一，重复上报不重复扣减。
+
+**充值**：自建私有部署**不接在线支付**（无支付牌照）。管理员线下收款后调用 `POST /api/admin/recharge` 入账，全部记入 `credit_ledger` 与 `audit_logs`。
+
+**客户端命令**：
+
+```bash
+gyc account balance     # 余额 / 套餐 / 本月用量 / 下次重置
+gyc account recharge    # 打开套餐与充值说明页
+```
 
 ## 二、分享服务（替代第三方分享站）
 
@@ -115,6 +157,10 @@ GYCCODE_GATEWAY_PORT=8791 bun services/gateway/server.ts
 | 变量 | 服务 | 说明 |
 |------|------|------|
 | `GYCCODE_ACCOUNT_URL` | 账号 | 账号服务地址（gyccode provider / account login） |
+| `GYCCODE_ACCOUNT_PORT` | 账号 | 服务端口（默认 8787） |
+| `GYCCODE_ACCOUNT_DB` | 账号 | SQLite 路径（默认 `services/account/gyccode-account.db`） |
+| `GYCCODE_ADMIN_PASSWORD` | 账号 | 种子管理员密码（未设置时本地默认并告警，生产必须注入） |
+| `GYCCODE_USD_CNY_RATE` | 账号 | 积分换算汇率（1 积分=1 元，默认 7.2 USD→CNY） |
 | `GYCCODE_SHARE_URL` | 分享 | 分享展示链接 base |
 | `GYCCODE_UPGRADE_URL` | 额度 | 升级页地址（未配置则不跳转） |
 | `GYCCODE_UI_UPSTREAM` | Web UI | serve 的内嵌 UI 上游 |

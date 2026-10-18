@@ -77,9 +77,12 @@ describe("prompt 公共段抽取：逐字节一致性", () => {
 })
 
 describe("公共段本身", () => {
-  test("公共段正文是 Accuracy and honesty 五行", () => {
-    expect(SHARED_CORE_BODY.split("\n")).toHaveLength(5)
+  test("公共段正文以 Accuracy and honesty 开头（含安全与反过度工程四段）", () => {
+    expect(SHARED_CORE_BODY.split("\n")).toHaveLength(21)
     expect(SHARED_CORE_BODY.startsWith("# Accuracy and honesty")).toBe(true)
+    expect(SHARED_CORE_BODY).toContain("# Scope and over-engineering")
+    expect(SHARED_CORE_BODY).toContain("# Safety and risky actions")
+    expect(SHARED_CORE_BODY).toContain("# Prompt injection awareness")
   })
 
   test("9 个模型变体都带占位标记", () => {
@@ -100,7 +103,7 @@ describe("公共段本身", () => {
     }
   })
 
-  test("拼接结果含公共段的全部 5 行", () => {
+  test("拼接结果含公共段的全部行", () => {
     for (const [name, variant] of Object.entries(MODEL_VARIANTS)) {
       const rendered = composeVariant(variant)
       for (const line of SHARED_CORE_BODY.split("\n")) {

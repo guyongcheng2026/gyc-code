@@ -1,7 +1,7 @@
 ﻿import { HookConfig, HookEvent } from "./types"
 
 export class HookRegistry {
-  private hooks = new Map<HookEvent, HookConfig[]>()
+  private hooks = new Map<string, HookConfig[]>()
 
   register(config: HookConfig): void {
     const existing = this.hooks.get(config.event) ?? []

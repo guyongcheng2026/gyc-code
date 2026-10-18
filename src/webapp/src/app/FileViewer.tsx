@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react"
 import Editor, { loader } from "@monaco-editor/react"
 import { useFileContent } from "../client/useFileContent"
+import { Loading } from "./Loading"
 
 const LANG_BY_EXT: Record<string, string> = {
   ts: "typescript", tsx: "typescript", js: "javascript", jsx: "javascript",
@@ -32,7 +33,7 @@ export function FileViewer({ path, directory }: { path: string; directory?: stri
     return () => { cancelled = true }
   }, [])
 
-  if (loading) return <div style={{ padding: 24 }}>加载中…</div>
+  if (loading) return <Loading label="加载中" />
   if (error) return <div style={{ padding: 24, color: "var(--error)" }}>{error}</div>
   if (!content) return null
 

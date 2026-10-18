@@ -199,7 +199,8 @@ def chapter16(doc):
     h2(doc, "（二十）task 派发子任务")
     code(doc, "工具标识: task    权限类别: task    归属: 始终提供")
     table(doc, rows=[["参数", "必填", "说明与取值"]] + [
-        ["subagent_type", "是", "子智能体类型，一般为 explore 或 general"],
+        ["subagent_type", "否", "子智能体类型，一般为 explore、general 或 verification。"
+                                "省略时 fork 当前智能体，继承其工具与权限"],
         ["description", "是", "三至五个词的简短说明"],
         ["prompt", "是", "交由子智能体执行的完整任务说明"],
         ["background", "否", "是否后台执行。填真则立即返回而不等待结果"],
@@ -208,6 +209,8 @@ def chapter16(doc):
     ], widths=[3.0, 1.6, 10.4])
     body(doc, "可用的子智能体类型及其各自可用的工具，"
               "会在调用时随工具说明一并列出。")
+    body(doc, "省略 subagent_type 时采用 fork 语义：不另起一个不同的智能体，"
+              "而是 fork 当前智能体，子任务继承当前智能体的工具与权限。")
     body(doc, "采用前台方式时阻塞等待子智能体完成并直接返回其结果；"
               "采用后台方式则立即返回任务标识，"
               "此后用 task_list 与 task_get 查询、用 task_stop 终止。")
@@ -543,7 +546,7 @@ def chapter16(doc):
         ["skill", "name（是）"],
         ["sleep", "duration_ms（是）"],
         ["swarm", "goal（是）、teammates（是）"],
-        ["task", "subagent_type（是）、description（是）、prompt（是）、model"],
+        ["task", "subagent_type、description（是）、prompt（是）、model"],
         ["task_get", "task_id（是）"],
         ["task_list", "无"],
         ["task_stop", "task_id（是）"],

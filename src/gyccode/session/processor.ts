@@ -25,6 +25,7 @@ import { isRecord } from "@/util/record"
 import { EventV2Bridge } from "@/event-v2-bridge"
 import { Database } from "@gyccode/core/database/database"
 import { Usage, type LLMEvent } from "@gyccode/llm"
+import { Usage as UsageBilling } from "@/billing/usage"
 import { loadCacheAnchors, persistCacheAnchors, trackCacheDrift } from "./cache-anchor"
 
 // 会话级 cacheRead 锚点：与该会话上一次请求比较（消息内 step 累计口径对单
@@ -110,6 +111,7 @@ const layer = Layer.effect(
     const image = yield* Image.Service
     const events = yield* EventV2Bridge.Service
     const database = yield* Database.Service
+    const billing = yield* UsageBilling.Service
 
     const create = Effect.fn("SessionProcessor.create")(function* (input: Input) {
       // Pre-capture snapshot before the LLM stream starts. The AI SDK
@@ -532,6 +534,19 @@ const layer = Layer.effect(
               cost: usage.cost,
             })
             yield* session.updateMessage(ctx.assistantMessage)
+            // 积分上报：后台异步，不阻塞本步；服务端不可达时由 Usage 内部降级
+            yield* billing
+              .report({
+                sessionID: ctx.sessionID,
+                stepID: ctx.assistantMessage.id,
+                modelID: `${ctx.model.providerID}/${ctx.model.id}`,
+                tokensInput: usage.tokens.input ?? 0,
+                tokensOutput: usage.tokens.output ?? 0,
+                tokensCacheRead: usage.tokens.cache?.read ?? 0,
+                tokensCacheWrite: usage.tokens.cache?.write ?? 0,
+                costUSD: usage.cost,
+              })
+              .pipe(Effect.forkIn(scope))
             if (ctx.snapshot) {
               const patch = yield* snapshot.patch(ctx.snapshot)
               if (patch.files.length) {
@@ -811,6 +826,7 @@ export const node = LayerNode.make({
     Image.node,
     EventV2Bridge.node,
     Database.node,
+    UsageBilling.node,
   ],
 })
 

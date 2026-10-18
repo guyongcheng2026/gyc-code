@@ -24,8 +24,10 @@ export interface ElementNode {
 	contentHeight: number
 	/** scrollbox：paint 阶段 clamp 后的实际 scrollTop（供 scrollBy 读取） */
 	scrollTop: number
-	/** 量算缓存（slice B 性能优化）：{宽度, 结果}——props/子树变更时失效 */
-	measureCache: { width: number; value: number } | undefined
+	/** scrollbox stickyScroll：上一帧的内容最大滚动量（判断是否仍贴底） */
+	stickyMaxScroll?: number
+	/** scrollbox stickyScroll：上一帧收到的 requested scrollTop（识别用户是否手动滚动） */
+	stickyRequested?: number
 }
 
 export interface TextNode {
@@ -48,7 +50,6 @@ export function createElementNode(type: string): ElementNode {
 		layout: { x: 0, y: 0, width: 0, height: 0 },
 		contentHeight: 0,
 		scrollTop: 0,
-		measureCache: undefined,
 	}
 }
 

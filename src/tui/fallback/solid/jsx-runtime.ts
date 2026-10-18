@@ -106,6 +106,34 @@ export interface TextareaProps extends LayoutProps {
 	ref?: (node: FallbackNode) => void
 }
 
+/**
+ * 行内元素（`span`/`b`/`strong`/`i`/`em`/`u`/`a`/`br`）——只在 `text` 内部有效，
+ * 由 paint 的 `collectSpans` 折叠成带样式的段（对齐 opentui textNodeKeys）。
+ */
+export interface InlineProps {
+	style?: CellStyle
+	children?: unknown
+}
+
+/** 代码块（对齐 opentui CodeRenderable 的常用子集）。 */
+export interface CodeProps extends LayoutProps {
+	content?: string
+	/** 语言标识（ts/js/py/go/rust/json/sh…） */
+	filetype?: string
+	streaming?: boolean
+	conceal?: boolean
+	drawUnstyledText?: boolean
+}
+
+/** 差异视图（unified diff；`view="split"` 暂按 unified 渲染）。 */
+export interface DiffProps extends LayoutProps {
+	diff?: string
+	content?: string
+	view?: "unified" | "split"
+	filetype?: string
+	showLineNumbers?: boolean
+}
+
 export namespace JSX {
 	export type Element = SolidJSX.Element
 	export interface ElementChildrenAttribute {
@@ -116,5 +144,15 @@ export namespace JSX {
 		text: TextProps
 		scrollbox: ScrollBoxProps
 		textarea: TextareaProps
+		code: CodeProps
+		diff: DiffProps
+		span: InlineProps
+		b: InlineProps
+		strong: InlineProps
+		i: InlineProps
+		em: InlineProps
+		u: InlineProps
+		a: InlineProps & { href?: string }
+		br: InlineProps
 	}
 }

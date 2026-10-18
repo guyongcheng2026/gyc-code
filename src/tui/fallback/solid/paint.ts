@@ -1,5 +1,7 @@
 import type { CellStyle, Screen } from "../screen"
 import { charWidth } from "../char-width"
+import { highlightCodeLine } from "../highlight"
+import { computeLayout, type LayoutNode } from "../layout/engine"
 import type { ElementNode, FallbackNode, LayoutRect } from "./nodes"
 
 /**
@@ -71,6 +73,11 @@ export function wrapSpans(spans: readonly StyledSpan[], width: number): StyledSp
 	}
 	for (const span of spans) {
 		for (const ch of span.text) {
+			// `<br>` 与文本内换行：强制换行（不占显示宽度）
+			if (ch === "\n") {
+				flush()
+				continue
+			}
 			const w = charWidth(ch)
 			if (currentWidth + w > width) flush()
 			// 行尾已有同样式段则续接，否则新开段
@@ -92,22 +99,9 @@ function styleOf(el: ElementNode): CellStyle | undefined {
 	return typeof style === "object" && style !== null ? (style as CellStyle) : undefined
 }
 
-function isFlex(node: FallbackNode): boolean {
-	return node.kind === "element" && node.props.flex === true
-}
-
-function directionOf(el: ElementNode): "row" | "column" {
-	return el.props.direction === "row" ? "row" : "column"
-}
-
 function paddingOf(el: ElementNode): number {
 	const p = el.props.padding
 	return typeof p === "number" ? Math.max(0, Math.floor(p)) : 0
-}
-
-function gapOf(el: ElementNode): number {
-	const g = el.props.gap
-	return typeof g === "number" ? Math.max(0, Math.floor(g)) : 0
 }
 
 const BORDER_GLYPHS = {
@@ -154,96 +148,169 @@ function spansOf(el: ElementNode): StyledSpan[] | undefined {
 }
 
 /**
- * 节点在给定宽度下的内容高度（行数）。显式 height 优先于内容量算。
- * slice B 性能优化：element 节点结果缓存（同宽度命中直接返回）——
- * props/子树变更时由 renderer.invalidateMeasure 沿父链清除。
+ * 行内元素标签（对齐 opentui `textNodeKeys` + `span`，见
+ * node_modules/@opentui/solid/src/elements/catalogue.d.ts:7-53）。
+ * 产线 `<span>` 108 处、`<b>` 60 处，是 AI 回复行内样式的主要写法。
  */
-function measureNode(node: FallbackNode, width: number): number {
-	if (node.kind === "text") return wrapText(node.text, width).length
-	const el = node
-	if (el.measureCache !== undefined && el.measureCache.width === width) return el.measureCache.value
-	const value = measureUncached(el, width)
-	el.measureCache = { width, value }
-	return value
+const INLINE_TAGS = new Set(["span", "b", "strong", "i", "em", "u", "a", "br"])
+
+export function isInlineTag(type: string): boolean {
+	return INLINE_TAGS.has(type)
 }
 
-function measureUncached(el: ElementNode, width: number): number {
-	if (typeof el.props.height === "number") return el.props.height
-	if (el.type === "textarea") return measureTextarea(el, width)
-	if (el.type === "scrollbox") return measureChildren(el, width)
-	if (el.type === "text") {
-		const spans = spansOf(el)
-		if (spans !== undefined) return wrapSpans(spans, width).length
-		const content = collectText(el)
-		return wrapText(content, width).length
-	}
-	// box：子元素堆叠高度（row 取子高最大值）
-	return measureChildren(el, width)
+const INLINE_MODIFIERS: Record<string, CellStyle> = {
+	b: { bold: true },
+	strong: { bold: true },
+	i: { italic: true },
+	em: { italic: true },
+	u: { underline: true },
+	a: { underline: true },
 }
 
-function measureChildren(el: ElementNode, width: number): number {
-	const content = contentRectOf(el, width)
-	const gap = gapOf(el)
-	if (directionOf(el) === "row") {
-		let max = 0
-		let visible = 0
-		for (const child of el.children) {
-			if (isFlex(child)) continue
-			max = Math.max(max, measureNode(child, content.width))
-			visible += 1
-		}
-		const inset = insetOf(el)
-		return max + inset.dw + (visible > 1 ? gap * (visible - 1) : 0)
-	}
-	let total = 0
+function mergeStyle(base: CellStyle, extra: CellStyle | undefined): CellStyle {
+	if (extra === undefined) return base
+	return { ...base, ...extra }
+}
+
+/**
+ * 把 text 元素的行内内容压成 spans：
+ *  - TextNode 继承当前样式；
+ *  - 行内元素按标签叠加样式（b/strong → bold，i/em → italic，u/a → underline），
+ *    自身 `style` 再覆盖；
+ *  - `br` 产出强制换行（由 wrapSpans 消费）。
+ */
+export function collectSpans(el: ElementNode, inherited: CellStyle = {}): StyledSpan[] {
+	const base = mergeStyle(inherited, styleOf(el))
+	const out: StyledSpan[] = []
 	for (const child of el.children) {
-		if (isFlex(child)) continue // flex 子高度由布局阶段分配，量算不计
-		total += measureNode(child, content.width)
-	}
-	const inset = insetOf(el)
-	return total + inset.dw + (el.children.length > 1 ? gap * (el.children.length - 1) : 0)
-}
-
-/** 量算辅助：el 尚无布局时按给定宽度构造内容矩形（border/padding 已内缩）。 */
-function contentRectOf(el: ElementNode, width: number): LayoutRect {
-	const { dw } = insetOf(el)
-	return { x: 0, y: 0, width: Math.max(0, width - dw), height: Number.POSITIVE_INFINITY }
-}
-
-/** 节点的内容自然宽度（row 布局用；text 不 wrap 取整行宽）。 */
-function measureNaturalWidth(node: FallbackNode): number {
-	if (node.kind === "text") return textDisplayWidth(node.text)
-	const el = node
-	const inset = insetOf(el)
-	if (typeof el.props.width === "number") return el.props.width
-	if (el.type === "textarea") {
-		return textareaLines(el).reduce((m, l) => Math.max(m, textDisplayWidth(l)), 0) + inset.dw
-	}
-	if (el.type === "text") {
-		const spans = spansOf(el)
-		if (spans !== undefined) return spans.reduce((m, s) => m + textDisplayWidth(s.text), 0) + inset.dw
-		return textDisplayWidth(collectText(el)) + inset.dw
-	}
-	const gap = gapOf(el)
-	if (directionOf(el) === "row") {
-		let sum = 0
-		for (const child of el.children) {
-			if (isFlex(child)) continue
-			sum += measureNaturalWidth(child)
+		if (child.kind === "text") {
+			out.push({ text: child.text, style: base })
+			continue
 		}
-		return sum + inset.dw + (el.children.length > 1 ? gap * (el.children.length - 1) : 0)
+		if (child.type === "br") {
+			out.push({ text: "\n", style: base })
+			continue
+		}
+		out.push(...collectSpans(child, mergeStyle(base, INLINE_MODIFIERS[child.type])))
 	}
-	let max = 0
-	for (const child of el.children) {
-		if (isFlex(child)) continue
-		max = Math.max(max, measureNaturalWidth(child))
-	}
-	return max + inset.dw
+	return out
 }
 
-function measureTextarea(el: ElementNode, width: number): number {
-	const lines = textareaLines(el)
-	return wrapTextareaLines(lines, width).length
+/** text 元素的内容：显式 `spans` 优先，否则按行内节点收集。 */
+function spansFor(el: ElementNode): StyledSpan[] {
+	return spansOf(el) ?? collectSpans(el)
+}
+
+/**
+ * 叶子判定：text/textarea 即使带文本子节点也按叶子测量（文本子节点是内容，
+ * 不是布局项）；其余元素无子节点即为叶子。
+ */
+function isLeaf(node: FallbackNode): boolean {
+	if (node.kind === "text") return true
+	return (
+		node.type === "text" ||
+		node.type === "textarea" ||
+		node.type === "code" ||
+		node.type === "diff" ||
+		node.children.length === 0
+	)
+}
+
+/** `code` 内容：按 filetype 逐行高亮（零原生依赖，见 highlight.ts）。 */
+function codeRows(el: ElementNode): StyledSpan[][] {
+	const content = typeof el.props.content === "string" ? el.props.content : ""
+	const filetype = typeof el.props.filetype === "string" ? el.props.filetype : ""
+	return content.split("\n").map((line) => highlightCodeLine(line, filetype))
+}
+
+const DIFF_STYLES = {
+	meta: { fg: "#6a737d" },
+	hunk: { fg: "#005cc5", bold: true },
+	add: { fg: "#22863a" },
+	del: { fg: "#cb2431" },
+	context: {},
+} as const satisfies Record<string, CellStyle>
+
+/** 行号列宽（与产线 `showLineNumbers` 的视觉对齐）。 */
+const DIFF_NO_WIDTH = 4
+
+function diffNo(value: number | undefined): string {
+	return value === undefined ? " ".repeat(DIFF_NO_WIDTH) : String(value).padStart(DIFF_NO_WIDTH)
+}
+
+/**
+ * `diff` 内容：解析 unified diff 为带样式的行。
+ *
+ * 支持：`---`/`+++` 头、`@@` hunk 头、`+`/`-`/上下文行、`showLineNumbers`
+ * （旧/新双列行号）。不支持 `view="split"` 的左右分栏——按 unified 渲染
+ * （记录为已知差异，见计划文档 M5）。
+ */
+function diffRows(el: ElementNode): StyledSpan[][] {
+	const patch = typeof el.props.diff === "string" ? el.props.diff : typeof el.props.content === "string" ? el.props.content : ""
+	const showLineNumbers = el.props.showLineNumbers === true
+	const rows: StyledSpan[][] = []
+	let oldNo: number | undefined
+	let newNo: number | undefined
+
+	for (const line of patch.split("\n")) {
+		if (line.startsWith("---") || line.startsWith("+++")) {
+			rows.push([{ text: line, style: DIFF_STYLES.meta }])
+			continue
+		}
+		const hunk = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line)
+		if (hunk) {
+			oldNo = Number(hunk[1])
+			newNo = Number(hunk[2])
+			rows.push([{ text: line, style: DIFF_STYLES.hunk }])
+			continue
+		}
+		const marker = line[0]
+		let style: CellStyle = DIFF_STYLES.context
+		let oldCell: string | undefined
+		let newCell: string | undefined
+		if (marker === "+") {
+			style = DIFF_STYLES.add
+			newCell = diffNo(newNo)
+			if (newNo !== undefined) newNo += 1
+		} else if (marker === "-") {
+			style = DIFF_STYLES.del
+			oldCell = diffNo(oldNo)
+			if (oldNo !== undefined) oldNo += 1
+		} else {
+			oldCell = diffNo(oldNo)
+			newCell = diffNo(newNo)
+			if (oldNo !== undefined) oldNo += 1
+			if (newNo !== undefined) newNo += 1
+		}
+		const prefix = showLineNumbers ? `${oldCell ?? " ".repeat(DIFF_NO_WIDTH)} ${newCell ?? " ".repeat(DIFF_NO_WIDTH)} ` : ""
+		rows.push(prefix.length > 0 ? [{ text: prefix, style: DIFF_STYLES.meta }, { text: line, style }] : [{ text: line, style }])
+	}
+	return rows
+}
+
+/** 叶子内容测量（M1 布局引擎注入点）：给定可用宽高，返回内容需要的宽高。 */
+function measureLeaf(node: FallbackNode, available: { width: number; height: number }): { width: number; height: number } {
+	if (node.kind === "text") {
+		const lines = wrapText(node.text, available.width)
+		return { width: lines.reduce((m, l) => Math.max(m, textDisplayWidth(l)), 0), height: lines.length }
+	}
+	if (node.type === "textarea") {
+		const rows = wrapTextareaLines(textareaLines(node), available.width)
+		return { width: available.width, height: rows.length }
+	}
+	if (node.type === "code" || node.type === "diff") {
+		const rows = node.type === "code" ? codeRows(node) : diffRows(node)
+		const height = rows.reduce((total, row) => total + wrapSpans(row, available.width).length, 0)
+		return { width: available.width, height }
+	}
+	if (node.type === "text") {
+		const rows = wrapSpans(spansFor(node), available.width)
+		return {
+			width: rows.reduce((m, r) => Math.max(m, r.reduce((n, s) => n + textDisplayWidth(s.text), 0)), 0),
+			height: rows.length,
+		}
+	}
+	return { width: 0, height: 0 }
 }
 
 function textareaLines(el: ElementNode): string[] {
@@ -280,111 +347,49 @@ export function wrapTextareaLines(lines: readonly string[], width: number): Text
 	return rows
 }
 
-/** 自顶向下布局：root 占满屏幕。 */
+/**
+ * 自顶向下布局：root 占满屏幕。
+ *
+ * M1 起委托给自研 flexbox 引擎（`../layout/engine`）：引擎只做矩形分配，
+ * 叶子内容测量经 `measureLeaf` 注入，绘制仍在本文件。scrollbox 的
+ * scrollTop 在布局后收敛（引擎不认识"视口"概念）。
+ */
 export function layoutTree(root: ElementNode, width: number, height: number): void {
-	layoutElement(root, 0, 0, width, height)
-}
-
-function layoutElement(el: ElementNode, x: number, y: number, width: number, height: number): void {
-	el.layout = { x, y, width, height }
-	if (el.type === "textarea") {
-		el.contentHeight = measureTextarea(el, width)
-		return
-	}
-	if (el.type === "scrollbox") {
-		// 子内容布局在虚拟全高（可超出视口），绘制阶段按 scrollTop 裁剪
-		el.contentHeight = measureChildren(el, width)
-		const requested = typeof el.props.scrollTop === "number" ? el.props.scrollTop : 0
-		const maxScroll = Math.max(0, el.contentHeight - height)
-		el.scrollTop = Math.min(Math.max(0, requested), maxScroll)
-		layoutChildren(el, el.contentHeight)
-		return
-	}
-	if (el.type === "text") {
-		const spans = spansOf(el)
-		if (spans !== undefined) {
-			el.contentHeight = wrapSpans(spans, width).length
-			return
-		}
-		const content = collectText(el)
-		el.contentHeight = wrapText(content, width).length
-		return
-	}
-	// box：布局子元素（两遍法：先量非 flex，再分配）
-	el.contentHeight = layoutChildren(el, height)
-}
-
-/** 布局子元素并返回内容总高度。height 为父级给定的有界高度。 */
-function layoutChildren(el: ElementNode, height: number): number {
-	const content = contentRect(el)
-	const gap = gapOf(el)
-	const kids = el.children
-	if (directionOf(el) === "row") {
-		return layoutRowChildren(el, content, height, gap)
-	}
-	const heights: Array<number | undefined> = kids.map((child) =>
-		isFlex(child) ? undefined : measureNode(child, content.width),
-	)
-	const fixedSum = heights.reduce<number>((acc, h) => acc + (h ?? 0), 0)
-	const flexCount = kids.filter(isFlex).length
-	const gaps = kids.length > 1 ? gap * (kids.length - 1) : 0
-	let flexHeight = 0
-	if (flexCount > 0 && Number.isFinite(height)) {
-		flexHeight = Math.max(0, Math.floor((height - fixedSum - gaps) / flexCount))
-	}
-	let childY = content.y
-	kids.forEach((child, index) => {
-		const childHeight = heights[index] ?? flexHeight
-		if (child.kind === "text") {
-			child.layout = { x: content.x, y: childY, width: content.width, height: childHeight }
-			childY += childHeight + gap
-			return
-		}
-		layoutElement(child, content.x, childY, content.width, childHeight)
-		childY += childHeight + gap
+	computeLayout(root as unknown as LayoutNode, { width, height }, {
+		measureLeaf: (node, available) => measureLeaf(node as unknown as FallbackNode, available),
+		isLeaf: (node) => isLeaf(node as unknown as FallbackNode),
 	})
-	// 末尾 gap 不计入总高
-	return childY - content.y - (kids.length > 0 ? gap : 0)
+	clampScrollTops(root)
 }
 
-/** row 布局：子元素横向排列，宽度按自然宽/flex 瓜分，高度默认拉伸到内容高。 */
-function layoutRowChildren(el: ElementNode, content: LayoutRect, _height: number, gap: number): number {
-	const kids = el.children
-	const widths: Array<number | undefined> = kids.map((child) =>
-		isFlex(child) ? undefined : measureNaturalWidth(child),
-	)
-	const fixedSum = widths.reduce<number>((acc, w) => acc + (w ?? 0), 0)
-	const flexCount = kids.filter(isFlex).length
-	const gaps = kids.length > 1 ? gap * (kids.length - 1) : 0
-	let flexWidth = 0
-	if (flexCount > 0 && Number.isFinite(content.width)) {
-		flexWidth = Math.max(0, Math.floor((content.width - fixedSum - gaps) / flexCount))
-	}
-	let childX = content.x
-	let maxChildHeight = 0
-	kids.forEach((child, index) => {
-		const childWidth = widths[index] ?? flexWidth
-		// 高度：显式 height 优先，缺省拉伸到父内容高
-		const explicit = child.kind === "element" && typeof child.props.height === "number" ? child.props.height : undefined
-		const childHeight = explicit ?? Math.max(0, content.height)
-		if (child.kind === "text") {
-			child.layout = { x: childX, y: content.y, width: childWidth, height: childHeight }
+/**
+ * scrollbox 的 scrollTop 收敛到 [0, contentHeight - 视口高]。
+ *
+ * stickyScroll（对齐 opentui `ScrollBoxOptions.stickyScroll/stickyStart`）：
+ * 内容增长时若上一帧仍贴底，则本帧继续贴底；用户手动滚离底部后不再强制跟随。
+ *
+ * 判定「用户是否手动滚动」靠 requested 是否变化（`stickyRequested` 记录上一帧值）：
+ * sticky 自动贴底只改 `node.scrollTop`，不改组件信号，因此信号不变即视为未手动滚动。
+ * 首帧 `stickyRequested` 未定义 → 视为未滚动 → 初始即贴底（聊天流的期望行为）。
+ */
+function clampScrollTops(node: FallbackNode): void {
+	if (node.kind !== "element") return
+	if (node.type === "scrollbox") {
+		const requested = typeof node.props.scrollTop === "number" ? node.props.scrollTop : 0
+		const maxScroll = Math.max(0, node.contentHeight - node.layout.height)
+		const sticky = node.props.stickyScroll === true
+		const stickyStart = node.props.stickyStart === "top" ? "top" : "bottom"
+		const userMoved = node.stickyRequested !== undefined && requested !== node.stickyRequested
+		const atEdge = stickyStart === "bottom" ? node.scrollTop >= (node.stickyMaxScroll ?? 0) - 1 : node.scrollTop <= 1
+		if (sticky && !userMoved && atEdge) {
+			node.scrollTop = stickyStart === "bottom" ? maxScroll : 0
 		} else {
-			layoutElement(child, childX, content.y, childWidth, childHeight)
+			node.scrollTop = Math.min(Math.max(0, requested), maxScroll)
 		}
-		maxChildHeight = Math.max(maxChildHeight, childHeight)
-		childX += childWidth + gap
-	})
-	return maxChildHeight
-}
-
-/** 收集元素内联文本（textnode 子节点）。 */
-function collectText(el: ElementNode): string {
-	let out = ""
-	for (const child of el.children) {
-		if (child.kind === "text") out += child.text
+		node.stickyRequested = requested
+		node.stickyMaxScroll = maxScroll
 	}
-	return out
+	for (const child of node.children) clampScrollTops(child)
 }
 
 // ---- 绘制 ----
@@ -413,28 +418,73 @@ function paintNode(node: FallbackNode, screen: Screen, clip: LayoutRect, offsetY
 		return
 	}
 	const el = node
+	// visible=false：不参与绘制（opentui Renderable.visible 语义；仍参与布局）
+	if (el.props.visible === false) return
 	switch (el.type) {
 		case "textarea":
 			paintTextarea(el, screen, clip)
 			return
-		case "scrollbox":
+		case "scrollbox": {
 			// 视口裁剪：内容必须限制在 scrollbox 自身矩形内，
 			// 否则超出视口的内容会溢出绘制到后续兄弟元素（状态条/输入区）
-			paintChildren(el, screen, intersect(clip, el.layout), -el.scrollTop)
+			const viewport = intersect(clip, el.layout)
+			const barVisible = verticalScrollbarVisible(el) && el.contentHeight > el.layout.height
+			const contentClip = barVisible ? { ...viewport, width: Math.max(0, viewport.width - 1) } : viewport
+			paintChildren(el, screen, contentClip, -el.scrollTop)
+			if (barVisible) paintVerticalScrollbar(el, screen, viewport, offsetY)
 			return
-		case "text": {
-			const spans = spansOf(el)
+		}
+		case "code": {
 			const base = styleOf(el) ?? inheritStyle(el)
-			if (spans !== undefined) {
-				paintSpanLines(spans, el.layout, base, screen, clip, offsetY)
-				return
-			}
-			const content = collectText(el)
-			paintTextLines(content, el.layout, base, screen, clip, offsetY)
+			paintSpanRows(codeRows(el), el.layout, base, screen, clip, offsetY)
+			return
+		}
+		case "diff": {
+			const base = styleOf(el) ?? inheritStyle(el)
+			paintSpanRows(diffRows(el), el.layout, base, screen, clip, offsetY)
+			return
+		}
+		case "text": {
+			const base = styleOf(el) ?? inheritStyle(el)
+			paintSpanLines(spansFor(el), el.layout, base, screen, clip, offsetY)
 			return
 		}
 		default:
 			paintBox(el, screen, clip, offsetY)
+	}
+}
+
+/** 竖直滚动条是否可见（`verticalScrollbarOptions.visible` 优先于 `scrollbarOptions`）。 */
+function verticalScrollbarVisible(el: ElementNode): boolean {
+	const vertical = el.props.verticalScrollbarOptions
+	if (typeof vertical === "object" && vertical !== null && "visible" in vertical) {
+		return (vertical as { visible?: unknown }).visible === true
+	}
+	const common = el.props.scrollbarOptions
+	if (typeof common === "object" && common !== null && "visible" in common) {
+		return (common as { visible?: unknown }).visible === true
+	}
+	return false
+}
+
+/**
+ * 绘制竖直滚动条（占最右一列）：`█` 滑块 + `│` 轨道。
+ * 位置与长度按 内容高/视口高/scrollTop 比例计算，与 `ScrollBar` 组件同口径。
+ */
+function paintVerticalScrollbar(el: ElementNode, screen: Screen, viewport: LayoutRect, offsetY: number): void {
+	const height = viewport.height
+	if (height <= 0) return
+	const content = Math.max(1, el.contentHeight)
+	const barLen = Math.max(1, Math.min(height, Math.round((height / content) * height)))
+	const maxScroll = Math.max(0, content - height)
+	const maxPos = Math.max(0, height - barLen)
+	const barPos = maxScroll <= 0 ? 0 : Math.min(maxPos, Math.round((el.scrollTop / maxScroll) * maxPos))
+	const x = viewport.x + viewport.width - 1
+	for (let i = 0; i < height; i++) {
+		const y = viewport.y + i + offsetY
+		if (y < 0 || y >= screen.height) continue
+		const inBar = i >= barPos && i < barPos + barLen
+		screen.writeText(x, y, inBar ? "█" : "│", inBar ? { fg: "#6a737d" } : { fg: "#d0d7de" })
 	}
 }
 
@@ -479,8 +529,24 @@ function paintBorder(el: ElementNode, kind: BorderKind, screen: Screen, clip: La
 	}
 }
 
+/**
+ * 子节点绘制。zIndex 非 0 时按升序排序（后画覆盖先画），对齐 opentui
+ * `ensureZIndexSorted`；无 zIndex 的常规树不排序（避免每帧分配）。
+ */
 function paintChildren(el: ElementNode, screen: Screen, clip: LayoutRect, offsetY: number): void {
-	for (const child of el.children) paintNode(child, screen, clip, offsetY)
+	const kids = el.children
+	if (kids.length > 1 && kids.some((child) => zIndexOf(child) !== 0)) {
+		const sorted = [...kids].sort((a, b) => zIndexOf(a) - zIndexOf(b))
+		for (const child of sorted) paintNode(child, screen, clip, offsetY)
+		return
+	}
+	for (const child of kids) paintNode(child, screen, clip, offsetY)
+}
+
+function zIndexOf(node: FallbackNode): number {
+	if (node.kind !== "element") return 0
+	const value = node.props.zIndex
+	return typeof value === "number" && Number.isFinite(value) ? value : 0
 }
 
 function fillClipped(rect: LayoutRect, bg: string, screen: Screen, clip: LayoutRect, offsetY: number): void {
@@ -515,7 +581,30 @@ function paintTextLines(
 	})
 }
 
-/** 富文本行绘制：spans wrap 后逐段写入（段样式 = base 与 span.style 合并）。 */
+/** 单行富文本绘制：逐段写入（段样式 = base 与 span.style 合并）。 */
+function paintSpanRow(
+	row: readonly StyledSpan[],
+	x: number,
+	y: number,
+	maxWidth: number,
+	base: CellStyle | undefined,
+	screen: Screen,
+	clip: LayoutRect,
+): void {
+	if (y < clip.y || y >= clip.y + clip.height) return
+	let cx = x
+	for (const span of row) {
+		const visibleWidth = Math.min(maxWidth - (cx - x), clip.x + clip.width - cx)
+		if (visibleWidth <= 0) break
+		const visible = clipLine(span.text, visibleWidth)
+		if (visible.length > 0) {
+			screen.writeText(cx, y, visible, { ...(base ?? {}), ...span.style })
+		}
+		cx += textDisplayWidth(visible)
+	}
+}
+
+/** 富文本行绘制：spans wrap 后逐行写入。 */
 function paintSpanLines(
 	spans: readonly StyledSpan[],
 	rect: LayoutRect,
@@ -525,20 +614,25 @@ function paintSpanLines(
 	offsetY: number,
 ): void {
 	const rows = wrapSpans(spans, rect.width)
-	rows.forEach((row, index) => {
-		const y = rect.y + index + offsetY
-		if (y < clip.y || y >= clip.y + clip.height) return
-		let cx = rect.x
-		for (const span of row) {
-			const visibleWidth = Math.min(rect.width - (cx - rect.x), clip.x + clip.width - cx)
-			if (visibleWidth <= 0) break
-			const visible = clipLine(span.text, visibleWidth)
-			if (visible.length > 0) {
-				screen.writeText(cx, y, visible, { ...(base ?? {}), ...span.style })
-			}
-			cx += textDisplayWidth(visible)
+	rows.forEach((row, index) => paintSpanRow(row, rect.x, rect.y + index + offsetY, rect.width, base, screen, clip))
+}
+
+/** 逐行渲染已切分的内容（code/diff）：每行独立 wrap，行号随之自然折行。 */
+function paintSpanRows(
+	rows: readonly StyledSpan[][],
+	rect: LayoutRect,
+	base: CellStyle | undefined,
+	screen: Screen,
+	clip: LayoutRect,
+	offsetY: number,
+): void {
+	let y = rect.y + offsetY
+	for (const row of rows) {
+		for (const line of wrapSpans(row, rect.width)) {
+			paintSpanRow(line, rect.x, y, rect.width, base, screen, clip)
+			y += 1
 		}
-	})
+	}
 }
 
 /** 截取行的可见前缀（按显示宽度）。 */
