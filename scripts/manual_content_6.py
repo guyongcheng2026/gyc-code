@@ -309,3 +309,18 @@ def chapter18(doc):
          "GOOGLE_GENERATIVE_AI_API_KEY\n"
          "AZURE_API_KEY")
     body(doc, "更多服务商可参考执行 gyc providers list 的输出。")
+
+    h2(doc, "（九）渲染器选择")
+    body(doc, "终端界面的渲染后端可按需切换："
+              "默认走内置渲染器，遇到原生库异常时自动降级到自研纯实现。"
+              "亦可用会话内命令「渲染器」或配置项 renderer 长期切换。")
+    table(doc, [
+        ["变量", "取值", "说明"],
+        ["GYC_TUI_BACKEND", "未设置", "按配置项 renderer 决定，未配置时走内置渲染器"],
+        ["GYC_TUI_BACKEND", "opentui", "强制使用内置渲染器，并禁用一切自动降级"],
+        ["GYC_TUI_BACKEND", "fallback", "强制使用自研纯渲染器（零原生依赖）"],
+        ["GYC_TUI_BACKEND", "auto", "内置渲染器优先，创建或运行异常时自动降级"],
+    ], widths=[4.6, 2.2, 8.2])
+    body(doc, "自研渲染器覆盖会话主流交互：布局、滚动、代码与差异高亮、"
+              "表格、撤销重做、鼠标与快捷键；纯实现不加载任何原生库，"
+              "可作为原生异常环境下的稳定保底。")

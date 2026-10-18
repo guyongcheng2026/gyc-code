@@ -156,3 +156,8 @@ export function renderRoot(app: () => unknown, renderer: FallbackRenderer, optio
 
 export const solidRenderer = solid
 export const { createComponent, createElement, createTextNode, insert, spread } = solid
+
+/** Portal 挂载点：当前渲染的应用根节点（未渲染时 undefined）。 */
+export function getRootNode(): ElementNode | undefined {
+	return rootElement
+}

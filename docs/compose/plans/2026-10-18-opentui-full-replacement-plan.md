@@ -14,8 +14,8 @@
 |--------|------|----------|
 | ① 默认渲染后端 | **默认 `auto` = opentui 完整 UI**；`GYC_TUI_BACKEND=fallback` 或 `config.renderer=fallback` 显式切换。不改默认值（缺陷 D2 以"改注释"收口） | `src/tui/fallback/safe-mode.ts:26-33`（实现未改）、`src/tui/app.tsx:287-289`（注释已改）、`src/tui/fallback/README.md`、`GAP-ANALYSIS.md` |
 | ② 替代计划 | **M0–M8 立项并立即启动**，按本文第 7 章推进；每阶段独立可回滚 | 本文第 6、7 章 |
-| 执行状态 | **M0 2/4**（✅扫描脚本、✅captureSpans；⬜双后端 harness、⬜testRender 参数化）· **M1 ✅** · **M2 ✅**（⬜opacity）· **M3 ✅**（⬜主动探测、OSC52 读）· **M4 🔶**（EditBuffer+extmarks+Textarea；⬜TextBuffer/View、虚拟行、IME）· **M5 🔶**（Markdown GFM + **Code/Diff 组件**；⬜tree-sitter、LineNumber、conceal）· **M6 🔶**（行内节点 + stickyScroll + **竖直滚动条**；⬜真单行 input、wrapMode/truncate、横向滚动）· **M7 🔶**（hooks + 上下文 + KeyBus 接线；⬜keymap、Portal、插件槽位）· **M8 未开始** | `layout/engine.ts`、`render/{hit,focus,events}.ts`、`input.ts`、`text/edit-buffer.ts`、`markdown.ts`、`solid/{paint,components,jsx-runtime,hooks,context,renderer}.ts(x)` |
-| 当前回归 | `bun test src/tui/fallback` **275 pass / 0 fail**（34 文件）；`bun run typecheck` 仅剩 1 个与本次无关的错误（`src/gyccode/server/.../server.ts`，他人未提交改动） | — |
+| 执行状态 | **M0 2/4**（✅扫描脚本、✅captureSpans；⬜双后端 harness、⬜testRender 参数化）· **M1 ✅** · **M2 ✅**（⬜opacity）· **M3 ✅**（⬜主动探测、OSC52 读）· **M4 🔶**（⬜TextBuffer/View、虚拟行、IME）· **M5 🔶**（⬜tree-sitter、line_number、conceal、split）· **M6 🔶**（⬜真单行 input、wrapMode/truncate/textAlign、横向滚动）· **M7 ✅**（hooks + KeyBus + **keymap 核心 + Portal**；⬜layer/mode 栈、which-key、插件槽位）· **M8 未开始**（82 文件迁移 + 删依赖） | `layout/engine.ts`、`render/{hit,focus,events}.ts`、`input.ts`、`text/edit-buffer.ts`、`markdown.ts`、`keymap/{core,solid}.ts`、`solid/{paint,components,jsx-runtime,hooks,context,renderer,portal}.ts(x)` |
+| 当前回归 | `bun test src/tui/fallback` **295 pass / 0 fail**（36 文件）；`bun run typecheck` **0 error**；`check-bug-patterns` 1571 文件通过 | — |
 
 > 决策 ① 的含义：**opentui 是产线默认路径，fallback 是可切换的备选**。因此替代计划的目标不是"立刻换默认"，
 > 而是"当 fallback 达到 DoD 后再做一次默认值评估"——M8 之前不动默认值，回滚保险丝始终有效。
@@ -364,8 +364,11 @@ intrinsic 用量（同口径）：`<text>` 585、`<box>` 458、`<span>` 108、`<
 
 ### M7 应用层接线（2 周，依赖 M6）— 🔶 hooks 与上下文已落地（2026-10-18）
 
-- **已完成**：`solid/context.ts`（`RendererContext` + `KeyBus`/`KeyBusContext`）、`solid/hooks.ts`（`useRenderer`/`useTerminalDimensions`/`onResize`/`useKeyboard`/`usePaste`/`onFocus`/`onBlur`）、`renderRoot` 自动包 Provider、`run-app` 创建 KeyBus 并广播按键；4 用例见 `hooks.test.tsx`
-- **未完成**：keymap（绑定表/前缀序列/leader/which-key）、`Portal`、插件槽位 `createSlot`
+- **已完成**：
+  - `solid/context.ts`（`RendererContext` + `KeyBus`）、`solid/hooks.ts`（7 个 hooks）、`renderRoot` 自动包 Provider、`run-app` 创建 KeyBus 广播按键；4 用例见 `hooks.test.tsx`
+  - `keymap/core.ts`：命令注册、绑定（单键 + 空格分隔序列）、`stringifyKeyStroke`、leader 超时、`getCommands`；`keymap/solid.ts`：`KeymapProvider`/`useKeymap`/`useBindings`/`useDispatchCommand`/`useKeymapSelector`；13 用例见 `keymap/core.test.ts`、`portal-keymap.test.tsx`
+  - `solid/portal.ts`：`Portal`（脱离布局流、根级置顶、`zIndex` 透传、卸载清理）；绘制与命中网格同步保证 portal 最后渲染
+- **未完成**：keymap 的 layer/mode 栈（`registerLayerFields` + `setData`）、which-key 提示、`registerManagedTextareaLayer`、插件槽位 `createSlot`
 
 - **交付**
   - `keymap/`：Bindings/Commands/Leader/序列前缀/which-key（对齐 `@opentui/keymap` 语义；**绑定表本身是数据，直接复用 `src/tui/keymap.tsx` 与 `config/keybind.ts`，不改业务**）

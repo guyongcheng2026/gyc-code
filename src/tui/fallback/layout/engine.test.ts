@@ -183,6 +183,39 @@ describe("布局引擎：绝对定位", () => {
 	})
 })
 
+describe("布局引擎：取整与反向（R2/R4）", () => {
+	test("flexGrow 非整除分配取整，坐标保持整数", () => {
+		const a = node("box", { width: 1, height: 1, flexGrow: 1 })
+		const b = node("box", { width: 1, height: 1, flexGrow: 1 })
+		const root = layout(node("box", { flexDirection: "row" }, [a, b]), 9, 1)
+		// free = 9 - 2 = 7 → 每项 floor(1 + 3.5) = 4，末尾留 1 格
+		expect(a.layout).toEqual({ x: 0, y: 0, width: 4, height: 1 })
+		expect(b.layout).toEqual({ x: 4, y: 0, width: 4, height: 1 })
+		for (const entry of dumpLayout(root)) {
+			expect(Number.isInteger(entry.rect.x)).toBe(true)
+			expect(Number.isInteger(entry.rect.y)).toBe(true)
+		}
+	})
+
+	test("justifyContent space-between 非整除间距取整", () => {
+		const a = node("box", { width: 1, height: 1 })
+		const b = node("box", { width: 1, height: 1 })
+		const c = node("box", { width: 1, height: 1 })
+		layout(node("box", { flexDirection: "row", justifyContent: "space-between" }, [a, b, c]), 10, 1)
+		expect([a.layout.x, b.layout.x, c.layout.x]).toEqual([0, 4, 9])
+	})
+
+	test("row-reverse 只镜像流内子项，absolute 子项按 inset 不动", () => {
+		const flow = node("box", { width: 2, height: 1 })
+		const overlay = node("box", { position: "absolute", top: 0, left: 1, width: 2, height: 1 })
+		layout(node("box", { flexDirection: "row-reverse" }, [flow, overlay]), 10, 1)
+		// 流内子项镜像：x = 10 - 0 - 2 = 8
+		expect(flow.layout.x).toBe(8)
+		// absolute 子项不镜像
+		expect(overlay.layout.x).toBe(1)
+	})
+})
+
 describe("布局引擎：属性归一化", () => {
 	test("direction 兼容 flexDirection", () => {
 		expect(readStyle({ direction: "row" }).flexDirection).toBe("row")

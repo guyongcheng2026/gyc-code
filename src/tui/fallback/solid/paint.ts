@@ -359,21 +359,26 @@ export function layoutTree(root: ElementNode, width: number, height: number): vo
 		measureLeaf: (node, available) => measureLeaf(node as unknown as FallbackNode, available),
 		isLeaf: (node) => isLeaf(node as unknown as FallbackNode),
 	})
-	clampScrollTops(root)
+	clampScrollTops(root, 0)
 }
 
 /**
- * scrollbox 的 scrollTop 收敛到 [0, contentHeight - 视口高]。
+ * scrollbox 的 scrollTop 收敛到 [0, contentHeight - 视口高]，并把滚动偏移
+ * **烘焙进布局坐标**（子树整体平移）。
+ *
+ * 为什么烘焙而不是 paint 时用 offsetY 平移：clip（视口矩形）与内容绘制
+ * y 必须同一坐标系，嵌套 scrollbox 时 offset 链一旦分叉就会裁剪错位（R3）。
+ * 烘焙后 layout 即屏幕坐标，clip/命中网格/滚动条全部自然对齐。
  *
  * stickyScroll（对齐 opentui `ScrollBoxOptions.stickyScroll/stickyStart`）：
  * 内容增长时若上一帧仍贴底，则本帧继续贴底；用户手动滚离底部后不再强制跟随。
- *
  * 判定「用户是否手动滚动」靠 requested 是否变化（`stickyRequested` 记录上一帧值）：
- * sticky 自动贴底只改 `node.scrollTop`，不改组件信号，因此信号不变即视为未手动滚动。
- * 首帧 `stickyRequested` 未定义 → 视为未滚动 → 初始即贴底（聊天流的期望行为）。
+ * sticky 自动贴底只改 `node.scrollTop`，不改组件信号。首帧视为未滚动 → 初始贴底。
  */
-function clampScrollTops(node: FallbackNode): void {
+function clampScrollTops(node: FallbackNode, shift: number): void {
+	node.layout.y += shift
 	if (node.kind !== "element") return
+	let childShift = shift
 	if (node.type === "scrollbox") {
 		const requested = typeof node.props.scrollTop === "number" ? node.props.scrollTop : 0
 		const maxScroll = Math.max(0, node.contentHeight - node.layout.height)
@@ -388,8 +393,9 @@ function clampScrollTops(node: FallbackNode): void {
 		}
 		node.stickyRequested = requested
 		node.stickyMaxScroll = maxScroll
+		childShift = shift - node.scrollTop
 	}
-	for (const child of node.children) clampScrollTops(child)
+	for (const child of node.children) clampScrollTops(child, childShift)
 }
 
 // ---- 绘制 ----
@@ -430,7 +436,8 @@ function paintNode(node: FallbackNode, screen: Screen, clip: LayoutRect, offsetY
 			const viewport = intersect(clip, el.layout)
 			const barVisible = verticalScrollbarVisible(el) && el.contentHeight > el.layout.height
 			const contentClip = barVisible ? { ...viewport, width: Math.max(0, viewport.width - 1) } : viewport
-			paintChildren(el, screen, contentClip, -el.scrollTop)
+			// R3：滚动偏移已在 clampScrollTops 烘焙进 layout，这里不再叠加
+			paintChildren(el, screen, contentClip, offsetY)
 			if (barVisible) paintVerticalScrollbar(el, screen, viewport, offsetY)
 			return
 		}
@@ -530,17 +537,22 @@ function paintBorder(el: ElementNode, kind: BorderKind, screen: Screen, clip: La
 }
 
 /**
- * 子节点绘制。zIndex 非 0 时按升序排序（后画覆盖先画），对齐 opentui
- * `ensureZIndexSorted`；无 zIndex 的常规树不排序（避免每帧分配）。
+ * 子节点绘制顺序：portal 类元素永远最后（根级置顶），其余按 zIndex 升序，
+ * 再按树序。无 portal/zIndex 的常规树不排序（避免每帧分配）。
  */
 function paintChildren(el: ElementNode, screen: Screen, clip: LayoutRect, offsetY: number): void {
 	const kids = el.children
-	if (kids.length > 1 && kids.some((child) => zIndexOf(child) !== 0)) {
-		const sorted = [...kids].sort((a, b) => zIndexOf(a) - zIndexOf(b))
+	if (kids.length > 1 && kids.some((child) => paintRank(child) !== 0 || zIndexOf(child) !== 0)) {
+		const sorted = [...kids].sort((a, b) => paintRank(a) - paintRank(b) || zIndexOf(a) - zIndexOf(b))
 		for (const child of sorted) paintNode(child, screen, clip, offsetY)
 		return
 	}
 	for (const child of kids) paintNode(child, screen, clip, offsetY)
+}
+
+/** 排序权重：portal 置顶（1），普通元素按原顺序（0）；同权重内保持稳定。 */
+function paintRank(node: FallbackNode): number {
+	return node.kind === "element" && node.type === "portal" ? 1 : 0
 }
 
 function zIndexOf(node: FallbackNode): number {

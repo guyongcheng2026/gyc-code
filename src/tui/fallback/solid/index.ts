@@ -25,6 +25,9 @@ export type { ScrollBoxApi, TextareaApi, TextareaProps, MarkdownProps, SelectApi
 // 应用层 hooks（M7，对齐 @opentui/solid）
 export { onBlur, onFocus, onResize, useKeyboard, usePaste, useRenderer, useTerminalDimensions } from "./hooks"
 export { KeyBus, KeyBusContext, RendererContext } from "./context"
+export { Portal } from "./portal"
+export { Keymap } from "../keymap/core"
+export { KeymapProvider, useBindings, useDispatchCommand, useKeymap, useKeymapSelector } from "../keymap/solid"
 
 // solid-js builtIns：universal 产物直接从 moduleName import
 export {

@@ -32,6 +32,8 @@ interface Snapshot {
 	readonly lines: readonly string[]
 	readonly row: number
 	readonly col: number
+	/** R5：extmarks 随快照深拷贝，undo/redo 才能把标记恢复到编辑前位置 */
+	readonly marks: readonly Extmark[]
 }
 
 const UNDO_LIMIT = 100
@@ -348,7 +350,7 @@ export class EditBuffer {
 	// ---------- 内部 ----------
 
 	private snapshot(): Snapshot {
-		return { lines: [...this.lines], row: this.row, col: this.col }
+		return { lines: [...this.lines], row: this.row, col: this.col, marks: this.marks.map((mark) => ({ ...mark })) }
 	}
 
 	private restore(snapshot: Snapshot): void {
@@ -356,7 +358,16 @@ export class EditBuffer {
 		this.row = Math.min(snapshot.row, this.lines.length - 1)
 		this.col = Math.min(snapshot.col, cpLength(this.lines[this.row] ?? ""))
 		this.anchor = undefined
-		this.rebaseMarks()
+		// R5：标记按 id 原地恢复——外部持有的 mark 句柄在 undo/redo 后必须继续有效，
+		// 不能整表替换（否则旧引用指向失联对象，位置永远停在恢复前）
+		const previous = new Map(this.marks.map((mark) => [mark.id, mark]))
+		this.marks = snapshot.marks.map((snap) => {
+			const existing = previous.get(snap.id)
+			if (existing === undefined) return { ...snap }
+			existing.start = snap.start
+			existing.end = snap.end
+			return existing
+		})
 	}
 
 	private pushUndo(): void {
@@ -369,8 +380,8 @@ export class EditBuffer {
 	 * 插入/删除后迁移标记（区间按 [start, end) 语义）：
 	 *  - 插入 [p, p+L)：标记整体在 p 之后则平移；跨 p 则延长 end；
 	 *    插入点恰在 end 处不延长（end 为开区间）。
-	 *  - 删除 [p, p+L)：标记完全在删除区间之后则前移；与删除区间相交则收缩，
-	 *    起点落在删除区间内时收敛到 p（不越过删除点）。
+	 *  - 删除 [p, p+L) 四种相交情况（R1 修复：end 必须按"删除点之后剩余长度"重算，
+	 *    不能用 `end - removed`——起点落在删除区间内时会多算 overlapStart 到 p 的距离）。
 	 */
 	private shiftMarks(offset: number, length: number, inserted: boolean): void {
 		for (const mark of this.marks) {
@@ -386,14 +397,19 @@ export class EditBuffer {
 				if (mark.end <= offset) {
 					// 完全在删除点之前，不变
 				} else if (mark.start >= deleteEnd) {
+					// 完全在删除区间之后，整体前移
 					mark.start -= length
 					mark.end -= length
+				} else if (mark.start < offset && mark.end > deleteEnd) {
+					// 跨越删除区间：保留前段，后段平移
+					mark.end -= length
+				} else if (mark.start >= offset) {
+					// 起点在删除区间内、终点在其后：前段被删，后段平移到删除点
+					mark.start = offset
+					mark.end -= length
 				} else {
-					const overlapStart = Math.max(mark.start, offset)
-					const overlapEnd = Math.min(mark.end, deleteEnd)
-					const removed = Math.max(0, overlapEnd - overlapStart)
-					mark.end -= removed
-					if (mark.start > offset) mark.start = Math.max(offset, mark.start - removed)
+					// 终点在删除区间内：收缩到删除点
+					mark.end = offset
 				}
 			}
 			mark.start = Math.max(0, mark.start)

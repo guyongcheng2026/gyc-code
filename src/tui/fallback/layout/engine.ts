@@ -333,9 +333,16 @@ export function computeLayout(root: LayoutNode, size: { width: number; height: n
 	layoutNode(root, { x: 0, y: 0, width: Math.max(0, Math.floor(size.width)), height: Math.max(0, Math.floor(size.height)) }, opts)
 }
 
-function layoutNode(node: LayoutNode, rect: LayoutRect, opts: LayoutOptions): void {
+function layoutNode(node: LayoutNode, rawRect: LayoutRect, opts: LayoutOptions): void {
 	const style = readStyle(node.props ?? {})
-	node.layout = { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+	// R2：坐标/尺寸在此统一取整——终端只有整格，浮点索引会让 Screen 丢格
+	const rect: LayoutRect = {
+		x: Math.round(rawRect.x),
+		y: Math.round(rawRect.y),
+		width: Math.max(0, Math.round(rawRect.width)),
+		height: Math.max(0, Math.round(rawRect.height)),
+	}
+	node.layout = { ...rect }
 	const frame = frameOf(style, rect.width)
 
 	if (isLeafOf(node, opts)) {
@@ -440,7 +447,13 @@ function layoutNode(node: LayoutNode, rect: LayoutRect, opts: LayoutOptions): vo
 			const lineSize = lineCross[i]!
 			const crossOffset = alignOffset(align, lineSize, crossSize + crossMargins(item, row))
 
-			const mainPos = pos + mainBefore(item, row)
+			// space-between 末项必须贴边（取整丢掉的零头归入末段间距）
+			const isLast = j === current.length - 1
+			const basePos =
+				style.justifyContent === "space-between" && isLast && extra > 0
+					? availMain - mainSize - mainMargins(item, row)
+					: pos
+			const mainPos = basePos + mainBefore(item, row)
 			const crossPos = crossCursor + crossOffset + crossBefore(item, row)
 
 			const childRect: LayoutRect = row
@@ -480,8 +493,10 @@ function layoutNode(node: LayoutNode, rect: LayoutRect, opts: LayoutOptions): vo
 	}
 
 	if (reverse) {
-		// 反向：按主轴镜像子项位置（简单实现，覆盖 row-reverse/column-reverse 的终端用法）
+		// R4：反向只镜像流内子项——absolute 子项按 inset 定位，不应被镜像
 		for (const child of node.children ?? []) {
+			const cs = readStyle(child.props ?? {})
+			if (cs.position === "absolute") continue
 			const c = child.layout
 			if (row) c.x = content.x + content.width - (c.x - content.x) - c.width
 			else c.y = content.y + content.height - (c.y - content.y) - c.height
@@ -528,14 +543,14 @@ function alignOffset(align: Align, lineCross: number, crossOuter: number): numbe
 	return 0
 }
 
-/** grow / shrink 分配：返回每项主轴尺寸（不含 margin）。 */
+/** grow / shrink 分配：返回每项主轴尺寸（不含 margin，已取整——R2）。 */
 function distribute(line: FlowItem[], free: number, row: boolean, availMain: number): number[] {
 	const sizes = line.map((item) => item.baseMain)
 	if (free > 0) {
 		const totalGrow = line.reduce((acc, item) => acc + Math.max(0, item.style.flexGrow), 0)
 		if (totalGrow <= 0) return sizes.map((size, i) => clampItemMain(line[i]!, size, row, availMain))
 		return sizes.map((size, i) =>
-			clampItemMain(line[i]!, size + (free * Math.max(0, line[i]!.style.flexGrow)) / totalGrow, row, availMain),
+			clampItemMain(line[i]!, Math.floor(size + (free * Math.max(0, line[i]!.style.flexGrow)) / totalGrow), row, availMain),
 		)
 	}
 	if (free < 0) {
@@ -543,7 +558,7 @@ function distribute(line: FlowItem[], free: number, row: boolean, availMain: num
 		if (totalShrink <= 0) return sizes.map((size, i) => clampItemMain(line[i]!, size, row, availMain))
 		return sizes.map((size, i) => {
 			const factor = Math.max(0, line[i]!.style.flexShrink) * line[i]!.baseMain
-			return clampItemMain(line[i]!, Math.max(0, size + (free * factor) / totalShrink), row, availMain)
+			return clampItemMain(line[i]!, Math.max(0, Math.floor(size + (free * factor) / totalShrink)), row, availMain)
 		})
 	}
 	return sizes.map((size, i) => clampItemMain(line[i]!, size, row, availMain))
@@ -563,11 +578,11 @@ function justify(mode: Justify, extra: number, count: number): { offset: number;
 		case "flex-end":
 			return { offset: extra, spacing: 0 }
 		case "space-between":
-			return count > 1 ? { offset: 0, spacing: extra / (count - 1) } : { offset: 0, spacing: 0 }
+			return count > 1 ? { offset: 0, spacing: Math.floor(extra / (count - 1)) } : { offset: 0, spacing: 0 }
 		case "space-around":
-			return { offset: extra / count / 2, spacing: extra / count }
+			return { offset: Math.floor(extra / count / 2), spacing: Math.floor(extra / count) }
 		case "space-evenly":
-			return { offset: extra / (count + 1), spacing: extra / (count + 1) }
+			return { offset: Math.floor(extra / (count + 1)), spacing: Math.floor(extra / (count + 1)) }
 		default:
 			return { offset: 0, spacing: 0 }
 	}

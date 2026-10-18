@@ -187,4 +187,35 @@ describe("编辑缓冲：extmarks", () => {
 		expect(buffer.marksOf("a").length).toBe(0)
 		expect(buffer.marksOf().length).toBe(1)
 	})
+
+	test("R1：起点落在删除区间内、终点在其后时 end 按剩余长度重算", () => {
+		const buffer = new EditBuffer("abcdef")
+		const mark = buffer.setMark("prompt-part", 2, 6)
+		// 删除 [1,4)：标记剩余部分 [4,6) 平移到 [1,3)
+		buffer.setCursor(0, 1)
+		buffer.deleteForward()
+		buffer.deleteForward()
+		buffer.deleteForward()
+		expect(buffer.text).toBe("aef")
+		expect([mark.start, mark.end]).toEqual([1, 3])
+	})
+
+	test("R1：标记被删除区间完全吞没时收敛为空标记", () => {
+		const buffer = new EditBuffer("abcdef")
+		const mark = buffer.setMark("prompt-part", 2, 4)
+		buffer.setCursor(0, 1)
+		for (let i = 0; i < 3; i++) buffer.deleteForward()
+		expect(buffer.text).toBe("aef")
+		expect([mark.start, mark.end]).toEqual([1, 1])
+	})
+
+	test("R5：undo 恢复标记到编辑前位置", () => {
+		const buffer = new EditBuffer("abcdef")
+		const mark = buffer.setMark("prompt-part", 2, 4)
+		buffer.setCursor(0, 1)
+		buffer.insert("XY")
+		expect([mark.start, mark.end]).toEqual([4, 6])
+		buffer.undo()
+		expect([mark.start, mark.end]).toEqual([2, 4])
+	})
 })

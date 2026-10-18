@@ -55,11 +55,15 @@ function zIndexOf(node: FallbackNode): number {
 	return typeof value === "number" && Number.isFinite(value) ? value : 0
 }
 
-/** 与 paintChildren 相同的子节点顺序：有 zIndex 时升序，否则保持树序。 */
+/** 与 paintChildren 相同的子节点顺序：portal 置顶，其余按 zIndex 升序，再按树序。 */
 function orderedChildren(el: ElementNode): readonly FallbackNode[] {
 	const kids = el.children
-	if (kids.length > 1 && kids.some((child) => zIndexOf(child) !== 0)) {
-		return [...kids].sort((a, b) => zIndexOf(a) - zIndexOf(b))
+	if (kids.length > 1 && kids.some((child) => (child.kind === "element" && child.type === "portal") || zIndexOf(child) !== 0)) {
+		return [...kids].sort(
+			(a, b) =>
+				((a.kind === "element" && a.type === "portal") ? 1 : 0) - ((b.kind === "element" && b.type === "portal") ? 1 : 0) ||
+				zIndexOf(a) - zIndexOf(b),
+		)
 	}
 	return kids
 }

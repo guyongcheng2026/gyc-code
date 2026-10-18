@@ -117,6 +117,22 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return enterInsert()
         },
       },
+      {
+        name: "vim.change.word",
+        desc: "删至词尾并进入输入",
+        run: () => {
+          focusedEditor()?.deleteWordForward()
+          return enterInsert()
+        },
+      },
+      {
+        name: "vim.change.word.backward",
+        desc: "删至词首并进入输入",
+        run: () => {
+          focusedEditor()?.deleteWordBackward()
+          return enterInsert()
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -133,6 +149,10 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "x", cmd: "input.delete", desc: "Vim 删字符" },
       { key: "d,d", cmd: "input.delete.line", desc: "Vim 删行" },
       { key: "D", cmd: "input.delete.to.line.end", desc: "Vim 删至行尾" },
+      { key: "d,w", cmd: "input.delete.word.forward", desc: "Vim 删至词尾" },
+      { key: "d,b", cmd: "input.delete.word.backward", desc: "Vim 删至词首" },
+      { key: "c,w", cmd: "vim.change.word", desc: "Vim 改至词尾" },
+      { key: "c,b", cmd: "vim.change.word.backward", desc: "Vim 改至词首" },
       { key: "u", cmd: "input.undo", desc: "Vim 撤销" },
       { key: "ctrl+r", cmd: "input.redo", desc: "Vim 重做" },
       { key: "i", cmd: "vim.insert", desc: "进入输入模式" },

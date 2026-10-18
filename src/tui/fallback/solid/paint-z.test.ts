@@ -53,3 +53,26 @@ describe("绘制层：visible", () => {
 		expect(lines[1]).toBe("OK      ")
 	})
 })
+
+describe("scrollbox：嵌套滚动（R3）", () => {
+	test("内层内容随外层滚动整体平移且裁剪正确", () => {
+		const outer = createElementNode("scrollbox")
+		Object.assign(outer.props, { height: 3, scrollTop: 1 })
+		const inner = createElementNode("scrollbox")
+		Object.assign(inner.props, { height: 3 })
+		insertNode(inner, textBox("INNER", { height: 1 }))
+		insertNode(outer, textBox("pad", { height: 1 }))
+		insertNode(outer, inner)
+		const root = createElementNode("root")
+		insertNode(root, outer)
+
+		const screen = new Screen(10, 6)
+		layoutTree(root, 10, 6)
+		paintTree(root, screen)
+		const lines = screen.snapshot()
+		// 外层 scrollTop=1：pad(内容 y=0) 滚出视口顶部
+		expect(lines[0]?.includes("pad")).toBe(false)
+		// inner(内容 y=1) 上移 1 行到屏幕 y=0，其内容 INNER 跟随
+		expect(lines[0]?.includes("INNER")).toBe(true)
+	})
+})
