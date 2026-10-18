@@ -14,9 +14,9 @@ describe("gateway.weixin 游标与上下文令牌写盘可观测", () => {
     const source = await readSource()
 
     expect(source).toContain('logError("gateway.weixin.persist-sync-buf"')
-    expect(source).toContain("accountId: this.config!.accountId")
+    expect(source).toContain("accountId: config.accountId")
     expect(source).not.toContain(
-      'await writeJson("sync-buf.json", { accountId: this.config!.accountId, buf: syncBuf }).catch(() => undefined)',
+      'await writeJson("sync-buf.json", { accountId: config.accountId, buf: syncBuf }).catch((error) => logError("gateway.weixin.persist-sync-buf", error, { accountId: config.accountId }))',
     )
   })
 

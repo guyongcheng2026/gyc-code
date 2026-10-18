@@ -2,6 +2,7 @@ export * as FileMutation from "./file-mutation"
 
 import { makeLocationNode } from "./effect/app-node"
 import { Context, Effect, Layer, Schema, Option, Cause } from "effect"
+import { logError } from "./observability/log-error"
 import { dirname, join } from "path"
 import { spawn } from "node:child_process"
 import type { ChildProcess } from "node:child_process"
@@ -127,21 +128,21 @@ const layer = Layer.effect(
       Effect.gen(function* () {
         if (formatter) {
           yield* formatter.file(target.canonical).pipe(
-            Effect.catchCause(() => Effect.void),
+            Effect.catchCause((cause) => Effect.sync(() => logError("file.mutation", Cause.pretty(cause), { target: target.canonical }))),
           )
         }
         if (events) {
           yield* events.publish(FileSystemWatcher.Event.Updated, {
             file: target.canonical,
             event: "change",
-          }).pipe(Effect.catchCause(() => Effect.void))
+          }).pipe(Effect.catchCause((cause) => Effect.sync(() => logError("file.mutation", Cause.pretty(cause), { target: target.canonical }))))
         }
         if (snapshot) {
-          yield* snapshot.capture().pipe(Effect.catchCause(() => Effect.void))
+          yield* snapshot.capture().pipe(Effect.catchCause((cause) => Effect.sync(() => logError("file.mutation", Cause.pretty(cause), { target: target.canonical }))))
         }
         if (lsp) {
           yield* lsp.touchFile(target.canonical, "document").pipe(
-            Effect.catchCause(() => Effect.void),
+            Effect.catchCause((cause) => Effect.sync(() => logError("file.mutation", Cause.pretty(cause), { target: target.canonical }))),
           )
         }
       })
@@ -150,7 +151,7 @@ const layer = Layer.effect(
     const runPreWriteHooks = (target: Target) =>
       Effect.gen(function* () {
         if (snapshot) {
-          yield* snapshot.capture().pipe(Effect.catchCause(() => Effect.void))
+          yield* snapshot.capture().pipe(Effect.catchCause((cause) => Effect.sync(() => logError("file.mutation", Cause.pretty(cause), { target: target.canonical }))))
         }
       })
 

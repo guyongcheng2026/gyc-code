@@ -50,10 +50,17 @@ export function rotateIfNeeded(file: string): void {
 // 若将来这个守护需要按实例或按测试启停，必须先补 stopRotationGuard()，
 // 否则它才会变成真正的泄漏。
 let rotationGuard: NodeJS.Timeout | undefined
-function startRotationGuard(file: string): void {
+export function startRotationGuard(file: string): void {
   if (rotationGuard) return
   rotationGuard = setInterval(() => rotateIfNeeded(file), ROTATE_CHECK_INTERVAL_MS)
   rotationGuard.unref?.()
+}
+
+export function stopRotationGuard(): void {
+  if (rotationGuard) {
+    clearInterval(rotationGuard)
+    rotationGuard = undefined
+  }
 }
 
 // Throttle repeated log lines so a failing provider (e.g. a 60s header
