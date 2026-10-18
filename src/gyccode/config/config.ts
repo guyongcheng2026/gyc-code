@@ -13,6 +13,7 @@ import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
 import { InstallationLocal, InstallationVersion } from "@gyccode/core/installation/version"
 import { existsSync } from "fs"
+import { Glob } from "@gyccode/core/util/glob"
 import { Account } from "@/account/account"
 import { isRecord } from "@/util/record"
 import type { ConsoleState } from "@gyccode/core/v1/config/console-state"
@@ -492,6 +493,74 @@ const layer = Layer.effect(
             )
             // 项目级覆盖全局：合并到 result.mcp，不覆盖用户已显式配置的同名服务器之外的内容。
             result.mcp = mergeDeep(result.mcp ?? {}, converted)
+          }
+
+          // 声明式插件 MCP servers：.gyccode/{plugin,plugins}/*/mcp.json。
+          // 文件形如 { "mcpServers": { ... } } 或直接 { "server-name": { ... } }。
+          for (const sub of ["plugin", "plugins"]) {
+            const pluginRoot = path.join(ctx.directory, sub)
+            const mcpFiles = yield* Effect.tryPromise({
+              try: () => Glob.scan("*/mcp.json", { cwd: pluginRoot, absolute: true, dot: true, symlink: true }),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+            for (const file of mcpFiles) {
+              const converted = yield* Effect.tryPromise({
+                try: () =>
+                  fsNode.readFile(file, "utf8").then((text) => {
+                    const parsed: unknown = JSON.parse(text)
+                    const servers = isRecord(parsed)
+                      ? isRecord(parsed.mcpServers)
+                        ? parsed.mcpServers
+                        : parsed
+                      : undefined
+                    return convertMcpJsonServers(servers)
+                  }),
+                catch: (error) => error,
+              }).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to load plugin mcp.json", { path: file, error: String(error) }).pipe(
+                    Effect.as({} as Record<string, ConfigMCPV1.Info>),
+                  ),
+                ),
+              )
+              result.mcp = mergeDeep(result.mcp ?? {}, converted)
+            }
+          }
+
+          // 声明式插件 hooks：.gyccode/{plugin,plugins}/*/hooks.json。
+          // 文件形如 { "hooks": [{ "event": "PreToolUse", "command": "..." }] }。
+          for (const sub of ["plugin", "plugins"]) {
+            const pluginRoot = path.join(ctx.directory, sub)
+            const hookFiles = yield* Effect.tryPromise({
+              try: () => Glob.scan("*/hooks.json", { cwd: pluginRoot, absolute: true, dot: true, symlink: true }),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+            for (const file of hookFiles) {
+              const hooks = yield* Effect.tryPromise({
+                try: () =>
+                  fsNode.readFile(file, "utf8").then((text) => {
+                    const parsed: unknown = JSON.parse(text)
+                    const list = isRecord(parsed) ? parsed.hooks : undefined
+                    if (!Array.isArray(list)) return []
+                    return list.filter(
+                      (h): h is { event: string; command: string; matcher?: string; timeout?: number } =>
+                        isRecord(h) &&
+                        typeof h.event === "string" &&
+                        typeof h.command === "string" &&
+                        (h.matcher === undefined || typeof h.matcher === "string") &&
+                        (h.timeout === undefined || (typeof h.timeout === "number" && h.timeout > 0)),
+                    )
+                  }),
+                catch: (error) => error,
+              }).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to load plugin hooks.json", { path: file, error: String(error) }).pipe(
+                    Effect.as([] as Array<{ event: string; command: string; matcher?: string; timeout?: number }>),
+                  ),
+                ),
+              )
+              result.hooks = [...(result.hooks ?? []), ...hooks]
+            }
           }
         }
 

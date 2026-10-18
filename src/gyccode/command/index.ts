@@ -7,6 +7,9 @@ import { Effect, Layer, Context, Schema } from "effect"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
+import { Glob } from "@gyccode/core/util/glob"
+import { ConfigMarkdown } from "@/config/markdown"
+import { isRecord } from "@/util/record"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_SKILL_CREATE from "./template/skill-create.txt"
@@ -184,6 +187,42 @@ const layer = Layer.effect(
             ].join("\n")
           },
           hints: [],
+        }
+      }
+
+      // 声明式插件命令：扫描 .gyccode/{plugin,plugins}/*/commands/*.md。
+      // 对标 Claude Code 的声明式 markdown 插件可提供 commands——插件目录里的
+      // markdown 命令（frontmatter 声明 name/description）注册为斜杠命令。
+      const dirs = yield* config.directories()
+      for (const dir of dirs) {
+        for (const sub of ["plugin", "plugins"]) {
+          const root = path.join(dir, sub)
+          const matches = yield* Effect.tryPromise({
+            try: () => Glob.scan("*/commands/*.md", { cwd: root, absolute: true, dot: true, symlink: true }),
+            catch: (error) => error,
+          }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+          for (const match of matches) {
+            const md = yield* Effect.tryPromise({
+              try: () => ConfigMarkdown.parse(match),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            if (!md) continue
+            if (!isRecord(md.data) || typeof md.data.name !== "string") continue
+            const name = md.data.name
+            if (commands[name]) continue
+            // match = <pluginRoot>/commands/<file>.md，插件根目录即其上两级。
+            const pluginRoot = path.dirname(path.dirname(match))
+            commands[name] = {
+              name,
+              description: typeof md.data.description === "string" ? md.data.description : undefined,
+              source: "command",
+              get template() {
+                // ${CLAUDE_PLUGIN_ROOT} → 插件根目录绝对路径，让命令能引用插件自身文件。
+                return md.content.replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, pluginRoot).trim()
+              },
+              hints: hints(md.content),
+            }
+          }
         }
       }
 

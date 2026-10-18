@@ -259,6 +259,11 @@ const discoverSkills = Effect.fnUntraced(function* (
   const configDirs = yield* config.directories()
   for (const dir of configDirs) {
     yield* scan(state, dir, GYCCODE_SKILL_PATTERN)
+    // 声明式插件 skills：.gyccode/{plugin,plugins}/*/skills/**/SKILL.md。
+    // 用 scope 标记使目录缺失时降级为空扫描（记日志）而非 die，插件目录可选。
+    for (const sub of ["plugin", "plugins"]) {
+      yield* scan(state, path.join(dir, sub), "*/skills/**/SKILL.md", { scope: "plugin" })
+    }
   }
 
   const cfg = yield* config.get()
