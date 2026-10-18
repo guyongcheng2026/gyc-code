@@ -1,7 +1,7 @@
 import { CliRenderEvents, InputRenderable, TextareaRenderable, type Renderable } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
 import { createEffect, createSignal, onCleanup } from "solid-js"
-import { GYCCODE_BASE_MODE, useBindings } from "./keymap"
+import { GYCCODE_BASE_MODE, useBindings, useGyccodeKeymap } from "./keymap"
 import { useKV } from "./context/kv"
 
 export const VIM_MODE_KEY = "vim_mode_enabled"
@@ -22,6 +22,7 @@ function isManagedTextarea(target: Renderable | null | undefined) {
 export function useVimKeymap(options?: { busy?: () => boolean }) {
   const renderer = useRenderer()
   const kv = useKV()
+  const keymap = useGyccodeKeymap()
 
   const [vimState, setVimState] = createSignal<VimState>("insert")
   const [textareaFocused, setTextareaFocused] = createSignal(false)
@@ -38,6 +39,23 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
   createEffect(() => {
     if (kv.get(VIM_MODE_KEY, false) === true) return
     setVimState("insert")
+  })
+
+  // f/t/F/T 查找：注册单字符捕获 pattern，binding 里用 {findChar} 引用
+  createEffect(() => {
+    if (kv.get(VIM_MODE_KEY, false) !== true) return
+    const off = keymap.registerSequencePattern({
+      name: "findChar",
+      min: 1,
+      max: 1,
+      match(event) {
+        const name = event.name
+        if (name.length !== 1) return undefined
+        if (event.ctrl || event.meta) return undefined
+        return { value: name, display: name }
+      },
+    })
+    onCleanup(off)
   })
 
   const inNormal = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "normal" && textareaFocused()
@@ -178,6 +196,62 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return true
         },
       },
+      {
+        name: "vim.find.forward",
+        desc: "跳到下一个字符",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.indexOf(char, target.logicalCursor.col + 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx)
+          return true
+        },
+      },
+      {
+        name: "vim.find.till.forward",
+        desc: "跳到下一个字符前",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.indexOf(char, target.logicalCursor.col + 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, Math.max(0, idx - 1))
+          return true
+        },
+      },
+      {
+        name: "vim.find.backward",
+        desc: "跳到上一个字符",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.lastIndexOf(char, target.logicalCursor.col - 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx)
+          return true
+        },
+      },
+      {
+        name: "vim.find.till.backward",
+        desc: "跳到上一个字符后",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.lastIndexOf(char, target.logicalCursor.col - 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx + 1)
+          return true
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -210,6 +284,10 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "O", cmd: "vim.open.above", desc: "上方新行输入" },
       { key: "v", cmd: "vim.visual", desc: "进入可视模式" },
       { key: "V", cmd: "vim.visual.line", desc: "进入行选择模式" },
+      { key: "f,{findChar}", cmd: "vim.find.forward", desc: "Vim 跳到下一个字符" },
+      { key: "t,{findChar}", cmd: "vim.find.till.forward", desc: "Vim 跳到下一个字符前" },
+      { key: "F,{findChar}", cmd: "vim.find.backward", desc: "Vim 跳到上一个字符" },
+      { key: "T,{findChar}", cmd: "vim.find.till.backward", desc: "Vim 跳到上一个字符后" },
       { key: "escape", cmd: "vim.cancel", desc: "取消挂起操作" },
     ],
   }))
