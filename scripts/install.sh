@@ -13,6 +13,7 @@ BIN_DIR="$PREFIX/bin"
 # 前置检查
 command -v git >/dev/null 2>&1 || { echo "错误: 需要 git"; exit 1; }
 command -v bun >/dev/null 2>&1 || { echo "错误: 需要 bun（https://bun.sh）"; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "错误: 需要 node（https://nodejs.org）"; exit 1; }
 
 mkdir -p "$BIN_DIR"
 
@@ -31,10 +32,12 @@ cd "$SRC_DIR"
 bun install
 bun run build
 
-# 生成启动器
+# 生成启动器：委托给仓库自带的 bin/gyc，由其统一处理 Node 检测、V8 heap flags
+# （--max-old-space-size 按内存自适应，防低内存 OOM）、编译缓存与 dist 优先策略。
+# 切勿直接 exec dist/index.js（Node 目标产物含 node:sqlite，Bun 1.x 跑会崩）。
 cat > "$BIN_DIR/gyc" <<'LAUNCHER'
 #!/bin/sh
-exec bun "$HOME/.gyccode/gyc-code/dist/index.js" "$@"
+exec node "$HOME/.gyccode/gyc-code/bin/gyc" "$@"
 LAUNCHER
 chmod +x "$BIN_DIR/gyc"
 

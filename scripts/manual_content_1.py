@@ -149,11 +149,62 @@ def chapter3(doc):
     h1(doc, "三、安装与启动")
 
     h2(doc, "（一）环境准备")
-    body(doc, "使用前须确认已安装 Bun 与 Node.js。在终端执行下列命令验证，"
-              "若能正常输出版本号即表示环境就绪。")
-    code(doc, "bun --version        # 应输出 1.3.14 或更高\nnode --version      # 应输出 v22.5.0 或更高")
+    body(doc, "系统运行需 git、Bun、Node.js 三者齐备：git 用于获取与更新源码，"
+              "Bun 用于安装依赖与构建打包，Node.js 用于运行打包产物。"
+              "三者缺一不可，先按各自平台的官方方式安装，再在终端验证版本。")
+    table(doc, [
+        ["依赖", "用途", "最低版本"],
+        ["git", "获取与更新源码", "较新版本即可"],
+        ["Bun", "安装依赖、构建打包", "1.3.14"],
+        ["Node.js", "运行打包产物 dist", "22.5.0"],
+    ], widths=[3.0, 6.0, 6.0])
+    code(doc, "git --version\nbun --version       # 应输出 1.3.14 或更高\nnode --version      # 应输出 v22.5.0 或更高")
 
-    h2(doc, "（二）三种启动方式")
+    h2(doc, "（二）全新安装")
+    body(doc, "全新安装指在一台从未安装过 gyc-code 的机器上，从零到可运行的全过程。"
+              "macOS 与 Windows 步骤不同，分别说明如下。")
+
+    h3(doc, "1. macOS（一键安装）")
+    body(doc, "macOS 下提供一键安装脚本，自动完成克隆源码、安装依赖、"
+              "构建打包与启动器生成，三步到位。")
+    code(doc,
+         "curl -fsSL https://raw.githubusercontent.com/guyongcheng2026/gyc-code/main/scripts/install.sh | sh")
+    body(doc, "脚本将源码装到 ~/.gyccode/gyc-code，启动器装到 ~/.gyccode/bin/gyc。"
+              "安装完成后把 ~/.gyccode/bin 加入 PATH 即可全局使用 gyc 命令。")
+    code(doc,
+         "echo 'export PATH=\"$HOME/.gyccode/bin:$PATH\"' >> ~/.zshrc\n"
+         "source ~/.zshrc")
+
+    h3(doc, "2. macOS（手动安装）")
+    body(doc, "不适用一键脚本或需自定义目录时，按下列命令手动完成。"
+              "（brew 需先安装 Homebrew，见 https://brew.sh）")
+    code(doc,
+         "# 1. 安装依赖\n"
+         "brew install git bun node\n\n"
+         "# 2. 克隆源码\n"
+         "git clone https://github.com/guyongcheng2026/gyc-code.git\n"
+         "cd gyc-code\n\n"
+         "# 3. 安装依赖并构建（bun install 会顺带安装 Git 钩子）\n"
+         "bun install\n"
+         "bun run build")
+
+    h3(doc, "3. Windows（手动安装）")
+    body(doc, "Windows 下暂无一键脚本，按下列步骤手动完成。")
+    code(doc,
+         "# 1. 安装依赖三件套（按官网指引安装）\n"
+         "#    git   https://git-scm.com/download/win\n"
+         "#    bun   https://bun.sh（PowerShell 执行：irm bun.sh/install.ps1 | iex）\n"
+         "#    node  https://nodejs.org（选 LTS 版）\n\n"
+         "# 2. 克隆源码（PowerShell）\n"
+         "git clone https://github.com/guyongcheng2026/gyc-code.git\n"
+         "cd gyc-code\n\n"
+         "# 3. 安装依赖并构建\n"
+         "bun install\n"
+         "bun run build")
+    body(doc, "构建完成后，用 node 运行启动器即可进入：")
+    code(doc, "node bin\\gyc --help")
+
+    h2(doc, "（三）三种启动方式")
     body(doc, "系统提供三种启动方式，其区别在于实际运行的是打包产物还是源代码。"
               "选错会导致“修改后不生效”，务必区分。")
     table(doc, [
@@ -170,7 +221,7 @@ def chapter3(doc):
               "其一，若想立即观察源码效果，改用 bun run dev；"
               "其二，若希望 gyc 命令本身生效，须先执行 bun run build 重新打包。")
 
-    h2(doc, "（三）安装与打包")
+    h2(doc, "（四）安装与打包")
     code(doc,
          "# 安装依赖（安装过程会顺带安装 Git 钩子）\n"
          "bun install\n\n"
@@ -178,7 +229,7 @@ def chapter3(doc):
          "bun run build")
     body(doc, "安装完成后，命令行工具名为 gyc。全局安装与本地仓库安装指向同一份产物。")
 
-    h2(doc, "（四）升级与卸载")
+    h2(doc, "（五）升级与卸载")
     code(doc,
          "gyc upgrade              # 升级至最新版\n"
          "gyc upgrade 0.1.48       # 升级至指定版本\n"
