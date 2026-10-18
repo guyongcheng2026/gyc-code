@@ -47,7 +47,8 @@ export function rotateIfNeeded(file: string): void {
 // 2. 已 unref() —— 不持有事件循环，进程退出既不需要清、也不会被它拖住；
 // 3. 不存在「该清理的时机」—— 轮转要求「进程活着就一直生效」，唯一能停的时刻就是
 //    进程退出，而那一刻本就是进程级回收。
-// 若将来这个守护需要按实例或按测试启停，必须先补 stopRotationGuard()，
+// 2026-10-18 评估：曾按上述预告新增 stopRotationGuard，因全仓零调用方构成死代码而移除；
+// 维持「不提供 clear 路径」的原设计，下方一句保留为将来启停需求的预告。
 // 否则它才会变成真正的泄漏。
 let rotationGuard: NodeJS.Timeout | undefined
 export function startRotationGuard(file: string): void {
@@ -56,12 +57,6 @@ export function startRotationGuard(file: string): void {
   rotationGuard.unref?.()
 }
 
-export function stopRotationGuard(): void {
-  if (rotationGuard) {
-    clearInterval(rotationGuard)
-    rotationGuard = undefined
-  }
-}
 
 // Throttle repeated log lines so a failing provider (e.g. a 60s header
 // timeout retried 3x per step) or a busy loop cannot flood the log file with

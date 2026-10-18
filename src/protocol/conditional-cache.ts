@@ -12,7 +12,7 @@
  */
 const MAX_AGE_MS = 5000
 const MAX_ENTRIES = 32
-const CACHEABLE_PATH = "/provider"
+const CACHEABLE_PATH = "/api/provider"
 
 type Entry = {
   etag: string
@@ -96,7 +96,10 @@ export function wrapConditionalGet(fetchImpl: ConditionalGetFetch): ConditionalG
 
     promise.finally(() => inFlight.delete(key))
     inFlight.set(key, promise)
-    return promise
+    // Response.body 是独占流：并发 awaiter 共享同一 Response 时第二个消费
+    // 方读 body 会报 Body already read。每个 awaiter 持有 clone（tee 分支
+    // 互不干扰），resolve 时对返回路径的 body 均未消耗，clone 安全。
+    return promise.then((res) => res.clone())
   }
 }
 

@@ -50,6 +50,7 @@
 | 手册 | 附录 A/B/C 此前未接入生成脚本 | `scripts/gen_manual_docx.py:33-34,136-141` 补 `import manual_content_8/9` 并串入 `appendix_a/b/c`；`manual_content_5.py` 补四个新工具与 `git_commit.run_checks`；`manual_content_3.py` 补 `dontAsk`、路径围栏与拒绝流水 |
 | U-3 | tool part 状态 running 残留对账 | 93e7717：`src/core/session/history.ts` 新增 `reconcileInterruptedTools`，`load/loadForRunner/entriesForRunner` 三出口把 running/pending → error（仅内存视图不回写 DB）；`history-reconcile.test.ts` 5 项；1.5x 压测实证 12 残留→0（reports/2026-10-18-1.5x-long-session-stability.md） |
 | TUI 闪烁 | 模式切换一次性闪烁取证与修复 | bffaaa0：唯一成立候选为无效模型 toast 反复弹出，已按 agent+model 去重（`src/tui/context/local.tsx`）；fadeIn（源为稳定布尔）、spinnerDef（frames 内容恒等+深比较短路）、set 静默回退（证伪：set 失败仅 toast 不改 store）均排除；原生终端目视终验待谷总 |
+| conditional-cache | CACHEABLE_PATH 路径不匹配与并发 body 独占 | `src/protocol/conditional-cache.ts:15` 常量由 `/provider` 修正为 `/api/provider`；`return promise.then(res => res.clone())` 修复并发 awaiter 共享 Response 时报 Body already read；`conditional-cache.test.ts` 4 项锁死去重与缓存回放；`logging.ts` 移除零调用方死代码 `stopRotationGuard` |
 
 ### ❌ 未解决项（需谷总决策）
 
