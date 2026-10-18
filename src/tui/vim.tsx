@@ -6,7 +6,7 @@ import { useKV } from "./context/kv"
 
 export const VIM_MODE_KEY = "vim_mode_enabled"
 
-type VimState = "insert" | "normal"
+type VimState = "insert" | "normal" | "visual"
 
 function isManagedTextarea(target: Renderable | null | undefined) {
   return target instanceof TextareaRenderable && !(target instanceof InputRenderable)
@@ -49,6 +49,8 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
     if (vimState() !== "insert" || !textareaFocused()) return false
     return options?.busy?.() !== true
   }
+
+  const inVisual = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "visual" && textareaFocused()
 
   const focusedEditor = () => {
     const target = renderer.currentFocusedEditor
@@ -155,6 +157,27 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return enterInsert()
         },
       },
+      {
+        name: "vim.visual",
+        desc: "进入可视（字符选择）模式",
+        run: () => {
+          setVimState("visual")
+          return true
+        },
+      },
+      {
+        name: "vim.visual.line",
+        desc: "进入可视（行选择）模式",
+        run: () => {
+          const target = focusedEditor()
+          if (target) {
+            target.gotoLineHome({ select: true })
+            target.gotoLineEnd({ select: true })
+          }
+          setVimState("visual")
+          return true
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -185,6 +208,8 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "A", cmd: "vim.append.line.end", desc: "行尾进入输入" },
       { key: "o", cmd: "vim.open.below", desc: "下方新行输入" },
       { key: "O", cmd: "vim.open.above", desc: "上方新行输入" },
+      { key: "v", cmd: "vim.visual", desc: "进入可视模式" },
+      { key: "V", cmd: "vim.visual.line", desc: "进入行选择模式" },
       { key: "escape", cmd: "vim.cancel", desc: "取消挂起操作" },
     ],
   }))
@@ -208,6 +233,35 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       },
     ],
     bindings: [{ key: "escape", cmd: "vim.normal", desc: "进入 NORMAL 模式" }],
+  }))
+
+  // VISUAL 模式：hjkl/w/b 用 select 变体扩展选择，escape 退出并清除选择
+  useBindings(() => ({
+    mode: GYCCODE_BASE_MODE,
+    enabled: inVisual(),
+    priority: 10,
+    commands: [
+      {
+        name: "vim.visual.cancel",
+        desc: "退出可视模式",
+        run: () => {
+          focusedEditor()?.clearSelection()
+          setVimState("normal")
+          return true
+        },
+      },
+    ],
+    bindings: [
+      { key: "h", cmd: "input.select.left", desc: "Vim 左选" },
+      { key: "l", cmd: "input.select.right", desc: "Vim 右选" },
+      { key: "k", cmd: "input.select.up", desc: "Vim 上选" },
+      { key: "j", cmd: "input.select.down", desc: "Vim 下选" },
+      { key: "w", cmd: "input.select.word.forward", desc: "Vim 选到词尾" },
+      { key: "b", cmd: "input.select.word.backward", desc: "Vim 选到词首" },
+      { key: "0", cmd: "input.select.line.home", desc: "Vim 选到行首" },
+      { key: "$", cmd: "input.select.line.end", desc: "Vim 选到行尾" },
+      { key: "escape", cmd: "vim.visual.cancel", desc: "退出可视模式" },
+    ],
   }))
 
   return {
