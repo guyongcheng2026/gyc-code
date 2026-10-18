@@ -3,6 +3,7 @@ import { useRenderer } from "@opentui/solid"
 import { createEffect, createSignal, onCleanup } from "solid-js"
 import { GYCCODE_BASE_MODE, useBindings, useGyccodeKeymap } from "./keymap"
 import { useKV } from "./context/kv"
+import { useClipboard } from "./context/clipboard"
 
 export const VIM_MODE_KEY = "vim_mode_enabled"
 
@@ -23,6 +24,7 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
   const renderer = useRenderer()
   const kv = useKV()
   const keymap = useGyccodeKeymap()
+  const clipboard = useClipboard()
 
   const [vimState, setVimState] = createSignal<VimState>("insert")
   const [textareaFocused, setTextareaFocused] = createSignal(false)
@@ -252,6 +254,29 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return true
         },
       },
+      {
+        name: "vim.yank.line",
+        desc: "复制当前行",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          void clipboard.write?.(line)
+          return true
+        },
+      },
+      {
+        name: "vim.paste",
+        desc: "粘贴剪贴板内容",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          void clipboard.read?.().then((content) => {
+            if (content && content.data) target.insertText(content.data)
+          })
+          return true
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -288,6 +313,8 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "t,{findChar}", cmd: "vim.find.till.forward", desc: "Vim 跳到下一个字符前" },
       { key: "F,{findChar}", cmd: "vim.find.backward", desc: "Vim 跳到上一个字符" },
       { key: "T,{findChar}", cmd: "vim.find.till.backward", desc: "Vim 跳到上一个字符后" },
+      { key: "y,y", cmd: "vim.yank.line", desc: "Vim 复制当前行" },
+      { key: "p", cmd: "vim.paste", desc: "Vim 粘贴" },
       { key: "escape", cmd: "vim.cancel", desc: "取消挂起操作" },
     ],
   }))
