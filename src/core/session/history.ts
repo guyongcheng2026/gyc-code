@@ -76,7 +76,9 @@ export const load = Effect.fn("SessionHistory.load")(function* (db: DatabaseServ
     ],
     { concurrency: "unbounded" },
   )
-  return yield* Effect.forEach(yield* messageRows(db, sessionID, compaction, epoch?.baselineSeq), decodeMessageRow)
+  const messages = yield* Effect.forEach(yield* messageRows(db, sessionID, compaction, epoch?.baselineSeq), decodeMessageRow)
+  reconcileInterruptedTools(messages)
+  return messages
 })
 
 export const loadForRunner = Effect.fn("SessionHistory.loadForRunner")(function* (
@@ -94,8 +96,41 @@ export const entriesForRunner = Effect.fn("SessionHistory.entriesForRunner")(fun
 ) {
   const rows = yield* messageRows(db, sessionID, yield* latestCompaction(db, sessionID), baselineSeq)
   return yield* Effect.forEach(rows, (row) =>
-    decodeMessageRow(row).pipe(Effect.map((message) => ({ seq: row.seq, message }))),
+    decodeMessageRow(row).pipe(
+      Effect.map((message) => {
+        reconcileInterruptedTools([message])
+        return { seq: row.seq, message }
+      }),
+    ),
   )
 })
+
+// U-3：进程被 SIGKILL 后 tool part 会永远停留在 running/pending，
+// 会话加载出口统一对账为 error（仅内存视图，不回写 DB，避免与活跃会话竞态）。
+const INTERRUPTED_TOOL_ERROR = "进程中断：启动对账将未完成的工具状态标记为 error"
+
+// effect Schema 解码产物属性为 readonly（仅编译期），运行时是可变普通对象；
+// 对账需要定点改写 state，用映射类型去除 readonly。
+type WritableToolPart = { -readonly [K in keyof SessionMessage.AssistantTool]: SessionMessage.AssistantTool[K] }
+
+export function reconcileInterruptedTools(messages: SessionMessage.Message[]): number {
+  let changed = 0
+  for (const msg of messages) {
+    if (msg.type !== "assistant") continue
+    for (const part of msg.content) {
+      if (part.type !== "tool") continue
+      const state = part.state
+      if (state.status !== "running" && state.status !== "pending") continue
+      // 解码产物类型为 readonly，运行时是可变普通对象，此处定点改写
+      const writable = part as WritableToolPart
+      writable.state =
+        state.status === "running"
+          ? { status: "error", input: state.input, content: state.content, structured: state.structured, error: { type: "unknown", message: INTERRUPTED_TOOL_ERROR } }
+          : { status: "error", input: {}, content: [], structured: { rawInput: state.input }, error: { type: "unknown", message: INTERRUPTED_TOOL_ERROR } }
+      changed++
+    }
+  }
+  return changed
+}
 
 export * as SessionHistory from "./history"
