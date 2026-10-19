@@ -1,6 +1,7 @@
 /** @jsxImportSource #fallback-solid */
 import { createEffect, createMemo, createSignal, For } from "solid-js"
 import { parseMarkdown } from "../markdown"
+import { EditBuffer } from "../text/edit-buffer"
 import type { Key } from "../input"
 import type { ElementNode } from "./nodes"
 import { textDisplayWidth } from "./paint"
@@ -101,119 +102,100 @@ export interface TextareaProps {
 }
 
 export function Textarea(props: TextareaProps): JSX.Element {
-	const [lines, setLines] = createSignal<string[]>([""])
-	const [cursor, setCursor] = createSignal({ row: 0, col: 0 })
+	// M4：编辑状态由 EditBuffer 承载（undo/redo、kill、选择、extmarks），
+	// 组件只负责把快照同步到渲染属性并路由按键。
+	const buffer = new EditBuffer()
+	const [view, setView] = createSignal({ lines: [""] as string[], row: 0, col: 0 })
+	const sync = () => setView({ lines: [...buffer.linesSnapshot], row: buffer.cursor.row, col: buffer.cursor.col })
 
 	const clear = () => {
-		setLines([""])
-		setCursor({ row: 0, col: 0 })
-	}
-
-	const clampCursor = (row: number, col: number) => {
-		const ls = lines()
-		const r = Math.max(0, Math.min(row, ls.length - 1))
-		// 行长按 code point 计（光标口径），代理对安全
-		setCursor({ row: r, col: Math.max(0, Math.min(col, Array.from(ls[r] ?? "").length)) })
+		buffer.setText("")
+		sync()
 	}
 
 	const api: TextareaApi = {
 		handleKey(key: Key): boolean {
-			const c = cursor()
 			switch (key.type) {
-			case "text": {
-				const text = key.text.replace(/\r/g, "")
-				if (text.length === 0) return true
-				const ls = [...lines()]
-				const chars = Array.from(ls[c.row] ?? "")
-				const before = chars.slice(0, c.col).join("")
-				const after = chars.slice(c.col).join("")
-				const segments = text.split("\n")
-				if (segments.length === 1) {
-					ls[c.row] = before + text + after
-					setLines(ls)
-					setCursor({ row: c.row, col: c.col + Array.from(text).length })
-					return true
-				}
-				// 多行插入（粘贴/API 直调）：首段接光标前，末段带走光标后内容
-				ls[c.row] = before + segments[0]!
-				for (let i = 1; i < segments.length; i++) {
-					const tail = i === segments.length - 1 ? segments[i]! + after : segments[i]!
-					ls.splice(c.row + i, 0, tail)
-				}
-				setLines(ls)
-				const last = segments[segments.length - 1]!
-				setCursor({ row: c.row + segments.length - 1, col: Array.from(last).length })
-				return true
-			}
-				case "backspace": {
-					const ls = [...lines()]
-					if (c.col > 0) {
-						const chars = Array.from(ls[c.row] ?? "")
-						chars.splice(c.col - 1, 1)
-						ls[c.row] = chars.join("")
-						setLines(ls)
-						setCursor({ row: c.row, col: c.col - 1 })
-					} else if (c.row > 0) {
-						const prev = ls[c.row - 1] ?? ""
-						const cur = ls[c.row] ?? ""
-						ls.splice(c.row - 1, 2, prev + cur)
-						setLines(ls)
-						setCursor({ row: c.row - 1, col: Array.from(prev).length })
-					}
-					return true
-				}
+				case "text":
+					buffer.insert(key.text.replace(/\r/g, ""))
+					break
+				case "paste":
+					buffer.insert(key.text)
+					break
+				case "backspace":
+					buffer.backspace()
+					break
 				case "enter": {
 					if (props.onSubmit !== undefined) {
-						const text = lines().join("\n")
+						const text = buffer.text
 						if (text.trim().length > 0) props.onSubmit(text)
-						clear()
+						buffer.setText("")
+						sync()
 						return true
 					}
-					const ls = [...lines()]
-					const chars = Array.from(ls[c.row] ?? "")
-					ls[c.row] = chars.slice(0, c.col).join("")
-					ls.splice(c.row + 1, 0, chars.slice(c.col).join(""))
-					setLines(ls)
-					setCursor({ row: c.row + 1, col: 0 })
-					return true
+					buffer.insert("\n")
+					break
 				}
-				case "left": {
-					if (c.col > 0) setCursor({ row: c.row, col: c.col - 1 })
-					else if (c.row > 0) clampCursor(c.row - 1, Number.MAX_SAFE_INTEGER)
-					return true
-				}
-				case "right": {
-					const lineLen = Array.from(lines()[c.row] ?? "").length
-					if (c.col < lineLen) setCursor({ row: c.row, col: c.col + 1 })
-					else if (c.row < lines().length - 1) clampCursor(c.row + 1, 0)
-					return true
-				}
+				case "left":
+					if (key.modifiers?.shift === true) {
+						if (!buffer.hasSelection) buffer.beginSelection()
+					} else buffer.clearSelection()
+					buffer.moveLeft()
+					break
+				case "right":
+					if (key.modifiers?.shift === true) {
+						if (!buffer.hasSelection) buffer.beginSelection()
+					} else buffer.clearSelection()
+					buffer.moveRight()
+					break
 				case "up":
-					clampCursor(c.row - 1, c.col)
-					return true
+					if (key.modifiers?.shift === true) {
+						if (!buffer.hasSelection) buffer.beginSelection()
+					} else buffer.clearSelection()
+					buffer.moveUp()
+					break
 				case "down":
-					clampCursor(c.row + 1, c.col)
-					return true
+					if (key.modifiers?.shift === true) {
+						if (!buffer.hasSelection) buffer.beginSelection()
+					} else buffer.clearSelection()
+					buffer.moveDown()
+					break
 				case "home":
-					setCursor({ row: c.row, col: 0 })
-					return true
+					buffer.clearSelection()
+					buffer.moveLineStart()
+					break
 				case "end":
-					setCursor({ row: c.row, col: Array.from(lines()[c.row] ?? "").length })
-					return true
+					buffer.clearSelection()
+					buffer.moveLineEnd()
+					break
+				case "ctrl": {
+					const k = key.key
+					if (k === "a") buffer.moveLineStart()
+					else if (k === "e") buffer.moveLineEnd()
+					else if (k === "k") buffer.killToLineEnd()
+					else if (k === "u") buffer.killToLineStart()
+					else if (k === "w") buffer.deleteWordBefore()
+					else if (k === "z") buffer.undo()
+					else if (k === "y") buffer.redo()
+					else return false
+					break
+				}
 				default:
 					return false
 			}
+			sync()
+			return true
 		},
-		getText: () => lines().join("\n"),
+		getText: () => buffer.text,
 		clear,
-		getCursor: () => cursor(),
+		getCursor: () => buffer.cursor,
 	}
 	props.ref?.(api)
 
 	// 光标移动副作用：把「逻辑 row/col」折算为「屏幕绝对 row/col」上报，
 	// 供 run-app 层把终端物理光标移动到对应位置，IME 浮窗自动跟随
 	createEffect(() => {
-		const c = cursor()
+		const c = view()
 		if (props.onCursorMove) {
 			const absRow = (props.screenOffsetRow ?? 0) + c.row
 			props.onCursorMove(absRow, c.col)
@@ -224,9 +206,9 @@ export function Textarea(props: TextareaProps): JSX.Element {
 		<textarea
 			height={props.height}
 			style={props.style}
-			lines={lines()}
-			cursorRow={cursor().row}
-			cursorCol={cursor().col}
+			lines={view().lines}
+			cursorRow={view().row}
+			cursorCol={view().col}
 			cursorVisible={props.cursorVisible}
 		/>
 	)

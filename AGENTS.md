@@ -1,6 +1,6 @@
 # gyc-code
 
-自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `C:\gyc-code`；主开发环境 Windows / PowerShell 5.1。
+自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `D:\00MyAI\gyc-code`；主开发环境 Windows / PowerShell 5.1。
 
 ## 铁律（永久，优先于默认行为）
 
@@ -31,8 +31,9 @@
 ## 命令
 
 - 开发（源码直跑）：`bun run dev`；类型检查：`bun run typecheck`（= `tsc --noEmit -p tsconfig.json`，与 CI 同款；根 tsconfig 已 `exclude: src/webapp`，webapp 单独 `cd src/webapp && bun run typecheck`）
-- 测试：`bun run test`（= `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp`）；单文件同命令带路径。webapp 是 vitest：`bun run test:web`
+- 测试：`bun run test`（= `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp`）；单文件同命令带路径。勿裸跑 `bun test`：bunfig 的 `exclude` 对自动发现不生效，会扫入 `src/webapp` 产生 jsdom 假失败。webapp 是 vitest：`bun run test:web`
 - 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
+- 体检：`bun run health`（只读健康快照：any/console.log 等静态统计）；`bun run health:full` 附加全量测试
 - **标准验证顺序**：`bun run typecheck` → `bun run test`；对外发布再 `bun run build`。
 - 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。**CI 是有的**：`.github/workflows/ci.yml` 在 push/PR→main 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一条链再推。
 
@@ -55,7 +56,7 @@
 - Bun workspaces：`src/{cli,codemode,core,effect-drizzle-sqlite,llm,protocol,schema,tui,ui,webapp}`；`src/gyccode/` 是主包（非 workspace 成员）
 - 入口链：`bin/gyc` → `src/gyccode/index.ts`（yargs 惰性注册）→ TUI `src/cli/cmd/tui.ts` + `src/tui/`；worker `src/cli/tui/worker.ts`
 - 承继内核 `src/{core,tui,llm,schema,protocol,codemode}` 来自 opencode 1.18.35（MIT）；自研层 `src/gyccode/`。改内核前先读就近 `AGENTS.md`（`src/core/tool/`、`src/gyccode/session/llm/`、`src/gyccode/server/routes/instance/httpapi/`）
-- 路径别名只在 tsconfig `paths` 里：`@/*`→`src/gyccode/`、`@core/*`→`src/core/`、`#fallback-solid`→`src/tui/fallback/solid/`（无对应 `.js` 解析不了，运行时靠 `imports`）。TUI JSX 走 `jsxImportSource: @opentui/solid`（非 React），解析依赖 `customConditions: ["browser"]`（`bun run dev` 已带 `--conditions=browser`）
+- 路径别名只在 tsconfig `paths` 里：`@/*`→`src/gyccode/`、`@core/*`→`src/core/`、`@test/*`→`src/gyccode/test/`、`#fallback-solid`→`src/tui/fallback/solid/`（无对应 `.js` 解析不了，运行时靠 `imports`）。TUI JSX 走 `jsxImportSource: @opentui/solid`（非 React），解析依赖 `customConditions: ["browser"]`（`bun run dev` 已带 `--conditions=browser`）
 - 根 tsconfig 开 `noUncheckedIndexedAccess`：数组/字典下标取值天然是 `T | undefined`，别用 `!` 硬压
 - 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；勿升降级。**升级到 effect 4.0.1 是框架迁移而非换版本**（265 个类型错误、需逐端点重做 httpapi，且与「内核与上游逐字节一致」冲突），已立项后按谷总决定回滚，配方与实测基线见 `docs/compose/specs/2026-10-07-effect-v4-acp-v1-migration-design.md`
 - 运行时开关走 `GYCCODE_*` 环境变量，不要把行为开关固化进构建 define

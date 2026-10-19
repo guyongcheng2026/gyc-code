@@ -2,7 +2,7 @@ export * as FileSystemSearch from "./search"
 
 import { makeLocationNode } from "../effect/app-node"
 import path from "path"
-import { Context, Effect, Layer, Scope } from "effect"
+import { Context, Effect, Layer, Scope, Cause } from "effect"
 import { Fff } from "#fff"
 import fuzzysort from "fuzzysort"
 import { Entry, Match } from "@gyccode/schema/filesystem"
@@ -12,6 +12,7 @@ import { FSUtil } from "../fs-util"
 import { Location } from "../location"
 import { Ripgrep } from "../ripgrep"
 import { RelativePath } from "../schema"
+import { logError } from "../observability/log-error"
 import { Flag } from "../flag/flag"
 
 export interface Interface {
@@ -54,7 +55,16 @@ export const ripgrepLayer = Layer.effect(
             })
           }),
       })
-      .pipe(Effect.orDie, Effect.asVoid, Effect.forkIn(scope))
+      .pipe(
+        Effect.catchCause((cause) =>
+          Effect.sync(() => {
+            logError("filesystem.search", Cause.pretty(cause), { cwd: location.directory })
+            return [] as FileSystem.Entry[]
+          })
+        ),
+        Effect.asVoid,
+        Effect.forkIn(scope)
+      )
     return Service.of({
       glob: (input) =>
         Effect.gen(function* () {

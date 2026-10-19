@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useSessions } from "../client/useSessions"
+import { useSessionActions } from "../client/useSessionActions"
 import { useFileTree } from "../client/useFileTree"
 import { useTheme } from "../client/useTheme"
 import { useEvents } from "../client/useEvents"
@@ -132,6 +133,7 @@ function WorkspaceMenu({
 export function App() {
   const { directory, select, recent, location } = useWorkspace()
   const { sessions, reload, remove } = useSessions(directory)
+  const { rename } = useSessionActions(directory)
   const { jobs, reload: reloadJobs } = useJobs(directory)
   const [selected, setSelected] = useState<string | null>(null)
   const [tab, setTab] = useState<MainTab>("chat")
@@ -255,6 +257,7 @@ export function App() {
               pendingMap={pendingMap}
               onSelect={setSelected}
               onNew={onNew}
+              onRename={(id, title) => void rename(id, title)}
               onDelete={(id) => {
                 if (id === selected) {
                   setSelected(null)

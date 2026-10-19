@@ -7,13 +7,14 @@ import { Effect, Layer, Context, Schema } from "effect"
 import { Config } from "@/config/config"
 import { MCP } from "../mcp"
 import { Skill } from "../skill"
+import { Glob } from "@gyccode/core/util/glob"
+import { ConfigMarkdown } from "@/config/markdown"
+import { isRecord } from "@/util/record"
 import PROMPT_INITIALIZE from "./template/initialize.txt"
 import PROMPT_REVIEW from "./template/review.txt"
 import PROMPT_SKILL_CREATE from "./template/skill-create.txt"
 import PROMPT_PLAN from "./template/plan.txt"
-import PROMPT_TDD from "./template/tdd.txt"
-import PROMPT_DEBUG from "./template/debug.txt"
-import PROMPT_VERIFY from "./template/verify.txt"
+import PROMPT_STATUS from "./template/status.txt"
 import { LegacyEvent } from "@gyccode/schema/legacy-event"
 
 type State = {
@@ -53,9 +54,7 @@ export const Default = {
   REVIEW: "review",
   SKILL_CREATE: "skill-create",
   PLAN: "plan",
-  TDD: "tdd",
-  DEBUG: "debug",
-  VERIFY: "verify",
+  STATUS: "status",
 } as const
 
 export interface Interface {
@@ -109,7 +108,7 @@ const layer = Layer.effect(
 
       commands[Default.PLAN] = {
         name: Default.PLAN,
-        description: "先制定可验证的实施计划，再动手改代码",
+        description: "计划模式：先探索并输出实现计划，不编辑文件",
         source: "command",
         get template() {
           return PROMPT_PLAN
@@ -117,34 +116,14 @@ const layer = Layer.effect(
         hints: hints(PROMPT_PLAN),
       }
 
-      commands[Default.TDD] = {
-        name: Default.TDD,
-        description: "测试驱动循环：红 → 绿 → 重构",
+      commands[Default.STATUS] = {
+        name: Default.STATUS,
+        description: "查看项目状态：git 状态、后台任务、进行中的 todo",
         source: "command",
         get template() {
-          return PROMPT_TDD
+          return PROMPT_STATUS
         },
-        hints: hints(PROMPT_TDD),
-      }
-
-      commands[Default.DEBUG] = {
-        name: Default.DEBUG,
-        description: "假设驱动的调试循环：复现 → 假设 → 验证 → 修复 → 防回归",
-        source: "command",
-        get template() {
-          return PROMPT_DEBUG
-        },
-        hints: hints(PROMPT_DEBUG),
-      }
-
-      commands[Default.VERIFY] = {
-        name: Default.VERIFY,
-        description: "验证改动正确且完整：typecheck / lint / 测试逐项通过",
-        source: "command",
-        get template() {
-          return PROMPT_VERIFY
-        },
-        hints: hints(PROMPT_VERIFY),
+        hints: hints(PROMPT_STATUS),
       }
 
       for (const [name, command] of Object.entries(cfg.command ?? {})) {
@@ -208,6 +187,42 @@ const layer = Layer.effect(
             ].join("\n")
           },
           hints: [],
+        }
+      }
+
+      // 声明式插件命令：扫描 .gyccode/{plugin,plugins}/*/commands/*.md。
+      // 对标 Claude Code 的声明式 markdown 插件可提供 commands——插件目录里的
+      // markdown 命令（frontmatter 声明 name/description）注册为斜杠命令。
+      const dirs = yield* config.directories()
+      for (const dir of dirs) {
+        for (const sub of ["plugin", "plugins"]) {
+          const root = path.join(dir, sub)
+          const matches = yield* Effect.tryPromise({
+            try: () => Glob.scan("*/commands/*.md", { cwd: root, absolute: true, dot: true, symlink: true }),
+            catch: (error) => error,
+          }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+          for (const match of matches) {
+            const md = yield* Effect.tryPromise({
+              try: () => ConfigMarkdown.parse(match),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed(undefined)))
+            if (!md) continue
+            if (!isRecord(md.data) || typeof md.data.name !== "string") continue
+            const name = md.data.name
+            if (commands[name]) continue
+            // match = <pluginRoot>/commands/<file>.md，插件根目录即其上两级。
+            const pluginRoot = path.dirname(path.dirname(match))
+            commands[name] = {
+              name,
+              description: typeof md.data.description === "string" ? md.data.description : undefined,
+              source: "command",
+              get template() {
+                // ${CLAUDE_PLUGIN_ROOT} → 插件根目录绝对路径，让命令能引用插件自身文件。
+                return md.content.replace(/\$\{CLAUDE_PLUGIN_ROOT\}/g, pluginRoot).trim()
+              },
+              hints: hints(md.content),
+            }
+          }
         }
       }
 

@@ -134,5 +134,5 @@ export const withStreamIdleTimeout = <A, E>(
 ): Stream.Stream<A, E> =>
   Stream.timeoutOrElse(stream, {
     duration: streamIdleTimeoutMs(),
-    orElse: () => Stream.fail(timeoutError(input) as unknown as E),
+    orElse: () => Stream.fail(timeoutError(input) as E),
   })

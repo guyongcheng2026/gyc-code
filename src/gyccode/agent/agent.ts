@@ -12,6 +12,7 @@ import { ProviderTransform } from "@/provider/transform"
 import PROMPT_GENERATE from "./generate.txt"
 import PROMPT_COMPACTION from "./prompt/compaction.txt"
 import PROMPT_EXPLORE from "./prompt/explore.txt"
+import PROMPT_VERIFICATION from "./prompt/verification.txt"
 import PROMPT_SUMMARY from "./prompt/summary.txt"
 import PROMPT_TITLE from "./prompt/title.txt"
 import { Permission } from "@/permission"
@@ -235,6 +236,29 @@ const layer = Layer.effect(
             ),
             description: `Fast agent specialized for exploring codebases. Use this when you need to quickly find files by patterns (eg. "src/components/**/*.tsx"), search code for keywords (eg. "API endpoints"), or answer questions about the codebase (eg. "how do API endpoints work?"). When calling this agent, specify the desired thoroughness level: "quick" for basic searches, "medium" for moderate exploration, or "very thorough" for comprehensive analysis across multiple locations and naming conventions.`,
             prompt: PROMPT_EXPLORE,
+            options: {},
+            mode: "subagent",
+            native: true,
+          },
+          verification: {
+            name: "verification",
+            permission: Permission.merge(
+              defaults,
+              Permission.fromConfig({
+                "*": "deny",
+                grep: "allow",
+                glob: "allow",
+                list: "allow",
+                bash: "allow",
+                webfetch: "allow",
+                websearch: "allow",
+                read: "allow",
+                external_directory: readonlyExternalDirectory,
+              }),
+              user,
+            ),
+            description: `Adversarial verification agent. Tries to break an implementation by running the actual checks (build, test, lint, typecheck) plus adversarial probes, then reports VERDICT: PASS/FAIL/PARTIAL. Use this after a code change to independently validate it.`,
+            prompt: PROMPT_VERIFICATION,
             options: {},
             mode: "subagent",
             native: true,

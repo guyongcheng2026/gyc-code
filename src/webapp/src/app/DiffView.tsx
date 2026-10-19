@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { DiffEditor, loader } from "@monaco-editor/react"
 import { useSessionDiff, type FileDiff } from "../client/useSessionDiff"
+import { Loading } from "./Loading"
 
 function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
   const [ready, setReady] = useState(false)
@@ -43,7 +44,7 @@ function DiffPair({ diff, index }: { diff: FileDiff; index: number }) {
 export function DiffView({ sessionID, directory }: { sessionID: string | null; directory?: string }) {
   const { diffs, loading, error } = useSessionDiff(sessionID, directory)
 
-  if (loading) return <div style={{ padding: 24, color: "var(--inactive)" }}>加载 diff…</div>
+  if (loading) return <Loading label="加载 diff" />
   if (error) return <div style={{ padding: 24, color: "var(--error)" }}>{error}</div>
   if (!diffs.length) return <div style={{ padding: 24, color: "var(--inactive)" }}>暂无文件改动</div>
 

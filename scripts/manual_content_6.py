@@ -60,6 +60,10 @@ def chapter17(doc):
         ["permission", "权限规则。详见本手册第九章"],
         ["tools", "工具开关。以工具标识为键，值为布尔值。"
                    "填 false 即关闭该工具，模型将无法调用"],
+        ["hooks", "工具生命周期钩子。数组，每项声明一个事件（event）、"
+                   "要执行的 shell 命令（command）、可选的工具名匹配（matcher）"
+                   "与超时毫秒（timeout）。事件如 PreToolUse、PostToolUse、SessionStart。"
+                   "注意：与第二十章的 Git 提交钩子无关"],
     ], widths=[4.6, 10.4])
     body(doc, "例如关闭联网检索与浏览器截图两个工具：")
     code(doc,
@@ -79,7 +83,9 @@ def chapter17(doc):
         ["reference", "参考资料配置（另一形式），作用同上"],
         ["command", "自定义命令。以名称为键，每项含说明与内容模板。"
                     "配置后即成为终端界面中的一条斜杠命令"],
-        ["mcp", "外部协议服务器配置，详见本手册第十章"],
+        ["mcp", "外部协议服务器配置，详见本手册第十章。"
+                "另兼容项目根目录的 .mcp.json（mcpServers 字段），"
+                "加载时合并进本字段，同名服务器以项目级为准"],
         ["plugin", "插件规格数组，用于声明要加载的插件"],
         ["lsp", "语言服务器配置。以语言为键，每项含启动命令与文件匹配规则"],
     ], widths=[4.6, 10.4])
@@ -303,3 +309,18 @@ def chapter18(doc):
          "GOOGLE_GENERATIVE_AI_API_KEY\n"
          "AZURE_API_KEY")
     body(doc, "更多服务商可参考执行 gyc providers list 的输出。")
+
+    h2(doc, "（九）渲染器选择")
+    body(doc, "终端界面的渲染后端可按需切换："
+              "默认走内置渲染器，遇到原生库异常时自动降级到自研纯实现。"
+              "亦可用会话内命令「渲染器」或配置项 renderer 长期切换。")
+    table(doc, [
+        ["变量", "取值", "说明"],
+        ["GYC_TUI_BACKEND", "未设置", "按配置项 renderer 决定，未配置时走内置渲染器"],
+        ["GYC_TUI_BACKEND", "opentui", "强制使用内置渲染器，并禁用一切自动降级"],
+        ["GYC_TUI_BACKEND", "fallback", "强制使用自研纯渲染器（零原生依赖）"],
+        ["GYC_TUI_BACKEND", "auto", "内置渲染器优先，创建或运行异常时自动降级"],
+    ], widths=[4.6, 2.2, 8.2])
+    body(doc, "自研渲染器覆盖会话主流交互：布局、滚动、代码与差异高亮、"
+              "表格、撤销重做、鼠标与快捷键；纯实现不加载任何原生库，"
+              "可作为原生异常环境下的稳定保底。")

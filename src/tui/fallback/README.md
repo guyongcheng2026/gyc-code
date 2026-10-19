@@ -94,7 +94,11 @@ type Key =
 - **关窗检测**：Windows 单独走 `terminal-win32.ts`（CONIN$ ReadConsoleInputWatcher），
   避免主进程因管道 close 挂死。
 
-## 后续
+## 后续（2026-10-18 立项）
 
-P2/P3 待请示后再启动。P2 候选：拆 `screen.ts` 为 buffer diff + 绘制后端、P1-1
-TUI 截图回归基线。P3 候选：把 fallback 接入 cli 主入口默认走 fallback（删 opentui 依赖）。
+- **后端默认值**：`GYC_TUI_BACKEND` 未设置时走 `auto`（= opentui 完整 UI）；
+  `fallback` 需显式指定（env 或 `config.renderer`）。三态语义见 `safe-mode.ts:26-33`。
+- **全量替代计划**：M0–M8 已立项，见
+  `docs/compose/plans/2026-10-18-opentui-full-replacement-plan.md`
+  （逐模块对照、DoD 7 条、里程碑与回滚点）。
+- 本目录当前定位：安全模式保底 + 替代计划的技术孵化载体；**不是**产线默认渲染路径。

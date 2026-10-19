@@ -6,7 +6,7 @@ import { isRecord } from "@/util/record"
 
 export type Err = ReturnType<NamedError["toObject"]>
 
-export const GO_UPSELL_MESSAGE = "Free usage exceeded, configure a paid provider or wait for reset"
+export const GO_UPSELL_MESSAGE = "免费额度已用尽，请配置付费服务商或等待额度重置"
 // 升级页链接：优先自建（GYCCODE_UPGRADE_URL），未配置时不跳转第三方
 export const GO_UPSELL_URL = process.env.GYCCODE_UPGRADE_URL
 export type RetryReason = "free_tier_limit" | "account_rate_limit" | (string & {})
@@ -110,9 +110,9 @@ export function retryable(error: Err, provider: string) {
         action: {
           reason: "free_tier_limit",
           provider,
-          title: "Free limit reached",
+          title: "免费额度已用尽",
           message: "订阅 GycCode 云模型，稳定使用多款优质开源模型。",
-          label: "subscribe",
+          label: "订阅套餐",
           link: GO_UPSELL_URL,
         },
       }
@@ -127,14 +127,14 @@ export function retryable(error: Err, provider: string) {
         const days = Math.floor(seconds / 86_400)
         const hours = Math.floor((seconds % 86_400) / 3_600)
         const minutes = Math.ceil((seconds % 3_600) / 60)
-        const unit = (value: number, name: string) => `${value} ${name}${value === 1 ? "" : "s"}`
+        const unit = (value: number, name: string) => `${value} ${name}`
 
-        if (days > 0) return hours > 0 ? `${unit(days, "day")} ${unit(hours, "hour")}` : unit(days, "day")
-        if (hours > 0) return minutes > 0 ? `${unit(hours, "hour")} ${unit(minutes, "minute")}` : unit(hours, "hour")
-        return minutes > 0 ? unit(minutes, "minute") : "less than a minute"
+        if (days > 0) return hours > 0 ? `${unit(days, "天")} ${unit(hours, "小时")}` : unit(days, "天")
+        if (hours > 0) return minutes > 0 ? `${unit(hours, "小时")} ${unit(minutes, "分钟")}` : unit(hours, "小时")
+        return minutes > 0 ? unit(minutes, "分钟") : "不到 1 分钟"
       })
 
-      const message = `${limitName ? `${limitName} usage limit` : "Usage limit"} reached. It will reset in ${resetIn}. To continue using this model now, enable usage from your available balance`
+      const message = `${limitName ? `${limitName} 额度` : "额度"}已用尽${resetIn ? `，将在 ${resetIn} 后重置` : ""}。如需继续使用该模型，请充值积分或升级套餐`
 
       const link = process.env.GYCCODE_UPGRADE_URL
       return {
@@ -143,21 +143,21 @@ export function retryable(error: Err, provider: string) {
         action: {
           reason: "account_rate_limit",
           provider,
-          title: "Go limit reached",
+          title: "套餐额度已用尽",
           message,
-          label: "open settings",
+          label: "充值/升级套餐",
           link,
         },
       }
     }
-    return { message: error.data.message.includes("Overloaded") ? "Provider is overloaded" : error.data.message }
+    return { message: error.data.message.includes("Overloaded") ? "服务商过载，请稍后重试" : error.data.message }
   }
 
   const message = isRecord(error.data) ? error.data.message : undefined
   if (typeof message !== "string") return undefined
   const lower = message.toLowerCase()
-  if (lower.includes("too_many_requests")) return { message: "Too Many Requests" }
-  if (lower.includes("exhausted") || lower.includes("unavailable")) return { message: "Provider is overloaded" }
+  if (lower.includes("too_many_requests")) return { message: "请求过于频繁，请稍后重试" }
+  if (lower.includes("exhausted") || lower.includes("unavailable")) return { message: "服务商过载，请稍后重试" }
   if (matchesRetryableMessage(message)) return { message }
   return undefined
 }

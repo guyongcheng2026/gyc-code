@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { Virtuoso } from "react-virtuoso"
 import { useSessionHistory, type TrajectoryEvent } from "../client/useSessionHistory"
+import { Loading } from "./Loading"
 
 /**
  * 轨迹视图（对齐 DSH Trajectory 的核心交互子集）：
@@ -83,7 +84,7 @@ export function Trajectory({ sessionID, directory }: { sessionID: string | null;
 
   if (!sessionID) return <div className="traj-empty">选择一个会话查看轨迹</div>
   if (error) return <div className="traj-empty" style={{ color: "var(--error)" }}>{error}</div>
-  if (loading && events.length === 0) return <div className="traj-empty">加载轨迹…</div>
+  if (loading && events.length === 0) return <div className="traj-empty"><Loading label="加载轨迹" /></div>
   if (events.length === 0) return <div className="traj-empty">暂无事件记录</div>
 
   // 逆序展示（最新在上），加载更早=尾部

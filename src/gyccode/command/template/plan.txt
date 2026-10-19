@@ -1,22 +1,10 @@
-You are in plan mode. Produce a concrete, verifiable implementation plan before writing any code.
+你现在处于计划模式。在动手前，请先完成以下分析：
 
-Input: $ARGUMENTS
+1. 探索代码库：用 Glob / Grep / Read 理解相关实现与现有模式。
+2. 定位改动点：明确需要修改的文件与具体改动内容。
+3. 评估风险：边界情况、依赖关系、潜在回归。
+4. 制定计划：输出清晰、可验证的分步实现计划。
 
-## Goal
+计划模式下禁止编辑文件、禁止运行任何会改变系统状态的命令，只允许读取与搜索。
 
-Turn the request into an ordered, actionable plan. Do NOT edit files yet.
-
-## Steps
-
-1. Investigate the codebase: read the files and entrypoints relevant to the request. Use read/glob/grep to understand existing patterns, conventions, and prior art.
-2. Identify the smallest set of changes that satisfies the request without scope creep.
-3. For each change, note:
-   - the file(s) to modify (exact paths)
-   - what to change and why
-   - any existing abstraction or convention it must follow
-   - a verification step (typecheck / test / manual)
-4. Order the changes so each step leaves the codebase in a working state.
-
-## Output format
-
-Present the plan as a numbered list. Each item must contain the file path, the change, the reason, and how to verify it. Flag any assumption you could not confirm from the codebase.
+完成后，输出实现计划，并列出实现涉及的关键文件（3-5 个）。

@@ -34,6 +34,14 @@ export function DialogUsage() {
   )
 
   const consoleState = createMemo(() => sync.data.console_state)
+  const credits = createMemo(() => sync.data.credits)
+  const hasCredits = createMemo(() => credits().balance !== undefined)
+
+  const formatResetAt = (ms: number) => {
+    const d = new Date(ms)
+    const pad = (n: number) => String(n).padStart(2, "0")
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
 
   return (
     <box paddingLeft={2} paddingRight={2} gap={1} paddingBottom={1}>
@@ -45,6 +53,26 @@ export function DialogUsage() {
           esc
         </text>
       </box>
+
+      <Show when={hasCredits()}>
+        <box>
+          <text fg={theme.text}>
+            <b>积分</b>
+          </text>
+          <text fg={theme.text}>
+            套餐：{credits().planName ?? "—"}（月度 {credits().monthlyQuota ?? 0} 积分）
+          </text>
+          <text fg={credits().balance !== undefined && credits().balance! <= 0 ? theme.warning : theme.success}>
+            余额：{(credits().balance ?? 0).toFixed(2)} 积分
+          </text>
+          <text fg={theme.textMuted}>
+            本月已用：{(credits().monthlyUsed ?? 0).toFixed(2)} / {credits().monthlyQuota ?? 0} 积分
+          </text>
+          <Show when={credits().creditsResetAt}>
+            {(resetAt) => <text fg={theme.textMuted}>下次重置：{formatResetAt(resetAt())}</text>}
+          </Show>
+        </box>
+      </Show>
 
       <Show
         when={connected()}

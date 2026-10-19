@@ -1,3 +1,4 @@
+import { useState } from "react"
 import type { ReactNode } from "react"
 import type { SessionItem } from "../client/useSessions"
 
@@ -22,6 +23,7 @@ export function SessionList({
   onSelect,
   onNew,
   onDelete,
+  onRename,
 }: {
   sessions: SessionItem[]
   selected: string | null
@@ -30,7 +32,10 @@ export function SessionList({
   onSelect: (id: string) => void
   onNew: () => void
   onDelete: (id: string) => void
+  onRename?: (id: string, title: string) => void
 }) {
+  const [renaming, setRenaming] = useState<string | null>(null)
+  const [draft, setDraft] = useState("")
   const ids = new Set(sessions.map((s) => s.id))
   const childrenOf = new Map<string, SessionItem[]>()
   const roots: SessionItem[] = []
@@ -44,10 +49,17 @@ export function SessionList({
     }
   }
 
+  const commitRename = (id: string) => {
+    const title = draft.trim()
+    setRenaming(null)
+    if (title && onRename) onRename(id, title)
+  }
+
   const renderItem = (s: SessionItem, depth: number) => {
     const busy = busyMap?.[s.id] === true
     const pending = pendingMap?.[s.id]
     const stateLabel = pending === "permission" ? "等待审批" : pending === "question" ? "等待回答" : busy ? "运行中" : ""
+    const isRenaming = renaming === s.id
     return (
       <div
         key={s.id}
@@ -66,9 +78,46 @@ export function SessionList({
             }
             aria-hidden
           />
-          <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
-            {s.title ?? s.id.slice(0, 12)}
-          </span>
+          {isRenaming ? (
+            <input
+              className="session-rename"
+              value={draft}
+              autoFocus
+              placeholder="会话标题…"
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename(s.id)
+                if (e.key === "Escape") setRenaming(null)
+              }}
+              onBlur={() => commitRename(s.id)}
+            />
+          ) : (
+            <span
+              style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                setRenaming(s.id)
+                setDraft(s.title ?? "")
+              }}
+            >
+              {s.title ?? s.id.slice(0, 12)}
+            </span>
+          )}
+          {onRename && !isRenaming ? (
+            <button
+              className="btn btn-ghost"
+              title="重命名会话"
+              onClick={(e) => {
+                e.stopPropagation()
+                setRenaming(s.id)
+                setDraft(s.title ?? "")
+              }}
+              style={{ padding: "0 6px", fontSize: 12, lineHeight: 1 }}
+            >
+              ✎
+            </button>
+          ) : null}
           <button
             className="btn btn-ghost"
             title="删除会话"

@@ -323,11 +323,12 @@ export class WeixinAdapter implements GatewayAdapter {
   async poll(onMessage: (message: GatewayMessage) => Promise<void>, abort: AbortSignal): Promise<void> {
     if (!this.config) throw new GatewayError("unknown", "配置缺失")
     this.running = true
+    const config = this.config
     // 游标按账号归属校验：换号后沿用旧游标会触发服务端 -14 会话超时
     const stored = await readJson<{ accountId?: string; buf?: string }>("sync-buf.json")
-    let syncBuf = stored?.accountId === this.config!.accountId ? (stored.buf ?? "") : ""
+    let syncBuf = stored?.accountId === config.accountId ? (stored.buf ?? "") : ""
     while (this.running && !abort.aborted) {
-      const response: GatewayError | IlinkPollResponse = await apiPost(this.config!, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
+      const response: GatewayError | IlinkPollResponse = await apiPost(config, ENDPOINT_POLL, { get_updates_buf: syncBuf }, LONG_POLL_TIMEOUT_MS + 5_000).catch(
         (cause: GatewayError) => cause,
       )
       if (response instanceof GatewayError) {
@@ -350,8 +351,8 @@ export class WeixinAdapter implements GatewayAdapter {
       const nextBuf = String(response.get_updates_buf ?? "")
       if (nextBuf && nextBuf !== syncBuf) {
         syncBuf = nextBuf
-        await writeJson("sync-buf.json", { accountId: this.config!.accountId, buf: syncBuf }).catch((error) =>
-          logError("gateway.weixin.persist-sync-buf", error, { accountId: this.config!.accountId }),
+        await writeJson("sync-buf.json", { accountId: config.accountId, buf: syncBuf }).catch((error) =>
+          logError("gateway.weixin.persist-sync-buf", error, { accountId: config.accountId }),
         )
       }
       for (const raw of (response.msgs as Array<Record<string, unknown>> | undefined) ?? []) {
@@ -360,7 +361,7 @@ export class WeixinAdapter implements GatewayAdapter {
         if (senderId && ctxToken)
           await this.saveContextToken(senderId, ctxToken).catch((error) =>
             logError("gateway.weixin.save-context-token", error, {
-              accountId: this.config!.accountId,
+              accountId: config.accountId,
               senderId,
             }),
           )

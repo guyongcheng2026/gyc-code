@@ -538,10 +538,19 @@ export const { use: useLocal, provider: LocalProvider } = createSimpleContext({
       },
     }
 
+    // 模型无效提示去重：Tab 循环切换会反复触发本 effect，同一 agent+model 只弹一次，
+    // 配置修复后再失效才重新告警，避免 toast 反复出现/消失造成一次性布局跳动
+    let lastInvalidModelKey = ""
     createEffect(() => {
       const value = agent.current()
       if (!value?.model) return
-      if (isModelValid(value.model)) return
+      if (isModelValid(value.model)) {
+        lastInvalidModelKey = ""
+        return
+      }
+      const key = `${value.name}:${value.model.providerID}/${value.model.modelID}`
+      if (key === lastInvalidModelKey) return
+      lastInvalidModelKey = key
       toast.show({
         variant: "warning",
         message: `智能体 ${value.name} 配置的模型 ${value.model.providerID}/${value.model.modelID} 无效`,

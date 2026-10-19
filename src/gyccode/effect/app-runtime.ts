@@ -7,6 +7,7 @@ import { FSUtil } from "@gyccode/core/fs-util"
 import { Database } from "@gyccode/core/database/database"
 import { Auth } from "@/auth"
 import { Account } from "@/account/account"
+import { Usage } from "@/billing/usage"
 import { Config } from "@/config/config"
 import { Git } from "@/git"
 import { Ripgrep } from "@gyccode/core/ripgrep"
@@ -21,6 +22,7 @@ import { Skill } from "@/skill"
 import { Discovery } from "@/skill/discovery"
 import { Question } from "@/question"
 import { Permission } from "@/permission"
+import { Hook } from "@/hook/service"
 import { Todo } from "@/session/todo"
 import { Session } from "@/session/session"
 import { SessionStatus } from "@/session/status"
@@ -67,6 +69,7 @@ export const CoreLayer = AppNodeBuilderV1.build(
     Database.node,
     Auth.node,
     Account.node,
+    Usage.node,
     Config.node,
     Git.node,
     Storage.node,
@@ -129,6 +132,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     Database.node,
     Auth.node,
     Account.node,
+    Usage.node,
     Config.node,
     Git.node,
     Storage.node,
@@ -142,6 +146,7 @@ export const AppLayer = AppNodeBuilderV1.build(
     Discovery.node,
     Question.node,
     Permission.node,
+    Hook.node,
     Todo.node,
     Session.node,
     SessionProjector.node,

@@ -22,6 +22,7 @@ import { EffectBridge } from "@/effect/bridge"
 import { ModelV2 } from "@gyccode/core/model"
 import { isRecord } from "@/util/record"
 import { RuntimeFlags } from "@/effect/runtime-flags"
+import { Hook } from "../hook/service"
 
 const MCP_RESOURCE_TOOLS = {
   list: "list_mcp_resources",
@@ -60,6 +61,7 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
   const mcp = yield* MCP.Service
   const truncate = yield* Truncate.Service
   const flags = yield* RuntimeFlags.Service
+  const hook = yield* Hook.Service
 
   const context = (args: Record<string, unknown>, options: ToolExecutionOptions<unknown>): Tool.Context => ({
     sessionID: input.session.id,
@@ -117,13 +119,51 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
         return run.promise(
           Effect.gen(function* () {
             const ctx = context(args, options)
+
+            // PreToolUse hooks：deny / preventContinuation 直接阻止工具执行。
+            const pre = yield* hook.run("PreToolUse", {
+              hook_event_name: "PreToolUse",
+              session_id: input.session.id,
+              cwd: input.session.directory,
+              tool_name: item.id,
+              tool_input: args,
+            })
+            const denied = pre.find((o) => o.output?.decision === "deny" || o.output?.preventContinuation)
+            if (denied) {
+              const reason = denied.output?.stopReason ?? denied.output?.message ?? "被 hook 拒绝"
+              const deniedOutput = {
+                title: `${item.id}: hook 拒绝`,
+                metadata: { preview: `hook 拒绝：${reason}` },
+                output: `<tool_error kind="hook_denied" tool="${item.id}">\n${reason}\n</tool_error>`,
+              }
+              yield* plugin.trigger(
+                "tool.execute.after",
+                { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID, args },
+                deniedOutput,
+              )
+              if (options.abortSignal?.aborted) {
+                yield* input.processor.completeToolCall(options.toolCallId, deniedOutput)
+              }
+              return deniedOutput
+            }
+
             yield* plugin.trigger(
               "tool.execute.before",
               { tool: item.id, sessionID: ctx.sessionID, callID: ctx.callID },
               { args },
             )
             const result = yield* item.execute(args, ctx)
-            const output = {
+
+            // PostToolUse hooks：message / additionalContext 注入工具输出。
+            const post = yield* hook.run("PostToolUse", {
+              hook_event_name: "PostToolUse",
+              session_id: input.session.id,
+              cwd: input.session.directory,
+              tool_name: item.id,
+              tool_response: result,
+            })
+
+            let output = {
               ...result,
               attachments: result.attachments?.map((attachment) => ({
                 ...attachment,
@@ -131,6 +171,21 @@ export const resolve = Effect.fn("SessionTools.resolve")(function* (input: {
                 sessionID: ctx.sessionID,
                 messageID: input.processor.message.id,
               })),
+            }
+            const notes: string[] = []
+            for (const o of [...pre, ...post]) {
+              if (o.output?.message) notes.push(o.output.message)
+              if (o.output?.additionalContext) notes.push(o.output.additionalContext)
+            }
+            if (notes.length > 0) {
+              output = {
+                ...output,
+                output:
+                  output.output +
+                  "\n\n<system-reminder>\n" +
+                  notes.map((n) => `[hook] ${n}`).join("\n") +
+                  "\n</system-reminder>",
+              }
             }
             yield* plugin.trigger(
               "tool.execute.after",

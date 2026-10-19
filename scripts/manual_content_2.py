@@ -156,7 +156,13 @@ def chapter5(doc):
 
     h2(doc, "（十）账号与排错")
     code(doc,
-         "gyc account                       # 账号登录与管理\n\n"
+         "gyc account                       # 账号登录与管理\n"
+         "gyc account login [服务器]         # 设备码登录\n"
+         "gyc account logout [邮箱]          # 登出指定账户\n"
+         "gyc account switch                # 切换活跃组织\n"
+         "gyc account orgs                  # 列出组织\n"
+         "gyc account balance               # 查看积分余额、套餐与本月用量\n"
+         "gyc account recharge              # 打开套餐与充值说明页\n\n"
          "# 任何命令均可附加以下参数进行排错\n"
          "gyc --log-level DEBUG --print-logs <命令>   # 输出详细日志\n"
          "gyc --pure <命令>                            # 排除插件干扰\n\n"
@@ -302,6 +308,8 @@ def chapter6(doc):
         ["/init", "引导式生成项目说明文件 AGENTS.md，供模型阅读"],
         ["/review", "审查更改，可接 commit、branch、pr，默认审查未提交的更改"],
         ["/skill-create", "创建可复用技能，加 --global 参数则写入全局技能目录"],
+        ["/plan", "计划模式：先探索并输出实现计划，不编辑文件"],
+        ["/status", "查看项目状态：git 状态、后台任务、进行中的 todo"],
     ], widths=[3.6, 11.4])
 
     h2(doc, "（十）浏览器界面构成")

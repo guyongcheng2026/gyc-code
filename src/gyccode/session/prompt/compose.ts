@@ -35,7 +35,7 @@ const EOL = "\n"
  * 而多出一个空行。段内换行原样保留。
  */
 function coreBody(): string {
-  return SHARED_CORE.replace(/\n$/, "")
+  return SHARED_CORE.replace(/\r?\n/g, '\n').replace(/\n$/, '')
 }
 
 /**
@@ -55,8 +55,8 @@ export function composeVariant(variant: string): string {
   if (at === -1) return variant
 
   // 标记独占一行：其前要么是文件开头、要么以换行结尾；其后同理。
-  const head = variant.slice(0, at).replace(/\n$/, "")
-  const tail = variant.slice(at + CORE_MARKER.length).replace(/^\n/, "")
+  const head = variant.slice(0, at).replace(/\r?\n/g, '\n').replace(/\n$/, '')
+  const tail = variant.slice(at + CORE_MARKER.length).replace(/\r?\n/g, '\n').replace(/^\n/, '')
 
   const parts: string[] = []
   if (head !== "") parts.push(head)

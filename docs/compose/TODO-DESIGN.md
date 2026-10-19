@@ -1,4 +1,4 @@
-﻿# 待设计清单（TODO-DESIGN）
+# 待设计清单（TODO-DESIGN）
 
 > 本清单记录工作中所有"待设计"的内容——需架构决策后才能实施，不属即时缺陷。
 > 用户询问"待设计"任务时，依此清单逐条列出供决策。
@@ -48,6 +48,9 @@
 | MCP 日志 | 长会话重复刷 `[MCP] Calling ... with params` | 源码侧早已改（`mcp/standard-elements.ts:78-81` 需 `GYCCODE_DEBUG=1` 才输出）；实际来源是 9 月的陈旧孤儿产物 `dist/cli/tui/worker.js`，已删除 |
 | 模型目录 | 全量同步与指定免费模型核验 | `bun scripts/sync-models.mjs` → 220 供应商 / 8157 模型；Ling 3.0 Flash Sante 与 Laguna S 2.1 均已收录；**Pixel Canary 在全部 220 家供应商中均无记录**（见 U-1） |
 | 手册 | 附录 A/B/C 此前未接入生成脚本 | `scripts/gen_manual_docx.py:33-34,136-141` 补 `import manual_content_8/9` 并串入 `appendix_a/b/c`；`manual_content_5.py` 补四个新工具与 `git_commit.run_checks`；`manual_content_3.py` 补 `dontAsk`、路径围栏与拒绝流水 |
+| U-3 | tool part 状态 running 残留对账 | 93e7717：`src/core/session/history.ts` 新增 `reconcileInterruptedTools`，`load/loadForRunner/entriesForRunner` 三出口把 running/pending → error（仅内存视图不回写 DB）；`history-reconcile.test.ts` 5 项；1.5x 压测实证 12 残留→0（reports/2026-10-18-1.5x-long-session-stability.md） |
+| TUI 闪烁 | 模式切换一次性闪烁取证与修复 | bffaaa0：唯一成立候选为无效模型 toast 反复弹出，已按 agent+model 去重（`src/tui/context/local.tsx`）；fadeIn（源为稳定布尔）、spinnerDef（frames 内容恒等+深比较短路）、set 静默回退（证伪：set 失败仅 toast 不改 store）均排除；原生终端目视终验待谷总 |
+| conditional-cache | CACHEABLE_PATH 路径不匹配与并发 body 独占 | `src/protocol/conditional-cache.ts:15` 常量由 `/provider` 修正为 `/api/provider`；`return promise.then(res => res.clone())` 修复并发 awaiter 共享 Response 时报 Body already read；`conditional-cache.test.ts` 4 项锁死去重与缓存回放；`logging.ts` 移除零调用方死代码 `stopRotationGuard` |
 
 ### ❌ 未解决项（需谷总决策）
 

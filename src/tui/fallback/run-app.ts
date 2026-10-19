@@ -1,6 +1,6 @@
 import { KeyParser, setSgrMouse, disableMouse, type Key } from "./input"
 import { FallbackRenderer, ProcessBackend, type TerminalBackend } from "./terminal"
-import { flushSync, renderRoot } from "./solid"
+import { flushSync, KeyBus, renderRoot } from "./solid"
 import { createComponent } from "solid-js"
 import { probeTerminal, renderBudget } from "./capability"
 import type { FallbackAppApi } from "./app"
@@ -67,6 +67,9 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 		chat = await createChatBridgeSafe(options.transport, options.directory)
 	}
 
+	// 按键总线（M7）：组件通过 useKeyboard/usePaste 订阅；无订阅者时 emit 返回 false，
+	// 不影响既有 app 层路由。
+	const bus = new KeyBus()
 	let appApi: FallbackAppApi | undefined
 	disposeTree = renderRoot(
 		() =>
@@ -79,6 +82,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 				},
 			}),
 		renderer,
+		{ bus },
 	)
 
 	const parser = new KeyParser((key: Key) => {
@@ -87,6 +91,7 @@ export async function runFallbackApp(options: RunFallbackAppOptions = {}): Promi
 			finish()
 			return
 		}
+		bus.emit(key)
 		appApi?.handleKey(key)
 	})
 	backend.onInput((chunk) => parser.feed(chunk))

@@ -284,9 +284,9 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       // guard 卸载 finalizer 必须先于任何提前 return 注册：fallback 分支
       // 不经过后续注册点，scope 关闭时统一卸载（否则守护定时器活到进程退出）
       yield* Effect.addFinalizer(() => Effect.sync(unguardUtf8Console))
-      // S2 灰度切换（R3：GYC_TUI_BACKEND=auto/opentui 一键切回）：默认走自研
-      // 渲染后端（backendChoice 未设置时返回 "fallback"）；显式 fallback 同路径。
-      // auto 模式仍走 opentui（含创建失败降级）；opentui 模式纯原生。
+      // 后端选择（2026-10-18 谷总决策，D2 收口）：默认 auto = 走 opentui 完整 UI；
+      // 显式 GYC_TUI_BACKEND=fallback 或 config.renderer=fallback 时走自研渲染器；
+      // opentui 模式纯原生并禁用失败降级（三态语义见 fallback/safe-mode.ts:26-33）。
       // 配置渲染器（config.renderer）已就近传入；首帧前 config 尚未就绪，故
       // 此处先按环境变量做初判；如需尊重配置，断言 config.renderer 时改在
       // createSignal 就绪后的子作用域里再读（见下方 "config 就绪 fiber"）。
@@ -299,7 +299,8 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
       const initialChoice = backendChoice()
       if (initialChoice === "fallback") {
         yield* Effect.promise(async () => {
-          // G5 归因：source 区分显式选择与 S2 默认值
+          // G5 归因：默认 auto 不会进入本分支，故 source 实际恒为 explicit
+          // （env 或 config 显式选择）；字段保留以兼容历史日志口径。
           const source = isExplicitFallback(config()?.renderer) ? "explicit" : "default"
           void mkdir(global.log, { recursive: true })
             .then(() =>

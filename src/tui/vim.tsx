@@ -1,12 +1,13 @@
 import { CliRenderEvents, InputRenderable, TextareaRenderable, type Renderable } from "@opentui/core"
 import { useRenderer } from "@opentui/solid"
 import { createEffect, createSignal, onCleanup } from "solid-js"
-import { GYCCODE_BASE_MODE, useBindings } from "./keymap"
+import { GYCCODE_BASE_MODE, useBindings, useGyccodeKeymap } from "./keymap"
 import { useKV } from "./context/kv"
+import { useClipboard } from "./context/clipboard"
 
 export const VIM_MODE_KEY = "vim_mode_enabled"
 
-type VimState = "insert" | "normal"
+type VimState = "insert" | "normal" | "visual"
 
 function isManagedTextarea(target: Renderable | null | undefined) {
   return target instanceof TextareaRenderable && !(target instanceof InputRenderable)
@@ -22,6 +23,8 @@ function isManagedTextarea(target: Renderable | null | undefined) {
 export function useVimKeymap(options?: { busy?: () => boolean }) {
   const renderer = useRenderer()
   const kv = useKV()
+  const keymap = useGyccodeKeymap()
+  const clipboard = useClipboard()
 
   const [vimState, setVimState] = createSignal<VimState>("insert")
   const [textareaFocused, setTextareaFocused] = createSignal(false)
@@ -40,6 +43,41 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
     setVimState("insert")
   })
 
+  // f/t/F/T 查找：注册单字符捕获 pattern，binding 里用 {findChar} 引用
+  // 数字前缀（如 3j）：注册 {count} pattern 累积 1-9 数字
+  createEffect(() => {
+    if (kv.get(VIM_MODE_KEY, false) !== true) return
+    const offFind = keymap.registerSequencePattern({
+      name: "findChar",
+      min: 1,
+      max: 1,
+      match(event) {
+        const name = event.name
+        if (name.length !== 1) return undefined
+        if (event.ctrl || event.meta) return undefined
+        return { value: name, display: name }
+      },
+    })
+    const offCount = keymap.registerSequencePattern({
+      name: "count",
+      min: 1,
+      max: Number.MAX_SAFE_INTEGER,
+      match(event) {
+        const name = event.name
+        if (!/^[1-9]$/.test(name)) return undefined
+        if (event.ctrl || event.meta) return undefined
+        return { value: name, display: name }
+      },
+      finalize(values) {
+        return Number(values.join(""))
+      },
+    })
+    onCleanup(() => {
+      offFind()
+      offCount()
+    })
+  })
+
   const inNormal = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "normal" && textareaFocused()
 
   // 会话忙碌（流式输出）时 INSERT 层让位：escape 的中断语义（session.interrupt）
@@ -50,10 +88,18 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
     return options?.busy?.() !== true
   }
 
+  const inVisual = () => kv.get(VIM_MODE_KEY, false) === true && vimState() === "visual" && textareaFocused()
+
   const focusedEditor = () => {
     const target = renderer.currentFocusedEditor
     if (target && !target.isDestroyed && isManagedTextarea(target)) return target
     return undefined
+  }
+
+  // 按 {count} payload 重复执行 motion：无数字前缀时执行 1 次
+  const repeatMove = (fn: () => void, payload: unknown) => {
+    const n = typeof payload === "number" && payload > 0 ? payload : 1
+    for (let i = 0; i < n; i++) fn()
   }
 
   const enterInsert = () => {
@@ -117,6 +163,184 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
           return enterInsert()
         },
       },
+      {
+        name: "vim.change.word",
+        desc: "删至词尾并进入输入",
+        run: () => {
+          focusedEditor()?.deleteWordForward()
+          return enterInsert()
+        },
+      },
+      {
+        name: "vim.change.word.backward",
+        desc: "删至词首并进入输入",
+        run: () => {
+          focusedEditor()?.deleteWordBackward()
+          return enterInsert()
+        },
+      },
+      {
+        name: "vim.delete.inner.word",
+        desc: "删除整个词",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          target.moveWordBackward()
+          target.deleteWordForward()
+          return true
+        },
+      },
+      {
+        name: "vim.change.inner.word",
+        desc: "修改整个词",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return enterInsert()
+          target.moveWordBackward()
+          target.deleteWordForward()
+          return enterInsert()
+        },
+      },
+      {
+        name: "vim.visual",
+        desc: "进入可视（字符选择）模式",
+        run: () => {
+          setVimState("visual")
+          return true
+        },
+      },
+      {
+        name: "vim.visual.line",
+        desc: "进入可视（行选择）模式",
+        run: () => {
+          const target = focusedEditor()
+          if (target) {
+            target.gotoLineHome({ select: true })
+            target.gotoLineEnd({ select: true })
+          }
+          setVimState("visual")
+          return true
+        },
+      },
+      {
+        name: "vim.find.forward",
+        desc: "跳到下一个字符",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.indexOf(char, target.logicalCursor.col + 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx)
+          return true
+        },
+      },
+      {
+        name: "vim.find.till.forward",
+        desc: "跳到下一个字符前",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.indexOf(char, target.logicalCursor.col + 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, Math.max(0, idx - 1))
+          return true
+        },
+      },
+      {
+        name: "vim.find.backward",
+        desc: "跳到上一个字符",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.lastIndexOf(char, target.logicalCursor.col - 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx)
+          return true
+        },
+      },
+      {
+        name: "vim.find.till.backward",
+        desc: "跳到上一个字符后",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          const char = String(ctx.payload ?? "")
+          if (char.length !== 1) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          const idx = line.lastIndexOf(char, target.logicalCursor.col - 1)
+          if (idx !== -1) target.setCursor(target.logicalCursor.row, idx + 1)
+          return true
+        },
+      },
+      {
+        name: "vim.yank.line",
+        desc: "复制当前行",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          const line = target.plainText.split("\n")[target.logicalCursor.row] ?? ""
+          void clipboard.write?.(line)
+          return true
+        },
+      },
+      {
+        name: "vim.paste",
+        desc: "粘贴剪贴板内容",
+        run: () => {
+          const target = focusedEditor()
+          if (!target) return true
+          void clipboard.read?.().then((content) => {
+            if (content && content.data) target.insertText(content.data)
+          })
+          return true
+        },
+      },
+      {
+        name: "vim.move.down",
+        desc: "下移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorDown(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.up",
+        desc: "上移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorUp(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.left",
+        desc: "左移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorLeft(), ctx.payload)
+          return true
+        },
+      },
+      {
+        name: "vim.move.right",
+        desc: "右移（可带数字前缀）",
+        run: (ctx: { payload?: unknown }) => {
+          const target = focusedEditor()
+          if (!target) return true
+          repeatMove(() => target.moveCursorRight(), ctx.payload)
+          return true
+        },
+      },
       { name: "vim.cancel", desc: "取消当前操作", run: () => true },
     ],
     bindings: [
@@ -133,6 +357,12 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "x", cmd: "input.delete", desc: "Vim 删字符" },
       { key: "d,d", cmd: "input.delete.line", desc: "Vim 删行" },
       { key: "D", cmd: "input.delete.to.line.end", desc: "Vim 删至行尾" },
+      { key: "d,w", cmd: "input.delete.word.forward", desc: "Vim 删至词尾" },
+      { key: "d,b", cmd: "input.delete.word.backward", desc: "Vim 删至词首" },
+      { key: "c,w", cmd: "vim.change.word", desc: "Vim 改至词尾" },
+      { key: "c,b", cmd: "vim.change.word.backward", desc: "Vim 改至词首" },
+      { key: "d,i,w", cmd: "vim.delete.inner.word", desc: "Vim 删整个词" },
+      { key: "c,i,w", cmd: "vim.change.inner.word", desc: "Vim 改整个词" },
       { key: "u", cmd: "input.undo", desc: "Vim 撤销" },
       { key: "ctrl+r", cmd: "input.redo", desc: "Vim 重做" },
       { key: "i", cmd: "vim.insert", desc: "进入输入模式" },
@@ -141,6 +371,18 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       { key: "A", cmd: "vim.append.line.end", desc: "行尾进入输入" },
       { key: "o", cmd: "vim.open.below", desc: "下方新行输入" },
       { key: "O", cmd: "vim.open.above", desc: "上方新行输入" },
+      { key: "v", cmd: "vim.visual", desc: "进入可视模式" },
+      { key: "V", cmd: "vim.visual.line", desc: "进入行选择模式" },
+      { key: "f,{findChar}", cmd: "vim.find.forward", desc: "Vim 跳到下一个字符" },
+      { key: "t,{findChar}", cmd: "vim.find.till.forward", desc: "Vim 跳到下一个字符前" },
+      { key: "F,{findChar}", cmd: "vim.find.backward", desc: "Vim 跳到上一个字符" },
+      { key: "T,{findChar}", cmd: "vim.find.till.backward", desc: "Vim 跳到上一个字符后" },
+      { key: "y,y", cmd: "vim.yank.line", desc: "Vim 复制当前行" },
+      { key: "p", cmd: "vim.paste", desc: "Vim 粘贴" },
+      { key: "{count}j", cmd: "vim.move.down", desc: "Vim 下移 N 行" },
+      { key: "{count}k", cmd: "vim.move.up", desc: "Vim 上移 N 行" },
+      { key: "{count}h", cmd: "vim.move.left", desc: "Vim 左移 N 列" },
+      { key: "{count}l", cmd: "vim.move.right", desc: "Vim 右移 N 列" },
       { key: "escape", cmd: "vim.cancel", desc: "取消挂起操作" },
     ],
   }))
@@ -164,6 +406,35 @@ export function useVimKeymap(options?: { busy?: () => boolean }) {
       },
     ],
     bindings: [{ key: "escape", cmd: "vim.normal", desc: "进入 NORMAL 模式" }],
+  }))
+
+  // VISUAL 模式：hjkl/w/b 用 select 变体扩展选择，escape 退出并清除选择
+  useBindings(() => ({
+    mode: GYCCODE_BASE_MODE,
+    enabled: inVisual(),
+    priority: 10,
+    commands: [
+      {
+        name: "vim.visual.cancel",
+        desc: "退出可视模式",
+        run: () => {
+          focusedEditor()?.clearSelection()
+          setVimState("normal")
+          return true
+        },
+      },
+    ],
+    bindings: [
+      { key: "h", cmd: "input.select.left", desc: "Vim 左选" },
+      { key: "l", cmd: "input.select.right", desc: "Vim 右选" },
+      { key: "k", cmd: "input.select.up", desc: "Vim 上选" },
+      { key: "j", cmd: "input.select.down", desc: "Vim 下选" },
+      { key: "w", cmd: "input.select.word.forward", desc: "Vim 选到词尾" },
+      { key: "b", cmd: "input.select.word.backward", desc: "Vim 选到词首" },
+      { key: "0", cmd: "input.select.line.home", desc: "Vim 选到行首" },
+      { key: "$", cmd: "input.select.line.end", desc: "Vim 选到行尾" },
+      { key: "escape", cmd: "vim.visual.cancel", desc: "退出可视模式" },
+    ],
   }))
 
   return {

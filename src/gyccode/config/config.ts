@@ -13,6 +13,7 @@ import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
 import { InstallationLocal, InstallationVersion } from "@gyccode/core/installation/version"
 import { existsSync } from "fs"
+import { Glob } from "@gyccode/core/util/glob"
 import { Account } from "@/account/account"
 import { isRecord } from "@/util/record"
 import type { ConsoleState } from "@gyccode/core/v1/config/console-state"
@@ -25,6 +26,7 @@ import { containsPath, type InstanceContext } from "../project/instance-context"
 import { ConfigV1 } from "@gyccode/core/v1/config/config"
 import { RemoteAuthError } from "@gyccode/core/v1/config/error"
 import { ConfigPermissionV1 } from "@gyccode/core/v1/config/permission"
+import { ConfigMCPV1 } from "@gyccode/core/v1/config/mcp"
 import { ConfigPluginV1 } from "@gyccode/core/v1/config/plugin"
 import { ConfigAgent } from "./agent"
 import { ConfigCommand } from "./command"
@@ -114,6 +116,54 @@ async function resolveLoadedPlugins<T extends { plugin?: ConfigPluginV1.Spec[] }
     config.plugin[i] = await ConfigPlugin.resolvePluginSpec(spec, filepath)
   }
   return config
+}
+
+/**
+ * 把 Claude Code 风格的 `.mcp.json` 的 `mcpServers` 转成 gyc 的 `ConfigMCPV1.Info`。
+ *
+ * 输入形如 `{ command: "npx", args: ["-y", "..."], env: {...} }`（stdio）或
+ * `{ url: "https://...", headers: {...} }`（remote）。gyc 的 local 用单个
+ * `command: string[]`（命令 + 参数合并），故这里做一次形状归一化。无法识别的
+ * 条目直接跳过，不因单个非法服务器阻断整份配置。
+ */
+export function convertMcpJsonServers(servers: unknown): Record<string, ConfigMCPV1.Info> {
+  const out: Record<string, ConfigMCPV1.Info> = {}
+  if (!isRecord(servers)) return out
+  for (const [name, server] of Object.entries(servers)) {
+    if (!isRecord(server)) continue
+    if (typeof server.url === "string") {
+      out[name] = {
+        type: "remote",
+        url: server.url,
+        ...(typeof server.enabled === "boolean" ? { enabled: server.enabled } : {}),
+        ...(isRecord(server.headers)
+          ? {
+              headers: Object.fromEntries(
+                Object.entries(server.headers).filter((e): e is [string, string] => typeof e[1] === "string"),
+              ),
+            }
+          : {}),
+      }
+      continue
+    }
+    if (typeof server.command === "string") {
+      const args = Array.isArray(server.args) ? server.args.filter((a): a is string => typeof a === "string") : []
+      out[name] = {
+        type: "local",
+        command: [server.command, ...args],
+        ...(typeof server.cwd === "string" ? { cwd: server.cwd } : {}),
+        ...(isRecord(server.env)
+          ? {
+              environment: Object.fromEntries(
+                Object.entries(server.env).filter((e): e is [string, string] => typeof e[1] === "string"),
+              ),
+            }
+          : {}),
+        ...(typeof server.enabled === "boolean" ? { enabled: server.enabled } : {}),
+      }
+    }
+  }
+  return out
 }
 
 type Info = ConfigV1.Info & {
@@ -422,6 +472,95 @@ const layer = Layer.effect(
         if (!Flag.GYCCODE_DISABLE_PROJECT_CONFIG) {
           for (const file of yield* ConfigPaths.files("gyccode", ctx.directory, ctx.worktree).pipe(Effect.orDie)) {
             yield* merge(file, yield* loadFile(file, authEnv), "local")
+          }
+          // 项目级 .mcp.json（与 Claude Code 兼容的项目级 MCP 配置）。
+          const mcpJsonPath = path.join(ctx.directory, ".mcp.json")
+          if (existsSync(mcpJsonPath)) {
+            const converted = yield* Effect.tryPromise({
+              try: () =>
+                fsNode.readFile(mcpJsonPath, "utf8").then((text) => {
+                  const parsed: unknown = JSON.parse(text)
+                  const servers = isRecord(parsed) ? parsed.mcpServers : undefined
+                  return convertMcpJsonServers(servers)
+                }),
+              catch: (error) => error,
+            }).pipe(
+              Effect.catch((error) =>
+                Effect.logWarning("failed to load .mcp.json", { path: mcpJsonPath, error: String(error) }).pipe(
+                  Effect.as({} as Record<string, ConfigMCPV1.Info>),
+                ),
+              ),
+            )
+            // 项目级覆盖全局：合并到 result.mcp，不覆盖用户已显式配置的同名服务器之外的内容。
+            result.mcp = mergeDeep(result.mcp ?? {}, converted)
+          }
+
+          // 声明式插件 MCP servers：.gyccode/{plugin,plugins}/*/mcp.json。
+          // 文件形如 { "mcpServers": { ... } } 或直接 { "server-name": { ... } }。
+          for (const sub of ["plugin", "plugins"]) {
+            const pluginRoot = path.join(ctx.directory, sub)
+            const mcpFiles = yield* Effect.tryPromise({
+              try: () => Glob.scan("*/mcp.json", { cwd: pluginRoot, absolute: true, dot: true, symlink: true }),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+            for (const file of mcpFiles) {
+              const converted = yield* Effect.tryPromise({
+                try: () =>
+                  fsNode.readFile(file, "utf8").then((text) => {
+                    const parsed: unknown = JSON.parse(text)
+                    const servers = isRecord(parsed)
+                      ? isRecord(parsed.mcpServers)
+                        ? parsed.mcpServers
+                        : parsed
+                      : undefined
+                    return convertMcpJsonServers(servers)
+                  }),
+                catch: (error) => error,
+              }).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to load plugin mcp.json", { path: file, error: String(error) }).pipe(
+                    Effect.as({} as Record<string, ConfigMCPV1.Info>),
+                  ),
+                ),
+              )
+              result.mcp = mergeDeep(result.mcp ?? {}, converted)
+            }
+          }
+
+          // 声明式插件 hooks：.gyccode/{plugin,plugins}/*/hooks.json。
+          // 文件形如 { "hooks": [{ "event": "PreToolUse", "command": "..." }] }。
+          for (const sub of ["plugin", "plugins"]) {
+            const pluginRoot = path.join(ctx.directory, sub)
+            const hookFiles = yield* Effect.tryPromise({
+              try: () => Glob.scan("*/hooks.json", { cwd: pluginRoot, absolute: true, dot: true, symlink: true }),
+              catch: (error) => error,
+            }).pipe(Effect.catch(() => Effect.succeed([] as string[])))
+            for (const file of hookFiles) {
+              const hooks = yield* Effect.tryPromise({
+                try: () =>
+                  fsNode.readFile(file, "utf8").then((text) => {
+                    const parsed: unknown = JSON.parse(text)
+                    const list = isRecord(parsed) ? parsed.hooks : undefined
+                    if (!Array.isArray(list)) return []
+                    return list.filter(
+                      (h): h is { event: string; command: string; matcher?: string; timeout?: number } =>
+                        isRecord(h) &&
+                        typeof h.event === "string" &&
+                        typeof h.command === "string" &&
+                        (h.matcher === undefined || typeof h.matcher === "string") &&
+                        (h.timeout === undefined || (typeof h.timeout === "number" && h.timeout > 0)),
+                    )
+                  }),
+                catch: (error) => error,
+              }).pipe(
+                Effect.catch((error) =>
+                  Effect.logWarning("failed to load plugin hooks.json", { path: file, error: String(error) }).pipe(
+                    Effect.as([] as Array<{ event: string; command: string; matcher?: string; timeout?: number }>),
+                  ),
+                ),
+              )
+              result.hooks = [...(result.hooks ?? []), ...hooks]
+            }
           }
         }
 

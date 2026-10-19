@@ -49,13 +49,21 @@ export async function runInteractiveLoop(options: InteractiveOptions): Promise<v
     if (base) sessionId = base.id
   }
   if (!sessionId) {
-    // 模型串形如 "provider/model"：首段为 providerID；缺段时视同未指定模型，不在此杜撰默认值
-    const modelSegments = options.model ? options.model.split("/") : []
-    const providerID = modelSegments[0]
+    // 默认模型与 gyc tui 保持一致：未显式指定时读 config 的 model 字段。
+    // TUI 的 fallbackModel 优先级为 args.model → config.model → recent → provider 免费模型，
+    // CLI 对齐前两档（config.model），recent/免费模型属 TUI 本地持久化状态，CLI 不持有。
+    let modelInput = options.model
+    if (!modelInput) {
+      const cfg = await sdk.config.get().catch(() => undefined)
+      modelInput = cfg?.data?.model
+    }
+    const parsedModel = parseModelInput(modelInput)
     const created = await sdk.session.create({
       title: undefined,
       agent: options.agent,
-      model: options.model && providerID !== undefined ? { providerID, id: modelSegments.slice(1).join("/"), variant: options.variant } : undefined,
+      model: parsedModel
+        ? { providerID: parsedModel.providerID, id: parsedModel.modelID, variant: options.variant ?? parsedModel.variant }
+        : undefined,
       permission: [
         { permission: "question", action: "deny", pattern: "*" },
         { permission: "plan_enter", action: "deny", pattern: "*" },

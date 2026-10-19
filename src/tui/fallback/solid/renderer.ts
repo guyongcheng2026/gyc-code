@@ -1,5 +1,6 @@
 import { createRenderer as createUniversalRenderer, type Renderer } from "solid-js/universal"
 import type { FallbackRenderer } from "../terminal"
+import { KeyBusContext, RendererContext, type KeyBus } from "./context"
 import {
 	createElementNode,
 	createFallbackTextNode,
@@ -35,18 +36,6 @@ function markDirty(): void {
 	})
 }
 
-/**
- * 量算缓存失效（slice B 性能优化）：清除自身及全部祖先的缓存。
- * 必须沿父链向上——父级堆叠高度依赖子内容，子变父必变。
- */
-function invalidateMeasure(node: FallbackNode): void {
-	let cur: FallbackNode | undefined = node
-	while (cur !== undefined) {
-		if (cur.kind === "element") cur.measureCache = undefined
-		cur = cur.parent
-	}
-}
-
 function repaint(): void {
 	const renderer = activeRenderer
 	const root = rootElement
@@ -80,7 +69,6 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 	replaceText(node, value) {
 		if (isTextNode(node)) {
 			node.text = value
-			invalidateMeasure(node)
 			markDirty()
 		}
 	},
@@ -94,18 +82,14 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
 			return
 		}
 		node.props[name] = value
-		// 量算缓存失效：自身及祖先（父级堆叠高度依赖子内容）
-		invalidateMeasure(node)
 		markDirty()
 	},
 	insertNode(parent, node, anchor) {
 		insertNode(parent, node, anchor)
-		invalidateMeasure(node)
 		markDirty()
 	},
 	removeNode(parent, node) {
 		removeNode(parent, node)
-		invalidateMeasure(node)
 		markDirty()
 	},
 	getParentNode,
@@ -121,7 +105,12 @@ const solid: Renderer<FallbackNode> = createUniversalRenderer<FallbackNode>({
  * app 返回值类型放宽：JSX 值可能是节点、组件 thunk 或数组
  * （与 SolidJSX.Element 联合对齐，运行时由 insert 归一化）。
  */
-export function renderRoot(app: () => unknown, renderer: FallbackRenderer): () => void {
+export interface RenderRootOptions {
+	/** 按键总线：提供后组件可用 `useKeyboard`/`usePaste` 订阅 */
+	bus?: KeyBus
+}
+
+export function renderRoot(app: () => unknown, renderer: FallbackRenderer, options: RenderRootOptions = {}): () => void {
 	activeRenderer = renderer
 	rootElement = createElementNode("root")
 	renderer.setResizeRepaint(() => {
@@ -130,7 +119,33 @@ export function renderRoot(app: () => unknown, renderer: FallbackRenderer): () =
 		layoutTree(rootElement, screen.width, screen.height)
 		paintTree(rootElement, screen)
 	})
-	const disposeTree = solid.render(app as () => FallbackNode, rootElement)
+	// 应用层上下文：渲染器 + 按键总线（M7）。
+	// Provider 本质是「返回 children 的函数」，直接调用即可（与 createComponent 等价，
+	// 且避免 JSX.Element 与 FallbackNode 的类型冲突）；children 用 getter 保持惰性。
+	const withRenderer = (): FallbackNode => {
+		const provider = RendererContext.Provider as unknown as (props: {
+			value: FallbackRenderer
+			children: FallbackNode
+		}) => FallbackNode
+		return provider({
+			value: renderer,
+			get children() {
+				return app() as FallbackNode
+			},
+		})
+	}
+	const tree = (): FallbackNode => {
+		const bus = options.bus
+		if (bus === undefined) return withRenderer()
+		const provider = KeyBusContext.Provider as unknown as (props: { value: KeyBus; children: FallbackNode }) => FallbackNode
+		return provider({
+			value: bus,
+			get children() {
+				return withRenderer()
+			},
+		})
+	}
+	const disposeTree = solid.render(tree, rootElement)
 	return () => {
 		disposeTree()
 		renderer.setResizeRepaint(() => {})
@@ -141,3 +156,8 @@ export function renderRoot(app: () => unknown, renderer: FallbackRenderer): () =
 
 export const solidRenderer = solid
 export const { createComponent, createElement, createTextNode, insert, spread } = solid
+
+/** Portal 挂载点：当前渲染的应用根节点（未渲染时 undefined）。 */
+export function getRootNode(): ElementNode | undefined {
+	return rootElement
+}

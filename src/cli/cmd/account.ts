@@ -2,6 +2,7 @@ import { cmd } from "./cmd"
 import { Duration, Effect, Match, Option } from "effect"
 import { UI } from "../ui"
 import { Account } from "@/account/account"
+import { Usage } from "@/billing/usage"
 import { AccountID, OrgID, PollExpired, type PollResult, type AccountError } from "@/account/schema"
 import { effectCmd } from "../effect-cmd"
 import * as Prompt from "../effect/prompt"
@@ -174,6 +175,48 @@ const openEffect = Effect.fn("open")(function* () {
   yield* Prompt.outro("已打开 " + url)
 })
 
+const formatResetAt = (ms: number) => {
+  const d = new Date(ms)
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const balanceEffect = Effect.fn("balance")(function* () {
+  const account = yield* Account.Service
+  const usage = yield* Usage.Service
+  const active = yield* account.active().pipe(Effect.orElseSucceed(() => Option.none()))
+  if (Option.isNone(active)) return yield* println("未登录，请先执行：gyc account login")
+
+  yield* println(`账户：${active.value.email}`)
+
+  const info = yield* usage.query()
+  if (Option.isNone(info)) {
+    return yield* println("积分信息暂不可用（账号服务未连接），本地会话不受影响")
+  }
+
+  const v = info.value
+  const percent = v.monthlyQuota > 0 ? `（${((v.monthlyUsed / v.monthlyQuota) * 100).toFixed(1)}%）` : ""
+  yield* println(`套餐：${v.planName}（月度 ${v.monthlyQuota} 积分）`)
+  yield* println(`余额：${v.balance.toFixed(2)} 积分`)
+  yield* println(`本月已用：${v.monthlyUsed.toFixed(2)} / ${v.monthlyQuota} 积分${percent}`)
+  yield* println(`下次重置：${formatResetAt(v.resetAt)}`)
+})
+
+const rechargeEffect = Effect.fn("recharge")(function* () {
+  const account = yield* Account.Service
+  const active = yield* account.active().pipe(Effect.orElseSucceed(() => Option.none()))
+
+  // 优先自建充值页；未配置时打开账号服务的套餐说明页
+  const url = process.env.GYCCODE_UPGRADE_URL ?? (Option.isSome(active) ? `${active.value.url}/plans` : undefined)
+  if (!url) {
+    return yield* println("未登录且未配置充值页面，请先执行：gyc account login")
+  }
+
+  yield* openBrowser(url)
+  yield* Prompt.outro("已打开充值页面 " + url)
+  yield* println("提示：自建服务不提供在线支付，请联系管理员为账号入账积分")
+})
+
 export const LoginCommand = effectCmd({
   command: "login [url]",
   describe: false,
@@ -234,8 +277,32 @@ export const OpenCommand = effectCmd({
   }),
 })
 
+export const BalanceCommand = effectCmd({
+  command: "balance",
+  describe: "查看积分余额与本月用量",
+  instance: false,
+  handler: Effect.fn("Cli.account.balance")(function* () {
+    UI.empty()
+    yield* balanceEffect()
+  }),
+})
+
+export const RechargeCommand = effectCmd({
+  command: "recharge",
+  describe: "打开套餐与充值说明页",
+  instance: false,
+  handler: Effect.fn("Cli.account.recharge")(function* () {
+    UI.empty()
+    yield* rechargeEffect()
+  }),
+})
+
 export const ConsoleCommand = cmd({
-  command: "console",
+  // 父命令串必须与 command-registry 的键一致（入口按首个参数查表注册，
+  // 见 index.ts 的 COMMANDS[first]）：此前写成 "console"，导致
+  // `gyc account ...` 查表命中但 yargs 无此命令（exit 1），
+  // `gyc console ...` 查表又落 TUI 默认入口。对照 agent.ts 的 command: "agent"。
+  command: "account",
   describe: false,
   builder: (yargs) =>
     yargs
@@ -258,6 +325,14 @@ export const ConsoleCommand = cmd({
       .command({
         ...OpenCommand,
         describe: "打开活跃的控制台账户",
+      })
+      .command({
+        ...BalanceCommand,
+        describe: "查看积分余额与本月用量",
+      })
+      .command({
+        ...RechargeCommand,
+        describe: "打开套餐与充值说明页",
       })
       .demandCommand(),
   async handler() {},
