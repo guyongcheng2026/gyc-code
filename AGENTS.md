@@ -35,7 +35,7 @@
 - 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
 - 体检：`bun run health`（只读健康快照：any/console.log 等静态统计）；`bun run health:full` 附加全量测试
 - **标准验证顺序**：`bun run typecheck` → `bun run test`；对外发布再 `bun run build`。
-- 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。**CI 是有的**：`.github/workflows/ci.yml` 在 push/PR→main 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一条链再推。
+- 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。CI：`.github/workflows/ci.yml` 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一链再推。
 
 ## 启动器与 dist 陷阱（必读）
 
