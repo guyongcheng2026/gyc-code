@@ -16,6 +16,7 @@ import { useConnected } from "./use-connected"
 import { useBindings } from "../keymap"
 import { useClipboard } from "../context/clipboard"
 import { DialogCustomProvider } from "./dialog-custom-provider"
+import { detectProvider, type AutoConnectCandidate } from "../util/auto-connect"
 
 function normalizeApiKey(raw: string, providerID: string) {
   let value = raw.trim()
@@ -36,90 +37,80 @@ const CUSTOM_PROVIDER_OPTION_VALUE = "__gyccode_custom_provider__"
 const CUSTOM_PROVIDER_WIZARD_VALUE = "__gyccode_custom_provider_wizard__"
 
 /**
- * 自定义供应商 6 步向导（对标上游 TUI 流程）
- * 支持任意 OpenAI 兼容供应商，无需在 models.dev 目录中注册
+ * 输入密钥自动连接：探测识别提供商 → 验证可用 → 保存密钥 → 打开其模型列表。
+ * 候选来自 v2 provider.list（含 api.url），识别逻辑见 util/auto-connect。
  */
-async function runCustomProviderWizard(opts: {
-  dialog: ReturnType<typeof useDialog>
-  sdk: ReturnType<typeof useSDK>
-  sync: ReturnType<typeof useSync>
-  toast: ReturnType<typeof useToast>
-}) {
-  const { dialog, sdk, sync, toast } = opts
+function AutoConnectPrompt() {
+  const dialog = useDialog()
+  const sdk = useSDK()
+  const sync = useSync()
+  const toast = useToast()
+  const { theme } = useTheme()
+  const [busy, setBusy] = createSignal(false)
+  const [error, setError] = createSignal<string>()
 
-  function step(n: number, total: number, title: string, placeholder?: string, value?: string) {
-    return DialogPrompt.show(dialog, `${title} (${n}/${total})`, { placeholder, value })
-  }
-
-  const providerIDRaw = await step(1, 6, "供应商 ID", "例如 zhipu")
-  if (providerIDRaw === null) return
-  const providerID = providerIDRaw.trim().toLowerCase().replace(/[^a-z0-9-_]/g, "-")
-  if (!providerID) return
-
-  const nameRaw = await step(2, 6, "显示名称", "例如 智谱 AI", providerID)
-  if (nameRaw === null) return
-  const name = nameRaw.trim() || providerID
-
-  const baseURLRaw = await step(3, 6, "API 地址", "https://open.bigmodel.cn/api/paas/v4")
-  if (baseURLRaw === null) return
-  const baseURL = baseURLRaw.trim()
-  if (!baseURL) return
-
-  const apiKeyRaw = await step(4, 6, "API 密钥", "sk-...")
-  if (apiKeyRaw === null) return
-  const apiKey = apiKeyRaw.trim()
-  if (!apiKey) return
-
-  const modelIDRaw = await step(5, 6, "模型 ID", "例如 glm-4-flash")
-  if (modelIDRaw === null) return
-  const modelID = modelIDRaw.trim()
-  if (!modelID) return
-
-  const modelNameRaw = await step(6, 6, "模型名称", "例如 GLM-4 Flash", modelID)
-  if (modelNameRaw === null) return
-  const modelName = modelNameRaw.trim() || modelID
-
-  // 构建配置（与 mimo-code 对齐：npm 固定为 @ai-sdk/openai-compatible）
-  const envKey = `${providerID.toUpperCase().replace(/[^A-Z0-9]+/g, "_")}_API_KEY`
-  const config = {
-    name,
-    npm: "@ai-sdk/openai-compatible",
-    env: [envKey],
-    options: {
-      baseURL,
-      setCacheKey: true,
-    },
-    models: {
-      [modelID]: {
-        name: modelName,
-      },
-    },
-  }
-
-  // 写入配置
-  const configResult = await sdk.client.config.update({
-    config: { provider: { [providerID]: config } },
-  })
-  if (configResult.error) {
-    toast.show({ variant: "error", message: `写入配置失败：${JSON.stringify(configResult.error)}` })
-    return
-  }
-
-  // 保存 API Key
-  const authResult = await sdk.client.auth.set({
-    providerID,
-    auth: { type: "api", key: apiKey },
-  })
-  if (authResult.error) {
-    toast.show({ variant: "error", message: `保存凭据失败：${JSON.stringify(authResult.error)}` })
-    return
-  }
-
-  // 重新初始化
-  await sdk.client.instance.dispose()
-  await sync.bootstrap()
-  toast.show({ variant: "success", message: `已连接 ${name} · ${modelID}` })
-  dialog.replace(() => <DialogModel providerID={providerID} />)
+  return (
+    <DialogPrompt
+      title="输入密钥自动连接"
+      placeholder="粘贴 API 密钥，自动识别并验证提供商"
+      busy={busy()}
+      busyText="正在识别提供商…"
+      description={() =>
+        error() ? (
+          <text fg={theme.error}>{error()}</text>
+        ) : (
+          <text fg={theme.textMuted}>识别成功后自动保存密钥并打开该提供商的模型列表</text>
+        )
+      }
+      onConfirm={async (raw) => {
+        const key = raw.trim()
+        if (!key) return
+        setBusy(true)
+        setError(undefined)
+        try {
+          const listed = await sdk.client.v2.provider.list({}, { throwOnError: true })
+          const candidates: AutoConnectCandidate[] = listed.data.data.flatMap((provider) => {
+            const url = provider.api.url
+            if (!url) return []
+            return [
+              {
+                id: provider.id,
+                name: provider.name,
+                url,
+                npm: provider.api.type === "aisdk" ? provider.api.package : undefined,
+              },
+            ]
+          })
+          const result = await detectProvider(key, candidates)
+          if (!result) {
+            setError("未能识别该密钥对应的提供商，请确认密钥有效且提供商在目录内")
+            setBusy(false)
+            return
+          }
+          const setResult = await sdk.client.auth.set({
+            providerID: result.providerID,
+            auth: { type: "api", key },
+          })
+          if (setResult.error) {
+            setError(`保存凭据失败：${JSON.stringify(setResult.error)}`)
+            setBusy(false)
+            return
+          }
+          await sdk.client.instance.dispose()
+          await sync.bootstrap()
+          toast.show({
+            variant: "success",
+            message:
+              result.modelCount > 0 ? `已识别 ${result.name} · ${result.modelCount} 个模型` : `已识别 ${result.name}`,
+          })
+          dialog.replace(() => <DialogModel providerID={result.providerID} />)
+        } catch (cause) {
+          setError(`识别失败：${cause instanceof Error ? cause.message : String(cause)}`)
+          setBusy(false)
+        }
+      }}
+    />
+  )
 }
 
 
@@ -174,9 +165,9 @@ export function providerOptions(list: { id: string; name: string }[]): ProviderO
     },
     {
       type: "wizard",
-      title: "+ 添加自定义供应商",
+      title: "+ 输入密钥自动连接",
       value: CUSTOM_PROVIDER_WIZARD_VALUE,
-      description: "任意 OpenAI 兼容 API",
+      description: "粘贴密钥自动识别、验证并保存提供商与模型",
       category: "提供商",
     } as const,
   ]
@@ -213,7 +204,7 @@ export function createDialogProviderOptions() {
             description: provider.description,
             category: provider.category,
             async onSelect() {
-              return runCustomProviderWizard({ dialog, sdk, sync, toast })
+              return dialog.replace(() => <AutoConnectPrompt />)
             },
           }
         }
