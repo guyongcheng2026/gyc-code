@@ -29,9 +29,29 @@ describe("virtualRenderFrom", () => {
     expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(40))).toBe(0)
   })
 
-  test("长会话默认尾部窗口：len - 40", () => {
-    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(41))).toBe(1)
-    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(300))).toBe(260)
+  test("长会话默认尾部窗口按批前移（塌缩频率降到 1/40）", () => {
+    // 此前起点是 len - 40：每新增一条消息就有最早一条完整消息塌缩为单行摘要，
+    // 内容总高骤减，贴底滚动时视口内容整体上移——即「结果反馈时画面上下跳」。
+    // 现在起点只在消息数跨过 40 的整数倍时前移一批。
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(41))).toBe(0)
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(79))).toBe(0)
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(80))).toBe(40)
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(119))).toBe(40)
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(120))).toBe(80)
+    expect(virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(300))).toBe(240)
+  })
+
+  test("默认窗口起点单调不减，且完整渲染条数不超过 2 倍窗口", () => {
+    let previous = 0
+    for (let n = 1; n <= 600; n++) {
+      const from = virtualRenderFrom(VIRTUAL_DEFAULT_STATE, msgs(n))
+      expect(from).toBeGreaterThanOrEqual(previous)
+      previous = from
+      if (n > 40) {
+        // 完整渲染条数在 (40, 80] 之间：既不塌缩过频，也不突破句柄预算上界
+        expect(n - from).toBeLessThanOrEqual(80)
+      }
+    }
   })
 
   test("锚定消息 ID 而非绝对索引", () => {
@@ -72,18 +92,18 @@ describe("virtualExpandMore", () => {
     expect(virtualExpandMore(VIRTUAL_DEFAULT_STATE, msgs(40))).toBe(VIRTUAL_DEFAULT_STATE)
   })
 
-  test("中长会话逐步展开：260 → 200 → 140 → 80 → 20 → full（未触预算）", () => {
+  test("中长会话逐步展开（默认起点按批前移后：240 → 180 → 120 → 60 → full，未触预算）", () => {
     let state = VIRTUAL_DEFAULT_STATE
     const list = msgs(300)
     state = virtualExpandMore(state, list)
-    expect(virtualRenderFrom(state, list)).toBe(200)
-    expect(state.anchorID).toBe("m200")
+    expect(virtualRenderFrom(state, list)).toBe(180)
+    expect(state.anchorID).toBe("m180")
     state = virtualExpandMore(state, list)
-    expect(virtualRenderFrom(state, list)).toBe(140)
+    expect(virtualRenderFrom(state, list)).toBe(120)
     state = virtualExpandMore(state, list)
-    expect(virtualRenderFrom(state, list)).toBe(80)
+    expect(virtualRenderFrom(state, list)).toBe(60)
     state = virtualExpandMore(state, list)
-    expect(virtualRenderFrom(state, list)).toBe(20)
+    expect(virtualRenderFrom(state, list)).toBe(0)
     // 300 条 ≤ MAX_WINDOW：预算不介入，展开到顶即全展开
     state = virtualExpandMore(state, list)
     expect(state.full).toBe(true)

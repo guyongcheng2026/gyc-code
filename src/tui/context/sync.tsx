@@ -20,7 +20,7 @@ import type {
   SnapshotFileDiff,
   ConsoleState,
 } from "@gyccode/protocol/v2"
-import { logError } from "@core/observability/log-error"
+import { logError, logWarn } from "@core/observability/log-error"
 import { createStore, produce, reconcile } from "solid-js/store"
 import { useProject } from "./project"
 import { useEvent } from "./event"
@@ -41,10 +41,35 @@ import {
   classifyPendingDeltas,
   createCompletionWatermark,
   createDeltaFlushController,
+  createDropCounter,
   DELTA_FLUSH_MS,
   pendingDeltaKey,
   type PendingDelta,
 } from "./delta-flush"
+
+/**
+ * 把单个查询的失败隔离掉：失败时记录并返回 undefined，绝不让 rejection 冒泡。
+ *
+ * 为什么必须有：非阻塞阶段的查询若冒泡到 Promise.all，rejection 无 handler →
+ * unhandledRejection → crash-classify 判为不可恢复 → degrade(reason, 1) →
+ * 进安全模式并 process.exit(1)。表现为「长会话里偶发退回 fallback 甚至重启」，
+ * 与任何类型/渲染错误都无关，难以归因。
+ */
+export function safeQuery<T>(
+  name: string,
+  promise: Promise<T>,
+  onError: (name: string, error: unknown) => void = (queryName, error) => {
+    logWarn("tui.sync", `bootstrap 查询失败：${queryName}`, {
+      error: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : undefined,
+    })
+  },
+): Promise<T | undefined> {
+  return promise.catch((error) => {
+    onError(name, error)
+    return undefined
+  })
+}
 
 const emptyConsoleState: ConsoleState = {
   consoleManagedProviders: [],
@@ -107,6 +132,10 @@ const messageKey = (message: Message) => message.time.created + message.id
 // 据此可判定「delta 早于还是晚于 message.updated 的 completed 到达」。
 let arrivalSeq = 0
 const nextArrivalSeq = () => ++arrivalSeq
+// 完成水位线与丢弃计数器放在模块级：messageID 全局唯一，且 provider 重建后
+// 仍需保留水位线（否则重建瞬间的 in-flight delta 会被误判为「完成后到达」）。
+const completedWatermark = createCompletionWatermark()
+const dropCounter = createDropCounter()
 
 export const {
   context: SyncContext,
@@ -275,6 +304,8 @@ export const {
         )
       })
       fullSyncedSessions.delete(sessionID)
+      // 会话被淘汰：该会话所有消息的水位线一并清理（否则长跑单调增长）
+      for (const message of messages) completedWatermark.delete(message.id)
     }
     // 当前在屏会话（sync 调用即「上屏」信号），淘汰时跳过它。
     // 事件路径也会 markRecent（见 message.updated），若没有这个钉住项，
@@ -297,7 +328,7 @@ export const {
     // 消息完成水位线：messageID → 完成事件（message.updated 带 time.completed）
     // 的到达序。用于把「完成后到达的残留 delta」与「仅被 30ms 攒批延迟的
     // delta」分开：前者丢弃，后者必须写入。
-    const completedWatermark = createCompletionWatermark()
+
 
     const flushDeltas = () => {
       if (pendingDeltas.size === 0) return
@@ -305,7 +336,22 @@ export const {
       pendingDeltas = new Map()
       // 到达序判定：晚于完成水位线的残留 delta 丢弃（不污染已完结消息）；
       // 早于/等于水位线的只是被攒批延迟，必须写入，不能丢字。
-      const { apply } = classifyPendingDeltas(deltas.values(), completedWatermark.read())
+      const { apply, drop } = classifyPendingDeltas(deltas.values(), completedWatermark.read())
+      if (drop.length > 0) {
+        // 丢弃必须可观测：否则「末段文字丢失」在运行期完全无声。
+        // 限频输出（流式期可达 60 次/秒），计数不丢。
+        for (const dropped of drop) {
+          const r = dropCounter.record(dropped.messageID, 1)
+          if (!r.emit) continue
+          logWarn("tui.sync", "完成后到达的流式增量已丢弃", {
+            messageID: dropped.messageID,
+            partID: dropped.partID,
+            field: dropped.field,
+            dropped: r.dropped,
+            suppressed: r.suppressed,
+          })
+        }
+      }
       if (apply.length === 0) return
       batch(() => {
         for (const delta of apply) {
@@ -591,6 +637,8 @@ export const {
           if (updated && updated.length > 100) {
             const oldest = updated[0]
             if (oldest === undefined) break
+            // 最旧消息被淘汰：其水位线一并清理，避免长会话单调增长
+            completedWatermark.delete(oldest.id)
             batch(() => {
               setStore(
                 "message",
@@ -610,6 +658,8 @@ export const {
           break
         }
         case "message.removed": {
+          // 消息已删除：其水位线不再可能收到 delta，及时清理（长会话单调增长）
+          completedWatermark.delete(event.properties.messageID)
           touchMessage(event.properties.sessionID, event.properties.messageID)
           const messages = store.message[event.properties.sessionID]
           if (!messages) break
@@ -784,31 +834,66 @@ export const {
           if (store.status !== "complete") setStore("status", "partial")
           // non-blocking：capabilities/console 与状态类查询并行，不阻塞首帧
           void Promise.all([
-            ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
-            capabilitiesPromise.then((capabilities) => {
-              setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
-            }),
-            consoleStatePromise.then((consoleState) => {
-              setStore("console_state", reconcile(consoleState))
-              setStore("credits", reconcile(pickCredits(consoleState)))
-            }),
-            sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
-            sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
-            sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
-            sdk.client.experimental.resource
-              .list({ workspace })
-              .then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
-            sdk.client.formatter.status({ workspace }).then((x) => setStore("formatter", reconcile(x.data ?? []))),
-            sdk.client.session.status({ workspace }).then((x) => {
-              setStore("session_status", reconcile(x.data ?? {}))
-            }),
-            sdk.client.provider.auth({ workspace }).then((x) => setStore("provider_auth", reconcile(x.data ?? {}))),
-            sdk.client.vcs.get({ workspace }).then((x) => setStore("vcs", reconcile(x.data))),
-            project.workspace.sync(),
-          ]).then(() => {
-            setStore("status", "complete")
-            tuiTiming("bootstrap non-blocking phase done (status=complete)")
-          })
+            ...(args.continue
+              ? []
+              : [
+                  safeQuery(
+                    "session.list",
+                    sessionListPromise.then((sessions) => setStore("session", reconcile(sessions))),
+                  ),
+                ]),
+            capabilitiesPromise
+              .then((capabilities) => {
+                setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
+              })
+              .catch(() => undefined),
+            consoleStatePromise
+              .then((consoleState) => {
+                setStore("console_state", reconcile(consoleState))
+                setStore("credits", reconcile(pickCredits(consoleState)))
+              })
+              .catch(() => undefined),
+            safeQuery(
+              "command.list",
+              sdk.client.command.list({ workspace }).then((x) => setStore("command", reconcile(x.data ?? []))),
+            ),
+            safeQuery(
+              "lsp.status",
+              sdk.client.lsp.status({ workspace }).then((x) => setStore("lsp", reconcile(x.data ?? []))),
+            ),
+            safeQuery(
+              "mcp.status",
+              sdk.client.mcp.status({ workspace }).then((x) => setStore("mcp", reconcile(x.data ?? {}))),
+            ),
+            safeQuery(
+              "mcp_resource.list",
+              sdk.client.experimental.resource
+                .list({ workspace })
+                .then((x) => setStore("mcp_resource", reconcile(x.data ?? {}))),
+            ),
+            safeQuery(
+              "formatter.status",
+              sdk.client.formatter.status({ workspace }).then((x) => setStore("formatter", reconcile(x.data ?? []))),
+            ),
+            safeQuery(
+              "session.status",
+              sdk.client.session.status({ workspace }).then((x) => {
+                setStore("session_status", reconcile(x.data ?? {}))
+              }),
+            ),
+            safeQuery(
+              "provider.auth",
+              sdk.client.provider.auth({ workspace }).then((x) => setStore("provider_auth", reconcile(x.data ?? {}))),
+            ),
+            safeQuery("vcs.get", sdk.client.vcs.get({ workspace }).then((x) => setStore("vcs", reconcile(x.data)))),
+            safeQuery("project.workspace.sync", project.workspace.sync()),
+          ])
+            .catch(() => undefined)
+            .finally(() => {
+              // 无论各查询成败，状态都必须推进到 complete（否则永远停在 partial）
+              setStore("status", "complete")
+              tuiTiming("bootstrap non-blocking phase done (status=complete)")
+            })
         })
         .catch(async (e) => {
           logError("tui.sync", e, {

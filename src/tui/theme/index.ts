@@ -92,13 +92,32 @@ export type Theme = {
 type ThemeColor = Exclude<keyof Theme, "thinkingOpacity" | "_hasSelectedListItemText">
 export type SyntaxStyleOverrides = Record<string, { italic?: boolean }>
 
+/** 选中项前景与底色的最小可读对比度（WCAG AA 非文本元素为 3:1）。 */
+const SELECTED_FOREGROUND_MIN_CONTRAST = 3
+
+/** WCAG 相对亮度（0..1）。 */
+function relativeLuminance(color: RGBA): number {
+  const channel = (value: number) =>
+    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  return (
+    0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b)
+  )
+}
+
+/** 两个颜色的 WCAG 对比度（1..21）。 */
+export function contrastRatio(a: RGBA, b: RGBA): number {
+  const la = relativeLuminance(a)
+  const lb = relativeLuminance(b)
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+}
+
 export function selectedForeground(theme: Theme, bg?: RGBA): RGBA {
-  // If theme explicitly defines selectedListItemText, use it
+  // 主题显式定义 selectedListItemText：尊重主题意图，不动
   if (theme._hasSelectedListItemText) {
     return theme.selectedListItemText
   }
 
-  // For transparent backgrounds, calculate contrast based on the actual bg (or fallback to primary)
+  // 透明背景：按实际底色亮度取黑/白（保持原行为）
   if (theme.background.a === 0) {
     const targetColor = bg ?? theme.primary
     const { r, g, b } = targetColor
@@ -106,8 +125,20 @@ export function selectedForeground(theme: Theme, bg?: RGBA): RGBA {
     return luminance > 0.5 ? RGBA.fromInts(0, 0, 0) : RGBA.fromInts(255, 255, 255)
   }
 
-  // Fall back to background color
-  return theme.background
+  // 不透明背景：此前直接返回 theme.background（缺省时 selectedListItemText
+  // 就等于 background），在浅色主题里等于「选中前景 = 背景色」——文字压在
+  // primary 选中底色上几乎不可见（实测对比度 1.20~2.09），表现为反白。
+  //
+  // 现在：意图前景若与底色对比度达标则原样返回（保住 dark 模式 3.3~9.1 的
+  // 既有表现，不改动已达标的呈现），否则按底色亮度取黑/白中对比度更高者。
+  const target = bg ?? theme.primary
+  const intended = theme.selectedListItemText
+  if (contrastRatio(intended, target) >= SELECTED_FOREGROUND_MIN_CONTRAST) {
+    return intended
+  }
+  const black = RGBA.fromInts(0, 0, 0)
+  const white = RGBA.fromInts(255, 255, 255)
+  return contrastRatio(black, target) >= contrastRatio(white, target) ? black : white
 }
 
 type HexColor = `#${string}`

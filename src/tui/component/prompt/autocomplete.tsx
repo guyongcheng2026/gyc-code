@@ -817,11 +817,17 @@ export function Autocomplete(props: {
               }}
               onMouseUp={() => select()}
             >
-              <text fg={index === store.selected ? selectedForeground(theme) : theme.text} flexShrink={0}>
+              <text
+                fg={index === store.selected ? selectedForeground(theme, theme.primary) : theme.text}
+                flexShrink={0}
+              >
                 {option().display}
               </text>
               <Show when={option().description}>
-                <text fg={index === store.selected ? selectedForeground(theme) : theme.textMuted} wrapMode="none">
+                <text
+                  fg={index === store.selected ? selectedForeground(theme, theme.primary) : theme.textMuted}
+                  wrapMode="none"
+                >
                   {" " + option().description?.trimStart()}
                 </text>
               </Show>

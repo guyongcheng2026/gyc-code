@@ -86,6 +86,7 @@ import { nextThinkingMode, reasoningSummary, useThinkingMode, type ThinkingMode 
 import { getScrollAcceleration } from "../../util/scroll"
 import { createFpsController } from "../../util/target-fps"
 import { createStreamingState } from "../../util/streaming-state"
+import { renderScaleFor } from "../../util/render-scale"
 import { collapseToolOutput } from "../../util/collapse-tool-output"
 import { LimitedContent } from "../../component/limited-content"
 import { LARGE_SESSION_THRESHOLD, probeTerminal, sessionTargetFps } from "../../fallback/capability"
@@ -410,14 +411,13 @@ export function Session() {
   // （core/session/message-updater.ts:192-217 每步先将上一条 assistant 标记
   // completed 再建新消息），用户感知为「结果反馈时画面上下跳」。
   const RENDER_NODE_FACTOR = 3
-  // 帧率档位只随「规模档」变化，不随消息条数逐条变化：消息数每新增一条都会
-  // 重算 memo 并连带触发下面的帧率 effect，而 scaleDownFps 按
-  // floor(scale / LARGE_SESSION_THRESHOLD) 取档，档内把 scale 量化到阈值倍数
-  // 不改变取档结果，却让 effect 不再随每条消息重跑。
-  const renderScale = createMemo(() => ({
-    scale:
-      Math.floor((messages().length * RENDER_NODE_FACTOR) / LARGE_SESSION_THRESHOLD) * LARGE_SESSION_THRESHOLD,
-  }))
+  // 帧率档位只随「规模档」变化，不随消息条数逐条变化。
+  // 量化到 LARGE_SESSION_THRESHOLD 的倍数：scaleDownFps 按 floor(scale/TH) 取档，
+  // 档内取整不改变取档结果。memo 必须返回**数值**而非新对象——Solid 的 memo 用
+  // === 比较依赖，返回新对象会让下游帧率 effect 随每条消息重跑（等于没量化）。
+  const renderScale = createMemo(() =>
+    renderScaleFor(messages().length, RENDER_NODE_FACTOR, LARGE_SESSION_THRESHOLD),
+  )
   // 流式态滞回：pending() 在工具步骤边界会瞬时翻转（core/session/message-updater.ts
   // 先把上一条 assistant 标记 completed、再建新消息），直接拿它驱动帧率会让
   // targetFps 在流式档与空闲档之间横跳——用户感知为「结果反馈时画面上下跳」。
@@ -440,11 +440,15 @@ export function Session() {
   createEffect(() => {
     const isStreaming = streaming()
     if (renderer.isDestroyed) return
-    fpsController.request(sessionTargetFps(probeTerminal(), isStreaming, renderScale()), isStreaming)
+    fpsController.request(
+      sessionTargetFps(probeTerminal(), isStreaming, { scale: renderScale() }),
+      isStreaming,
+    )
   })
   onCleanup(() => {
     fpsController.dispose()
-    if (!renderer.isDestroyed) renderer.targetFps = sessionTargetFps(probeTerminal(), false, renderScale())
+    if (!renderer.isDestroyed)
+      renderer.targetFps = sessionTargetFps(probeTerminal(), false, { scale: renderScale() })
   })
 
   onCleanup(

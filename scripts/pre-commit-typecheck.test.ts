@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test"
-import { existsSync, mkdirSync, readFileSync } from "node:fs"
+import { existsSync, mkdirSync, writeFileSync } from "node:fs"
+import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import {
@@ -7,12 +8,13 @@ import {
   MIN_FULL_TYPECHECK_FREE_MEM_MB,
   runIncrementalTypecheck,
   shouldDowngradeTypecheck,
+  // @ts-expect-error .githooks 下是 .mjs 脚本，仓库不为其提供类型声明
 } from "../.githooks/pre-commit-checks.mjs"
 
 // 提交前类型门禁的内存自适应降级。
 //
 // 背景：本机 3.9GB 物理内存 / 7.9GB 提交上限，全量 tsc --noEmit 会被系统
-// 提交上限掐死（Windows errno=1455，node/tsgo 进程启动即失败），表现为
+// 提交上限直接掐死（Windows errno=1455，node/tsgo 进程启动即失败），表现为
 // 「怎么都提交不进去」而非任何类型错误。降级为「只检查暂存区文件」后，
 // 类型图规模从全项目收敛到暂存文件及其依赖，内存占用回到可接受区间。
 
@@ -65,7 +67,7 @@ describe("增量类型门禁的执行", () => {
       runTypecheck: (_root: string, proj: string) => {
         seen = proj
         const path = join(root, proj)
-        configDuringRun = existsSync(path) ? readFileSync(path, "utf8") : undefined
+        configDuringRun = existsSync(path) ? readFileSyncSafe(path) : undefined
         return { code: 0, out: "", err: "" }
       },
     })
@@ -88,4 +90,39 @@ describe("增量类型门禁的执行", () => {
     expect(result.code).toBe(2)
     expect(existsSync(join(root, project))).toBe(false)
   })
+
+  it("不残留 exit 监听器（长驻进程反复调用不得泄漏）", () => {
+    const root = join(tmpdir(), "gyc-precommit-mem-test-listener")
+    mkdirSync(root, { recursive: true })
+    const before = process.listenerCount("exit")
+    runIncrementalTypecheck(root, ["src/tui/app.tsx"], {
+      runTypecheck: () => ({ code: 0, out: "", err: "" }),
+    })
+    expect(process.listenerCount("exit")).toBe(before)
+  })
+
+  it("进程直接退出时兜底清理临时配置（finally 不会执行）", () => {
+    const root = join(tmpdir(), "gyc-precommit-mem-test-exit")
+    mkdirSync(root, { recursive: true })
+    const project = "tsconfig.precommit-inc.json"
+    const moduleUrl = new URL("../.githooks/pre-commit-checks.mjs", import.meta.url).href
+    const script = `
+import { runIncrementalTypecheck } from ${JSON.stringify(moduleUrl)}
+import { writeFileSync } from "node:fs"
+runIncrementalTypecheck(${JSON.stringify(root)}, ["a.ts"], {
+  runTypecheck: () => {
+    writeFileSync(${JSON.stringify(join(root, project))}, "stale")
+    process.exit(0)
+  },
 })
+`
+    const proc = spawnSync(process.execPath, ["-e", script], { encoding: "utf8" })
+    expect(existsSync(join(root, project))).toBe(false)
+    expect(proc.status).toBe(0)
+  })
+})
+
+function readFileSyncSafe(path: string): string {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require("node:fs").readFileSync(path, "utf8")
+}

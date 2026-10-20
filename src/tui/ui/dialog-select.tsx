@@ -538,7 +538,9 @@ title: "选择项目",
     const item = action.item
     const active = createMemo(() => isActionFocused(item))
     const disabled = createMemo(() => isActionDisabled(item))
-    const fg = selectedForeground(theme)
+    // 选中底色是 theme.primary：必须把真实底色传进去，否则浅色主题下
+    // selectedForeground 无从判断前景与底色的对比度（表现为选中行反白）
+    const fg = selectedForeground(theme, theme.primary)
     return (
       <box
         flexDirection="row"
@@ -695,6 +697,7 @@ title: "选择项目",
                               current={current()}
                               muted={actionFocused()}
                               gutter={option.gutter}
+                              selectedBg={option.bg ?? theme.primary}
                             />
                           </box>
                           <For each={option.details}>
@@ -743,9 +746,11 @@ function Option(props: {
   truncateTitle?: boolean | "left"
   gutter?: () => JSX.Element
   onMouseOver?: () => void
+  /** 真实选中底色（option.bg ?? theme.primary）：决定选中文字该用多亮的前景色 */
+  selectedBg?: RGBA
 }) {
   const { theme } = useTheme()
-  const fg = selectedForeground(theme)
+  const fg = selectedForeground(theme, props.selectedBg ?? theme.primary)
   const text = createMemo(() => {
     if (props.active && !props.muted) return fg
     if (props.muted && (props.active || props.current)) return theme.textMuted

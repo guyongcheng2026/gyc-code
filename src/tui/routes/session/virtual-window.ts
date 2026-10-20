@@ -63,6 +63,24 @@ function budgetRenderFrom(length: number): number {
   return Math.max(0, length - VIRTUAL_MAX_WINDOW)
 }
 
+/**
+ * 默认尾部窗口的起点：按 VIRTUAL_WINDOW 为步长**批量**前移。
+ *
+ * 立项（2026-10-20 抖动排查）：此前起点是 max(0, len - VIRTUAL_WINDOW)，
+ * 即**每新增一条消息**就有最早的一条完整消息塌缩为单行摘要。内容总高骤减
+ * 一条消息的高度，贴底滚动时视口内内容整体上移——用户感知为「结果反馈时
+ * 画面上下跳」，且随消息流入持续复现。
+ *
+ * 改为按批前移：起点只在消息数跨过 VIRTUAL_WINDOW 的整数倍时前移一批。
+ * 完整渲染条数因此在 (VIRTUAL_WINDOW, 2×VIRTUAL_WINDOW] 之间波动——上界
+ * 与原实现同为 2 倍窗口内、且始终不超过句柄预算给出的上限，代价是塌缩
+ * 频率降到 1/VIRTUAL_WINDOW。
+ */
+function defaultRenderFrom(length: number): number {
+  if (length <= VIRTUAL_WINDOW) return 0
+  return Math.floor(length / VIRTUAL_WINDOW) * VIRTUAL_WINDOW - VIRTUAL_WINDOW
+}
+
 /** 当前完整渲染起点：index < renderFrom 的消息折叠为单行摘要。 */
 export function virtualRenderFrom(
   state: VirtualWindowState,
@@ -71,7 +89,7 @@ export function virtualRenderFrom(
   const ceiling = budgetRenderFrom(messages.length)
   if (state.full) return ceiling
   const id = state.anchorID
-  if (!id) return Math.max(0, messages.length - VIRTUAL_WINDOW)
+  if (!id) return defaultRenderFrom(messages.length)
   const idx = messages.findIndex((m) => m.id === id)
   // 锚点消息被 revert 删除等场景：回退到句柄预算起点（而非全展开）
   if (idx === -1) return ceiling

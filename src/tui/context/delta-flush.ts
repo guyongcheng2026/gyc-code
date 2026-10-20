@@ -42,6 +42,50 @@ export function createDeltaFlushController(flush: () => void, intervalMs = DELTA
 }
 
 /**
+ * 丢弃计数的默认限频窗口（毫秒）。
+ *
+ * 为什么必须限频：流式期可达 60 次/秒，逐条落库会写爆 error_audit 表。
+ */
+export const DROP_LOG_INTERVAL_MS = 60_000
+
+export type DropCounter = {
+  /**
+   * 记录一次丢弃。同一键在窗口内只放行一条日志，其余只累加计数。
+   * 返回值里 emit 指示本次是否应当输出日志。
+   */
+  record(key: string, count: number): { emit: boolean; dropped: number; suppressed: number }
+  /** 累计丢弃总条数。 */
+  total(): number
+  /** 累计被限频抑制的条数。 */
+  suppressed(): number
+}
+
+export function createDropCounter(intervalMs = DROP_LOG_INTERVAL_MS): DropCounter {
+  const emittedAt = new Map<string, number>()
+  let total = 0
+  let suppressedCount = 0
+  return {
+    record(key, count) {
+      total += count
+      const now = Date.now()
+      const last = emittedAt.get(key)
+      if (last !== undefined && now - last < intervalMs) {
+        suppressedCount += count
+        return { emit: false, dropped: total, suppressed: suppressedCount }
+      }
+      emittedAt.set(key, now)
+      return { emit: true, dropped: total, suppressed: suppressedCount }
+    },
+    total() {
+      return total
+    },
+    suppressed() {
+      return suppressedCount
+    },
+  }
+}
+
+/**
  * 到达序水位线：解决「message.updated（带 completed）先于最后一批 delta 落库」
  * 导致末尾文字迟到一帧的问题。
  *
@@ -107,6 +151,10 @@ export type CompletionWatermark = {
   mark(messageID: string, seq: number): void
   get(messageID: string): number | undefined
   read(): ReadonlyMap<string, number>
+  /** 丢弃某个消息的水位线（消息被删除/淘汰时调用）。 */
+  delete(messageID: string): void
+  /** 只保留 keepIDs 内的水位线，返回删除条数。 */
+  prune(keepIDs: Iterable<string>): number
 }
 
 export function createCompletionWatermark(): CompletionWatermark {
@@ -119,6 +167,19 @@ export function createCompletionWatermark(): CompletionWatermark {
     },
     get(messageID) {
       return watermarks.get(messageID)
+    },
+    delete(messageID) {
+      watermarks.delete(messageID)
+    },
+    prune(keepIDs) {
+      const keep = new Set(keepIDs)
+      let removed = 0
+      for (const messageID of [...watermarks.keys()]) {
+        if (keep.has(messageID)) continue
+        watermarks.delete(messageID)
+        removed += 1
+      }
+      return removed
     },
     read() {
       return watermarks

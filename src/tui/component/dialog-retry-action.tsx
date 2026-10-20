@@ -43,7 +43,9 @@ function panelOverlay(color: RGBA) {
 export function DialogRetryAction(props: DialogRetryActionProps) {
   const dialog = useDialog()
   const { theme } = useTheme()
-  const fg = selectedForeground(theme)
+  // 选中底色是 theme.primary（见下方 backgroundColor）：传入真实底色，
+  // 否则浅色主题下选中行文字与底色几乎同色（反白）
+  const fg = selectedForeground(theme, theme.primary)
   const showGoTreatment = () => GO_URL !== "" && props.link === GO_URL
   const textBg = () => (showGoTreatment() ? panelOverlay(theme.backgroundPanel) : undefined)
   const [selected, setSelected] = createSignal<"dismiss" | "action">("action")

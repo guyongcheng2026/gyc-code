@@ -168,16 +168,25 @@ export function buildIncrementalTsconfig(files) {
 export function runIncrementalTypecheck(root, files, options = {}) {
   const project = "tsconfig.precommit-inc.json"
   const configPath = join(root, project)
-  try {
-    writeFileSync(configPath, buildIncrementalTsconfig(files), "utf8")
-    const run = options.runTypecheck ?? ((r, p) => runTypecheck(r, p))
-    return run(root, project)
-  } finally {
+  const cleanup = () => {
     try {
       rmSync(configPath, { force: true })
     } catch {
       // 临时文件删不掉不影响提交正确性，吞掉异常。
     }
+  }
+  // 兜底：process.exit() 之类不会走 finally，临时配置会残留在仓库根。
+  // 监听器在 finally 里摘除——本模块被长驻进程（git_commit）反复引用，
+  // 累积监听器会拖垮进程。
+  const onExit = () => cleanup()
+  process.on("exit", onExit)
+  try {
+    writeFileSync(configPath, buildIncrementalTsconfig(files), "utf8")
+    const run = options.runTypecheck ?? ((r, p) => runTypecheck(r, p))
+    return run(root, project)
+  } finally {
+    process.off("exit", onExit)
+    cleanup()
   }
 }
 
