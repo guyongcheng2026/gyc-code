@@ -39,7 +39,14 @@ export const ModelsCommand = effectCmd({
     const print = (providerID: ProviderV2.ID, verbose?: boolean) => {
       const p = providers[providerID]
       if (!p) return
-      const sorted = Object.entries(p.models).sort(([a], [b]) => a.localeCompare(b))
+      const isFree = (m: { priced?: boolean; cost: { input: number } }) =>
+        m.priced !== false && m.cost.input === 0
+      const sorted = Object.entries(p.models).sort(([a, ma], [b, mb]) => {
+        const fa = isFree(ma)
+        const fb = isFree(mb)
+        if (fa !== fb) return fb ? 1 : -1
+        return a.localeCompare(b)
+      })
       for (const [modelID, model] of sorted) {
         process.stdout.write(`${providerID}/${modelID}`)
         process.stdout.write(EOL)

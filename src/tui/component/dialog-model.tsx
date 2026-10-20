@@ -17,8 +17,7 @@ import { useSync } from "../context/sync"
  * （仓内无生成器，AGENTS.md 亦列为「勿手改」），故此处暂不依赖 priced。
  * 谷总可由 `gyc stats` 的「无单价模型」告警获知同一信息（见 cli/cmd/stats.ts）。
  */
-function modelFooter(model: { cost?: { input?: number }; priced?: boolean }, providerID: string) {
-  if (providerID !== "gyccode") return undefined
+function modelFooter(model: { cost?: { input?: number }; priced?: boolean }) {
   if (model.priced === false) return "价格未知"
   if (model.cost?.input === 0) return "免费"
   return undefined
@@ -56,7 +55,7 @@ export function DialogModel(props: { providerID?: string }) {
             description: provider.name,
             category,
             disabled: provider.id === "gyccode" && model.id.includes("-nano"),
-            footer: modelFooter(model, provider.id),
+            footer: modelFooter(model),
             onSelect: () => {
               onSelect(provider.id, model.id)
             },
@@ -94,7 +93,7 @@ export function DialogModel(props: { providerID?: string }) {
               : undefined,
             category: connected() ? provider.name : undefined,
             disabled: provider.id === "gyccode" && model.includes("-nano"),
-            footer: modelFooter(info, provider.id),
+            footer: modelFooter(info),
             onSelect() {
               onSelect(provider.id, model)
             },
