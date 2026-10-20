@@ -16,7 +16,7 @@
 // 三项 node 脚本全部为真实实现，无占位。
 import { spawnSync } from "node:child_process"
 import { existsSync, realpathSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
-import { tmpdir } from "node:os"
+import { freemem, tmpdir } from "node:os"
 import { basename, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -124,6 +124,63 @@ function runNodeScript(cwd, scriptPath, args) {
  * 跑 tsc。优先用仓库本地安装的 typescript（确定性、不联网、快），
  * 缺失时回落到 `bun x tsc`，与 pre-commit 原有行为一致。
  */
+/**
+ * 全量类型门禁所需的最小可用物理内存（MB）。
+ *
+ * 为什么需要：全量 tsc --noEmit 会把整个项目的类型图载入内存，在小内存机器上
+ * 会被系统提交上限直接掐死（Windows 上表现为 errno=1455，node/tsgo 进程
+ * 启动即失败），表现为「怎么都提交不进去」而非任何类型错误。
+ */
+export const MIN_FULL_TYPECHECK_FREE_MEM_MB = 2048
+
+/**
+ * 可用内存低于阈值时，是否把全量类型门禁降级为「只检查暂存区文件」。
+ *
+ * 降级的代价必须说清楚：只覆盖暂存文件自身的类型错误，未暂存文件引入的
+ * 跨文件错误不在本次检查范围内。
+ */
+export function shouldDowngradeTypecheck(
+  freeMemMB,
+  thresholdMB = MIN_FULL_TYPECHECK_FREE_MEM_MB,
+) {
+  if (!Number.isFinite(freeMemMB)) return false
+  return freeMemMB < thresholdMB
+}
+
+/**
+ * 增量类型门禁的临时 tsconfig 内容。
+ *
+ * include 只列暂存区文件，其余配置（paths / types / customConditions 等）
+ * 全部继承主 tsconfig——必须放在仓库根，因为 TS 的 paths 是相对「被 extends
+ * 的那个文件」所在目录解析的。
+ */
+export function buildIncrementalTsconfig(files) {
+  const include = files.map((f) => `./${String(f).replace(/\\/g, "/")}`)
+  return JSON.stringify({ extends: "./tsconfig.json", include }, null, 2) + "\n"
+}
+
+/**
+ * 只检查暂存区文件的类型门禁（内存不足时的降级路径）。
+ *
+ * 临时 tsconfig 写在仓库根并在结束后删除；即使进程被强杀也只留下一个
+ * 未跟踪的临时文件，不影响提交内容。
+ */
+export function runIncrementalTypecheck(root, files, options = {}) {
+  const project = "tsconfig.precommit-inc.json"
+  const configPath = join(root, project)
+  try {
+    writeFileSync(configPath, buildIncrementalTsconfig(files), "utf8")
+    const run = options.runTypecheck ?? ((r, p) => runTypecheck(r, p))
+    return run(root, project)
+  } finally {
+    try {
+      rmSync(configPath, { force: true })
+    } catch {
+      // 临时文件删不掉不影响提交正确性，吞掉异常。
+    }
+  }
+}
+
 export function runTypecheck(root, project = "tsconfig.json") {
   const local = join(root, "node_modules", "typescript", "bin", "tsc")
   if (existsSync(local)) {
@@ -201,8 +258,18 @@ export function runChecks(options = {}) {
   } else if (srcTsFiles.length === 0) {
     checks.push(skipped("typecheck", "类型门禁 tsc --noEmit", "暂存区没有 src/ 下的 TS/TSX 改动", srcTsFiles))
   } else {
-    const r = runTypecheck(root, options.project ?? "tsconfig.json")
-    checks.push(r.code === 0 ? pass("typecheck", "类型门禁 tsc --noEmit", srcTsFiles) : fail("typecheck", "类型门禁 tsc --noEmit", r, srcTsFiles))
+    // 内存自适应：可用内存不足时降级为「只检查暂存区文件」，
+    // 否则全量 tsc 会被系统提交上限掐死（errno=1455），表现为提交根本进不去。
+    const freeMemMB = Math.floor(freemem() / (1024 * 1024))
+    const downgraded = shouldDowngradeTypecheck(freeMemMB)
+    const r = downgraded
+      ? runIncrementalTypecheck(root, srcTsFiles)
+      : runTypecheck(root, options.project ?? "tsconfig.json")
+    const note = downgraded
+      ? `（内存自适应降级：可用内存 ${freeMemMB}MB < ${MIN_FULL_TYPECHECK_FREE_MEM_MB}MB，仅检查 ${srcTsFiles.length} 个暂存文件；未暂存文件的跨文件错误不在本次范围）`
+      : ""
+    const title = `类型门禁 tsc --noEmit${note}`
+    checks.push(r.code === 0 ? pass("typecheck", title, srcTsFiles) : fail("typecheck", title, r, srcTsFiles))
   }
 
   return { ok: checks.every((c) => c.status !== "fail"), checks }
