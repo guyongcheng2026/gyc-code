@@ -30,6 +30,15 @@ export const RESERVED_HANDLES = 15_000
 /** 内容区可用句柄预算 = 总上限 − 常驻预留。 */
 export const CONTENT_HANDLE_BUDGET = NATIVE_HANDLE_LIMIT - RESERVED_HANDLES
 
+/**
+ * 常驻 renderable 池的额度（= RESERVED_HANDLES）。
+ *
+ * 常驻节点与消息内容共用同一张原生句柄表，此前这部分额度只是从内容预算里
+ * 「减掉」，常驻节点的真实占用不进任何计数器：闸门只管内容区，常驻节点把
+ * 句柄表撑爆时没有任何信号。现在常驻节点单独占一个池，与内容池分账。
+ */
+export const PERSISTENT_HANDLE_BUDGET = RESERVED_HANDLES
+
 /** 单个 <text> 每渲染行占用的句柄数（text_buffer + view + native_renderable）。 */
 export const HANDLES_PER_TEXT_ROW = 3
 
@@ -132,9 +141,13 @@ export function createHandleEstimateCache(options: HandleEstimateCacheOptions = 
 export class HandleBudget {
   #limit: number
   #used = 0
+  /** 常驻额度：与内容额度分账，互不挤占。 */
+  #persistentLimit: number
+  #persistentUsed = 0
 
-  constructor(limit: number = CONTENT_HANDLE_BUDGET) {
+  constructor(limit: number = CONTENT_HANDLE_BUDGET, persistentLimit: number = PERSISTENT_HANDLE_BUDGET) {
     this.#limit = Math.max(0, Math.floor(limit))
+    this.#persistentLimit = Math.max(0, Math.floor(persistentLimit))
   }
 
   /**
@@ -185,11 +198,45 @@ export class HandleBudget {
   }
 
   exhausted(): boolean {
-    return this.#used >= this.#limit
+    return this.#used >= this.#limit || this.#persistentUsed >= this.#persistentLimit
   }
 
   reset(): void {
     this.#used = 0
+    this.#persistentUsed = 0
+  }
+
+  /**
+   * 占用常驻额度 n 个句柄；额度不足返回 false 且不改变占用。
+   *
+   * 与 reserve 同样拒掉非有限值：NaN 一旦被累加进占用，此后所有比较恒为
+   * false，闸门被永久焊死且没有任何报错。
+   */
+  reservePersistent(n: number): boolean {
+    if (!Number.isFinite(n)) return false
+    const amount = Math.max(0, Math.floor(n))
+    if (this.#persistentUsed + amount > this.#persistentLimit) return false
+    this.#persistentUsed += amount
+    return true
+  }
+
+  /** 归还常驻额度 n 个句柄；下限钳到 0，避免归还顺序颠倒导致负数。 */
+  releasePersistent(n: number): void {
+    if (!Number.isFinite(n)) return
+    const amount = Math.max(0, Math.floor(n))
+    this.#persistentUsed = Math.max(0, this.#persistentUsed - amount)
+  }
+
+  persistentUsed(): number {
+    return this.#persistentUsed
+  }
+
+  persistentAvailable(): number {
+    return Math.max(0, this.#persistentLimit - this.#persistentUsed)
+  }
+
+  persistentLimit(): number {
+    return this.#persistentLimit
   }
 }
 

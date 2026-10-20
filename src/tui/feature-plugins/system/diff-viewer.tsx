@@ -19,6 +19,7 @@ import { Panel, PanelGroup, Separator } from "./diff-viewer-ui"
 import { DialogSelect } from "../../ui/dialog-select"
 import { getScrollAcceleration } from "../../util/scroll"
 import { LimitedContent } from "../../component/limited-content"
+import { createDiffViewerLifecycle } from "./diff-viewer-lifecycle"
 import {
   allExpandedFileTreeDirectories,
   buildFileTree,
@@ -168,13 +169,19 @@ function DiffViewer(props: { api: TuiPluginApi }) {
   const markReviewedShortcut = useCommandShortcut("diff.mark_reviewed")
   const helpShortcut = useCommandShortcut("diff.help")
   let scroll: ScrollBoxRenderable | undefined
-  const patchNodeByFileIndex = new Map<number, BoxRenderable>()
-  const diffNodeByFileIndex = new Map<number, DiffRenderable>()
+  // 渲染生命周期守卫：统一承接帧排程与 renderable 登记，卸载时一并失效/清空。
+  // 此前 8 处裸 requestAnimationFrame 在卸载后仍会写 setPatchFillerHeight /
+  // setPendingPatchScrollFileIndex，两个 renderable Map 也未清空，
+  // 强引用 renderable 只能靠 GC 兜底释放原生句柄。
+  const lifecycle = createDiffViewerLifecycle()
+  const patchNodeByFileIndex = lifecycle.patchNodes
+  const diffNodeByFileIndex = lifecycle.diffNodes
   const [selectedHunk, setSelectedHunk] = createSignal<SelectedHunk | undefined>()
   const [pendingPatchScrollFileIndex, setPendingPatchScrollFileIndex] = createSignal<number | undefined>()
   const [patchFillerHeight, setPatchFillerHeight] = createSignal(0)
 
   onCleanup(() => props.api.ui.dialog.clear())
+  onCleanup(() => lifecycle.dispose())
 
   createEffect(() => {
     setExpandedFileNodes(allExpandedFileTreeDirectories(fileTree()))
@@ -212,7 +219,7 @@ function DiffViewer(props: { api: TuiPluginApi }) {
   }
 
   const scrollPatchNodeToTop = (patchNode: BoxRenderable) => {
-    requestAnimationFrame(() => {
+    lifecycle.scheduleFrame(() => {
       if (!scroll) return
       const scrollDelta = patchNode.y - scroll.viewport.y
       const contentY = scroll.scrollTop + scrollDelta
@@ -369,10 +376,10 @@ function DiffViewer(props: { api: TuiPluginApi }) {
 
   const scrollToPatchFileIndexAfterRender = (fileIndex: number) => {
     setPendingPatchScrollFileIndex(fileIndex)
-    requestAnimationFrame(() => {
+    lifecycle.scheduleFrame(() => {
       const patchNode = patchNodeByFileIndex.get(fileIndex)
       if (patchNode) scrollPatchNodeToTop(patchNode)
-      requestAnimationFrame(() => {
+      lifecycle.scheduleFrame(() => {
         const patchNode = patchNodeByFileIndex.get(fileIndex)
         if (patchNode) scrollPatchNodeToTop(patchNode)
         setPendingPatchScrollFileIndex(undefined)
@@ -381,14 +388,14 @@ function DiffViewer(props: { api: TuiPluginApi }) {
   }
 
   const scrollSinglePatchToTop = () => {
-    requestAnimationFrame(() => {
+    lifecycle.scheduleFrame(() => {
       scroll?.scrollTo(0)
-      requestAnimationFrame(() => scroll?.scrollTo(0))
+      lifecycle.scheduleFrame(() => scroll?.scrollTo(0))
     })
   }
 
   const measurePatchFiller = () => {
-    requestAnimationFrame(() => {
+    lifecycle.scheduleFrame(() => {
       if (!scroll) return
       const entries = visiblePatchFiles()
         .map((entry) => patchNodeByFileIndex.get(entry.fileIndex))
@@ -405,12 +412,12 @@ function DiffViewer(props: { api: TuiPluginApi }) {
   }
 
   const registerPatchNode = (fileIndex: number, element: BoxRenderable) => {
-    patchNodeByFileIndex.set(fileIndex, element)
+    patchNodeByFileIndex.register(fileIndex, element)
     measurePatchFiller()
     if (pendingPatchScrollFileIndex() !== fileIndex) return
-    requestAnimationFrame(() => {
+    lifecycle.scheduleFrame(() => {
       scrollPatchNodeToTop(element)
-      requestAnimationFrame(() => {
+      lifecycle.scheduleFrame(() => {
         scrollPatchNodeToTop(element)
         setPendingPatchScrollFileIndex(undefined)
       })
@@ -872,12 +879,13 @@ function DiffViewer(props: { api: TuiPluginApi }) {
                                       原生句柄表（表现为「打开会话即退出」）。过 LimitedContent
                                       后超限文件降级为纯文本，滚动定位会自动跳过它们。 */}
                                   <LimitedContent
+                                    scope="persistent"
                                     text={patch()}
                                     cols={patchPaneWidth()}
                                     plainColor={theme().textMuted}
                                     rich={(text) => (
                                       <diff
-                                        ref={(element: DiffRenderable) => diffNodeByFileIndex.set(entry.fileIndex, element)}
+                                        ref={(element: DiffRenderable) => diffNodeByFileIndex.register(entry.fileIndex, element)}
                                         diff={text}
                                         view={view()}
                                         filetype={reviewed() ? PLAIN_TEXT_FILETYPE : filetype(entry.file.file)}

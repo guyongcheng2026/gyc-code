@@ -85,9 +85,10 @@ import { useClipboard } from "../../context/clipboard"
 import { nextThinkingMode, reasoningSummary, useThinkingMode, type ThinkingMode } from "../../context/thinking"
 import { getScrollAcceleration } from "../../util/scroll"
 import { createFpsController } from "../../util/target-fps"
+import { createStreamingState } from "../../util/streaming-state"
 import { collapseToolOutput } from "../../util/collapse-tool-output"
 import { LimitedContent } from "../../component/limited-content"
-import { probeTerminal, sessionTargetFps } from "../../fallback/capability"
+import { LARGE_SESSION_THRESHOLD, probeTerminal, sessionTargetFps } from "../../fallback/capability"
 import { usePluginRuntime } from "../../plugin/runtime"
 import { DialogRetryAction } from "../../component/dialog-retry-action"
 import { DialogCost } from "../../component/dialog-cost"
@@ -371,6 +372,20 @@ export function Session() {
 
   let seeded = false
   let scroll: ScrollBoxRenderable
+  // 延迟一帧的滚动修正统一走这里：
+  // - 路由卸载后不再执行（此前 5 处裸 setTimeout(..., 1) 无卸载闸门）；
+  // - unref 掉定时器，不吊住进程退出。
+  let sessionUnmounted = false
+  const scheduleScrollFix = (fix: () => void) => {
+    const timer = setTimeout(() => {
+      if (sessionUnmounted) return
+      fix()
+    }, 1)
+    ;(timer as { unref?: () => void }).unref?.()
+  }
+  onCleanup(() => {
+    sessionUnmounted = true
+  })
   let prompt: PromptRef | undefined
   const bind = (r: PromptRef | undefined) => {
     prompt = r
@@ -395,14 +410,37 @@ export function Session() {
   // （core/session/message-updater.ts:192-217 每步先将上一条 assistant 标记
   // completed 再建新消息），用户感知为「结果反馈时画面上下跳」。
   const RENDER_NODE_FACTOR = 3
-  const renderScale = createMemo(() => ({ scale: messages().length * RENDER_NODE_FACTOR }))
+  // 帧率档位只随「规模档」变化，不随消息条数逐条变化：消息数每新增一条都会
+  // 重算 memo 并连带触发下面的帧率 effect，而 scaleDownFps 按
+  // floor(scale / LARGE_SESSION_THRESHOLD) 取档，档内把 scale 量化到阈值倍数
+  // 不改变取档结果，却让 effect 不再随每条消息重跑。
+  const renderScale = createMemo(() => ({
+    scale:
+      Math.floor((messages().length * RENDER_NODE_FACTOR) / LARGE_SESSION_THRESHOLD) * LARGE_SESSION_THRESHOLD,
+  }))
+  // 流式态滞回：pending() 在工具步骤边界会瞬时翻转（core/session/message-updater.ts
+  // 先把上一条 assistant 标记 completed、再建新消息），直接拿它驱动帧率会让
+  // targetFps 在流式档与空闲档之间横跳——用户感知为「结果反馈时画面上下跳」。
+  // 升档立即、降档需稳定 STREAMING_HOLD_MS。
+  const STREAMING_HOLD_MS = 300
+  const [streaming, setStreaming] = createSignal(false)
+  const streamingState = createStreamingState({
+    holdMs: STREAMING_HOLD_MS,
+    onChange: (value) => setStreaming(value),
+  })
+  // 感知原始流式态（依赖 pending()，每步边界都会重跑，但只更新稳定器）
+  createEffect(() => {
+    streamingState.update(pending() !== undefined)
+  })
+  onCleanup(() => streamingState.dispose())
   const fpsController = createFpsController((fps) => {
     if (!renderer.isDestroyed) renderer.targetFps = fps
   })
+  // 只依赖稳定流式态与规模档：稳定态不翻转，帧率就不横跳
   createEffect(() => {
-    const streaming = pending() !== undefined
+    const isStreaming = streaming()
     if (renderer.isDestroyed) return
-    fpsController.request(sessionTargetFps(probeTerminal(), streaming, renderScale()), streaming)
+    fpsController.request(sessionTargetFps(probeTerminal(), isStreaming, renderScale()), isStreaming)
   })
   onCleanup(() => {
     fpsController.dispose()
@@ -474,19 +512,19 @@ export function Session() {
 
     ensureVisible(targetID)
     // 展开触发重渲染/重布局，延时一帧再取 child 坐标；避免同帧双重 scrollBy 导致抖动
-    setTimeout(() => {
+    scheduleScrollFix(() => {
       if (!scroll || scroll.isDestroyed) return
       const child = scroll.getChildren().find((c) => c.id === targetID)
       if (child) scroll.scrollTo(child.y)
       dialog.clear()
-    }, 1)
+    })
   }
 
   function toBottom() {
-    setTimeout(() => {
+    scheduleScrollFix(() => {
       if (!scroll || scroll.isDestroyed) return
       scroll.scrollTo(scroll.scrollHeight)
-    }, 1)
+    })
   }
 
   const local = useLocal()
@@ -558,13 +596,13 @@ export function Session() {
           <DialogTimeline
             onMove={(messageID) => {
               ensureVisible(messageID)
-              setTimeout(() => {
+              scheduleScrollFix(() => {
                 if (!scroll || scroll.isDestroyed) return
                 const child = scroll.getChildren().find((child) => {
                   return child.id === messageID
                 })
                 if (child) scroll.scrollTo(child.y)
-              }, 1)
+              })
             }}
             sessionID={route.sessionID}
             setPrompt={(promptInfo) => prompt?.set(promptInfo)}
@@ -586,13 +624,13 @@ export function Session() {
             onMove={(messageID) => {
               if (!messageID) return
               ensureVisible(messageID)
-              setTimeout(() => {
+              scheduleScrollFix(() => {
                 if (!scroll || scroll.isDestroyed) return
                 const child = scroll.getChildren().find((child) => {
                   return child.id === messageID
                 })
                 if (child) scroll.scrollTo(child.y)
-              }, 1)
+              })
             }}
             sessionID={route.sessionID}
           />
@@ -936,13 +974,13 @@ export function Session() {
 
           if (hasValidTextPart) {
             ensureVisible(message.id)
-            setTimeout(() => {
+            scheduleScrollFix(() => {
               if (!scroll || scroll.isDestroyed) return
               const child = scroll.getChildren().find((child) => {
                 return child.id === message.id
               })
               if (child) scroll.scrollTo(child.y)
-            }, 1)
+            })
             break
           }
         }

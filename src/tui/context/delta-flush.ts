@@ -40,3 +40,108 @@ export function createDeltaFlushController(flush: () => void, intervalMs = DELTA
     },
   }
 }
+
+/**
+ * 到达序水位线：解决「message.updated（带 completed）先于最后一批 delta 落库」
+ * 导致末尾文字迟到一帧的问题。
+ *
+ * 事件派发是同步 FIFO（src/tui/context/sdk.tsx 的 flush 里逐个 emit），故
+ * 「到达序」即「处理序」：给每次到达的事件分配一个单调递增的 seq 后，
+ *   - delta 到达时把 seq 记进该 pending delta；
+ *   - message.updated 带来 time.completed 时，把该消息的完成水位线记为当前 seq。
+ * flush 时判定：
+ *   - delta.seq ≤ 完成水位线 → 它早于完成事件到达，只是被 30ms 攒批延迟 → 必须写入；
+ *   - delta.seq > 完成水位线 → 晚于完成事件到达 → 丢弃，不污染已完结消息。
+ *
+ * 不选「在 message.updated 里先冲刷再置完成」，是因为那会打散攒批收益
+ * （洪泛期每条 message.updated 都触发一次 store 写，与「避免高频 token 逐个
+ * 触发 markdown 重解析」的初衷冲突），且仍需额外的完成态拒收判断。
+ */
+
+/** 单条待写入的流式增量。seq 为该增量所累积文本的最早到达序。 */
+export type PendingDelta = {
+  sessionID: string
+  messageID: string
+  partID: string
+  field: string
+  text: string
+  seq: number
+}
+
+/** 到达序分桶：before = 早于/等于完成水位线（必须写入），after = 晚于（丢弃）。 */
+export type DeltaArrival = "before" | "after"
+
+/**
+ * 按到达序判定 delta 相对完成事件的先后。
+ *
+ * 无完成水位线（消息尚未完成）时一律视为 before，必须写入。
+ */
+export function classifyDeltaArrival(seq: number, completedSeq: number | undefined): DeltaArrival {
+  if (completedSeq === undefined) return "before"
+  return seq <= completedSeq ? "before" : "after"
+}
+
+/**
+ * pending delta 的攒批 key。
+ *
+ * 早/晚两个分桶必须落到不同 key：否则「完成前到达的半段文本」与「完成后到达
+ * 的残留文本」会并成一条，既丢不掉残留、又会把残留写进已完结消息。
+ */
+export function pendingDeltaKey(
+  messageID: string,
+  partID: string,
+  field: string,
+  arrival: DeltaArrival,
+): string {
+  const base = `${messageID}:${partID}:${field}`
+  return arrival === "after" ? `${base}#late` : base
+}
+
+/**
+ * 到达序水位线表：messageID → 完成事件到达序。
+ *
+ * 首次完成事件即消息的终态锚点；重复到达的 completed 事件不放宽水位线
+ * （否则会把两次完成之间的残留 delta 又放回「必须写入」侧，重新引入污染）。
+ */
+export type CompletionWatermark = {
+  mark(messageID: string, seq: number): void
+  get(messageID: string): number | undefined
+  read(): ReadonlyMap<string, number>
+}
+
+export function createCompletionWatermark(): CompletionWatermark {
+  const watermarks = new Map<string, number>()
+  return {
+    mark(messageID, seq) {
+      const current = watermarks.get(messageID)
+      if (current !== undefined && current <= seq) return
+      watermarks.set(messageID, seq)
+    },
+    get(messageID) {
+      return watermarks.get(messageID)
+    },
+    read() {
+      return watermarks
+    },
+  }
+}
+
+/**
+ * 按完成水位线把待写入的 delta 分为「必须写入」与「必须丢弃」两组。
+ *
+ * 完成水位线按所属 messageID 查（pending delta 的 key 是
+ * messageID:partID:field，但判定只看 messageID）。
+ */
+export function classifyPendingDeltas<T extends { messageID: string; seq: number }>(
+  deltas: Iterable<T>,
+  completedSeq: ReadonlyMap<string, number>,
+): { apply: T[]; drop: T[] } {
+  const apply: T[] = []
+  const drop: T[] = []
+  for (const delta of deltas) {
+    const watermark = completedSeq.get(delta.messageID)
+    if (watermark !== undefined && delta.seq > watermark) drop.push(delta)
+    else apply.push(delta)
+  }
+  return { apply, drop }
+}

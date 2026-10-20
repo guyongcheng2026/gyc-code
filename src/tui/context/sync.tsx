@@ -36,7 +36,15 @@ import { capDiffByBytes } from "../util/diff-budget"
 import { isOrphanPartEvent } from "./part-guard"
 import { useKV } from "./kv"
 import { usePermission } from "./permission"
-import { createDeltaFlushController, DELTA_FLUSH_MS } from "./delta-flush"
+import {
+  classifyDeltaArrival,
+  classifyPendingDeltas,
+  createCompletionWatermark,
+  createDeltaFlushController,
+  DELTA_FLUSH_MS,
+  pendingDeltaKey,
+  type PendingDelta,
+} from "./delta-flush"
 
 const emptyConsoleState: ConsoleState = {
   consoleManagedProviders: [],
@@ -93,6 +101,12 @@ function compareMessage(a: Message, b: Message) {
 }
 
 const messageKey = (message: Message) => message.time.created + message.id
+
+// 事件到达序（单调递增，全局共用一个计数器）。事件派发是同步 FIFO
+// （src/tui/context/sdk.tsx 的 flush 里逐个 emit），故到达序即处理序：
+// 据此可判定「delta 早于还是晚于 message.updated 的 completed 到达」。
+let arrivalSeq = 0
+const nextArrivalSeq = () => ++arrivalSeq
 
 export const {
   context: SyncContext,
@@ -279,21 +293,22 @@ export const {
     // 流式 delta 上屏调度（对标 pi agent 的 16ms 节奏）：涓流逐 token 立即
     // 上屏，洪泛按 DELTA_FLUSH_MS 窗口合并为一次 store 写。避免高频 token
     // 逐个触发整块 markdown 重解析（tree-sitter WASM）导致长回复渲染跟不上。
-    type PendingDelta = {
-      sessionID: string
-      messageID: string
-      partID: string
-      field: string
-      text: string
-    }
     let pendingDeltas = new Map<string, PendingDelta>()
+    // 消息完成水位线：messageID → 完成事件（message.updated 带 time.completed）
+    // 的到达序。用于把「完成后到达的残留 delta」与「仅被 30ms 攒批延迟的
+    // delta」分开：前者丢弃，后者必须写入。
+    const completedWatermark = createCompletionWatermark()
 
     const flushDeltas = () => {
       if (pendingDeltas.size === 0) return
       const deltas = pendingDeltas
       pendingDeltas = new Map()
+      // 到达序判定：晚于完成水位线的残留 delta 丢弃（不污染已完结消息）；
+      // 早于/等于水位线的只是被攒批延迟，必须写入，不能丢字。
+      const { apply } = classifyPendingDeltas(deltas.values(), completedWatermark.read())
+      if (apply.length === 0) return
       batch(() => {
-        for (const delta of deltas.values()) {
+        for (const delta of apply) {
           touchPart(delta.sessionID, delta.partID)
           const parts = store.part[delta.messageID]
           if (!parts) continue
@@ -333,6 +348,9 @@ export const {
     }
 
     const unsubEvent = event.subscribe((event, { directory, workspace }) => {
+      // 到达序：事件派发是同步 FIFO，故到达序即处理序。用于把「完成后到达的
+      // 残留 delta」与「仅被 30ms 攒批延迟的 delta」区分开。
+      const seq = nextArrivalSeq()
       switch (event.type) {
         case "server.instance.disposed":
           void bootstrap()
@@ -544,6 +562,13 @@ export const {
         }
 
         case "message.updated": {
+          // 终态锚点：早于该到达序的 delta 仍须落库（只是被攒批延迟），
+          // 晚于它的残留 delta 在 flush 时丢弃，不污染已完结消息。
+          const completedAt =
+            "completed" in event.properties.info.time ? event.properties.info.time.completed : undefined
+          if (completedAt !== undefined) {
+            completedWatermark.mark(event.properties.info.id, seq)
+          }
           touchMessage(event.properties.info.sessionID, event.properties.info.id)
           const messages = store.message[event.properties.info.sessionID]
           if (!messages) {
@@ -627,7 +652,13 @@ export const {
         }
 
         case "message.part.delta": {
-          const key = `${event.properties.messageID}:${event.properties.partID}:${event.properties.field}`
+          const arrival = classifyDeltaArrival(seq, completedWatermark.get(event.properties.messageID))
+          const key = pendingDeltaKey(
+            event.properties.messageID,
+            event.properties.partID,
+            event.properties.field,
+            arrival,
+          )
           const existing = pendingDeltas.get(key)
           if (existing) existing.text += event.properties.delta
           else
@@ -637,6 +668,7 @@ export const {
               partID: event.properties.partID,
               field: event.properties.field,
               text: event.properties.delta,
+              seq,
             })
           deltaFlush.schedule()
           break
@@ -741,9 +773,6 @@ export const {
               setStore("provider", reconcile(providers.providers))
               setStore("provider_default", reconcile(providers.default))
               setStore("provider_next", reconcile(providerList))
-              setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
-              setStore("console_state", reconcile(consoleState))
-              setStore("credits", reconcile(pickCredits(consoleState)))
               setStore("agent", reconcile(agents))
               setStore("config", reconcile(config))
               if (sessions !== undefined) setStore("session", reconcile(sessions))
@@ -756,6 +785,9 @@ export const {
           // non-blocking：capabilities/console 与状态类查询并行，不阻塞首帧
           void Promise.all([
             ...(args.continue ? [] : [sessionListPromise.then((sessions) => setStore("session", reconcile(sessions)))]),
+            capabilitiesPromise.then((capabilities) => {
+              setStore("capabilities", "experimentalBackgroundSubagents", capabilities?.backgroundSubagents === true)
+            }),
             consoleStatePromise.then((consoleState) => {
               setStore("console_state", reconcile(consoleState))
               setStore("credits", reconcile(pickCredits(consoleState)))

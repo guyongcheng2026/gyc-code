@@ -5,6 +5,8 @@ import {
   HANDLES_PER_BLOCK,
   HANDLES_PER_TEXT_ROW,
   NATIVE_HANDLE_LIMIT,
+  PERSISTENT_HANDLE_BUDGET,
+  RESERVED_HANDLES,
   estimateContentHandles,
   visualRows,
 } from "./handle-budget"
@@ -21,6 +23,10 @@ describe("常量", () => {
 
   test("单个 <text> 行按 3 个句柄计（text_buffer + view + native_renderable）", () => {
     expect(HANDLES_PER_TEXT_ROW).toBe(3)
+  })
+
+  test("常驻池额度复用常驻预留额度，不重复定义第二份数字", () => {
+    expect(PERSISTENT_HANDLE_BUDGET).toBe(RESERVED_HANDLES)
   })
 })
 
@@ -145,5 +151,78 @@ describe("HandleBudget", () => {
     b.reserve(90)
     b.reset()
     expect(b.used()).toBe(0)
+  })
+})
+
+// 常驻池分账：常驻节点（prompt/sidebar/which-key/浮层）与消息内容共用同一张
+// 65,535 的原生句柄表。此前这部分额度只是从内容预算里「减掉」，常驻节点的真实
+// 占用不进任何计数器，闸门只管内容区——常驻节点撑爆句柄表时没有任何信号。
+describe("HandleBudget 常驻池分账", () => {
+  test("常驻池默认额度等于常驻预留额度", () => {
+    const b = new HandleBudget(100)
+    expect(b.persistentLimit()).toBe(RESERVED_HANDLES)
+  })
+
+  test("reservePersistent 只占常驻池，不动内容池", () => {
+    const b = new HandleBudget(100)
+    expect(b.reservePersistent(40)).toBe(true)
+    expect(b.persistentUsed()).toBe(40)
+    expect(b.used()).toBe(0)
+    expect(b.available()).toBe(100)
+    expect(b.persistentAvailable()).toBe(RESERVED_HANDLES - 40)
+  })
+
+  test("常驻池超额时拒绝且不累加（内容池不受影响）", () => {
+    const b = new HandleBudget(100, 50)
+    expect(b.reservePersistent(50)).toBe(true)
+    expect(b.reservePersistent(1)).toBe(false)
+    expect(b.persistentUsed()).toBe(50)
+    expect(b.used()).toBe(0)
+  })
+
+  test("releasePersistent 归还常驻额度且不会降到负数", () => {
+    const b = new HandleBudget(100, 50)
+    b.reservePersistent(40)
+    b.releasePersistent(10)
+    expect(b.persistentUsed()).toBe(30)
+    b.releasePersistent(999)
+    expect(b.persistentUsed()).toBe(0)
+  })
+
+  // 常驻池若被 NaN 污染，比较全部失效，常驻节点就变成「无上限」——
+  // 正是这套分账机制要防的那件事，所以必须拒掉非有限值。
+  test("reservePersistent 拒掉非有限值，不会把常驻占用污染成 NaN", () => {
+    const b = new HandleBudget(100, 50)
+    expect(b.reservePersistent(NaN)).toBe(false)
+    expect(b.persistentUsed()).toBe(0)
+    expect(Number.isNaN(b.persistentUsed())).toBe(false)
+    expect(b.reservePersistent(10)).toBe(true)
+    expect(b.persistentUsed()).toBe(10)
+    b.releasePersistent(NaN)
+    expect(b.persistentUsed()).toBe(10)
+  })
+
+  test("exhausted：内容池耗尽即为 true", () => {
+    const b = new HandleBudget(100, 50)
+    expect(b.exhausted()).toBe(false)
+    b.reserve(100)
+    expect(b.exhausted()).toBe(true)
+  })
+
+  test("exhausted：常驻池耗尽也为 true（内容池尚有余额）", () => {
+    const b = new HandleBudget(100, 50)
+    b.reservePersistent(50)
+    expect(b.exhausted()).toBe(true)
+    expect(b.used()).toBe(0)
+  })
+
+  test("reset 同时清零内容池与常驻池", () => {
+    const b = new HandleBudget(100, 50)
+    b.reserve(90)
+    b.reservePersistent(50)
+    b.reset()
+    expect(b.used()).toBe(0)
+    expect(b.persistentUsed()).toBe(0)
+    expect(b.exhausted()).toBe(false)
   })
 })

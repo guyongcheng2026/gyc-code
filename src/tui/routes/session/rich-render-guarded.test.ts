@@ -13,8 +13,12 @@ import path from "node:path"
  * apply_patch 的逐文件 `<diff>`、diff-viewer 面板、权限审批弹窗这 4 条路径是直连的
  * —— 一次写大文件或一次改几十个文件就能单独吃光句柄表，表现为「打开会话即退出」。
  *
+ * 判定方式：从每个富渲染标签的位置反查它是否落在某个 `<LimitedContent>` 的
+ * `rich` 属性表达式区间内。区间配对取代了此前的「向上 80 行字串匹配」——后者会
+ * 把「同文件别处存在 LimitedContent」误判为已保护。
+ *
  * 这里锁的是**接线关系**而非运行时行为：opentui 的真实渲染需要原生终端，
- * 纯 bun test 里起不来。用源码文本断言是本仓既有做法（见 read-sensitive.test.ts）。
+ * 纯 bun test 里起不来。用源码结构断言是本仓既有做法（见 read-sensitive.test.ts）。
  */
 
 // 本文件位于 src/tui/routes/session/ 下，仓库根需上溯三级。
@@ -22,9 +26,174 @@ const SRC = path.join(import.meta.dir, "..", "..", "..")
 
 const read = (relative: string) => readFileSync(path.join(SRC, relative), "utf8")
 
-describe("所有富渲染点都必须过 LimitedContent 闸门", () => {
-  // 每个渲染点：文件 → <markdown>/<code>/<diff> 出现的行号
-  const richPoints: { file: string; tag: "markdown" | "code" | "diff" }[] = [
+/** 富渲染标签：内部按行创建原生 text_buffer，句柄成本随行数线性增长。 */
+const ROW_GROWING_TAGS = ["markdown", "code", "diff"] as const
+
+/**
+ * 跳过字符串/注释地做括号配对，返回配对区间 [start, end)。
+ *
+ * 模板串整体跳过（含 `${}` 内部的括号），否则模板里的 `}` 会被误判为结束。
+ */
+function matchBrace(source: string, open: number): number {
+  let depth = 0
+  let i = open
+  while (i < source.length) {
+    const ch = source[i]!
+    if (ch === '"' || ch === "'") {
+      i = skipQuoted(source, i, ch)
+      continue
+    }
+    if (ch === "`") {
+      i = skipTemplate(source, i)
+      continue
+    }
+    if (ch === "/" && source[i + 1] === "/") {
+      const nl = source.indexOf("\n", i)
+      i = nl === -1 ? source.length : nl
+      continue
+    }
+    if (ch === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2)
+      i = end === -1 ? source.length : end + 2
+      continue
+    }
+    if (ch === "{") depth += 1
+    else if (ch === "}") {
+      depth -= 1
+      if (depth === 0) return i + 1
+    }
+    i += 1
+  }
+  return source.length
+}
+
+/** 跳过普通引号字符串（处理反斜杠转义），返回结束位置。 */
+function skipQuoted(source: string, start: number, quote: string): number {
+  let i = start + 1
+  while (i < source.length) {
+    const ch = source[i]!
+    if (ch === "\\") {
+      i += 2
+      continue
+    }
+    if (ch === quote) return i + 1
+    i += 1
+  }
+  return source.length
+}
+
+/** 跳过模板串（连同其中的 `${}` 插值），返回结束位置。 */
+function skipTemplate(source: string, start: number): number {
+  let i = start + 1
+  while (i < source.length) {
+    const ch = source[i]!
+    if (ch === "\\") {
+      i += 2
+      continue
+    }
+    if (ch === "`") return i + 1
+    i += 1
+  }
+  return source.length
+}
+
+/**
+ * 找出标签的结束位置（`>` 或 `/>`）。
+ *
+ * 不能直接用 indexOf(">")：属性区里的箭头函数 `=>` 含 `>`，
+ * 直接截断会把 rich 属性挡在属性区之外。
+ */
+function findTagEnd(source: string, from: number): number {
+  let i = from
+  while (i < source.length) {
+    const ch = source[i]!
+    if (ch === '"' || ch === "'") {
+      i = skipQuoted(source, i, ch)
+      continue
+    }
+    if (ch === "`") {
+      i = skipTemplate(source, i)
+      continue
+    }
+    if (ch === "=" && source[i + 1] === ">") {
+      i += 2
+      continue
+    }
+    if (ch === ">") return i
+    i += 1
+  }
+  return source.length
+}
+
+/**
+ * 找出所有 `<LimitedContent ... rich={...}>` 的 rich 表达式区间。
+ *
+ * rich 的值在 JSX 里必为 `{...}` 表达式容器，其区间即该容器的花括号配对范围。
+ */
+function findRichRanges(source: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  const tag = /<LimitedContent\b/g
+  let match: RegExpExecArray | null
+  while ((match = tag.exec(source)) !== null) {
+    const after = match.index + match[0].length
+    // 属性区：从标签名之后到标签结束之前
+    const attrEnd = findTagEnd(source, after)
+    const attrZone = source.slice(after, attrEnd)
+    const richAt = attrZone.search(/\brich\s*=/)
+    if (richAt === -1) continue
+    const braceAt = attrZone.indexOf("{", richAt)
+    if (braceAt === -1) continue
+    const valueStart = after + braceAt
+    ranges.push([valueStart, matchBrace(source, valueStart)])
+    tag.lastIndex = after
+  }
+  return ranges
+}
+
+/**
+ * 找出所有 JSX 块注释（花括号包裹的块注释）的区间。
+ *
+ * 注释里出现的 "<code>" 等字样不是 JSX 开标签，必须排除——否则会被
+ * 当成未受保护的渲染点，产出假失败。
+ */
+function findCommentRanges(source: string): Array<[number, number]> {
+  const ranges: Array<[number, number]> = []
+  const pattern = /\{\s*\/\*/g
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(source)) !== null) {
+    const end = source.indexOf("*/", match.index + match[0].length)
+    if (end === -1) break
+    ranges.push([match.index, end + 2])
+    pattern.lastIndex = end + 2
+  }
+  return ranges
+}
+
+/** 找出所有富渲染标签的开标签位置（排除注释行与 JSX 注释内的误命中）。 */
+function findTagPositions(source: string, tag: string): number[] {
+  const hits: number[] = []
+  const comments = findCommentRanges(source)
+  const pattern = new RegExp(`<${tag}(?=[\\s/>])`, "g")
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(source)) !== null) {
+    const lineStart = source.lastIndexOf("\n", match.index) + 1
+    const linePrefix = source.slice(lineStart, match.index).trimStart()
+    // 注释行里的 "<diff" 不是 JSX 开标签
+    if (linePrefix.startsWith("//") || linePrefix.startsWith("*") || linePrefix.startsWith("/*")) continue
+    // JSX 注释块里的 "<code>" 同样不是开标签
+    if (comments.some(([start, end]) => match!.index >= start && match!.index < end)) continue
+    hits.push(match.index)
+  }
+  return hits
+}
+
+/** 该位置的富标签是否被某个 LimitedContent 的 rich 分支包裹。 */
+function isGuardedByRich(source: string, position: number): boolean {
+  return findRichRanges(source).some(([start, end]) => position >= start && position < end)
+}
+
+describe("富渲染标签必须落在 LimitedContent 的 rich 分支内", () => {
+  const richPoints: { file: string; tag: (typeof ROW_GROWING_TAGS)[number] }[] = [
     { file: "tui/routes/session/index.tsx", tag: "markdown" },
     { file: "tui/routes/session/index.tsx", tag: "code" },
     { file: "tui/routes/session/index.tsx", tag: "diff" },
@@ -33,41 +202,87 @@ describe("所有富渲染点都必须过 LimitedContent 闸门", () => {
   ]
 
   for (const { file, tag } of richPoints) {
-    test(`${file} 的 <${tag}> 在 LimitedContent 的 rich 分支内`, () => {
+    test(`${file} 的 <${tag}> 落在 LimitedContent 的 rich 区间内`, () => {
       const source = read(file)
-      const lines = source.split("\n")
-      const hits: number[] = []
-      lines.forEach((line, index) => {
-        // 只统计真正的 JSX 开标签：注释里的 "<diff" 与字符串里的不算
-        if (line.trimStart().startsWith("{")) return
-        if (line.trimStart().startsWith("*") || line.trimStart().startsWith("//")) return
-        if (new RegExp(`<${tag}(\\s|$|/|>)`).test(line)) hits.push(index)
-      })
+      const hits = findTagPositions(source, tag)
       expect(hits.length).toBeGreaterThan(0)
 
       for (const hit of hits) {
-        // 从该行往上找最近的 LimitedContent 开标签；rich 分支必须由它包裹。
-        let depth = 0
-        let guarded = false
-        for (let i = hit; i >= 0 && i > hit - 80; i--) {
-          const line = lines[i]!
-          if (/<LimitedContent/.test(line)) {
-            // LimitedContent 之后的行都在其作用域内，直到出现同级闭合。
-            // 这里用粗粒度判断：从 LimitedContent 行到该 tag 行之间不得出现
-            // 另一个块的闭合——简化为：LimitedContent 行必须在该 tag 行之前 80 行内。
-            guarded = true
-            depth++
-            break
-          }
-        }
         expect(
-          guarded,
-          `${file}:${hit + 1} 的 <${tag}> 未被 LimitedContent 包裹——` +
+          isGuardedByRich(source, hit),
+          `${file} 的 <${tag}>（偏移 ${hit}）未被 LimitedContent 的 rich 分支包裹——` +
             `这条渲染路径会绕过句柄预算，长会话下可能直接撞上 opentui 句柄上限`,
         ).toBe(true)
       }
     })
   }
+})
+
+describe("区间配对检测器自身的行为（合成夹具）", () => {
+  test("正例：rich 区间内的富标签判为已保护", () => {
+    const source = `<LimitedContent text={t} rich={(t) => (<diff diff={t} />)} />`
+    const hits = findTagPositions(source, "diff")
+    expect(hits.length).toBe(1)
+    expect(isGuardedByRich(source, hits[0]!)).toBe(true)
+  })
+
+  test("负例：同文件别处存在 LimitedContent，但富标签不在其 rich 区间内", () => {
+    const source = [
+      `<LimitedContent text={a} rich={(a) => (<text>{a}</text>)} />`,
+      `<diff diff={b} />`,
+    ].join("\n")
+    const hits = findTagPositions(source, "diff")
+    expect(hits.length).toBe(1)
+    expect(isGuardedByRich(source, hits[0]!)).toBe(false)
+  })
+
+  test("负例：富标签落在 plain 分支内不视为已保护", () => {
+    const source = `<LimitedContent text={t} rich={(t) => (<text>{t}</text>)} plain={(t) => (<diff diff={t} />)} />`
+    const hits = findTagPositions(source, "diff")
+    expect(hits.length).toBe(1)
+    expect(isGuardedByRich(source, hits[0]!)).toBe(false)
+  })
+
+  test("负例：JSX 注释里的标签不计入渲染点", () => {
+    const source = [
+      `{/* 说明文字里提到 <code>，但这不是渲染点 */}`,
+      `<LimitedContent rich={(t) => (<code content={t} />)} />`,
+    ].join("\n")
+    const hits = findTagPositions(source, "code")
+    expect(hits.length).toBe(1)
+    expect(isGuardedByRich(source, hits[0]!)).toBe(true)
+  })
+
+  test("正例：嵌套花括号与字符串不影响区间配对", () => {
+    const source = `<LimitedContent rich={(t) => (<diff diff={t} note={"}"} />)} />`
+    const hits = findTagPositions(source, "diff")
+    expect(hits.length).toBe(1)
+    expect(isGuardedByRich(source, hits[0]!)).toBe(true)
+  })
+})
+
+describe("句柄成本恒定的标签无需句柄闸门", () => {
+  test("<line_number> 自身是单个 renderable，其内部代码内容由 LimitedContent 保护", () => {
+    const source = read("tui/routes/session/index.tsx")
+    const hits = findTagPositions(source, "line_number")
+    expect(hits.length).toBeGreaterThan(0)
+    const ranges = findRichRanges(source)
+    for (const hit of hits) {
+      // line_number 自身只占 1 个句柄（不按行增长），无需闸门；
+      // 但它包着的代码正文会按行创建句柄，必须落在紧随其后的 rich 区间内。
+      const next = ranges.find(([start]) => start > hit)
+      expect(next, `<line_number>（偏移 ${hit}）之后没有 LimitedContent 的 rich 分支`).toBeDefined()
+      expect(next![0] - hit).toBeLessThan(2000)
+    }
+  })
+
+  test("<scrollbox> / <box> / <text> 的句柄成本不随内容行数增长", () => {
+    // 这些标签各自只占 1~3 个句柄（不按行创建 text_buffer），
+    // 因此不需要句柄闸门；此处锁定该前提不被悄悄改掉。
+    const source = read("tui/util/handle-budget.ts")
+    expect(source).toContain("HANDLES_PER_TEXT_ROW")
+    expect(source).toContain("HANDLES_PER_BLOCK")
+  })
 })
 
 describe("LimitedContent 接线完整性", () => {
@@ -101,24 +316,28 @@ describe("LimitedContent 接线完整性", () => {
   })
 })
 
-describe("句柄预算闸门本身的前提", () => {
-  test("budget 是保守估算 + 进程内累计，而不是读 opentui 真实句柄数", () => {
+describe("句柄预算闸门本身的行为", () => {
+  test("预算按行数线性估算（而不是固定值）", () => {
     const source = read("tui/util/handle-budget.ts")
-    // 注释里已写明这个取舍，锁住它避免有人后来改成读真实值却没实现
-    expect(source).toContain("保守估算")
+    // 估算公式必须随行数增长：visualRows(text) * HANDLES_PER_TEXT_ROW
+    expect(source).toMatch(/visualRows\(text, cols\)/)
+    expect(source).toMatch(/HANDLES_PER_TEXT_ROW/)
+    // 上限常量必须在位
     expect(source).toContain("NATIVE_HANDLE_LIMIT")
-    // 常驻 renderable 必须有预留，否则 prompt 输入框本身就可能把预算占满
-    expect(source).toContain("RESERVED_HANDLES")
   })
 
-  test("预算耗尽时全局降级为纯文本，而不是撞上限崩溃", () => {
+  test("预算被真实占用与归还（不是纯查询）", () => {
     const source = read("tui/component/limited-content.tsx")
-    expect(source).toContain("fallback")
-    // 必须真的占用预算：此前只用 fits() 纯查询，used() 恒 0，
-    // 多条内容各自都判定装得下，累计起来照样能撞 65,535 的原生上限。
+    // reserve 与 release 必须成对出现：只 reserve 不 release 会让占用只增不减
     expect(source).toContain("globalHandleBudget.reserve")
-    // 卸载/换文本时归还，否则占用只增不减，降级会来得越来越早
     expect(source).toContain("globalHandleBudget.release")
+  })
+
+  test("常驻额度与内容额度分账（常驻浮层不再挤占会话正文）", () => {
+    const source = read("tui/util/handle-budget.ts")
+    expect(source).toContain("RESERVED_HANDLES")
+    expect(source).toContain("reservePersistent")
+    expect(source).toContain("releasePersistent")
   })
 
   test("安全模式降级通道仍然存在（原生崩溃后的最后兜底）", () => {

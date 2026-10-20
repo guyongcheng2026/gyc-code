@@ -40,6 +40,14 @@ export function LimitedContent(props: {
   plain: (text: string) => JSX.Element
   /** 折叠提示行的前景色。 */
   plainColor: RGBA
+  /**
+   * 占用哪个句柄池：
+   * - "content"（默认）：消息正文等随会话增长的内容，占内容池；
+   * - "persistent"：常驻浮层里的全文渲染（如 diff-viewer 的逐文件 diff），
+   *   占常驻池，与内容池分账——否则一个 5000 行的 diff 就能吃掉全部内容
+   *   额度，把长会话正文挤成纯文本。
+   */
+  scope?: "content" | "persistent"
 }) {
   const limited = createMemo(() =>
     limitContent(props.text, {
@@ -68,34 +76,49 @@ export function LimitedContent(props: {
   // 「预算耗尽」在运行期完全不可见（2026-10-11 稳定性审查）。
   // 每个实例只报一次：流式期间同一节点会反复重算，逐次上报会淹掉日志。
   let reportedPressure = false
+  // 归还必须回到当初占用的那个池：scope 在运行中变化时，先按旧池归还。
+  let reservedScope: "content" | "persistent" = "content"
+  const releaseReserved = () => {
+    if (reserved <= 0) return
+    if (reservedScope === "persistent") globalHandleBudget.releasePersistent(reserved)
+    else globalHandleBudget.release(reserved)
+    reserved = 0
+  }
   const acquire = () => {
-    if (reserved > 0) {
-      globalHandleBudget.release(reserved)
-      reserved = 0
-    }
+    releaseReserved()
     const amount = handles()
-    const ok = globalHandleBudget.reserve(amount)
+    const target = props.scope ?? "content"
+    const ok =
+      target === "persistent"
+        ? globalHandleBudget.reservePersistent(amount)
+        : globalHandleBudget.reserve(amount)
     reserved = ok ? amount : 0
+    reservedScope = target
     setAffordable(reserved > 0)
     if (!ok && !reportedPressure) {
       reportedPressure = true
-      const used = globalHandleBudget.used()
-      const limit = globalHandleBudget.limit()
-      logWarn("tui.handle-budget", "内容句柄预算不足，该段内容降级为纯文本", {
-        used,
-        limit,
-        amount,
-        pressure: handleBudgetPressure(used, limit),
-        cols: props.cols,
-      })
+      const persistent = target === "persistent"
+      const used = persistent ? globalHandleBudget.persistentUsed() : globalHandleBudget.used()
+      const limit = persistent ? globalHandleBudget.persistentLimit() : globalHandleBudget.limit()
+      logWarn(
+        "tui.handle-budget",
+        persistent ? "常驻句柄预算不足，该段内容降级为纯文本" : "内容句柄预算不足，该段内容降级为纯文本",
+        {
+          used,
+          limit,
+          amount,
+          pressure: handleBudgetPressure(used, limit),
+          cols: props.cols,
+          scope: target,
+        },
+      )
     }
   }
   // 首次渲染前先占用，Show 首次求值时 affordable 才是准的
   acquire()
   createEffect(acquire)
   onCleanup(() => {
-    if (reserved > 0) globalHandleBudget.release(reserved)
-    reserved = 0
+    releaseReserved()
   })
   return (
     <>

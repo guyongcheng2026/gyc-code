@@ -34,6 +34,8 @@ export function createFpsController(
   const setT = options.setTimeout ?? setTimeout
   const clearT = options.clearTimeout ?? clearTimeout
   let timer: ReturnType<typeof setTimeout> | undefined
+  /** 挂起的降档目标：用于区分「同一降档目标」与「降档目标改变」 */
+  let pendingTarget: number | undefined
   let current: number | undefined
 
   const cancel = () => {
@@ -41,6 +43,7 @@ export function createFpsController(
       clearT(timer)
       timer = undefined
     }
+    pendingTarget = undefined
   }
   const applyNow = (fps: number) => {
     if (current === fps) return
@@ -57,9 +60,15 @@ export function createFpsController(
         return
       }
       // 空闲降档：等空闲持续到阈值再应用
+      // 同一降档目标的重复请求**不重置**已有计时器 —— 否则持续空闲时
+      // （例如每 2s 一次 request）降档会被无限推迟，永远落不到 30fps；
+      // 只有降档目标改变时，才从此刻重新计时。
+      if (timer !== undefined && pendingTarget === target) return
       cancel()
+      pendingTarget = target
       timer = setT(() => {
         timer = undefined
+        pendingTarget = undefined
         applyNow(target)
       }, delay)
       ;(timer as { unref?: () => void }).unref?.()
