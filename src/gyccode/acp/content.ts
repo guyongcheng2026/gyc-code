@@ -2,6 +2,7 @@ import type { ContentBlock, ContentChunk, ResourceLink, Role } from "@agentclien
 import path from "node:path"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import { SessionV1 } from "@gyccode/core/v1/session"
+import { isAllowed, type DestinationFilter } from "../protocol/image"
 
 export type PromptPart = SessionV1.TextPartInput | SessionV1.FilePartInput
 
@@ -23,11 +24,11 @@ export type ReplayPart =
       text: string
     }
 
-export function promptContentToParts(content: readonly ContentBlock[]): PromptPart[] {
-  return content.flatMap(contentBlockToParts)
+export function promptContentToParts(content: readonly ContentBlock[], filter?: DestinationFilter): PromptPart[] {
+  return content.flatMap((block) => contentBlockToParts(block, filter))
 }
 
-export function contentBlockToParts(block: ContentBlock): PromptPart[] {
+export function contentBlockToParts(block: ContentBlock, filter?: DestinationFilter): PromptPart[] {
   switch (block.type) {
     case "text":
       return [
@@ -60,6 +61,7 @@ export function contentBlockToParts(block: ContentBlock): PromptPart[] {
         ]
       }
       if (block.uri?.startsWith("http://") || block.uri?.startsWith("https://")) {
+        if (!isAllowed(block.uri, filter)) return []
         return [
           {
             type: "file",

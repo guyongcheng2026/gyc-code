@@ -1,6 +1,7 @@
 ﻿export * as Token from "./token"
 
 import { count, tokenize } from "./tokenizer"
+import { estimateDeepSeek } from "./deepseek-tokenizer"
 
 // Token estimation is backed by the local tokenizer: `estimate` runs the same
 // deterministic, linear-time tokenize pass that `tokenize` exposes, so counts
@@ -80,3 +81,5 @@ export const estimateBlocks = (blocks: readonly AnthropicBlock[]) => {
   }
   return total
 }
+
+export { estimateDeepSeek }

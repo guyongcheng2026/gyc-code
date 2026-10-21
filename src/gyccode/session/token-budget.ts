@@ -76,6 +76,8 @@ export interface BudgetState {
    * appears again (e.g., streamed update), skip re-adding its usage.
    */
   countedMessageID?: string
+  /** Reasoning tokens reported by the provider (when logprobs enabled). */
+  reasoningTokens?: number
 }
 
 export type BudgetAction = "continue" | "complete"

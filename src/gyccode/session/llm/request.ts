@@ -8,6 +8,7 @@ import type { Agent } from "@/agent/agent"
 import type { MessageV2 } from "../message-v2"
 import type { Provider } from "@/provider/provider"
 import { ProviderTransform } from "@/provider/transform"
+import { ResponseFormat } from "@/protocol/conversation"
 import { context1MHeader, isAnthropicLike } from "./context-1m"
 import { contextManagementBetaHeader, contextManagementOptions, type ContextManagementConfig } from "./context-management"
 import { SystemPrompt } from "../system"
@@ -65,6 +66,8 @@ export type Prepared = {
     readonly topK?: number
     readonly maxOutputTokens?: number
     readonly options: Record<string, any>
+    readonly responseFormat?: ResponseFormat
+    readonly seed?: number
   }
   readonly messageTransformOptions: Record<string, any>
   readonly headers: Record<string, string>
@@ -242,6 +245,10 @@ export const prepare = Effect.fn("LLMRequestPrep.prepare")(function* (input: Pre
         input.maxOutputTokensOverride,
       ),
       options,
+      responseFormat: input.user.format?.type === "json_schema"
+        ? { type: "json_schema", schema: input.user.format.schema }
+        : { type: "text" },
+      seed: (input.agent.options?.seed as number | undefined) ?? (input.model.options?.seed as number | undefined),
     },
   )
 
