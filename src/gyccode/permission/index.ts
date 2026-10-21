@@ -239,7 +239,7 @@ export const layer = Layer.effect(
         always: request.always,
         tool: request.tool,
       }
-      yield* Effect.logInfo("asking", { id, permission: info.permission, patterns: info.patterns })
+      yield* Effect.logDebug("asking", { id, permission: info.permission, patterns: info.patterns })
 
       const deferred = yield* Deferred.make<void, PermissionV1.RejectedError | PermissionV1.CorrectedError>()
       yield* RefModule.modify(state.pending, (m) => { m.set(id, { info, deferred })

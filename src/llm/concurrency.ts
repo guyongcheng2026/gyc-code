@@ -23,6 +23,7 @@
 // 单独限流 2 并发），应在本模块之上再加一层 keyed 闸（可照抄
 // `src/core/effect/keyed-mutex.ts` 的 `makeUnsafe`），而不是把全局闸调小。
 import { Effect, Semaphore } from "effect"
+import os from "node:os"
 
 /**
  * 未配置时的默认并发数，与 `src/gyccode/tool/swarm.ts` 的
@@ -30,6 +31,22 @@ import { Effect, Semaphore } from "effect"
  * 都有足够余量，同时能在 subagent 扇出时把瞬时并发压到可控范围。
  */
 export const DEFAULT_LLM_CONCURRENCY = 4
+
+// 低内存机器的回落并发与判定阈值：每个在飞的 LLM 流都持有一份完整会话上下文
+// （消息历史 + prompt + SSE 缓冲），4 路并发在 4GB 机上实测可把 RSS 顶到 800MB+
+// 并触发频繁的 memory-freelow。内存自适应只压缩「未配置 / 配置非法」的默认路径，
+// 显式配置（GYC_LLM_MAX_CONCURRENCY）始终原样生效。
+export const LOW_MEM_CONCURRENCY = 2
+export const LOW_MEM_THRESHOLD_MB = 6 * 1024
+
+/**
+ * 按物理内存选择回落并发。纯函数便于测试固定入参；生产路径缺省读
+ * `os.totalmem()`。standard 允许 swarm 传入自己的默认值。
+ */
+export const memoryAdaptiveConcurrency = (
+  totalMb = os.totalmem() / 1024 / 1024,
+  standard = DEFAULT_LLM_CONCURRENCY,
+): number => (totalMb <= LOW_MEM_THRESHOLD_MB ? LOW_MEM_CONCURRENCY : standard)
 
 /**
  * 并发上限。写死一个上界，避免有人把环境变量设成 999 或 10000 之后
@@ -49,12 +66,14 @@ export const CONCURRENCY_ENV = "GYC_LLM_MAX_CONCURRENCY"
  *   - 其余 → 向下取整后使用
  */
 export const llmConcurrencyLimit = (raw: string | number | undefined | null): number => {
-  if (raw === undefined || raw === null) return DEFAULT_LLM_CONCURRENCY
+  // 缺失 / 非数字 / NaN / 小于 1 → 回落默认（低内存机自动降为 2，
+  // 宁可保守也不要意外放开并发）
+  if (raw === undefined || raw === null) return memoryAdaptiveConcurrency()
   const parsed = typeof raw === "number" ? raw : Number(raw.trim())
-  if (typeof raw === "string" && raw.trim() === "") return DEFAULT_LLM_CONCURRENCY
-  if (!Number.isFinite(parsed)) return DEFAULT_LLM_CONCURRENCY
+  if (typeof raw === "string" && raw.trim() === "") return memoryAdaptiveConcurrency()
+  if (!Number.isFinite(parsed)) return memoryAdaptiveConcurrency()
   const floored = Math.floor(parsed)
-  if (floored < 1) return DEFAULT_LLM_CONCURRENCY
+  if (floored < 1) return memoryAdaptiveConcurrency()
   return Math.min(floored, MAX_LLM_CONCURRENCY)
 }
 

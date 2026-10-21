@@ -739,7 +739,8 @@ const layer = Layer.effect(
       })
 
       const process = Effect.fn("SessionProcessor.process")(function* (streamInput: LLM.StreamInput) {
-        yield* Effect.logInfo("process", {
+        // 每条消息处理一次的高频 trace，与 llm.ts 的「stream」同理降为 DEBUG。
+        yield* Effect.logDebug("process", {
           "session.id": input.sessionID,
           messageID: input.assistantMessage.id,
         })

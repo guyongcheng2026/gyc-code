@@ -71,66 +71,15 @@ const CleanupCommand = effectCmd({
     console.log("已删除孤立事件并完成 VACUUM")
   }),
 })
-// 与 compaction.ts 的 TOOL_OUTPUT_MAX_CHARS 对齐：存量 compacted part 的
-// 超长工具输出截断保留的头部摘要长度。
-const RETRO_COMPACT_CHARS = 2_000
-const PART_BATCH = 500
-
+// 压缩逻辑与每日维护共用，见 @gyccode/core/database/database 的 compactRetroParts。
 const CompactCommand = effectCmd({
   command: "compact",
   describe: "将已压缩部分中的长工具输出压缩为头部摘要（缩小数据库）",
   instance: false,
   handler: Effect.fn("Cli.db.compact")(function* () {
     const { db } = yield* Database.Service
-    // 一次性维护命令：遍历投影表 part，找到已标记 compacted（state.time.compacted
-    // 存在）的完成工具输出，把超长 output 静态截断为头部摘要——与运行时
-    // markCompacted 的摘要式压缩对齐。已 compacted 的 part 不再参与推理输出
-    // （aggregateToolCaps/serialization 均跳过其全文），截断是非破坏性的：
-    // 即使未来被事件重放覆盖也只会恢复原文（数据不丢），最坏只是体积回升。
-    // 不写 event 事件：part 表是投影，实际运行路径从表读，重放不依赖全文。
-    // 分批扫描避免一次载入 174MB 到内存。
-    let offset = 0
-    let scanned = 0
-    let truncated = 0
-    let freedBytes = 0
-    for (;;) {
-      const rows = yield* db
-        .all<{ id: string; data: string }>(
-          sql.raw(`SELECT id, data FROM part ORDER BY rowid LIMIT ${PART_BATCH} OFFSET ${offset}`),
-        )
-        .pipe(Effect.orDie)
-      if (rows.length === 0) break
-      scanned += rows.length
-      for (const row of rows) {
-        let data: unknown
-        try {
-          data = JSON.parse(row.data)
-        } catch {
-          continue
-        }
-        if (typeof data !== "object" || data === null) continue
-        const part = data as Record<string, unknown>
-        if (part.type !== "tool") continue
-        const state = part.state as Record<string, unknown> | undefined
-        if (typeof state !== "object" || state === null) continue
-        if (state.status !== "completed") continue
-        const time = state.time as Record<string, unknown> | undefined
-        if (typeof time !== "object" || time === null) continue
-        if (typeof time.compacted !== "number") continue // 只处理已 compact 的存量
-        const output = state.output
-        if (typeof output !== "string" || output.length <= RETRO_COMPACT_CHARS) continue
-        state.output = `${output.slice(0, RETRO_COMPACT_CHARS)}…`
-        // 不能把 JSON 直接拼进 SQL 字符串：data 含控制字符/异常内容时会变成
-        // 语法错误，orDie 直接把整条命令打崩；改用参数绑定。
-        yield* db
-          .run(sql`UPDATE part SET data = ${JSON.stringify(data)} WHERE id = ${row.id}`)
-          .pipe(Effect.orDie)
-        truncated++
-        freedBytes += output.length - RETRO_COMPACT_CHARS
-      }
-      offset += PART_BATCH
-      if (rows.length < PART_BATCH) break
-    }
+    // 手动命令扫全表（不限批次）；每日维护路径已在层构造处限量调用。
+    const { scanned, truncated, freedBytes } = yield* Database.compactRetroParts(db)
     console.log(`共扫描 ${scanned} 个 part`)
     console.log(`已截断 ${truncated} 条已压缩的工具输出`)
     console.log(`part 表内释放约 ${(freedBytes / 1024 / 1024).toFixed(1)} MB`)

@@ -102,7 +102,8 @@ const live: Layer.Layer<
     yield* Effect.logInfo("llm concurrency limit", { maxStreams })
 
     const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
-      yield* Effect.logInfo("stream", {
+      // 每流一条的高频 trace：默认 INFO 会每天写数千行日志，降为 DEBUG 按需查看。
+      yield* Effect.logDebug("stream", {
         providerID: input.model.providerID,
         modelID: input.model.id,
         "session.id": input.sessionID,
@@ -284,7 +285,7 @@ const live: Layer.Layer<
           abort: input.abort,
         })
         if (native.type === "supported") {
-          yield* Effect.logInfo("llm runtime selected", {
+          yield* Effect.logDebug("llm runtime selected", {
             "llm.runtime": "native",
             "llm.provider": input.model.providerID,
             "llm.model": input.model.id,
@@ -294,7 +295,7 @@ const live: Layer.Layer<
             stream: native.stream,
           }
         }
-        yield* Effect.logInfo("llm runtime selected", {
+        yield* Effect.logDebug("llm runtime selected", {
           "llm.runtime": "ai-sdk",
           "llm.provider": input.model.providerID,
           "llm.model": input.model.id,
@@ -311,7 +312,7 @@ const live: Layer.Layer<
         })
       }
 
-      yield* Effect.logInfo("llm runtime selected", {
+      yield* Effect.logDebug("llm runtime selected", {
         "llm.runtime": "ai-sdk",
         "llm.provider": input.model.providerID,
         "llm.model": input.model.id,
@@ -420,7 +421,7 @@ const live: Layer.Layer<
             )
             const waitMs = Date.now() - start
             if (waitMs > 200) {
-              yield* Effect.logInfo("llm stream waited for concurrency permit", {
+              yield* Effect.logDebug("llm stream waited for concurrency permit", {
                 "session.id": input.sessionID,
                 waitMs,
               })
@@ -450,7 +451,7 @@ const live: Layer.Layer<
               {
                 startedAt: ttftStartedAt,
                 onSlow: (ttftMs) =>
-                  Effect.logInfo("llm first-token latency is slow", {
+                  Effect.logDebug("llm first-token latency is slow", {
                     "session.id": input.sessionID,
                     ttftMs,
                   }),

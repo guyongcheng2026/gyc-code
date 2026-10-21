@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test"
+import { LLMConcurrency } from "@gyccode/llm/concurrency"
 import {
   DEFAULT_TEAMMATE_CONCURRENCY,
   MAX_TEAMMATE_CONCURRENCY,
@@ -17,13 +18,16 @@ describe("teammateConcurrencyLimit", () => {
     expect(DEFAULT_TEAMMATE_CONCURRENCY).toBeLessThan(MAX_TEAMMATE_CONCURRENCY)
   })
 
-  it("未配置 / 非法值一律回落到默认", () => {
-    expect(teammateConcurrencyLimit(undefined)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
-    expect(teammateConcurrencyLimit(null)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
-    expect(teammateConcurrencyLimit(Number.NaN)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
-    expect(teammateConcurrencyLimit(Number.POSITIVE_INFINITY)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
-    expect(teammateConcurrencyLimit(0)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
-    expect(teammateConcurrencyLimit(-3)).toBe(DEFAULT_TEAMMATE_CONCURRENCY)
+  it("未配置 / 非法值一律回落到内存自适应默认", () => {
+    const fallback = LLMConcurrency.memoryAdaptiveConcurrency(undefined, DEFAULT_TEAMMATE_CONCURRENCY)
+    expect(teammateConcurrencyLimit(undefined)).toBe(fallback)
+    expect(teammateConcurrencyLimit(null)).toBe(fallback)
+    expect(teammateConcurrencyLimit(Number.NaN)).toBe(fallback)
+    expect(teammateConcurrencyLimit(Number.POSITIVE_INFINITY)).toBe(fallback)
+    expect(teammateConcurrencyLimit(0)).toBe(fallback)
+    expect(teammateConcurrencyLimit(-3)).toBe(fallback)
+    // 低内存机（≤6GB）回落为 2：4GB 机上 4 路子代理并联会显著推高 RSS
+    expect(LLMConcurrency.memoryAdaptiveConcurrency(4 * 1024, DEFAULT_TEAMMATE_CONCURRENCY)).toBe(2)
   })
 
   it("合法配置原样生效", () => {

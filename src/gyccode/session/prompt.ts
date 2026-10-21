@@ -1483,7 +1483,7 @@ const layer = Layer.effect(
                 )
               }).pipe(Effect.forkIn(scope))
             }
-            yield* Effect.logInfo("exiting loop", { "session.id": sessionID })
+            yield* Effect.logDebug("exiting loop", { "session.id": sessionID })
             break
           }
 

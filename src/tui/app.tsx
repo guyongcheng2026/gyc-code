@@ -576,6 +576,10 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
           let criticalToastShown = false
           let severeLastShownAt = 0
           let startupAlertChecked = false
+          // 系统持续紧张时 freelow 每轮（10s）都会命中，逐条落盘会刷出上千行/天。
+          // 与 severe 提示的 60s 冷却对齐：节流期间只递增 streak 不做日志写。
+          let lastFreelowLogAt = 0
+          const FREELOW_LOG_COOLDOWN_MS = 60_000
           // 启动宽限期：前 30 秒不做 fatal 判定，给 V8 堆增长、模块加载留出缓冲
           // 4GB 机器启动时 free memory 常跌至 100-200MB，属正常瞬态，不应触发退出
           let startupGracePeriod = true
@@ -750,13 +754,19 @@ export const run = Effect.fn("Tui.run")(function* (input: TuiInput) {
               } else if (systemFatal) {
                 // 系统可用内存紧张：连续多轮确认才退出，防启动瞬态误杀
                 fatalStreak += 1
-                void appendFile(
-                  join(global.log, "gyccode.log"),
-                  `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow streak=${fatalStreak}/${FATAL_STREAK_LIMIT} rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
-                ).catch(() => {
-                  // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
-                  // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
-                })
+                // 日志 60s 节流（streak 达限时强制落一条，保底线可追溯）。
+                // streak 计数不受节流影响，退出判定语义不变。
+                const now = Date.now()
+                if (now - lastFreelowLogAt >= FREELOW_LOG_COOLDOWN_MS || fatalStreak >= FATAL_STREAK_LIMIT) {
+                  lastFreelowLogAt = now
+                  void appendFile(
+                    join(global.log, "gyccode.log"),
+                    `timestamp=${new Date().toISOString()} level=Warn run=main memory-freelow streak=${fatalStreak}/${FATAL_STREAK_LIMIT} rss=${rssMB}MB total=${totalMB}MB free=${freeMB}MB\n`,
+                  ).catch(() => {
+                    // 可忽略（纯诊断旁路）：内存采样日志写入失败不影响任何业务路径；
+                    // 且此处正是内存告急时刻，再走 logError 会额外分配、可能加剧压力。
+                  })
+                }
                 runGc()
                 // 用户可见的严重提示（60s 冷却，避免威胁期内刷屏）
                 if (shouldEmitMemoryAlert(severeLastShownAt, Date.now(), 60_000)) {

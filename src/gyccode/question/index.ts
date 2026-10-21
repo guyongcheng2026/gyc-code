@@ -103,7 +103,7 @@ const layer = Layer.effect(
     }) {
       const pending = (yield* InstanceState.get(state)).pending
       const id = QuestionID.ascending()
-      yield* Effect.logInfo("asking", { id, questions: input.questions.length })
+      yield* Effect.logDebug("asking", { id, questions: input.questions.length })
 
       const deferred = yield* Deferred.make<ReadonlyArray<Answer>, RejectedError | TimeoutError>()
       const info: Request = {

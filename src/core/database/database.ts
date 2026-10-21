@@ -7,7 +7,7 @@ import { sql } from "drizzle-orm"
 import { Global } from "../global"
 import { Flag } from "../flag/flag"
 import { isAbsolute, join } from "path"
-import { readFileSync, writeFileSync } from "node:fs"
+import { readFileSync, writeFileSync, readdirSync, statSync, rmSync } from "node:fs"
 import { DatabaseMigration } from "./migration"
 import { selectPruneTargetCount } from "./prune-targets"
 import { InstallationChannel } from "../installation/version"
@@ -40,6 +40,72 @@ const enableIncrementalVacuum = Effect.fn("Database.enableIncrementalVacuum")(fu
       )
     )
   }
+})
+
+// 与 compaction.ts 的 TOOL_OUTPUT_MAX_CHARS 对齐：存量 compacted part 的
+// 超长工具输出截断保留的头部摘要长度。
+const RETRO_COMPACT_CHARS = 2_000
+const PART_BATCH = 500
+
+// 把已标记 compacted（state.time.compacted 存在）的完成工具输出静态截断为
+// 头部摘要：与运行时 markCompacted 的摘要式压缩对齐。已 compacted 的 part
+// 不再参与推理输出（aggregateToolCaps/serialization 均跳过其全文），截断是
+// 非破坏性的——即使被事件重放覆盖也会恢复原文，最坏只是体积回升。
+// part 表是投影，运行路径从表读，故不写 event 事件。分批扫描避免一次载入
+// 上百 MB 到内存。原为 `gyc db compact` 手动命令，现并入每日维护自动执行，
+// 冷启动路径保持保守（限频每日一次，见 maintenanceDue）。
+export const compactRetroParts = Effect.fn("Database.compactRetroParts")(function* (
+  db: DatabaseShape,
+  // 维护路径限量：扫描超过该批数即停止，防极端大库在冷启动路径耗时过长。
+  // 手动命令（`gyc db compact`）默认不限，扫全表。
+  maxBatch = Number.POSITIVE_INFINITY,
+) {
+  let offset = 0
+  let scanned = 0
+  let truncated = 0
+  let freedBytes = 0
+  let batches = 0
+  for (;;) {
+    if (batches >= maxBatch) break
+    const rows = yield* db
+      .all<{ id: string; data: string }>(
+        sql.raw(`SELECT id, data FROM part ORDER BY rowid LIMIT ${PART_BATCH} OFFSET ${offset}`),
+      )
+      .pipe(Effect.orDie)
+    if (rows.length === 0) break
+    scanned += rows.length
+    for (const row of rows) {
+      let data: unknown
+      try {
+        data = JSON.parse(row.data)
+      } catch {
+        continue
+      }
+      if (typeof data !== "object" || data === null) continue
+      const part = data as Record<string, unknown>
+      if (part.type !== "tool") continue
+      const state = part.state as Record<string, unknown> | undefined
+      if (typeof state !== "object" || state === null) continue
+      if (state.status !== "completed") continue
+      const time = state.time as Record<string, unknown> | undefined
+      if (typeof time !== "object" || time === null) continue
+      if (typeof time.compacted !== "number") continue // 只处理已 compact 的存量
+      const output = state.output
+      if (typeof output !== "string" || output.length <= RETRO_COMPACT_CHARS) continue
+      state.output = `${output.slice(0, RETRO_COMPACT_CHARS)}…`
+      // 不能把 JSON 直接拼进 SQL 字符串：data 含控制字符/异常内容时会变成
+      // 语法错误，orDie 直接把整条命令打崩；改用参数绑定。
+      yield* db
+        .run(sql`UPDATE part SET data = ${JSON.stringify(data)} WHERE id = ${row.id}`)
+        .pipe(Effect.orDie)
+      truncated++
+      freedBytes += output.length - RETRO_COMPACT_CHARS
+    }
+    offset += PART_BATCH
+    batches++
+    if (rows.length < PART_BATCH) break
+  }
+  return { scanned, truncated, freedBytes, batches }
 })
 
 // Reclaim freelist pages freed by deletes/updates since the last run. Cheap
@@ -184,6 +250,56 @@ const MAINTENANCE_INTERVAL_MS = 24 * 60 * 60 * 1000
 const MAINTENANCE_ALWAYS_UNDER_BYTES = 8 * 1024 * 1024
 const maintenanceMarker = () => join(Global.Path.data, ".db-maintain")
 
+// 快照 TTL（30 天）：snapshot/<project-id>/<worktree-hash>/ 是 git 内容寻址
+// 树（core/snapshot.ts:98），目录 mtime 不一定随 git 对象写入更新，故递归
+// 找最大文件 mtime 判定活跃度。超期项目快照整目录删除——影响仅是该项目的
+// 历史回滚锚点丢失，项目当前状态不受影响。
+const SNAPSHOT_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+const pruneStaleSnapshots = Effect.fn("Database.pruneStaleSnapshots")(function* () {
+  const root = join(Global.Path.data, "snapshot")
+  const removed: string[] = []
+  yield* Effect.sync(() => {
+    let projects: ReturnType<typeof readdirSync> = []
+    try {
+      projects = readdirSync(root, { withFileTypes: true })
+    } catch {
+      return // 目录不存在：无快照可清理
+    }
+    const latestMtime = (dir: string): number => {
+      let max = 0
+      let entries: ReturnType<typeof readdirSync> = []
+      try {
+        entries = readdirSync(dir, { withFileTypes: true })
+      } catch {
+        return 0 // 读取失败（权限/竞态删除）：视为不活跃
+      }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        try {
+          if (entry.isDirectory()) max = Math.max(max, latestMtime(full))
+          else max = Math.max(max, statSync(full).mtimeMs)
+        } catch {
+          // 单文件 stat 失败（竞态删除/占用）：跳过该文件，不影响整体
+        }
+      }
+      return max
+    }
+    for (const project of projects) {
+      if (!project.isDirectory()) continue
+      const dir = join(root, project.name)
+      const latest = latestMtime(dir)
+      if (latest > 0 && Date.now() - latest > SNAPSHOT_TTL_MS) {
+        rmSync(dir, { recursive: true, force: true })
+        removed.push(project.name)
+      }
+    }
+  })
+  if (removed.length > 0) {
+    yield* Effect.logWarning("pruned stale project snapshots", { count: removed.length })
+  }
+})
+
 const maintenanceDue = Effect.fn("Database.maintenanceDue")(function* (db: DatabaseShape) {
   const size = yield* db
     .get<{ pages: number; page_size: number }>(sql`
@@ -241,7 +357,20 @@ const layer = Layer.effect(
     // Prune stale event rows after migrations (tables guaranteed to exist) and
     // before reclaimFreePages so the freed pages are vacuumed in the same pass.
     if (yield* maintenanceDue(db)) {
+      // 先截断已 compacted 长工具输出（释放 part 表空间），再裁剪事件日志，
+      // 两者释放的页在同一次 incremental_vacuum 回收。
+      const compact = yield* compactRetroParts(db, 200).pipe(
+        Effect.catch((e) =>
+          Effect.logError("Failed to compact retro parts", { error: e }).pipe(Effect.succeed({ scanned: 0, truncated: 0, freedBytes: 0, batches: 0 }))
+        )
+      )
+      if (compact.truncated > 0) {
+        yield* Effect.logWarning("daily maintenance compacted long tool outputs", compact)
+      }
       yield* pruneStaleEvents(db)
+      yield* pruneStaleSnapshots().pipe(
+        Effect.catch((e) => Effect.logError("Failed to prune stale snapshots", { error: e })),
+      )
       yield* reclaimFreePages(db)
       yield* db.run("PRAGMA wal_checkpoint(TRUNCATE)")
       yield* markMaintenance()

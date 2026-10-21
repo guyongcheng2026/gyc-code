@@ -101,7 +101,7 @@ export function withFirstTokenLatency<A, E, R>(
         const report =
           options.onSlow ??
           ((ms: number) =>
-            Effect.logInfo("llm first-token latency is slow", { ttftMs: ms, thresholdMs }))
+            Effect.logDebug("llm first-token latency is slow", { ttftMs: ms, thresholdMs }))
         yield* report(ttftMs)
       }
       return Stream.concat(Stream.fromIterable([first]), Stream.fromPull(Effect.sync(() => pull)))

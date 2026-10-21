@@ -12,6 +12,7 @@ import { Database } from "@gyccode/core/database/database"
 import { Provider } from "@/provider/provider"
 import { ModelV2 } from "@gyccode/core/model"
 import { ProviderV2 } from "@gyccode/core/provider"
+import { LLMConcurrency } from "@gyccode/llm/concurrency"
 import { TeammateRole, TeammateConfig, TeammateResult } from "../agent/swarm/types"
 import { createTeammatePrompt, summarizeTeammateResults } from "../agent/swarm/teammate"
 import { planSwarm, assignTasks } from "../agent/swarm/coordinator"
@@ -41,9 +42,12 @@ export const MAX_TEAMMATE_CONCURRENCY = 16
  * 超过天花板则夹到天花板。抽成纯函数是为了能脱离 Effect 直接测。
  */
 export const teammateConcurrencyLimit = (configured: number | undefined | null): number => {
-  if (typeof configured !== "number" || !Number.isFinite(configured)) return DEFAULT_TEAMMATE_CONCURRENCY
+  // 缺省/非法（0、负数、NaN、非整数）落到默认值；默认值按物理内存自适应，
+  // 与 llm 请求层的回落口径一致（低内存机 2 并发，其余 4 并发）。
+  if (typeof configured !== "number" || !Number.isFinite(configured))
+    return LLMConcurrency.memoryAdaptiveConcurrency(undefined, DEFAULT_TEAMMATE_CONCURRENCY)
   const floored = Math.floor(configured)
-  if (floored < 1) return DEFAULT_TEAMMATE_CONCURRENCY
+  if (floored < 1) return LLMConcurrency.memoryAdaptiveConcurrency(undefined, DEFAULT_TEAMMATE_CONCURRENCY)
   return Math.min(floored, MAX_TEAMMATE_CONCURRENCY)
 }
 

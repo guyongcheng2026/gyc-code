@@ -109,8 +109,11 @@ const listDir = (dir: string) =>
  * `keep` 只约束单文件份数，约束不住总量：文件一旦不再被编辑，它留下的
  * DEFAULT_KEEP 份备份就永久驻留（实测本机 backup/ 已积累 1306 个文件 /
  * 14.1MB，且随编辑量线性增长、无任何清理入口）。
+ *
+ * 2026-10-21 收紧到 48MB：原 200MB 上限对 4GB 内存机过宽——备份只是编辑
+ * 回滚的短期安全网，超出 48MB 的旧备份命中率极低却持续占盘。
  */
-export const DEFAULT_MAX_BYTES = 200 * 1024 * 1024
+export const DEFAULT_MAX_BYTES = 48 * 1024 * 1024
 
 export interface GlobalOptions {
   /** 备份根目录，默认为 Global.Path.data/backup */

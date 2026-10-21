@@ -5,9 +5,11 @@ import { Effect, Ref } from "effect"
 import {
   CONCURRENCY_ENV,
   DEFAULT_LLM_CONCURRENCY,
+  LOW_MEM_CONCURRENCY,
   MAX_LLM_CONCURRENCY,
   globalGate,
   llmConcurrencyLimit,
+  memoryAdaptiveConcurrency,
   requestConcurrency,
 } from "./concurrency"
 
@@ -23,19 +25,36 @@ const withEnv = async (value: string | undefined, run: () => Promise<void> | voi
   }
 }
 
-describe("llmConcurrencyLimit：非法值夹取与上限回落", () => {
-  test("未配置时回落默认值 4（与 swarm 默认一致）", () => {
-    expect(llmConcurrencyLimit(undefined)).toBe(DEFAULT_LLM_CONCURRENCY)
+describe("memoryAdaptiveConcurrency：按物理内存回落并发", () => {
+  test("≤6GB 回落 2，大于 6GB 用标准值 4（与 swarm 默认一致）", () => {
+    expect(memoryAdaptiveConcurrency(4 * 1024)).toBe(LOW_MEM_CONCURRENCY)
+    expect(memoryAdaptiveConcurrency(6 * 1024)).toBe(2)
+    expect(memoryAdaptiveConcurrency(6 * 1024 + 1)).toBe(4)
+    expect(memoryAdaptiveConcurrency(16 * 1024)).toBe(4)
+    expect(memoryAdaptiveConcurrency(16 * 1024, 3)).toBe(3)
     expect(DEFAULT_LLM_CONCURRENCY).toBe(4)
   })
 
-  test("非数字、NaN、0、负数都回落默认值", () => {
-    expect(llmConcurrencyLimit("abc")).toBe(DEFAULT_LLM_CONCURRENCY)
-    expect(llmConcurrencyLimit("")).toBe(DEFAULT_LLM_CONCURRENCY)
-    expect(llmConcurrencyLimit("NaN")).toBe(DEFAULT_LLM_CONCURRENCY)
-    expect(llmConcurrencyLimit("0")).toBe(DEFAULT_LLM_CONCURRENCY)
-    expect(llmConcurrencyLimit("-3")).toBe(DEFAULT_LLM_CONCURRENCY)
-    expect(llmConcurrencyLimit("0.4")).toBe(DEFAULT_LLM_CONCURRENCY)
+  test("未显式配置时回落入口与内存自适应一致", () => {
+    expect(llmConcurrencyLimit(undefined)).toBe(memoryAdaptiveConcurrency())
+    expect(requestConcurrency()).toBe(memoryAdaptiveConcurrency())
+  })
+})
+
+describe("llmConcurrencyLimit：非法值夹取与上限回落", () => {
+  test("未配置时回落默认（低内存机自适应为 2）", () => {
+    expect(llmConcurrencyLimit(undefined)).toBe(memoryAdaptiveConcurrency())
+    expect(requestConcurrency()).toBe(memoryAdaptiveConcurrency())
+  })
+
+  test("非数字、NaN、0、负数都回落默认", () => {
+    const fallback = memoryAdaptiveConcurrency()
+    expect(llmConcurrencyLimit("abc")).toBe(fallback)
+    expect(llmConcurrencyLimit("")).toBe(fallback)
+    expect(llmConcurrencyLimit("NaN")).toBe(fallback)
+    expect(llmConcurrencyLimit("0")).toBe(fallback)
+    expect(llmConcurrencyLimit("-3")).toBe(fallback)
+    expect(llmConcurrencyLimit("0.4")).toBe(fallback)
   })
 
   test("超过上限时夹到上限 16，不放行无限并发", () => {
@@ -48,9 +67,9 @@ describe("llmConcurrencyLimit：非法值夹取与上限回落", () => {
 })
 
 describe("requestConcurrency：GYC_* 环境变量覆盖", () => {
-  test("未设置环境变量时用默认值", async () => {
+  test("未设置环境变量时用内存自适应默认值", async () => {
     await withEnv(undefined, () => {
-      expect(requestConcurrency()).toBe(DEFAULT_LLM_CONCURRENCY)
+      expect(requestConcurrency()).toBe(memoryAdaptiveConcurrency())
     })
   })
 
@@ -60,9 +79,9 @@ describe("requestConcurrency：GYC_* 环境变量覆盖", () => {
     })
   })
 
-  test("非法环境变量回落到默认值", async () => {
+  test("非法环境变量回落到内存自适应默认值", async () => {
     await withEnv("not-a-number", () => {
-      expect(requestConcurrency()).toBe(DEFAULT_LLM_CONCURRENCY)
+      expect(requestConcurrency()).toBe(memoryAdaptiveConcurrency())
     })
   })
 

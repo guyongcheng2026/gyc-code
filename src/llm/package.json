@@ -25,7 +25,8 @@
     "./protocols/gemini": "./protocols/gemini.ts",
     "./protocols/openai-chat": "./protocols/openai-chat.ts",
     "./protocols/openai-compatible-chat": "./protocols/openai-compatible-chat.ts",
-    "./protocols/openai-responses": "./protocols/openai-responses.ts"
+    "./protocols/openai-responses": "./protocols/openai-responses.ts",
+    "./concurrency": "./concurrency.ts"
   },
   "type": "module"
 }
