@@ -1,4 +1,5 @@
 import path from "path"
+import { randomUUID } from "node:crypto"
 import { appendFile, mkdir, open, readFile, rename, rm, writeFile } from "fs/promises"
 import { Path } from "@gyccode/core/global"
 
@@ -29,7 +30,7 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 
 export async function writeJsonAtomic(filePath: string, value: unknown) {
   await mkdir(path.dirname(filePath), { recursive: true })
-  const temporary = `${filePath}.${process.pid}.${crypto.randomUUID()}.tmp`
+  const temporary = `${filePath}.${process.pid}.${randomUUID()}.tmp`
   // rename 保证原子性但不保证数据已落盘：掉电时可能留下空文件/截断 JSON，
   // 下次读取 JSON.parse 直接抛错。写入后、rename 前先 fsync 临时文件。
   const handle = await open(temporary, "w")

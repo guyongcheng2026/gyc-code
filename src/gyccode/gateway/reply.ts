@@ -16,6 +16,7 @@ const MAX_HISTORY_TURNS = 20
 // 会话维度也要有上限：每个新 chatId 都会永久驻留，群聊/多联系人场景会无界增长
 const MAX_HISTORY_SESSIONS = 200
 const TASK_TIMEOUT_MS = 10 * 60_000
+const CHAT_TIMEOUT_MS = 60_000
 const REPLY_MAX_CHARS = 1800
 
 interface ProviderEndpoint {
@@ -28,6 +29,8 @@ const PROVIDER_ENDPOINTS: Record<string, ProviderEndpoint> = {
   openrouter: { baseURL: "https://openrouter.ai/api/v1", apiKeyEnv: "OPENROUTER_API_KEY" },
   deepseek: { baseURL: "https://api.deepseek.com/v1", apiKeyEnv: "DEEPSEEK_API_KEY" },
   nvidia: { baseURL: "https://integrate.api.nvidia.com/v1", apiKeyEnv: "NVIDIA_API_KEY" },
+  zhipuai: { baseURL: "https://open.bigmodel.cn/api/paas/v4", apiKeyEnv: "ZHIPU_API_KEY" },
+  siliconflow: { baseURL: "https://api.siliconflow.com/v1", apiKeyEnv: "SILICONFLOW_API_KEY" },
   opencode: { baseURL: "https://opencode.ai/zen/v1", apiKeyEnv: "OPENCODE_API_KEY" },
 }
 
@@ -125,7 +128,7 @@ class TaskMutex {
       const settle = (fn2: () => void) => {
         if (settled) return
         settled = true
-        clearTimeout(timer)
+        killGuard.cancel()
         fn2()
       }
       const timer = setTimeout(() => {
@@ -134,6 +137,10 @@ class TaskMutex {
       timer.unref?.()
 
       const execute = async () => {
+        if (settled) {
+          this.next()
+          return
+        }
         this.locked = true
         try {
           const result = await fn()
@@ -185,23 +192,25 @@ function resolveNodeTaskEntry(cwd: string): string {
 }
 
 /** 双杀兜底：先 SIGTERM，5s 后 SIGKILL，确保子进程必然退出、Promise 必然落定。 */
-function armKillTimer(kill: (sig?: NodeJS.Signals | number) => unknown, timeoutMs: number): ReturnType<typeof setTimeout> {
-  const timer = setTimeout(() => {
+function armKillTimer(kill: (sig?: NodeJS.Signals | number) => unknown, timeoutMs: number): { cancel: () => void } {
+  let inner: ReturnType<typeof setTimeout> | undefined
+  const outer = setTimeout(() => {
     try {
       kill()
     } catch {
       // 进程已退出
     }
-    setTimeout(() => {
+    inner = setTimeout(() => {
       try {
         kill("SIGKILL")
       } catch {
         // 进程已退出
       }
-    }, 5_000).unref?.()
+    }, 5_000)
+    inner.unref?.()
   }, timeoutMs)
-  timer.unref?.()
-  return timer
+  outer.unref?.()
+  return { cancel: () => { clearTimeout(outer); if (inner !== undefined) clearTimeout(inner) } }
 }
 
 /**
@@ -233,16 +242,16 @@ async function spawnTask(description: string): Promise<TaskOutcome> {
         stderr: "pipe",
       },
     )
-    const timer = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
+    const killGuard = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
     try {
       const [stdout, stderr, exitCode] = await Promise.all([
-        new Response(proc.stdout as ReadableStream).text(),
-        new Response(proc.stderr as ReadableStream).text(),
+        proc.stdout ? new Response(proc.stdout as ReadableStream).text() : Promise.resolve(""),
+        proc.stderr ? new Response(proc.stderr as ReadableStream).text() : Promise.resolve(""),
         proc.exited,
       ])
       return { stdout, stderr, exitCode }
     } finally {
-      clearTimeout(timer)
+      killGuard.cancel()
     }
   }
   // Node 路径（生产 dist）
@@ -256,9 +265,9 @@ async function spawnTask(description: string): Promise<TaskOutcome> {
     })
     let stdout = ""
     let stderr = ""
-    const timer = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
+    const killGuard = armKillTimer((sig) => proc.kill(sig), TASK_TIMEOUT_MS)
     const finish = (settle: () => void) => {
-      clearTimeout(timer)
+      killGuard.cancel()
       settle()
     }
     proc.stdout?.setEncoding("utf8")
@@ -295,6 +304,7 @@ function gatewayStatus(model: ModelChoice): string {
 
 export class Replier {
   private readonly history = new Map<string, Turn[]>()
+  private readonly chains = new Map<string, Promise<void>>()
 
   private async chat(model: ModelChoice, turns: Turn[]): Promise<string> {
     const provider = createOpenAICompatible({ name: `gyc-gateway-${model.providerID}`, baseURL: model.baseURL, apiKey: model.apiKey })
@@ -302,6 +312,7 @@ export class Replier {
       model: provider.chatModel(model.modelID),
       system: SYSTEM_PROMPT,
       messages: turns.map((turn) => ({ role: turn.role, content: turn.content })),
+      abortSignal: AbortSignal.timeout(CHAT_TIMEOUT_MS),
     })
     const text = completion.text.trim()
     if (!text) throw new Error("应答模型返回空文本")
@@ -320,6 +331,24 @@ export class Replier {
   }
 
   async reply(chatId: string, incoming: string): Promise<string> {
+    const prev = this.chains.get(chatId) ?? Promise.resolve()
+    const tail = prev.then(
+      () => this.replyImpl(chatId, incoming),
+      () => this.replyImpl(chatId, incoming),
+    )
+    const sentinel = tail.then(
+      () => {},
+      () => {},
+    )
+    this.chains.set(chatId, sentinel)
+    try {
+      return await tail
+    } finally {
+      if (this.chains.get(chatId) === sentinel) this.chains.delete(chatId)
+    }
+  }
+
+  private async replyImpl(chatId: string, incoming: string): Promise<string> {
     const text = incoming.trim()
 
     // 指令路由：任务执行 / 状态查询
@@ -339,6 +368,8 @@ export class Replier {
     if (!model.apiKey) model = fallbackModel()
 
     if (/^\/status$/i.test(text)) return gatewayStatus(model)
+
+    if (!model.apiKey) return `网关未配置可用 LLM 密钥（deepseek/nvidia/zhipu/siliconflow 等），请在 ~/.gyc/.env 设置`
 
     // 对话链路：保留每会话最近若干轮上下文
     const turns = this.history.get(chatId) ?? []

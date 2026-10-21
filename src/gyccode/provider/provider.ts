@@ -573,6 +573,7 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
 
       const autoload = Boolean(project)
       if (!autoload) return { autoload: false }
+      let tokenCache: { token: string; expiresAt: number } | null = null
       return {
         autoload: true,
         vars(_options: Record<string, unknown>) {
@@ -587,13 +588,16 @@ function custom(dep: CustomDep): Record<string, CustomLoader> {
           project,
           location,
           fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-            const { GoogleAuth } = await import("google-auth-library")
-            const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] })
-            const client = await auth.getClient()
-            const token = await client.getAccessToken()
-
+            const now = Date.now()
+            if (!tokenCache || now >= tokenCache.expiresAt) {
+              const { GoogleAuth } = await import("google-auth-library")
+              const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/cloud-platform"] })
+              const client = await auth.getClient()
+              const creds = await client.getAccessToken()
+              tokenCache = { token: creds.token ?? "", expiresAt: now + 50 * 60_000 }
+            }
             const headers = new Headers(init?.headers)
-            headers.set("Authorization", `Bearer ${token.token}`)
+            headers.set("Authorization", `Bearer ${tokenCache.token}`)
 
             return fetch(input, { ...init, headers })
           },
