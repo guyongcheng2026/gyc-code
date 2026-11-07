@@ -112,48 +112,42 @@ const LAZY_MODULES: Record<string, () => Promise<unknown>> = {
   '@/server/global-lifecycle': () => import('@/server/global-lifecycle'),
 }
 
-const modCache = new Map<string, Promise<unknown>>()
 const MOD_CACHE_TTL = 5 * 60 * 1000 // 5分钟
-const modCacheTimestamps = new Map<string, number>()
 
-// 独立的过期缓存清理定时器：不依赖 importMod 调用，避免长期不调用时
-// 过期条目常驻内存。unref 确保不拖住进程退出。
+// 单 Map 存储 { promise, expiresAt }，去除双 Map + O(n) 遍历
+interface CacheEntry<T> {
+  promise: Promise<T>
+  expiresAt: number
+}
+const modCache = new Map<string, CacheEntry<unknown>>()
+
+// 独立的过期缓存清理定时器：按固定间隔清理，避免 importMod 每次遍历
 const modCacheCleanupTimer = setInterval(() => {
   const now = Date.now()
-  for (const [key, timestamp] of modCacheTimestamps.entries()) {
-    if (now - timestamp > MOD_CACHE_TTL) {
-      modCache.delete(key)
-      modCacheTimestamps.delete(key)
-    }
+  for (const [key, entry] of modCache.entries()) {
+    if (now > entry.expiresAt) modCache.delete(key)
   }
 }, MOD_CACHE_TTL)
 modCacheCleanupTimer.unref?.()
+
 function importMod<T>(spec: string): Promise<T> {
   const loader = LAZY_MODULES[spec]
   if (!loader) return Promise.reject(new Error(`未知的懒加载模块：${spec}`))
   
-  // 清理过期缓存
   const now = Date.now()
-  for (const [key, timestamp] of modCacheTimestamps.entries()) {
-    if (now - timestamp > MOD_CACHE_TTL) {
-      modCache.delete(key)
-      modCacheTimestamps.delete(key)
-    }
-  }
+  const entry = modCache.get(spec)
+  // 命中且未过期
+  if (entry && now <= entry.expiresAt) return entry.promise as Promise<T>
   
-  let p = modCache.get(spec)
-  if (!p) {
-    p = loader().then(
-      (m) => m as T,
-      (error) => {
-        modCache.delete(spec)
-        modCacheTimestamps.delete(spec)
-        throw error
-      },
-    )
-    modCache.set(spec, p)
-    modCacheTimestamps.set(spec, Date.now())
-  }
+  // 未命中或已过期：重新加载
+  const p = loader().then(
+    (m) => m as T,
+    (error) => {
+      modCache.delete(spec)
+      throw error
+    }
+  )
+  modCache.set(spec, { promise: p, expiresAt: now + MOD_CACHE_TTL })
   return p as Promise<T>
 }
 
@@ -225,44 +219,72 @@ export const rpc = {
     const result = writeHeapSnapshot("server.heapsnapshot")
     return result
   },
-  async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }, _ctx: { signal: AbortSignal }) {
+  async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }, ctx: { signal: AbortSignal }) {
     let unlock!: () => void
     serverLock = serverLock.then(() => new Promise<void>((resolve) => { unlock = resolve }))
     await serverLock
     try {
       const { Server } = await importMod<typeof import("@/server/server")>("@/server/server")
       if (server) await server.stop(true)
-      server = await Server.listen(input)
-      return { url: server.url.toString() }
+      // 注册 abort 监听：若调用方取消，停止新建的 server
+      const onAbort = () => { if (server) server.stop(true) }
+      ctx.signal.addEventListener("abort", onAbort, { once: true })
+      try {
+        server = await Server.listen(input)
+        return { url: server.url.toString() }
+      } finally {
+        ctx.signal.removeEventListener("abort", onAbort)
+      }
     } finally {
       unlock()
     }
   },
-  async checkUpgrade(input: { directory: string }, _ctx: { signal: AbortSignal }) {
+  async checkUpgrade(input: { directory: string }, ctx: { signal: AbortSignal }) {
     await ensureWarmInstance()
     const { upgrade } = await importMod<typeof import("../upgrade")>("../upgrade")
     // 后台检查升级失败不影响当前会话，忽略（v1.19.3：改为返回结果，调用方可观测）
-    return upgrade().catch(() => undefined)
+    // 支持 abort：若调用方取消，不再等待 upgrade 完成
+    return new Promise((resolve) => {
+      const onAbort = () => resolve(undefined)
+      ctx.signal.addEventListener("abort", onAbort, { once: true })
+      upgrade().then(resolve).finally(() => ctx.signal.removeEventListener("abort", onAbort))
+    }).catch(() => undefined)
   },
-  async reload(_input: undefined, _ctx: { signal: AbortSignal }) {
+  async reload(_input: undefined, ctx: { signal: AbortSignal }) {
     const { AppRuntime } = await importMod<typeof import("@/effect/app-runtime")>("@/effect/app-runtime")
     const { Config } = await importMod<typeof import("@/config/config")>("@/config/config")
     const { disposeAllInstancesAndEmitGlobalDisposed } = await importMod<
       typeof import("@/server/global-lifecycle")
     >("@/server/global-lifecycle")
-    await AppRuntime.runPromise(
-      Effect.gen(function* () {
-        const cfg = yield* Config.Service
-        yield* cfg.invalidate()
-        yield* disposeAllInstancesAndEmitGlobalDisposed({ swallowErrors: true })
-      }),
-    )
+    // 支持 abort：若调用方取消，尽快停止
+    if (ctx.signal.aborted) return
+    const onAbort = () => { /* abort 触发，runPromise 内部会处理 */ }
+    ctx.signal.addEventListener("abort", onAbort, { once: true })
+    try {
+      await AppRuntime.runPromise(
+        Effect.gen(function* () {
+          const cfg = yield* Config.Service
+          yield* cfg.invalidate()
+          yield* disposeAllInstancesAndEmitGlobalDisposed({ swallowErrors: true })
+        })
+      )
+    } finally {
+      ctx.signal.removeEventListener("abort", onAbort)
+    }
   },
-  async shutdown(_input: undefined, _ctx: { signal: AbortSignal }) {
+  async shutdown(_input: undefined, ctx: { signal: AbortSignal }) {
     const { InstanceRuntime } = await importMod<typeof import("@/project/instance-runtime")>(
       "@/project/instance-runtime",
     )
-    await InstanceRuntime.disposeAllInstances()
+    // 支持 abort：若调用方取消，尽快停止 dispose
+    await new Promise<void>((resolve) => {
+      const onAbort = () => resolve()
+      ctx.signal.addEventListener("abort", onAbort, { once: true })
+      InstanceRuntime.disposeAllInstances().then(() => {
+        ctx.signal.removeEventListener("abort", onAbort)
+        resolve()
+      })
+    })
     if (server) await server.stop(true)
     process.off("unhandledRejection", onUnhandledRejection)
     process.off("uncaughtException", onUncaughtException)

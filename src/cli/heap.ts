@@ -53,7 +53,8 @@ export function start() {
         for (const name of stale.slice(0, Math.max(0, stale.length - 1))) {
           await rm(path.join(Global.Path.log, name), { force: true })
         }
-        snapshotCount = Math.max(1, stale.length - (stale.length - 1))
+        // 清理后仅剩最新的 1 个，校准计数器
+        snapshotCount = 1
       } catch {
         // 旧快照清理失败不阻断本次快照写入，忽略
       }

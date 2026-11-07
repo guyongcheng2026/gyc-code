@@ -260,7 +260,13 @@ export function runChecks(options = {}) {
     checks.push(r.code === 0 ? pass("workspaceJunk", "工作区垃圾文件检查") : fail("workspaceJunk", "工作区垃圾文件检查", r))
   }
 
-  // 5. 类型门禁：仅当暂存区含 src/ 下 TS/TSX 才跑全量 typecheck
+  // 5. lint 门禁：knip 未用依赖/导出/文件检查（内存需求大，仅在 CI 跑，pre-commit 跳过）
+  // 如需本地跑：bun run lint
+  {
+    checks.push(skipped("lint", "lint 门禁 knip", "pre-commit 跳过（内存需求大），CI 执行"))
+  }
+
+  // 6. 类型门禁：仅当暂存区含 src/ 下 TS/TSX 才跑全量 typecheck
   const srcTsFiles = tsFiles.filter((f) => SRC_TS_RE.test(f))
   if (options.skipTypecheck) {
     checks.push(skipped("typecheck", "类型门禁 tsc --noEmit", "调用方显式要求跳过"))
