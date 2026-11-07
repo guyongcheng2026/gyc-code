@@ -184,12 +184,22 @@ export const rpc = {
       headers,
       body: input.body,
     })
-    const response = await Server.Default().app.fetch(request)
-    const body = await response.text()
-    return {
-      status: response.status,
-      headers: Object.fromEntries(response.headers.entries()),
-      body,
+    try {
+      const response = await Server.Default().app.fetch(request)
+      const body = await response.text()
+      return {
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+        body,
+      }
+    } catch (error) {
+      // 失败时返回错误响应，而不让异常通过 listen 向上冒泡，
+      // 避免调用方因 worker 挂起而无限等待
+      return {
+        status: 500,
+        headers: {},
+        body: error instanceof Error ? error.message : String(error),
+      }
     }
   },
   snapshot() {

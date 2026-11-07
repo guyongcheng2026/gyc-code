@@ -2,7 +2,7 @@
 [test]
 # webapp 测试由其自带的 vitest（jsdom 环境）负责，bun test 不扫（无 DOM 环境会误报失败）。
 # 运行 webapp 测试：cd src/webapp && bun run test
-# 注意：本节的 exclude 实测对「自动发现」不生效 —— bun 1.3.14 下裸 `bun test` 仍会
+# 注意：本节的 exclude 实测对「自动发现」不生效 —— bun 1.4.4 下裸 `bun test` 仍会
 # 扫入 src/webapp/src/app/*.test.tsx，因缺 jsdom 报出 18 个假失败（document is not
 # defined / vi.hoisted is not a function）。改成 "src/webapp/**" 同样无效。
 # 真正生效的是 package.json 里 test 脚本的 --path-ignore-patterns=src/webapp。

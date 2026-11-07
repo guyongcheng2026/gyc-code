@@ -102,7 +102,7 @@
     "effect": "4.0.0-beta.83",
     "esbuild": "0.28.2",
     "fuzzysort": "4.0.2",
-    "gitlab-ai-provider": "6.19.1",
+    "gitlab-ai-provider": "6.23.1",
     "glob": "13.0.6",
     "google-auth-library": "11.1.0",
     "gray-matter": "4.0.3",
