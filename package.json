@@ -1,6 +1,6 @@
 {
   "name": "gyc-code",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "gyc-code: 自研 AI 编码 CLI（品牌自有、依赖零专有、协议自有基线）",
   "license": "MIT",
   "type": "module",
