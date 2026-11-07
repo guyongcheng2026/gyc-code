@@ -146,6 +146,7 @@ const SHARED = {
   ],
   define: {
     GYCCODE_VERSION: JSON.stringify(JSON.parse(readFileSync("package.json", "utf-8")).version),
+    GYCCODE_CHANNEL: JSON.stringify(process.env.GYCCODE_CHANNEL || "local"),
     GYCCODE_BUILD_TARGET: JSON.stringify(runtime),
   },
   plugins: [solidPlugin],

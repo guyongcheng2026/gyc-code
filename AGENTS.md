@@ -63,6 +63,14 @@
 - 依赖豁免勿“修复”：`effect 4.0.0-beta.83`、`drizzle-orm 1.0.0-rc.2` 版本全锁定；勿升降级。**升级到 effect 4.0.1 是框架迁移而非换版本**（265 个类型错误、需逐端点重做 httpapi，且与「内核与上游逐字节一致」冲突），已立项后按谷总决定回滚，配方与实测基线见 `docs/compose/specs/2026-10-07-effect-v4-acp-v1-migration-design.md`
 - 运行时开关走 `GYCCODE_*` 环境变量，不要把行为开关固化进构建 define
 
+## 版本号规则
+
+- **SemVer 三段式**：`MAJOR.MINOR.PATCH`（如 `1.0.0`）。MAJOR=架构级重构/协议不兼容；MINOR=新功能/新 provider/新技能；PATCH=bug 修复/性能调优/文档。
+- **单一事实源**：`package.json` 的 `version` 字段。`build.mjs` 构建期注入 `GYCCODE_VERSION`；源码 `src/core/installation/version.ts` 的 fallback 须与之一致。
+- **Channel**：`GYCCODE_CHANNEL` 环境变量（默认 `local`），取值 `stable`/`dev`/`next`/`snapshot-<feature>`/`local`。非正式版用 `0.0.0-<channel>-<timestamp>` 占位，不占 SemVer 序列。
+- **发布即打 tag**：git tag 命名 `v<MAJOR>.<MINOR>.<PATCH>`，禁用阶段名 tag（如 `v1.0.0-phase8-completed`、`pre-full-replacement-baseline`）。历史阶段名 tag 保留归档不删。
+- **CHANGELOG**：每次 release 在 `CHANGELOG.md` 追加条目，按「新增/修复/变更」分组。
+
 ## 工作流同步约定
 
 1. **提交即推送**：`.githooks/post-commit`（源文件，postinstall 由 `scripts/install-hooks.mjs` 复制进 `.git/hooks/`，改钩子改 `.githooks/`）自动经 `scripts/push-gh-proxy.mjs` 推送 + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）+ `scripts/sync-manual.mjs` 校验手册。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
