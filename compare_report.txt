@@ -1,0 +1,165 @@
+供应商: 旧 30 -> 新 30
+模型总数: 旧 1429 -> 新 1431
+新增 176 / 移除 174 / 变更 539
+
+=== deepseek 提供商（新） ===
+  - deepseek-v4-pro | DeepSeek V4 Pro | rel=2026-08-13 | upd=2026-08-22 | status=active | ctx=1048576 out=393216 | cost={"input":0.66,"output":1.98,"reasoning":1.98,"cache_read":0.022}
+  - deepseek-v4-flash-vision-exp | DeepSeek V4 Flash Vision Exp | rel=2026-10-17 | upd=2026-10-17 | status=deprecated | ctx=1048576 out=393216 | cost={"input":0.15,"output":0.6,"reasoning":0.6,"cache_read":0.003}
+  - deepseek-flash | DeepSeek V4.1 Flash 1017 | rel=2026-10-17 | upd=2026-10-17 | status=active | ctx=1048576 out=393216 | cost={"input":0.15,"output":0.6,"reasoning":0.6,"cache_read":0.003}
+  - deepseek-v4-flash | DeepSeek V4 Flash | rel=2026-10-17 | upd=2026-10-17 | status=deprecated | ctx=1048576 out=393216 | cost={"input":0.15,"output":0.6,"reasoning":0.6,"cache_read":0.003}
+
+=== 各提供商最新模型（rel 降序 top2） ===
+  zhipuai: 17 个 | 最新: glm-5.3-flashx(2026-09-18), glm-5.3-flash(2026-08-26)
+  deepseek: 4 个 | 最新: deepseek-v4-flash-vision-exp(2026-10-17), deepseek-flash(2026-10-17)
+  moonshotai: 6 个 | 最新: kimi-k3.1-pro-highspeed(2026-10-23), kimi-k3.1-pro(2026-10-23)
+  moonshotai-cn: 6 个 | 最新: kimi-k3.1-pro-highspeed(2026-10-23), kimi-k3.1-pro(2026-10-23)
+  minimax: 8 个 | 最新: MiniMax-M3.1-Flash(2026-10-19), MiniMax-M3(2026-06-01)
+  minimax-cn: 8 个 | 最新: MiniMax-M3.1-Flash(2026-10-19), MiniMax-M3(2026-06-01)
+  stepfun: 7 个 | 最新: step-5-preview(2026-09-16), step-3.7-flash(2026-05-29)
+  siliconflow: 57 个 | 最新: zai-org/GLM-5.3-Flash(2026-08-26), deepseek-ai/DeepSeek-V4-Flash-Vision-Exp(2026-08-21)
+  modelscope: 7 个 | 最新: ZhipuAI/GLM-4.6(2025-09-30), Qwen/Qwen3-Coder-30B-A3B-Instruct(2025-07-31)
+  qiniu-ai: 87 个 | 最新: qwen3.5-397b-a17b(2026-02-15), doubao-seed-2.0-lite(2026-02-14)
+  xiaomi: 6 个 | 最新: mimo-v2.6-flash(2026-09-22), mimo-v2.6-pro(2026-09-22)
+  anthropic: 17 个 | 最新: claude-haiku-5-5(2026-10-07), claude-sonnet-5-5(2026-09-28)
+  openai: 51 个 | 最新: gpt-6.1-terra(2026-10-26), gpt-6.1-sol(2026-09-29)
+  google: 36 个 | 最新: gemini-4-argon(2026-10-13), gemini-3.8-flash(2026-09-02)
+  meta: 6 个 | 最新: muse-wonder-1.0(2026-10-12), muse-spark-1.3-contributor(2026-09-02)
+  mistral: 36 个 | 最新: deepseek-v4-1-flash-1017(2026-10-17), mistral-large-4(2026-10-06)
+  cohere: 17 个 | 最新: north-small-translate-09-2026(2026-09-09), north-mini-code-1-0(2026-06-09)
+  nvidia: 52 个 | 最新: minimaxai/minimax-m3.1-flash(2026-10-19), nvidia/nemotron-3.5-super-vl-120b-a12b(2026-10-15)
+  xai: 12 个 | 最新: grok-imagine-video-1.5-lite(2026-10-01), grok-4.7(2026-09-21)
+  groq: 14 个 | 最新: qwen/qwen3.8-27b(2026-08-14), qwen/qwen3.6-27b(2026-04-22)
+  openrouter: 377 个 | 最新: liquid/lfm-3-1.7b(2026-11-06), liquid/lfm-3-1.7b:free(2026-11-06)
+  huggingface: 82 个 | 最新: MiniMaxAI/MiniMax-M3.1-Flash(2026-10-19), deepseek-ai/DeepSeek-V4.1-Flash-1017(2026-10-17)
+  togetherai: 33 个 | 最新: moonshotai/Kimi-K3.1-Pro(2026-10-23), meta-models/Muse-Spark-Open-816B-A42B(2026-10-15)
+  amazon-bedrock: 203 个 | 最新: openai.gpt-6.1-terra(2026-10-26), us.openai.gpt-6.1-terra(2026-10-26)
+  azure: 96 个 | 最新: gpt-6.1-terra(2026-10-26), claude-haiku-5-5(2026-10-07)
+  cloudflare-ai-gateway: 74 个 | 最新: openai/gpt-6.1-terra(2026-10-26), minimax/m3.1-flash(2026-10-19)
+  fireworks-ai: 29 个 | 最新: accounts/fireworks/models/minimax-m3p1-flash(2026-10-19), accounts/fireworks/routers/deepseek-flash-latest(2026-10-17)
+  deepinfra: 77 个 | 最新: deepseek-ai/DeepSeek-V4.1-Flash-1017(2026-10-17), XiaomiMiMo/MiMo-V2.6-Flash(2026-09-22)
+  cerebras: 2 个 | 最新: qwen-3.8-27b(2026-08-14), gpt-oss-120b(2025-08-05)
+  perplexity: 4 个 | 最新: sonar-deep-research(2025-02-01), sonar(2024-01-01)
+
+=== 变更模型明细（前 60） ===
+  ~ amazon-bedrock/anthropic.claude-opus-4-5-20251101-v1:0 [release_date,last_updated]
+  ~ amazon-bedrock/anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/au.anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/deepseek.r1-v1:0 [status]
+  ~ amazon-bedrock/deepseek.v3-v1:0 [status]
+  ~ amazon-bedrock/eu.anthropic.claude-opus-4-5-20251101-v1:0 [release_date,last_updated]
+  ~ amazon-bedrock/eu.anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/global.anthropic.claude-opus-4-5-20251101-v1:0 [release_date,last_updated]
+  ~ amazon-bedrock/global.anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/global.moonshotai.kimi-k3 [limit]
+  ~ amazon-bedrock/google.gemma-3-12b-it [status]
+  ~ amazon-bedrock/google.gemma-3-27b-it [status,limit]
+  ~ amazon-bedrock/google.gemma-3-4b-it [status]
+  ~ amazon-bedrock/jp.anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/meta.llama3-1-70b-instruct-v1:0 [status]
+  ~ amazon-bedrock/meta.llama3-1-8b-instruct-v1:0 [status]
+  ~ amazon-bedrock/meta.llama3-3-70b-instruct-v1:0 [status]
+  ~ amazon-bedrock/meta.llama4-maverick-17b-instruct-v1:0 [status]
+  ~ amazon-bedrock/meta.llama4-scout-17b-instruct-v1:0 [status]
+  ~ amazon-bedrock/minimax.minimax-m2 [status]
+  ~ amazon-bedrock/minimax.minimax-m2.1 [status,limit]
+  ~ amazon-bedrock/mistral.devstral-2-123b [status,limit]
+  ~ amazon-bedrock/mistral.mistral-large-3-675b-instruct [limit]
+  ~ amazon-bedrock/mistral.voxtral-mini-3b-2507 [status]
+  ~ amazon-bedrock/mistral.voxtral-small-24b-2507 [status]
+  ~ amazon-bedrock/moonshot.kimi-k2-thinking [status,limit]
+  ~ amazon-bedrock/moonshotai.kimi-k2.5 [limit]
+  ~ amazon-bedrock/nvidia.nemotron-nano-12b-v2 [status,limit]
+  ~ amazon-bedrock/nvidia.nemotron-nano-9b-v2 [status]
+  ~ amazon-bedrock/openai.gpt-5.4 [limit]
+  ~ amazon-bedrock/openai.gpt-5.5 [limit]
+  ~ amazon-bedrock/openai.gpt-oss-120b [limit]
+  ~ amazon-bedrock/openai.gpt-oss-120b-1:0 [limit]
+  ~ amazon-bedrock/openai.gpt-oss-20b [limit]
+  ~ amazon-bedrock/openai.gpt-oss-20b-1:0 [limit]
+  ~ amazon-bedrock/qwen.qwen3-32b-v1:0 [release_date]
+  ~ amazon-bedrock/qwen.qwen3-coder-30b-a3b-v1:0 [status]
+  ~ amazon-bedrock/qwen.qwen3-coder-480b-a35b-v1:0 [status]
+  ~ amazon-bedrock/us.anthropic.claude-opus-4-5-20251101-v1:0 [release_date,last_updated]
+  ~ amazon-bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0 [status]
+  ~ amazon-bedrock/us.deepseek.r1-v1:0 [status]
+  ~ amazon-bedrock/us.meta.llama3-1-70b-instruct-v1:0 [status]
+  ~ amazon-bedrock/us.meta.llama3-1-8b-instruct-v1:0 [status]
+  ~ amazon-bedrock/us.meta.llama3-3-70b-instruct-v1:0 [status]
+  ~ amazon-bedrock/us.meta.llama4-maverick-17b-instruct-v1:0 [status]
+  ~ amazon-bedrock/us.meta.llama4-scout-17b-instruct-v1:0 [status]
+  ~ amazon-bedrock/us.moonshotai.kimi-k3 [limit]
+  ~ amazon-bedrock/us.writer.palmyra-x4-v1:0 [status]
+  ~ amazon-bedrock/us.writer.palmyra-x5-v1:0 [status]
+  ~ amazon-bedrock/writer.palmyra-x4-v1:0 [status]
+  ~ amazon-bedrock/writer.palmyra-x5-v1:0 [status]
+  ~ amazon-bedrock/zai.glm-4.7 [status,limit]
+  ~ amazon-bedrock/zai.glm-4.7-flash [status,limit]
+  ~ anthropic/claude-sonnet-4-5 [limit]
+  ~ anthropic/claude-sonnet-4-5-20250929 [limit]
+  ~ azure/deepseek-v4-flash [tool_call]
+  ~ azure/deepseek-v4-pro [tool_call]
+  ~ azure/gpt-3.5-turbo-0125 [limit]
+  ~ azure/gpt-3.5-turbo-1106 [limit]
+  ~ azure/gpt-5 [cost]
+
+=== 移除模型（前 60） ===
+  - azure/claude-opus-4-1
+  - azure/deepseek-r1
+  - cohere/c4ai-aya-expanse-8b
+  - cohere/c4ai-aya-vision-8b
+  - fireworks-ai/accounts/fireworks/models/deepseek-v4-flash-0731
+  - fireworks-ai/accounts/fireworks/models/deepseek-v4-flash-vision-exp
+  - fireworks-ai/accounts/fireworks/models/deepseek-v4-pro
+  - fireworks-ai/accounts/fireworks/models/deepseek-v4-pro-0813
+  - fireworks-ai/accounts/fireworks/models/glm-5p2
+  - fireworks-ai/accounts/fireworks/models/kimi-k2p6
+  - fireworks-ai/accounts/fireworks/models/kimi-k2p7-code
+  - fireworks-ai/accounts/fireworks/models/minimax-m2p7
+  - fireworks-ai/accounts/fireworks/models/muse-glimmer-30b
+  - fireworks-ai/accounts/fireworks/models/qwen3p7-plus
+  - fireworks-ai/accounts/fireworks/routers/deepseek-pro-latest
+  - fireworks-ai/accounts/fireworks/routers/glm-5p2-fast
+  - google/gemini-3-pro-image-preview
+  - google/gemini-3.1-flash-image-preview
+  - google/veo-3.1-fast-generate-preview
+  - google/veo-3.1-generate-preview
+  - google/veo-3.1-lite-generate-preview
+  - groq/groq/compound
+  - groq/groq/compound-mini
+  - huggingface/Qwen/Qwen3-Next-80B-A3B-Thinking
+  - huggingface/XiaomiMiMo/MiMo-V2-Flash
+  - huggingface/zai-org/GLM-4.5
+  - mistral/devstral-medium-2507
+  - mistral/devstral-small-2505
+  - mistral/devstral-small-2507
+  - mistral/magistral-small
+  - mistral/mistral-large-2411
+  - mistral/mistral-nemo
+  - mistral/open-mistral-7b
+  - mistral/open-mixtral-8x22b
+  - mistral/open-mixtral-8x7b
+  - mistral/pixtral-large-latest
+  - nvidia/abacusai/dracarys-llama-3.1-70b-instruct
+  - nvidia/baai/bge-m3
+  - nvidia/bytedance/seed-oss-36b-instruct
+  - nvidia/deepseek-ai/deepseek-v4-flash
+  - nvidia/deepseek-ai/deepseek-v4-flash-0731
+  - nvidia/deepseek-ai/deepseek-v4-pro
+  - nvidia/deepseek-ai/deepseek-v4-pro-0813
+  - nvidia/google/gemma-2-2b-it
+  - nvidia/google/gemma-3n-e2b-it
+  - nvidia/google/gemma-3n-e4b-it
+  - nvidia/meta/esm2-650m
+  - nvidia/meta/esmfold
+  - nvidia/meta/llama-3.1-70b-instruct
+  - nvidia/meta/llama-3.1-8b-instruct
+  - nvidia/meta/llama-3.2-1b-instruct
+  - nvidia/meta/llama-3.2-3b-instruct
+  - nvidia/meta/llama-3.3-70b-instruct
+  - nvidia/meta/llama-4-maverick-17b-128e-instruct
+  - nvidia/microsoft/phi-4-mini-instruct
+  - nvidia/microsoft/phi-4-multimodal-instruct
+  - nvidia/minimaxai/minimax-m2.7
+  - nvidia/minimaxai/minimax-m3
+  - nvidia/mistralai/ministral-14b-instruct-2512
+  - nvidia/mistralai/mistral-large-3-675b-instruct-2512
