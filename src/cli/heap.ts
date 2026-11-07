@@ -1,4 +1,4 @@
-import { readdirSync, rmSync } from "node:fs"
+import { readdir, rm } from "node:fs/promises"
 import path from "path"
 import { writeHeapSnapshot } from "node:v8"
 import { Flag } from "@gyccode/core/flag/flag"
@@ -10,6 +10,9 @@ const LIMIT = 1024 * 1024 * 1024 // 1 GiB 常驻基线：超过即记录堆快�
 let timer: Timer | undefined
 let lock = false
 let armed = true
+// 内存计数器：已知的本进程快照文件数。仅在计数器 > 1 时才扫描目录清理旧快照，
+// 避免每分钟都 readdir 整个日志目录。
+let snapshotCount = 0
 
 export function start() {
   if (!Flag.GYCCODE_AUTO_HEAP_SNAPSHOT) return
@@ -35,16 +38,27 @@ export function start() {
     )
     // 快照保留上限：写新快照前清理旧快照，连同新写的最多保留 2 个，
     // 防止长跑进程多次触发后 GB 级 .heapsnapshot 累积写满磁盘。
-    try {
-      const stale = readdirSync(Global.Path.log)
-        .filter((name) => name.startsWith(`heap-${process.pid}-`) && name.endsWith(".heapsnapshot"))
-        .sort()
-      for (const name of stale.slice(0, Math.max(0, stale.length - 1))) {
-        rmSync(path.join(Global.Path.log, name), { force: true })
+    // 仅在已知有多个快照文件时才扫描目录，避免每分钟无谓 readdir。
+    if (snapshotCount > 1) {
+      try {
+        const stale = await readdir(Global.Path.log)
+          .then((names) =>
+            names
+              .filter(
+                (name) =>
+                  name.startsWith(`heap-${process.pid}-`) && name.endsWith(".heapsnapshot")
+              )
+              .sort()
+          )
+        for (const name of stale.slice(0, Math.max(0, stale.length - 1))) {
+          await rm(path.join(Global.Path.log, name), { force: true })
+        }
+        snapshotCount = Math.max(1, stale.length - (stale.length - 1))
+      } catch {
+        // 旧快照清理失败不阻断本次快照写入，忽略
       }
-    } catch {
-      // 旧快照清理失败不阻断本次快照写入，忽略
     }
+    snapshotCount += 1
     await Promise.resolve()
       .then(() => writeHeapSnapshot(file))
       .catch((error) => logError("cli.heap", error, { file }))

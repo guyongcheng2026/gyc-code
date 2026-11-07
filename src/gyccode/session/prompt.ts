@@ -268,7 +268,7 @@ const layer = Layer.effect(
     })
 
     const cancel = Effect.fn("SessionPrompt.cancel")(function* (sessionID: SessionID) {
-      yield* Effect.logInfo("cancel", { "session.id": sessionID })
+      yield* Effect.logDebug("cancel", { "session.id": sessionID })
       yield* state.cancel(sessionID)
     })
 
@@ -1371,7 +1371,7 @@ const layer = Layer.effect(
             const { action } = checkTokenBudget(budget)
             if (action === "continue") {
               budget.continuations += 1
-              yield* Effect.logInfo("token budget continuation", {
+              yield* Effect.logDebug("token budget continuation", {
                 "session.id": sessionID,
                 budget: budget.budget,
                 used: budget.used,
@@ -1483,7 +1483,7 @@ const layer = Layer.effect(
                 )
               }).pipe(Effect.forkIn(scope))
             }
-            yield* Effect.logInfo("exiting loop", { "session.id": sessionID })
+            yield* Effect.logDebug("exiting loop", { "session.id": sessionID })
             break
           }
 
@@ -1565,7 +1565,7 @@ const layer = Layer.effect(
                   maxMemories: cfg?.max_memories ?? 5,
                 },
               })
-              yield* Effect.logInfo("memory extraction complete", { "session.id": sessionID, count: result.length })
+              yield* Effect.logDebug("memory extraction complete", { "session.id": sessionID, count: result.length })
               // Compact the memory file after extraction: dedup normalized
               // content and enforce the entry cap so the file does not grow
               // unboundedly. Failures are swallowed (best-effort maintenance).
@@ -1625,7 +1625,7 @@ const layer = Layer.effect(
             }).pipe(
               Effect.catch(() =>
                 Effect.sync(() => recordExtractionFailure(sessionID)).pipe(
-                  Effect.andThen(Effect.logInfo("memory extraction failed; backing off", { "session.id": sessionID })),
+                  Effect.andThen(Effect.logDebug("memory extraction failed; backing off", { "session.id": sessionID })),
                 ),
               ),
               Effect.forkIn(scope),
@@ -1951,7 +1951,7 @@ const layer = Layer.effect(
             const react = goal.bumpReact(sessionID)
             const action = Goal.decideGoalAction(goal.get(sessionID))
             if (action.kind !== "continue") {
-              yield* Effect.logInfo("goal converged", {
+              yield* Effect.logDebug("goal converged", {
                 "session.id": sessionID,
                 kind: action.kind,
                 react,
@@ -1985,7 +1985,7 @@ const layer = Layer.effect(
     })
 
     const command = Effect.fn("SessionPrompt.command")(function* (input: CommandInput) {
-      yield* Effect.logInfo("command", {
+      yield* Effect.logDebug("command", {
         "session.id": input.sessionID,
         command: input.command,
         agent: input.agent,
@@ -2190,7 +2190,7 @@ const layer = Layer.effect(
               parts: [{ type: "text", text: promptText }],
             })
             yield* cronScheduler.markFired(task.id)
-            yield* Effect.logInfo("cron task fired", { id: task.id })
+            yield* Effect.logDebug("cron task fired", { id: task.id })
           }).pipe(
             Effect.catchCause((cause: Cause.Cause<unknown>) =>
               Effect.logError("cron task fire failed, will retry next tick", {

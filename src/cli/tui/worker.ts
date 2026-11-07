@@ -26,7 +26,7 @@ const logWorkerCrash = (() => {
     const now = Date.now()
     if (now - last < 5_000) return
     last = now
-    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : String(error)
+    const detail = error instanceof Error ? error.message : String(error)
     void mkdir(Global.Path.log, { recursive: true })
       .then(() =>
         appendFile(
@@ -115,6 +115,19 @@ const LAZY_MODULES: Record<string, () => Promise<unknown>> = {
 const modCache = new Map<string, Promise<unknown>>()
 const MOD_CACHE_TTL = 5 * 60 * 1000 // 5分钟
 const modCacheTimestamps = new Map<string, number>()
+
+// 独立的过期缓存清理定时器：不依赖 importMod 调用，避免长期不调用时
+// 过期条目常驻内存。unref 确保不拖住进程退出。
+const modCacheCleanupTimer = setInterval(() => {
+  const now = Date.now()
+  for (const [key, timestamp] of modCacheTimestamps.entries()) {
+    if (now - timestamp > MOD_CACHE_TTL) {
+      modCache.delete(key)
+      modCacheTimestamps.delete(key)
+    }
+  }
+}, MOD_CACHE_TTL)
+modCacheCleanupTimer.unref?.()
 function importMod<T>(spec: string): Promise<T> {
   const loader = LAZY_MODULES[spec]
   if (!loader) return Promise.reject(new Error(`未知的懒加载模块：${spec}`))
@@ -160,8 +173,12 @@ async function ensureWarmInstance(): Promise<void> {
   return prewarmPromise
 }
 
+// server 操作互斥锁：避免并发调用 server() 时出现检查-then-赋值竞态，
+// 导致多个 HTTP Server 实例被启动、旧实例引用被覆盖而无法 stop。
+let serverLock = Promise.resolve()
+
 export const rpc = {
-  async fetch(input: { url: string; method: string; headers: Record<string, string>; body?: string }) {
+  async fetch(input: { url: string; method: string; headers: Record<string, string>; body?: string }, { signal }: { signal: AbortSignal }) {
     if (firstFetch) {
       firstFetch = false
       tuiTiming("worker first fetch (instance cold path)")
@@ -194,11 +211,13 @@ export const rpc = {
       }
     } catch (error) {
       // 失败时返回错误响应，而不让异常通过 listen 向上冒泡，
-      // 避免调用方因 worker 挂起而无限等待
+      // 避免调用方因 worker 挂起而无限等待；错误详情只落日志，body 脱敏，
+      // 避免把堆栈/路径等底层信息暴露给调用方。
+      logWorkerCrash("rpc.fetch", error)
       return {
         status: 500,
         headers: {},
-        body: error instanceof Error ? error.message : String(error),
+        body: "rpc.fetch 失败",
       }
     }
   },
@@ -206,19 +225,26 @@ export const rpc = {
     const result = writeHeapSnapshot("server.heapsnapshot")
     return result
   },
-  async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }) {
-    const { Server } = await importMod<typeof import("@/server/server")>("@/server/server")
-    if (server) await server.stop(true)
-    server = await Server.listen(input)
-    return { url: server.url.toString() }
+  async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }, _ctx: { signal: AbortSignal }) {
+    let unlock!: () => void
+    serverLock = serverLock.then(() => new Promise<void>((resolve) => { unlock = resolve }))
+    await serverLock
+    try {
+      const { Server } = await importMod<typeof import("@/server/server")>("@/server/server")
+      if (server) await server.stop(true)
+      server = await Server.listen(input)
+      return { url: server.url.toString() }
+    } finally {
+      unlock()
+    }
   },
-  async checkUpgrade(input: { directory: string }) {
+  async checkUpgrade(input: { directory: string }, _ctx: { signal: AbortSignal }) {
     await ensureWarmInstance()
     const { upgrade } = await importMod<typeof import("../upgrade")>("../upgrade")
     // 后台检查升级失败不影响当前会话，忽略（v1.19.3：改为返回结果，调用方可观测）
     return upgrade().catch(() => undefined)
   },
-  async reload() {
+  async reload(_input: undefined, _ctx: { signal: AbortSignal }) {
     const { AppRuntime } = await importMod<typeof import("@/effect/app-runtime")>("@/effect/app-runtime")
     const { Config } = await importMod<typeof import("@/config/config")>("@/config/config")
     const { disposeAllInstancesAndEmitGlobalDisposed } = await importMod<
@@ -232,7 +258,7 @@ export const rpc = {
       }),
     )
   },
-  async shutdown() {
+  async shutdown(_input: undefined, _ctx: { signal: AbortSignal }) {
     const { InstanceRuntime } = await importMod<typeof import("@/project/instance-runtime")>(
       "@/project/instance-runtime",
     )
@@ -258,10 +284,14 @@ tuiTiming("worker rpc listening")
 // 显著下降，instance 改为首次 rpc.fetch 时惰性加载，避免 V8 OOM 崩溃。
 const LOW_MEM_PREWARM_CUTOFF = 1536 * 1024 * 1024
 if (os.freemem() > LOW_MEM_PREWARM_CUTOFF) {
-  void ensureWarmInstance()
+  // 模块加载即并行预加载高频模块，不等首个 rpc.fetch，缩短冷启动延迟。
+  // InstanceStore.load 对同 directory 幂等，并发调用复用同一 Deferred，天然去重。
+  void Promise.all([
+    ensureWarmInstance(),
+    importMod<typeof import("@/server/server")>("@/server/server"),
+    importMod<typeof import("@/server/auth")>("@/server/auth"),
+  ])
     .then(() => tuiTiming("instance warm (APIs ready)"))
-    // 预热失败不影响首次请求时再初始化，忽略
-    .catch(() => {
-      // 预热属性能优化：失败时首次请求会走正常初始化路径
-    })
+    // 预热属性能优化：失败时首次请求会走正常初始化路径（符合允许忽略的“纯性能优化”例外）
+    .catch(() => { /* pre-warm failure OK */ })
 }

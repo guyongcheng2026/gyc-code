@@ -536,7 +536,7 @@ const layer = Layer.effect(
           keepRecent: tbm?.keep_recent ?? 5,
         })
         if (tSelected.length > 0) {
-          yield* Effect.logInfo("microcompacting (time-based)", {
+          yield* Effect.logDebug("microcompacting (time-based)", {
             "session.id": input.sessionID,
             count: tSelected.length,
           })
@@ -549,7 +549,7 @@ const layer = Layer.effect(
       const limit = usable({ cfg, model: input.model, outputTokenMax: resolveOutputTokenMax(flags, cfg) })
       const selected = limit > 0 ? selectMicrocompactParts(msgs, used, limit) : []
       if (selected.length > 0) {
-        yield* Effect.logInfo("microcompacting", {
+        yield* Effect.logDebug("microcompacting", {
           "session.id": input.sessionID,
           count: selected.length,
           usage: Math.round((used / limit) * 100),
@@ -613,7 +613,7 @@ const layer = Layer.effect(
       if (input.pivot) {
         const selected = pivotTail(input.messages, input.pivot)
         if (selected) return selected
-        yield* Effect.logInfo("compaction: pivot fallback to tail-turns", { "pivot.id": input.pivot })
+        yield* Effect.logDebug("compaction: pivot fallback to tail-turns", { "pivot.id": input.pivot })
       }
       const limit = input.cfg.compaction?.tail_turns ?? DEFAULT_TAIL_TURNS
       if (limit <= 0) return { head: input.messages, tail_start_id: undefined }
@@ -653,7 +653,7 @@ const layer = Layer.effect(
         })
         if (split) keep = split
         else if (!keep) {
-          yield* Effect.logInfo("tail fallback", { budget, size, total })
+          yield* Effect.logDebug("tail fallback", { budget, size, total })
         }
         break
       }
@@ -787,7 +787,7 @@ const layer = Layer.effect(
         const memories = yield* Effect.promise(() => readMemories())
         fastPathSummary = buildMemorySummary(memories, previousSummary)
         if (fastPathSummary) {
-          yield* Effect.logInfo("compaction: using session-memory fast path", {
+          yield* Effect.logDebug("compaction: using session-memory fast path", {
             "session.id": input.sessionID,
             memories: memories.length,
           })
@@ -981,7 +981,7 @@ const layer = Layer.effect(
         // context (this previously only logged "cache invalidated" without
         // touching the actual session cache).
         MessageV2.resetTruncationDecisions()
-        yield* Effect.logInfo("compaction: truncation cache cleared", { sessionID: input.sessionID })
+        yield* Effect.logDebug("compaction: truncation cache cleared", { sessionID: input.sessionID })
         yield* events.publish(Event.Compacted, { sessionID: input.sessionID })
       }
       return result

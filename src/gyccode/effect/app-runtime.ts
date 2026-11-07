@@ -188,7 +188,9 @@ type Runtime = Pick<typeof rt, "runSync" | "runPromise" | "runPromiseExit" | "ru
 // 「Database.Service 已就绪的运行时」与「进程级入口」的地方；core 层因此完全
 // 不需要知道数据库的存在（未注入时 logError 行为与改动前一致）。
 setErrorAuditSink((record) => {
-  void rt.runPromise(writeErrorAudit(record as never))
+  rt.runPromise(writeErrorAudit(record as never)).catch(() => {
+    // 审计写失败不拖挂主流程，错误已由 writeErrorAudit 内部 catchCause 兜底
+  })
 })
 
 /** Services provided by AppRuntime — i.e. what an Effect run via AppRuntime.runPromise can yield. */

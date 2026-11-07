@@ -442,7 +442,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
         const restore = Effect.fnUntraced(function* (snapshot: string) {
           return yield* locked(
             Effect.gen(function* () {
-              yield* Effect.logInfo("restore", { commit: snapshot })
+              yield* Effect.logDebug("restore", { commit: snapshot })
               // read-tree/checkout-index 会改写 git 索引，缓存的 tree hash 失效
               lastTreeHash = undefined
               const result = yield* git([...core, ...args(["read-tree", snapshot])], { cwd: state.worktree })
@@ -663,7 +663,7 @@ const layer: Layer.Layer<Service, never, FSUtil.Service | AppProcess.Service | C
                 })
                 return undefined
               }
-              yield* Effect.logInfo("committed", { hash: commitHash, parent, tree: treeHash })
+              yield* Effect.logDebug("committed", { hash: commitHash, parent, tree: treeHash })
               return commitHash
             }),
           )

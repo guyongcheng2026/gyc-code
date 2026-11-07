@@ -28,6 +28,8 @@ export type BackgroundJob = {
 const FINISHED_TTL = 30 * 60 * 1000
 /** 同时保留的任务条数上限，优先淘汰已结束的。 */
 const RETAIN_LIMIT = 32
+/** 硬上限：无论是否运行中，任务总数不得超过此值，防止无限累积。 */
+const MAX_JOBS = 128
 
 const jobs = new Map<string, BackgroundJob>()
 
@@ -60,6 +62,9 @@ export function start(input: {
   env: NodeJS.ProcessEnv
 }) {
   sweep()
+  if (jobs.size >= MAX_JOBS) {
+    throw new Error(`background job limit reached (${MAX_JOBS}), refusing new task`)
+  }
   const id = randomUUID()
   const outputPath = path.join(dir(), `${id}.log`)
   // Windows 上 PowerShell 遇 DETACHED_PROCESS 会直接退出且不吐任何输出

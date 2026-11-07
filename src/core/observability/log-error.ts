@@ -6,7 +6,7 @@
  * 失败"。这里固定 scope 前缀并支持透传结构化字段，新增调用点一律走它。
  *
  * R-4：logWarn 此前只 console.warn、不落库，告警事后完全无法审计。现已与 logError
- * 共用 dispatchErrorAudit，级别承载方式见下面 LEVEL_FIELD 的说明。
+ * 共用 dispatchErrorAudit，级别作为单独字段传递（不再寄生在 fields 里）。
  */
 
 import type { SessionID } from "@gyccode/schema/session-id"
@@ -14,14 +14,6 @@ import { dispatchErrorAudit } from "./error-audit"
 
 const format = (error: unknown): string =>
   error instanceof Error ? (error.stack ?? error.message) : String(error)
-
-/**
- * 级别标记的字段名（保留常量用于兼容性）。
- *
- * error_audit 表现在已有专用 `level` 列（'error' | 'warn' | 'info'），
- * 不再需要寄生在 fields 里。保留此常量供旧代码引用。
- */
-const LEVEL_FIELD = "level"
 
 /**
  * 从 fields 里挑出 session 维度。落库表需要它做聚合，但绝大多数调用点本来就没有

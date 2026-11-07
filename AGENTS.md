@@ -1,19 +1,16 @@
 # gyc-code
 
-自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。仓库在 `D:\00MyAI\gyc-code`；主开发环境 Windows / PowerShell 5.1。
+自研编码智能体 CLI（Bun + TypeScript + effect v4 beta + OpenTUI）。工作区 `C:\gyc-code`，主开发环境 Windows / PowerShell 5.1。
 
 ## 铁律（永久，优先于默认行为）
 
 - **称呼**：所有「用户」表述一律写作「谷总」，禁止“用户”一词。适用于对话回复、提交信息、代码注释、文档、计划、报告、子代理提示词。
-- **界面、会话窗口、回复、日志、提示、错误信息等显示内容一律简体中文**（TUI/CLI 主界面）。代码标识符、命令名、路径除外。
-- **任务收尾 4 步**（子任务/会话结束、commit 前自检，缺失即未完成）：① 总结 ② 归纳 ③ 学习（沉淀 docs/记忆/SKILL）④ 进化（可改进项立即落地或记待办）。
-- **编码**：新文件 UTF-8 无 BOM；既有文件保留原 BOM；GBK 存量按 GB18030 兼容读。乱码防线在 pre-commit 阶段拦（检查对象是 **git index 快照**，不是工作区），勿绕过。
-- **不编造**：不得凭空断言 API、CLI 参数、包版本、文件路径、行号或验证结论。无法核实的一律写明「未核实」，不用「应该/理论上」代替证据。源码结论一律带 `file:line`。
-- **风险相称的验证**：改动后只跑与改动范围相称的验证（单文件测试 → `bun run typecheck` → `bun run test`）。无法验证时说明原因并说明未覆盖部分，**不得声称「已验证」**。禁止为让测试变绿而删断言或放宽容错。
+- **语言**：界面、会话窗口、回复、日志、提示、错误信息等显示内容一律简体中文（TUI/CLI 主界面）。代码标识符、命令名、路径除外。
+- **任务收尾 4 步**：子任务/会话结束、commit 前自检，缺失即未完成：① 总结 ② 归纳 ③ 学习（沉淀 docs/记忆/SKILL）④ 进化（可改进项立即落地或记待办）。
+- **不编造**：不得凭空断言 API、CLI 参数、包版本、文件路径、行号或验证结论。无法核实的一律写明「未核实」。源码结论一律带 `file:line`。
+- **风险相称的验证**：改动后只跑与改动范围相称的验证（单文件测试 → `bun run typecheck` → `bun run test`）。无法验证时说明原因，**不得声称「已验证」**。禁止为让测试变绿而删断言或放宽容错。
 - **行动前确认**：跨模块、公共接口、数据库结构、依赖增删、破坏性操作先说清影响面再动手。高危操作（递归删除、清空目录、`git` 历史改写、删分支、`stash pop`）执行前列出确切路径或对象，等谷总确认。
 - **只动被授权的文件**：除任务明确点名的目标外，其余文件与目录保持原样。不做无关清理、不做猜测性重构、不顺手改格式。
-
-9. **数据存储文件准则**：会话库 / 日志 / 归档 / 导出物 / 缓存必须同时满足简洁、高效、高价值、安全、可审计；审计记录只裁剪冗余字段（如超长 stack/fields）而不整条删除；删除历史数据前必须先备份、再导出到可检索归档并验证完整性；取舍冲突时按「简洁 > 高价值 > 可审计 > 安全 > 高效」排序。
 
 ## 编码准则（防过度设计与幻觉）
 
@@ -26,7 +23,7 @@
 
 ## 错误处理
 
-- 禁止空 `catch` 块与空拒绝处理（`catch` 后直接跟空花括号）静默吞错。必须落 `logError(scope, error, fields?)` / `logWarn(scope, message, fields?)`（`src/core/observability/log-error.ts`）并带上可定位字段（会话维度用 `"session.id"`）。自动防线：`scripts/check-bug-patterns.mjs` 于 pre-commit 拦截暂存的 TS 文件。
+- 禁止空 `catch` 块与空拒绝处理静默吞错。必须落 `logError(scope, error, fields?)` / `logWarn(scope, message, fields?)`（`src/core/observability/log-error.ts`）并带上可定位字段（会话维度用 `"session.id"`）。自动防线：`scripts/check-bug-patterns.mjs` 于 pre-commit 拦截暂存的 TS 文件。
 - 仅两类例外，且必须就近写明为何可忽略：① 纯诊断旁路（堆快照、日志自写失败）② 面向谷总的错误路径已有独立兜底。
 - 崩溃路径必须先恢复终端再退出，避免残留 ANSI 乱码。
 
@@ -35,7 +32,7 @@
 - 开发（源码直跑）：`bun run dev`；类型检查：`bun run typecheck`（= `tsc --noEmit -p tsconfig.json`，与 CI 同款；根 tsconfig 已 `exclude: src/webapp`，webapp 单独 `cd src/webapp && bun run typecheck`）
 - 测试：`bun run test`（= `bun test --preload ./scripts/bun-solid-preload.ts --path-ignore-patterns=src/webapp`）；单文件同命令带路径。勿裸跑 `bun test`：bunfig 的 `exclude` 对自动发现不生效，会扫入 `src/webapp` 产生 jsdom 假失败。webapp 是 vitest：`bun run test:web`
 - 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
-- 体检：`bun run health`（只读健康快照：any/console.log 等静态统计）；`bun run health:full` 附加全量测试
+- 体检：`bun run health`（只读健康快照）；`bun run health:full` 附加全量测试
 - **标准验证顺序**：`bun run typecheck` → `bun run test`；对外发布再 `bun run build`。
 - 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。CI：`.github/workflows/ci.yml` 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一链再推。
 
@@ -49,7 +46,7 @@
 - `src/gyccode/server/generated/gyc-web-ui.gen.ts` ← `scripts/build-webapp.mjs`
 - `src/gyccode/command-registry.ts` ← `bun run scripts/generate-command-registry.ts`；**增删 `src/cli/cmd/*.ts` 后必须重生**
 - `cli-integration.test.ts` 经 `src/gyccode/test-harness.ts` 的 `spawnCLI` 以 `GYCCODE_PURE=1` 直跑源码入口 `src/gyccode/index.ts`，yargs 输出兼容中英文 locale，勿硬编码单语
-- **node_modules/@opentui 是被打过补丁的**（postinstall 跑 `scripts/apply-opentui-*.cjs` 四个补丁）。升级 `@opentui/*` 后必跑 `node scripts/verify-opentui-patches.cjs`，WARN 即锚点已随上游失配，详见 `docs/AGENTS-REFERENCES.md`。**`@opentui/core-win32-x64` 报 `Cannot find module .../index.js` = bun 解包残缺**（2026-10-07 实测官方 14 个文件只落 4 个，删除重装同样残缺），postinstall 的 `scripts/repair-opentui-platform.cjs` 会自动从 tarball 补齐，勿盲目重装依赖
+- **node_modules/@opentui 是被打过补丁的**（postinstall 跑 `scripts/apply-opentui-*.cjs` 四个补丁）。升级 `@opentui/*` 后必跑 `node scripts/verify-opentui-patches.cjs`，WARN 即锚点已随上游失配。`@opentui/core-win32-x64` 报 `Cannot find module .../index.js` = bun 解包残缺，postinstall 的 `scripts/repair-opentui-platform.cjs` 会自动补齐，勿盲目重装依赖
 - **禁改清单**：一切 `*.gen.ts`、构建产物目录（`dist/`、`dist.tmp/`、`src/webapp/dist/`）、锁文件（`bun.lock`）。需要变更时改**源**并重生，不直接编辑产物。
 - **禁硬编码敏感信息**：API Key、令牌、密码、内网地址一律走环境变量（`GYCCODE_*` 约定）或配置，不入源码、不入日志、不入提交。
 
@@ -68,7 +65,7 @@
 - **SemVer 三段式**：`MAJOR.MINOR.PATCH`（如 `1.0.0`）。MAJOR=架构级重构/协议不兼容；MINOR=新功能/新 provider/新技能；PATCH=bug 修复/性能调优/文档。
 - **单一事实源**：`package.json` 的 `version` 字段。`build.mjs` 构建期注入 `GYCCODE_VERSION`；源码 `src/core/installation/version.ts` 的 fallback 须与之一致。
 - **Channel**：`GYCCODE_CHANNEL` 环境变量（默认 `local`），取值 `stable`/`dev`/`next`/`snapshot-<feature>`/`local`。非正式版用 `0.0.0-<channel>-<timestamp>` 占位，不占 SemVer 序列。
-- **发布即打 tag**：git tag 命名 `v<MAJOR>.<MINOR>.<PATCH>`，禁用阶段名 tag（如 `v1.0.0-phase8-completed`、`pre-full-replacement-baseline`）。历史阶段名 tag 保留归档不删。
+- **发布即打 tag**：git tag 命名 `v<MAJOR>.<MINOR>.<PATCH>`，禁用阶段名 tag。历史阶段名 tag 保留归档不删。
 - **CHANGELOG**：每次 release 在 `CHANGELOG.md` 追加条目，按「新增/修复/变更」分组。
 
 ## 工作流同步约定
@@ -79,13 +76,13 @@
 4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本内中文路径用 `\uXXXX` 转义。
 5. 人工工作记录笔记放 Obsidian 同目录（前缀 `gyc-code-`），提交推送 vault。
 6. **规则分层**：全局偏好写在 gyccode 用户级配置，项目技术栈约定写在本文件与就近的 `AGENTS.md`；越靠近目标目录优先级越高。一次性任务约束不写进本文件。
-7. **本文件的自我精简**：新增规则须来自真实踩坑（能指出具体哪次返工），且优先替换旧句而非叠加。已被 lint / 钩子 / 类型检查自动拦截的事项不再手写规则（当前自动防线：`check-mojibake` 乱码、`brand-guard` 品牌词、`workspace-junk` 残留、`check-bug-patterns` 空 catch 与空壳递归、pre-commit typecheck）。规则总数超过 ~40 条时应回头删冗余。
+7. **本文件的自我精简**：新增规则须来自真实踩坑（能指出具体哪次返工），且优先替换旧句而非叠加。已被 lint / 钩子 / 类型检查自动拦截的事项不再手写规则。规则总数超过 ~40 条时应回头删冗余。
 
 ## Windows / PowerShell 操作禁忌
 
 - **含中文的文件一律用 Edit/Write 工具改，禁用 `Get-Content`+`Set-Content` 批量改写**：PowerShell 会按 GBK 误解码中文并吞行尾字节，实测在 `src/tui/routes/session/index.tsx` 上产生数十个 `TS1002`，需 `git checkout --` 回滚重做。
 - 终端回显中文乱码通常是控制台码页问题，**不代表文件损坏**；判断依据是 `git diff` 能否正常解析。
-- **GitHub 直连与代理两条通道都间歇可用**（2026-10-15 复核：此前「设了 `NO_PROXY=github.com,*.github.com`、直连被拒」的说法已过时，现两级 `NO_PROXY` 均为空）：各自都会偶发 `Connection was reset` / `Failed to connect ... 21s`。**这是环境问题，不能据此判定凭据失效**。推送已由 `scripts/push-gh-proxy.mjs` 做通道回落（代理失败自动改走直连），无需人工干预。
+- **GitHub 直连与代理两条通道都间歇可用**（2026-10-15 复核：现两级 `NO_PROXY` 均为空）：各自都会偶发 `Connection was reset` / `Failed to connect ... 21s`。**这是环境问题，不能据此判定凭据失效**。推送已由 `scripts/push-gh-proxy.mjs` 做通道回落（代理失败自动改走直连），无需人工干预。
 - 每次 shell 调用是独立进程，环境变量不跨调用；设了 `$env:X` 后必须**在同一条命令内**用掉。
 
 ## 操作手册同步（对外可见功能面）

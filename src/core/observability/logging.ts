@@ -40,16 +40,10 @@ export function rotateIfNeeded(file: string): void {
 }
 
 // 周期守护：即使 fileLogger 完全无写入，也保证超限日志在秒级内被轮转。
-//
-// 这里刻意不提供 clear 路径，理由（可复核）：
-// 1. 进程级单例 —— 模块作用域只有一个 interval，且入口有 `if (rotationGuard) return`
-//    守卫，重复调用不会堆积；
-// 2. 已 unref() —— 不持有事件循环，进程退出既不需要清、也不会被它拖住；
-// 3. 不存在「该清理的时机」—— 轮转要求「进程活着就一直生效」，唯一能停的时刻就是
-//    进程退出，而那一刻本就是进程级回收。
-// 2026-10-18 评估：曾按上述预告新增 stopRotationGuard，因全仓零调用方构成死代码而移除；
-// 维持「不提供 clear 路径」的原设计，下方一句保留为将来启停需求的预告。
-// 否则它才会变成真正的泄漏。
+// 进程级单例：模块作用域只有一个 interval，入口有 `if (rotationGuard) return`
+// 守卫，重复调用不会堆积；已 unref()，不持有事件循环，进程退出既不需要
+// 清、也不会被它拖住。不存在「该清理的时机」—— 轮转要求「进程活着就
+// 一直生效」，唯一能停的时刻就是进程退出。
 let rotationGuard: NodeJS.Timeout | undefined
 export function startRotationGuard(file: string): void {
   if (rotationGuard) return
@@ -150,9 +144,8 @@ export function fileLogger(file = path.join(Global.Path.log, "gyccode.log"), id:
     if (pending.length === 0) return
     const chunk = pending.join("")
     pending = []
-    // 同步入队轮转检查（内部按文件节流并串行进 writeQueue），
-    // 保证 rotation 排在本次 append 之前执行。
-    rotateIfNeeded(file)
+    // 轮转由 startRotationGuard 的每 5s 守护定时器负责，drain 内不再
+    // 同步 stat，避免每次 flush 都触发文件系统调用。
     const append = () =>
       appendFile(file, chunk).catch(() => {
         // Never let a logging failure crash the session.
@@ -189,6 +182,10 @@ const stderrLogger = Logger.make((options) => process.stderr.write(formatter().l
 // Debug 不进本 logger，故无递归；Info 热路径日志同样被此过滤挡在库外。
 //
 // effect 4.0 的 `Effect.logError("msg", { field })` 第二参数是 message 数组的后续
+// GYCCODE_AUDIT_DEBUG=1 时，Effect 通道的 Debug 日志也落入 error_audit 表，
+// 用于排查调试场景下的链路盲区。生产环境保持关闭，避免写盘放大。
+const AUDIT_DEBUG = process.env.GYCCODE_AUDIT_DEBUG === "1"
+
 // 元素（见 Logger.formatStructured 的 Array.ensure(message)），Fiber 级 CurrentLogAnnotations
 // 在 Logger.make 的 Options 里拿不到——所以附加字段从 message 数组提取。
 export function toAuditRecord(options: {
@@ -196,7 +193,13 @@ export function toAuditRecord(options: {
   message: unknown
   cause: unknown
 }): ErrorAuditRecord | undefined {
-  if (options.logLevel !== "Error" && options.logLevel !== "Warning") return undefined
+  if (
+    options.logLevel !== "Error" &&
+    options.logLevel !== "Warning" &&
+    !(AUDIT_DEBUG && options.logLevel === "Debug")
+  ) {
+    return undefined
+  }
   const parts = Array.isArray(options.message) ? options.message : [options.message]
   const [head, ...rest] = parts
   let message = typeof head === "string" ? head : JSON.stringify(head)
@@ -211,7 +214,7 @@ export function toAuditRecord(options: {
   return {
     scope: "effect.log",
     message,
-    level: options.logLevel === "Error" ? "error" : "warn",
+    level: options.logLevel === "Error" ? "error" : options.logLevel === "Warning" ? "warn" : "info",
     sessionID: extractSessionID(fields),
     fields,
   }

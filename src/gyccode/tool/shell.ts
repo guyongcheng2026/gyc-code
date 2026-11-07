@@ -714,6 +714,7 @@ export const ShellTool = Tool.define(
         // 无监听器时 Node 会把它升级为 uncaught exception 并终止进程。
         stream.on("error", (error) => {
           sinkError = error instanceof Error ? error : new Error(String(error))
+          stream.destroy()
         })
         return stream
       }

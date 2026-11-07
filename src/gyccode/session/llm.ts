@@ -99,10 +99,10 @@ const live: Layer.Layer<
     // CPU spikes. Extra streams wait for a permit instead of hammering the API.
     const maxStreams = resolveMaxConcurrentStreams(yield* config.get())
     const semaphore = yield* Semaphore.make(maxStreams)
-    yield* Effect.logInfo("llm concurrency limit", { maxStreams })
+    yield* Effect.logDebug("llm concurrency limit", { maxStreams })
 
     const run = Effect.fn("LLM.run")(function* (input: StreamRequest) {
-      yield* Effect.logInfo("stream", {
+      yield* Effect.logDebug("stream", {
         providerID: input.model.providerID,
         modelID: input.model.id,
         "session.id": input.sessionID,
@@ -284,7 +284,7 @@ const live: Layer.Layer<
           abort: input.abort,
         })
         if (native.type === "supported") {
-          yield* Effect.logInfo("llm runtime selected", {
+          yield* Effect.logDebug("llm runtime selected", {
             "llm.runtime": "native",
             "llm.provider": input.model.providerID,
             "llm.model": input.model.id,
@@ -294,13 +294,13 @@ const live: Layer.Layer<
             stream: native.stream,
           }
         }
-        yield* Effect.logInfo("llm runtime selected", {
+        yield* Effect.logDebug("llm runtime selected", {
           "llm.runtime": "ai-sdk",
           "llm.provider": input.model.providerID,
           "llm.model": input.model.id,
           "llm.native_unsupported_reason": native.reason,
         })
-        yield* Effect.logInfo("native runtime unavailable; falling back to ai-sdk", {
+        yield* Effect.logDebug("native runtime unavailable; falling back to ai-sdk", {
           providerID: input.model.providerID,
           modelID: input.model.id,
           "session.id": input.sessionID,
@@ -311,7 +311,7 @@ const live: Layer.Layer<
         })
       }
 
-      yield* Effect.logInfo("llm runtime selected", {
+      yield* Effect.logDebug("llm runtime selected", {
         "llm.runtime": "ai-sdk",
         "llm.provider": input.model.providerID,
         "llm.model": input.model.id,
@@ -420,7 +420,7 @@ const live: Layer.Layer<
             )
             const waitMs = Date.now() - start
             if (waitMs > 200) {
-              yield* Effect.logInfo("llm stream waited for concurrency permit", {
+              yield* Effect.logDebug("llm stream waited for concurrency permit", {
                 "session.id": input.sessionID,
                 waitMs,
               })
@@ -450,7 +450,7 @@ const live: Layer.Layer<
               {
                 startedAt: ttftStartedAt,
                 onSlow: (ttftMs) =>
-                  Effect.logInfo("llm first-token latency is slow", {
+                  Effect.logDebug("llm first-token latency is slow", {
                     "session.id": input.sessionID,
                     ttftMs,
                   }),
