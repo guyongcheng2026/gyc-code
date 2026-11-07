@@ -203,7 +203,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         for (const check of checks) {
           const output = yield* check.command()
           const installedName =
-            check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "gyccode" : "gyccode-ai"
+            check.name === "brew" || check.name === "choco" || check.name === "scoop" ? "gyccode" : "gyc-code"
           if (output.includes(installedName)) {
             return check.name
           }
@@ -236,7 +236,7 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
         if (detectedMethod === "npm" || detectedMethod === "bun" || detectedMethod === "pnpm") {
           const response = yield* httpOk.execute(
             HttpClientRequest.get(
-              `${yield* NpmConfig.registry(process.cwd())}/gyccode-ai/${InstallationChannel}`,
+              `${yield* NpmConfig.registry(process.cwd())}/gyc-code/${InstallationChannel}`,
             ).pipe(HttpClientRequest.acceptJson),
           )
           const data = yield* HttpClientResponse.schemaBodyJson(NpmPackage)(response)
@@ -281,13 +281,13 @@ const layer: Layer.Layer<Service, never, HttpClient.HttpClient | AppProcess.Serv
             upgradeResult = yield* upgradeCurl(target)
             break
           case "npm":
-            upgradeResult = yield* run(["npm", "install", "-g", `gyccode-ai@${target}`])
+            upgradeResult = yield* run(["npm", "install", "-g", `gyc-code@${target}`])
             break
           case "pnpm":
-            upgradeResult = yield* run(["pnpm", "install", "-g", `gyccode-ai@${target}`])
+            upgradeResult = yield* run(["pnpm", "install", "-g", `gyc-code@${target}`])
             break
           case "bun":
-            upgradeResult = yield* run(["bun", "install", "-g", `gyccode-ai@${target}`])
+            upgradeResult = yield* run(["bun", "install", "-g", `gyc-code@${target}`])
             break
           case "brew": {
             const formula = yield* getBrewFormula()

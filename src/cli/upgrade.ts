@@ -1,3 +1,4 @@
+import semver from "semver"
 import { Config } from "@/config/config"
 import { AppRuntime } from "@/effect/app-runtime"
 import { Flag } from "@gyccode/core/flag/flag"
@@ -22,7 +23,11 @@ export async function upgrade() {
     })
   })
   if (!latest) return
-  if (InstallationVersion === latest) return
+  // 仅当上游确实更新才提示：上游 release 可能低于本地版本（当前 GitHub 仅 v0.0.1 < 本地 1.0.0），
+  // 若沿用 `!==` 会把「降级」也当更新，导致每次进主界面都误报「发现新版本 0.0.1」。
+  const latestVer = semver.coerce(latest)
+  const currentVer = semver.coerce(InstallationVersion)
+  if (!latestVer || !currentVer || !semver.gt(latestVer, currentVer)) return
   // 上游 v1.19.3 语义：永不自动安装，只提示 /update。autoupdate: true ≡ "notify"。
   GlobalBus.emit("event", {
     directory: "global",
