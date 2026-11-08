@@ -204,8 +204,9 @@ export function toAuditRecord(options: {
   const [head, ...rest] = parts
   let message = typeof head === "string" ? head : JSON.stringify(head)
   // 空 Cause（reasons 空）不拼接；照 Logger.formatStructured 的判断（dist/Logger.js:523）。
-  if (options.cause !== undefined && (options.cause as { reasons?: unknown[] }).reasons?.length) {
-    message += ` :: ${Cause.pretty(options.cause as Cause.Cause<unknown>)}`
+  if (options.cause !== undefined) {
+    const pretty = Cause.pretty(options.cause as Cause.Cause<unknown>)
+    if (pretty) message += ` :: ${pretty}`
   }
   const restObjects = rest.filter(
     (part): part is Record<string, unknown> => typeof part === "object" && part !== null,
@@ -214,7 +215,7 @@ export function toAuditRecord(options: {
   return {
     scope: "effect.log",
     message,
-    level: options.logLevel === "Error" ? "error" : options.logLevel === "Warning" ? "warn" : "info",
+    level: options.logLevel === "Error" ? "error" : options.logLevel === "Warning" ? "warn" : options.logLevel === "Debug" ? "debug" : "info",
     sessionID: extractSessionID(fields),
     fields,
   }

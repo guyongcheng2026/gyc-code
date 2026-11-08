@@ -10,6 +10,7 @@ import { tuiTiming } from "@gyccode/tui/util/timing"
 import { shouldExitOnUnhandledRejection } from "@gyccode/tui/util/crash-classify"
 import { GlobalBus } from "@/bus/global"
 import type { Listener } from "@/server/server"
+import { dispatchErrorAudit } from "@core/observability/error-audit"
 
 // 尽早关闭 ai-sdk 警告（原 Server 模块顶层设置，改为懒加载后此处前置兜底，
 // 避免加载前 ai-sdk 向 stdout 打日志污染 TUI 渲染）。统一下沉到共享模块。
@@ -27,16 +28,18 @@ const logWorkerCrash = (() => {
     if (now - last < 5_000) return
     last = now
     const detail = error instanceof Error ? error.message : String(error)
+    // 落审计库：worker 崩溃是观测盲区，必须可按 scope/级别聚合
+    dispatchErrorAudit({ scope: `cli.tui.worker.${kind}`, message: detail, level: "error" })
+    // 写文件日志：用 JSON 行格式保证可解析性（detail 可能含空格/等号/换行）
     void mkdir(Global.Path.log, { recursive: true })
       .then(() =>
         appendFile(
           path.join(Global.Path.log, "gyccode.log"),
-          `timestamp=${new Date().toISOString()} level=Error run=worker ${kind} message=${detail}\n`,
+          JSON.stringify({ timestamp: new Date().toISOString(), level: "Error", run: "worker", kind, message: detail }) + "\n",
         ),
       )
-      // 写日志本身失败不能再抛，否则会掩盖原始错误
       .catch(() => {
-        // 纯诊断旁路：已在崩溃处理路径上，再抛会覆盖原始错误现场
+        // 写日志本身失败不能再抛，否则会掩盖原始错误
       })
   }
 })()
@@ -195,14 +198,21 @@ export const rpc = {
       headers,
       body: input.body,
     })
+    if (signal.aborted) return { status: 499, headers: {}, body: "aborted" }
+    const abortPromise = new Promise<{ status: number; headers: Record<string, string>; body: string }>((resolve) => {
+      signal.addEventListener("abort", () => resolve({ status: 499, headers: {}, body: "aborted" }), { once: true })
+    })
     try {
-      const response = await Server.Default().app.fetch(request)
-      const body = await response.text()
-      return {
-        status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-        body,
-      }
+      const fetchPromise = (async () => {
+        const response = await Server.Default().app.fetch(request)
+        const body = await response.text()
+        return {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          body,
+        }
+      })()
+      return await Promise.race([fetchPromise, abortPromise])
     } catch (error) {
       // 失败时返回错误响应，而不让异常通过 listen 向上冒泡，
       // 避免调用方因 worker 挂起而无限等待；错误详情只落日志，body 脱敏，
@@ -216,7 +226,7 @@ export const rpc = {
     }
   },
   snapshot() {
-    const result = writeHeapSnapshot("server.heapsnapshot")
+    const result = writeHeapSnapshot(path.join(Global.Path.log, `worker-${process.pid}-${new Date().toISOString().replace(/[:.]/g, "")}.heapsnapshot`))
     return result
   },
   async server(input: { port: number; hostname: string; mdns?: boolean; cors?: string[] }, ctx: { signal: AbortSignal }) {
@@ -226,12 +236,14 @@ export const rpc = {
     try {
       const { Server } = await importMod<typeof import("@/server/server")>("@/server/server")
       if (server) await server.stop(true)
-      // 注册 abort 监听：若调用方取消，停止新建的 server
-      const onAbort = () => { if (server) server.stop(true) }
+      // 注册 abort 监听：用局部变量跟踪 listen 结果，避免 onAbort 引用旧 server
+      let listener: Listener | undefined
+      const onAbort = () => { listener?.stop(true) }
       ctx.signal.addEventListener("abort", onAbort, { once: true })
       try {
-        server = await Server.listen(input)
-        return { url: server.url.toString() }
+        listener = await Server.listen(input)
+        server = listener
+        return { url: listener.url.toString() }
       } finally {
         ctx.signal.removeEventListener("abort", onAbort)
       }

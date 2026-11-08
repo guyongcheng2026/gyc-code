@@ -130,10 +130,10 @@ async function showRemovalSummary(targets: RemovalTargets, method: Installation.
 
   if (method !== "curl" && method !== "unknown") {
     const cmds: Record<string, string> = {
-      npm: "npm uninstall -g gyccode-ai",
-      pnpm: "pnpm uninstall -g gyccode-ai",
-      bun: "bun remove -g gyccode-ai",
-      yarn: "yarn global remove gyccode-ai",
+      npm: "npm uninstall -g gyc-code",
+      pnpm: "pnpm uninstall -g gyc-code",
+      bun: "bun remove -g gyc-code",
+      yarn: "yarn global remove gyc-code",
       brew: "brew uninstall gyccode",
       choco: "choco uninstall gyccode",
       scoop: "scoop uninstall gyccode",
@@ -181,10 +181,10 @@ async function executeUninstall(method: Installation.Method, targets: RemovalTar
 
   if (method !== "curl" && method !== "unknown") {
     const cmds: Record<string, string[]> = {
-      npm: ["npm", "uninstall", "-g", "gyccode-ai"],
-      pnpm: ["pnpm", "uninstall", "-g", "gyccode-ai"],
-      bun: ["bun", "remove", "-g", "gyccode-ai"],
-      yarn: ["yarn", "global", "remove", "gyccode-ai"],
+      npm: ["npm", "uninstall", "-g", "gyc-code"],
+      pnpm: ["pnpm", "uninstall", "-g", "gyc-code"],
+      bun: ["bun", "remove", "-g", "gyc-code"],
+      yarn: ["yarn", "global", "remove", "gyc-code"],
       brew: ["brew", "uninstall", "gyccode"],
       choco: ["choco", "uninstall", "gyccode"],
       scoop: ["scoop", "uninstall", "gyccode"],

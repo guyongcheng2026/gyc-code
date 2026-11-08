@@ -11,7 +11,7 @@
 - Effect v4 beta 内核 + 会话管理 + 技能系统（compose 模式）
 - MCP 多服务器 + 多 provider（OpenAI/Anthropic/Google/xAI/NVIDIA 等），NVIDIA 免费模型优先排序
 - 声明式插件生态：commands/skills/agents/MCP/hooks
-- 性能基准脚本 `scripts/bench-cli.ts` + 验证脚本 `scripts/verify-cli.mjs`（`--version` 冷启动 <3.5s 达标线）
+- 性能基准脚本 `scripts/bench-cli.ts` + 验证脚本 `scripts/verify-cli.mjs`（`--version` 冷启动 <3.5s 达标线，基线数据见 bench 脚本输出，尚未在发版流程中固化留数）
 - 上游同步机制（`fork-upstream-sync` skill，`upstream-v*` tag 锚点）
 - Ctrl+P 一键自动连接 provider
 - Web UI（gyc-web）+ 账号计费

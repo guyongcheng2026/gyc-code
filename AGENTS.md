@@ -34,7 +34,7 @@
 - 构建：`bun run build`（= `bun build.mjs`；`GYCCODE_SKIP_WEBAPP=1` 跳过 webapp 预构建）
 - 体检：`bun run health`（只读健康快照）；`bun run health:full` 附加全量测试
 - **标准验证顺序**：`bun run typecheck` → `bun run test`；对外发布再 `bun run build`。
-- 无 lint 脚本（`knip.json` 仅供手动查未用依赖）。CI：`.github/workflows/ci.yml` 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一链再推。
+- lint 脚本：`bun run lint`（= `bunx knip`，查未用导出/依赖/文件）。pre-commit 跳过（内存敏感），CI 在 `.github/workflows/security.yml` 执行。CI 全链：`.github/workflows/ci.yml` 跑 typecheck → mojibake → bug-patterns → brand-guard → build → `bun run test`；本地应能复现同一链再推。
 
 ## 启动器与 dist 陷阱（必读）
 
@@ -70,8 +70,8 @@
 
 ## 工作流同步约定
 
-1. **提交即推送**：`.githooks/post-commit`（源文件，postinstall 由 `scripts/install-hooks.mjs` 复制进 `.git/hooks/`，改钩子改 `.githooks/`）自动经 `scripts/push-gh-proxy.mjs` 推送 + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库\2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）+ `scripts/sync-manual.mjs` 校验手册。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
-2. **pre-commit 五检**：唯一入口 `.githooks/pre-commit-checks.mjs`（乱码 / 品牌 / 缺陷模式 / 工作区垃圾 / 类型门禁），查的是 **git index 快照**（`git show :<file>` 物化到临时目录），故 `git add` 后再改工作区也拦得住；`git_commit` 工具传 `run_checks` 复用同一模块。
+1. **提交即推送**：`.githooks/post-commit`（源文件，postinstall 由 `scripts/install-hooks.mjs` 复制进 `.git/hooks/`，改钩子改 `.githooks/`）自动经 `scripts/push-gh-proxy.mjs` 推送 + `scripts/worklog-sync.mjs` 写 Obsidian（`D:\我的知识库` 或 `E:\谷勇成的知识库`，脚本自动探测含 `.git` 的路径；`2001.我的助手工具链\gyc-code-工作流水.md`，vault 远程 gitee `wwkceldn/gu-yongchengs-knowledge-base`）+ `scripts/sync-manual.mjs` 校验手册。失败记 `.git/worklog-sync.log` 不阻塞（`git status` 的 `[ahead N]` 交叉核对）。
+2. **pre-commit 六检**：唯一入口 `.githooks/pre-commit-checks.mjs`（乱码 / 品牌 / 缺陷模式 / 工作区垃圾 / lint（pre-commit 跳过，CI 跑）/ 类型门禁），查的是 **git index 快照**（`git show :<file>` 物化到临时目录），故 `git add` 后再改工作区也拦得住；`git_commit` 工具传 `run_checks` 复用同一模块。
 3. 直连 github 超时走代理两步（fetch/push，优先 `ghfast.top`）：详见 `docs/AGENTS-REFERENCES.md`。
 4. 钩子脚本从仓库根执行（`node scripts/worklog-sync.mjs`）；脚本内中文路径用 `\uXXXX` 转义。
 5. 人工工作记录笔记放 Obsidian 同目录（前缀 `gyc-code-`），提交推送 vault。

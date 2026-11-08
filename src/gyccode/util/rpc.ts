@@ -40,17 +40,109 @@ function channel() {
       },
     }
   }
-  throw new Error("RPC message channel is not available")
+throw new Error("RPC message channel is not available")
+}
+
+// 单次调用的内部逻辑：处理超时、外部信号、settle、pending 管理
+// 使用类型别名避免 TS 模块级泛型函数声明解析问题
+type CreateCallPromise = <T extends Definition, Method extends keyof T>(
+  method: Method,
+  requestId: number,
+  methodTimeout: number,
+  input: Parameters<T[Method]>[0],
+  pending: Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>,
+  timers: Map<number, ReturnType<typeof setTimeout>>,
+  externalSignal: AbortSignal | undefined,
+  hooks: { onActivity?: () => void } | undefined,
+  target: { postMessage: (data: string) => void | null; onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null; on?: (event: "message", listener: (data: string) => void) => void },
+  timeoutMs: number
+) => Promise<ReturnType<T[Method]>>;
+
+function createCallPromise<T extends Definition, Method extends keyof T>(
+  method: Method,
+  requestId: number,
+  methodTimeout: number,
+  input: Parameters<T[Method]>[0],
+  pending: Map<number, { resolve: (result: unknown) => void; reject: (error: Error) => void }>,
+  timers: Map<number, ReturnType<typeof setTimeout>>,
+  externalSignal: AbortSignal | undefined,
+  hooks: { onActivity?: () => void } | undefined,
+  target: { postMessage: (data: string) => void | null; onmessage?: ((this: Worker, ev: MessageEvent<any>) => any) | null; on?: (event: "message", listener: (data: string) => void) => void },
+  timeoutMs: number
+): Promise<ReturnType<T[Method]>> {
+  return new Promise((resolve, reject) => {
+    const settle = (fn: () => void) => {
+      const timer = timers.get(requestId)
+      if (timer !== undefined) {
+        clearTimeout(timer)
+        timers.delete(requestId)
+      }
+      fn()
+    }
+    const onAbort = () => {
+      if (!pending.has(requestId)) return
+      settle(() => {
+        // 通知 server 端 abort，中断长耗时 handler（LLM 流式、网络请求等）
+        target.postMessage(JSON.stringify({ type: "rpc.abort", id: requestId }))
+        reject(new Error(`RPC call aborted: ${String(method)}`))
+      })
+    }
+    if (externalSignal) {
+      if (externalSignal.aborted) {
+        onAbort()
+        return
+      }
+      externalSignal.addEventListener("abort", onAbort, { once: true })
+    }
+    if (methodTimeout > 0) {
+      const timer = setTimeout(() => {
+        if (!pending.has(requestId)) return
+        pending.delete(requestId)
+        timers.delete(requestId)
+        reject(new Error(`RPC call timed out after ${methodTimeout}ms: ${String(method)}`))
+      }, methodTimeout)
+      timers.set(requestId, timer)
+    }
+    pending.set(requestId, {
+      resolve: (result) => {
+        if (externalSignal) {
+          externalSignal.removeEventListener("abort", onAbort)
+        }
+        resolve(result as ReturnType<T[Method]>)
+      },
+      reject: (error) => {
+        if (externalSignal) {
+          externalSignal.removeEventListener("abort", onAbort)
+        }
+        reject(error)
+      }
+    })
+    hooks?.onActivity?.()
+    target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
+  })
 }
 
 export function listen(rpc: Definition) {
   const port = channel()
+  // in-flight 请求的 AbortController 映射：client abort 时通过 rpc.abort 消息通知
+  const controllers = new Map<number, AbortController>()
   port.onMessage(async (data) => {
-    let parsed: { type?: string; method?: string; input?: unknown; id?: number; signalId?: string }
+    let parsed: { type?: string; method?: string; input?: unknown; id?: number }
     try {
       parsed = JSON.parse(data)
     } catch {
       // 畸形消息：忽略并继续，不让整个消息通道因一次坏包而失效
+      return
+    }
+    // client 侧 abort：中断对应 handler 的 AbortSignal
+    if (parsed.type === "rpc.abort") {
+      if (parsed.id !== undefined) {
+        const ctrl = controllers.get(parsed.id)
+        if (ctrl) {
+          ctrl.abort()
+          controllers.delete(parsed.id)
+        }
+      }
       return
     }
     if (parsed.type === "rpc.request") {
@@ -61,17 +153,25 @@ export function listen(rpc: Definition) {
         // 把 AbortSignal 透传给 handler：handler 接收 (input, { signal })，
         // 可据此中断长耗时操作（LLM 流式、网络请求等）。
         const ctrl = new AbortController()
+        if (parsed.id !== undefined) controllers.set(parsed.id, ctrl)
         const result = await handler(parsed.input, { signal: ctrl.signal })
         port.post(JSON.stringify({ type: "rpc.result", result, id: parsed.id }))
       } catch (error) {
         // handler 抛错必须回传：否则 client 侧 pending 悬挂至 dispose，上层 fetch 永不结束。
+        // 回传 {message, name} 而非整段 stack，避免 client 侧 Error.message 变成多行堆栈。
         port.post(
           JSON.stringify({
             type: "rpc.result",
             id: parsed.id,
-            error: error instanceof Error ? (error.stack ?? error.message) : String(error),
+            error: JSON.stringify(
+              error instanceof Error
+                ? { message: error.message, name: error.name }
+                : { message: String(error), name: "Error" },
+            ),
           }),
         )
+      } finally {
+        if (parsed.id !== undefined) controllers.delete(parsed.id)
       }
     }
   })
@@ -135,7 +235,14 @@ export function client<T extends Definition>(target: {
         // 服务端回传 error 字段表示 handler 失败：reject 而非 resolve，
         // 否则调用方会把失败当成功结果继续跑。
         if (parsed.error !== undefined) {
-          entry.reject(new Error(String(parsed.error)))
+          try {
+            const errInfo = JSON.parse(String(parsed.error)) as { message?: string; name?: string }
+            const err = new Error(errInfo.message ?? String(parsed.error))
+            if (errInfo.name) err.name = errInfo.name
+            entry.reject(err)
+          } catch {
+            entry.reject(new Error(String(parsed.error)))
+          }
         } else {
           entry.resolve(parsed.result)
         }
@@ -153,71 +260,33 @@ export function client<T extends Definition>(target: {
   if (typeof target.on === "function") {
     target.on("message", onMessage)
   } else {
-    target.onmessage = async (evt) => {
+    target.onmessage = (evt) => {
       onMessage(evt.data)
     }
   }
+
   return {
     call<Method extends keyof T>(method: Method, input: Parameters<T[Method]>[0]): Promise<ReturnType<T[Method]>> {
       if (disposed) {
         return Promise.reject(new Error("RPC client disposed"))
       }
-      // 外部信号已 abort：不发请求，直接拒绝。
       if (externalSignal?.aborted) {
         return Promise.reject(new Error("RPC call aborted"))
       }
       const requestId = id++
       const methodTimeout = methodTimeouts[String(method)] ?? timeoutMs
-      hooks?.onActivity?.()
-      return new Promise((resolve, reject) => {
-        const settle = (fn: () => void) => {
-          const timer = timers.get(requestId)
-          if (timer !== undefined) {
-            clearTimeout(timer)
-            timers.delete(requestId)
-          }
-          fn()
-        }
-        // 外部信号 abort 时拒绝本次调用。
-        const onAbort = () => {
-          if (!pending.has(requestId)) return
-          pending.delete(requestId)
-          timers.delete(requestId)
-          reject(new Error(`RPC call aborted: ${String(method)}`))
-        }
-        if (externalSignal) {
-          if (externalSignal.aborted) {
-            onAbort()
-            return
-          }
-          externalSignal.addEventListener("abort", onAbort, { once: true })
-        }
-        // 超时兜底：dispose 只在 worker 退出/空闲卸载时触发，若 worker 存活但
-        // handler 永不返回（死锁、上游挂起），pending 条目会无界常驻并连带
-        // 持有调用方的闭包。超时后主动 reject 并清理。
-        // 不用 unref：Node 与 Bun 的返回类型不同（Bun 下无该方法），
-        // 且定时器已在 settle/dispose 路径清除，不会拖住进程退出。
-        if (methodTimeout > 0) {
-          const timer = setTimeout(() => {
-            if (!pending.has(requestId)) return
-            pending.delete(requestId)
-            timers.delete(requestId)
-            reject(new Error(`RPC call timed out after ${methodTimeout}ms: ${String(method)}`))
-          }, methodTimeout)
-          timers.set(requestId, timer)
-        }
-        pending.set(requestId, {
-          resolve: (result) => settle(() => {
-            externalSignal?.removeEventListener("abort", onAbort)
-            resolve(result as ReturnType<T[Method]>)
-          }),
-          reject: (error) => settle(() => {
-            externalSignal?.removeEventListener("abort", onAbort)
-            reject(error)
-          }),
-        })
-        target.postMessage(JSON.stringify({ type: "rpc.request", method, input, id: requestId }))
-      })
+      return createCallPromise<T, Method>(
+        method,
+        requestId,
+        methodTimeout,
+        input,
+        pending,
+        timers,
+        externalSignal,
+        hooks,
+        target,
+        timeoutMs
+      )
     },
     // 当前 in-flight 请求数：空闲卸载前检查，避免误杀活跃连接
     pendingCount(): number {

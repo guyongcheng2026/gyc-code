@@ -63,7 +63,17 @@ export function start(input: {
 }) {
   sweep()
   if (jobs.size >= MAX_JOBS) {
-    throw new Error(`background job limit reached (${MAX_JOBS}), refusing new task`)
+    // 触顶兜底：清理可能是僵尸的 running 任务（进程已死但 exit 事件未到达）
+    const now = Date.now()
+    for (const [id, job] of jobs) {
+      if (job.status === "running" && now - job.startedAt > FINISHED_TTL) {
+        kill(id)
+        jobs.delete(id)
+      }
+    }
+    if (jobs.size >= MAX_JOBS) {
+      throw new Error(`background job limit reached (${MAX_JOBS}), refusing new task`)
+    }
   }
   const id = randomUUID()
   const outputPath = path.join(dir(), `${id}.log`)

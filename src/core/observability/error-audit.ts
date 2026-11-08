@@ -22,8 +22,8 @@ export interface ErrorAuditRecord {
   message: string
   /** 可空：进程级错误（CLI 启动、配置加载）没有会话。 */
   sessionID?: SessionSchema.ID | undefined
-  /** 错误级别：'error' | 'warn' | 'info' */
-  level?: "error" | "warn" | "info" | undefined
+  /** 错误级别 */
+  level?: "error" | "warn" | "info" | "debug" | undefined
   fields?: Record<string, unknown> | undefined
 }
 

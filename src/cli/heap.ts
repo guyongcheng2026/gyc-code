@@ -18,6 +18,15 @@ export function start() {
   if (!Flag.GYCCODE_AUTO_HEAP_SNAPSHOT) return
   if (timer) return
 
+  // 启动时清理旧进程残留的堆快照：文件名带 pid，重启后旧 pid 的快照
+  // 永远不会被运行时清理逻辑命中。这里一次性清扫所有 heap-*.heapsnapshot。
+  void readdir(Global.Path.log)
+    .then((names) => {
+      const stale = names.filter((name) => name.startsWith("heap-") && name.endsWith(".heapsnapshot"))
+      return Promise.all(stale.map((name) => rm(path.join(Global.Path.log, name), { force: true })))
+    })
+    .catch(() => { /* 目录不存在或读取失败，忽略 */ })
+
   const run = async () => {
     if (lock) return
 
@@ -46,7 +55,7 @@ export function start() {
             names
               .filter(
                 (name) =>
-                  name.startsWith(`heap-${process.pid}-`) && name.endsWith(".heapsnapshot")
+                  name.startsWith("heap-") && name.endsWith(".heapsnapshot")
               )
               .sort()
           )
