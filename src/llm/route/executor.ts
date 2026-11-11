@@ -202,7 +202,7 @@ const redactBody = (body: string, request: HttpClientRequest.HttpClientRequest) 
   )
 
 const responseBody = (body: string | void, request: HttpClientRequest.HttpClientRequest) => {
-  if (body === undefined) return {}
+  if (typeof body !== "string") return {}
   const redacted = redactBody(body, request)
   if (redacted.length <= BODY_LIMIT) return { body: redacted }
   return { body: redacted.slice(0, BODY_LIMIT), bodyTruncated: true }

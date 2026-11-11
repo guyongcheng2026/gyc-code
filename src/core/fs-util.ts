@@ -67,12 +67,12 @@ export namespace FSUtil {
       })
 
       const isDir = Effect.fn("FileSystem.isDir")(function* (path: string) {
-        const info = yield* fs.stat(path).pipe(Effect.catch(() => Effect.void))
+        const info = (yield* fs.stat(path).pipe(Effect.catch(() => Effect.void))) as { type: string } | undefined
         return info?.type === "Directory"
       })
 
       const isFile = Effect.fn("FileSystem.isFile")(function* (path: string) {
-        const info = yield* fs.stat(path).pipe(Effect.catch(() => Effect.void))
+        const info = (yield* fs.stat(path).pipe(Effect.catch(() => Effect.void))) as { type: string } | undefined
         return info?.type === "File"
       })
 

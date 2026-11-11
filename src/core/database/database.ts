@@ -27,11 +27,11 @@ const enableIncrementalVacuum = Effect.fn("Database.enableIncrementalVacuum")(fu
       Effect.logError("Failed to enable incremental vacuum", { error: e })
     )
   )
-  const row = yield* db.get<{ auto_vacuum: number }>(sql`PRAGMA auto_vacuum`).pipe(
+  const row = (yield* db.get<{ auto_vacuum: number }>(sql`PRAGMA auto_vacuum`).pipe(
     Effect.catch((e) =>
       Effect.logError("Failed to get auto_vacuum", { error: e })
     )
-  )
+  )) as { auto_vacuum: number } | undefined
   if (row?.auto_vacuum !== 2) {
     // Existing database: one-time full VACUUM to rebuild with auto-vacuum on.
     yield* db.run(sql`VACUUM`).pipe(
@@ -105,14 +105,14 @@ export const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function*
   // 同步阻塞在 Database layer 构造期（即冷启动路径）。现在先把「要删几个」
   // 一次算清（selectPruneTargetCount），再用带 LIMIT 的单条 DELETE 落地。
   while (true) {
-    const total = yield* db.get<{ b: number | null }>(sql`SELECT SUM(LENGTH(data)) AS b FROM event`).pipe(
+    const total = (yield* db.get<{ b: number | null }>(sql`SELECT SUM(LENGTH(data)) AS b FROM event`).pipe(
       Effect.catch((e) =>
         Effect.logError("Failed to get event log size", { error: e })
       )
-    )
+    )) as { b: number | null } | undefined
     const over = (total?.b ?? 0) - capBytes
     if (over <= 0) return
-    const sessions = yield* db
+    const sessions = (yield* db
       .all<{ id: string; bytes: number }>(sql`
         SELECT e.aggregate_id AS id, SUM(LENGTH(e.data)) AS bytes
         FROM event e
@@ -124,7 +124,7 @@ export const pruneStaleEvents = Effect.fn("Database.pruneStaleEvents")(function*
         Effect.catch((e) =>
           Effect.logError("Failed to group event bytes by session", { error: e })
         )
-      )
+      )) as { id: string; bytes: number; }[] | undefined
     const limit = selectPruneTargetCount(sessions ?? [], over)
     // 没有可裁剪的会话（全部是孤儿 aggregate_id）：再循环也不会变小，直接退出。
     if (limit === 0) return
