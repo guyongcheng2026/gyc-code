@@ -147,7 +147,7 @@ export const { use: useTheme, provider: ThemeProvider } = createSimpleContext({
       // （theme_mode_lock 存在时始终以锁定值为准）。
       void Promise.allSettled([
         renderer
-          .waitForThemeMode(300)
+          .waitForThemeMode(1500)
           .then((detected) => {
             if (!detected || store.lock) return
             if (store.mode !== detected) setStore("mode", detected)
