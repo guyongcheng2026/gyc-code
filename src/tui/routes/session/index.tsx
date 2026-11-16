@@ -411,6 +411,10 @@ export function Session() {
   // （core/session/message-updater.ts:192-217 每步先将上一条 assistant 标记
   // completed 再建新消息），用户感知为「结果反馈时画面上下跳」。
   const RENDER_NODE_FACTOR = 3
+  // 流式期帧率上限：rich 终端 60fps 高频重绘配合 scrollbox sticky-bottom 在 Windows 终端
+  // 易产生可见闪烁；降至 30fps 仍足以流畅上屏，且降低每帧重绘开销。plain 终端
+  // 原本上限 10fps 不受此影响（min(10,30)=10）。
+  const STREAMING_MAX_FPS = 30
   // 帧率档位只随「规模档」变化，不随消息条数逐条变化。
   // 量化到 LARGE_SESSION_THRESHOLD 的倍数：scaleDownFps 按 floor(scale/TH) 取档，
   // 档内取整不改变取档结果。memo 必须返回**数值**而非新对象——Solid 的 memo 用
@@ -440,10 +444,9 @@ export function Session() {
   createEffect(() => {
     const isStreaming = streaming()
     if (renderer.isDestroyed) return
-    fpsController.request(
-      sessionTargetFps(probeTerminal(), isStreaming, { scale: renderScale() }),
-      isStreaming,
-    )
+    const targetFps = sessionTargetFps(probeTerminal(), isStreaming, { scale: renderScale() })
+    const capped = isStreaming ? Math.min(targetFps, STREAMING_MAX_FPS) : targetFps
+    fpsController.request(capped, isStreaming)
   })
   onCleanup(() => {
     fpsController.dispose()
